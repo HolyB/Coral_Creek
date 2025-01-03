@@ -12,6 +12,9 @@ from tqdm import tqdm
 from Stock_utils.stock_analysis import StockAnalysis
 from Stock_utils.stock_data_fetcher import StockDataFetcher
 
+# 创建线程锁
+print_lock = threading.Lock()
+
 def get_realtime_price(symbol):
     """获取A股实时价格"""
     try:
@@ -99,14 +102,18 @@ def process_single_stock(stock):
     symbol = stock['code']
     name = stock['name']
     
+    # 特别关注 ST 京蓝
+    is_target = 'ST京蓝' in name
+    
     try:
         # 1. 获取日线数据
         fetcher_daily = StockDataFetcher(symbol, source='akshare', interval='1d')
         data_daily = fetcher_daily.get_stock_data()
         
         if data_daily is None or data_daily.empty:
-            with print_lock:
-                print(f"{symbol} 无法获取历史数据")
+            if is_target:
+                with print_lock:
+                    print(f"ST京蓝: 无法获取历史数据")
             return None
             
         # 重采样为周线数据
@@ -156,6 +163,26 @@ def process_single_stock(stock):
             latest_daily['DOUBLE_VOL']
         )
         
+        if is_target:
+            with print_lock:
+                print(f"\nST京蓝信号检查:")
+                print(f"日线信号: {has_daily_signal}")
+                print(f"- 日PINK做多: {latest_daily['笑脸信号_做多']}")
+                print(f"- 日PINK做空: {latest_daily['笑脸信号_做空']}")
+                print(f"- 日BLUE>150天数: {len(recent_daily[recent_daily['BLUE'] > 150])}")
+                print(f"\n周线信号: {has_weekly_signal}")
+                print(f"- 周PINK做多: {latest_weekly['笑脸信号_做多']}")
+                print(f"- 周PINK做空: {latest_weekly['笑脸信号_做空']}")
+                print(f"- 周BLUE>150周数: {len(recent_weekly[recent_weekly['BLUE'] > 150])}")
+                print(f"\n成交量信号: {has_volume_signal}")
+                print(f"- 黄金柱: {latest_daily['GOLD_VOL']}")
+                print(f"- 倍量柱: {latest_daily['DOUBLE_VOL']}")
+                print(f"\nMACD信号:")
+                print(f"- DIF: {latest_daily['DIF']:.2f}")
+                print(f"- DEA: {latest_daily['DEA']:.2f}")
+                print(f"- MACD: {latest_daily['MACD']:.2f}")
+                print(f"- EMAMACD: {latest_daily['EMAMACD']:.2f}")
+        
         # 修改条件：必须有周线信号
         if has_weekly_signal and (has_daily_signal or has_volume_signal):
             result = {
@@ -193,8 +220,9 @@ def process_single_stock(stock):
             return result
             
     except Exception as e:
-        with print_lock:
-            print(f"{symbol} {name} 处理失败: {e}")
+        if is_target:
+            with print_lock:
+                print(f"ST京蓝处理失败: {e}")
         return None
 
 def main():
