@@ -45,17 +45,14 @@ def debug_stock(symbol='000711', name='ST京蓝'):
             # 2. 计算指标
             print("\n2. 计算指标...")
             analysis_weekly = StockAnalysis(data_weekly)
-            df_weekly = analysis_weekly.calculate_phantom_indicators()
-            
-            # 添加缩放比例计算
-            max_blue = df_weekly['BLUE'].max()
-            radio1 = 200 / max_blue if max_blue > 0 else 1
-            df_weekly['BLUE'] = df_weekly['BLUE'] * radio1
+            df_weekly = analysis_weekly.calculate_phantom_force()
+            df_weekly = analysis_weekly.calculate_safe_zone()  # 添加安全区域计算
             
             analysis_daily = StockAnalysis(data_daily)
-            df_daily = analysis_daily.calculate_phantom_indicators()
+            df_daily = analysis_daily.calculate_phantom_force()
             df_daily = analysis_daily.calculate_heatmap_volume()
             df_daily = analysis_daily.calculate_macd_signals()
+            df_daily = analysis_daily.calculate_safe_zone()  # 添加安全区域计算
             
             recent_weekly = df_weekly.tail(10)
             latest_weekly = df_weekly.iloc[-1]
@@ -66,18 +63,18 @@ def debug_stock(symbol='000711', name='ST京蓝'):
             # 3. 检查信号条件
             print("\n3. 检查信号...")
             print("\n日线指标:")
-            print(f"PINK: {latest_daily['PINK']:.2f}")
-            print(f"BLUE: {latest_daily['BLUE']:.2f}")
-            print(f"笑脸信号_做多: {latest_daily['笑脸信号_做多']}")
-            print(f"笑脸信号_做空: {latest_daily['笑脸信号_做空']}")
-            print(f"BLUE>150天数: {len(recent_daily[recent_daily['BLUE'] > 150])}")
+            print(f"PINK: {latest_daily['phantom_pink']:.2f}")
+            print(f"BLUE: {latest_daily['phantom_blue']:.2f}")
+            print(f"买入信号: {latest_daily['phantom_buy']}")
+            print(f"卖出信号: {latest_daily['phantom_sell']}")
+            print(f"BLUE>150天数: {len(recent_daily[recent_daily['phantom_blue'] > 150])}")
             
             print("\n周线指标:")
-            print(f"PINK: {latest_weekly['PINK']:.2f}")
-            print(f"BLUE: {latest_weekly['BLUE']:.2f}")
-            print(f"笑脸信号_做多: {latest_weekly['笑脸信号_做多']}")
-            print(f"笑脸信号_做空: {latest_weekly['笑脸信号_做空']}")
-            print(f"BLUE>150周数: {len(recent_weekly[recent_weekly['BLUE'] > 150])}")
+            print(f"PINK: {latest_weekly['phantom_pink']:.2f}")
+            print(f"BLUE: {latest_weekly['phantom_blue']:.2f}")
+            print(f"买入信号: {latest_weekly['phantom_buy']}")
+            print(f"卖出信号: {latest_weekly['phantom_sell']}")
+            print(f"BLUE>150周数: {len(recent_weekly[recent_weekly['phantom_blue'] > 150])}")
             
             print("\n成交量指标:")
             print(f"VOL_TIMES: {latest_daily['VOL_TIMES']:.2f}")
@@ -88,22 +85,22 @@ def debug_stock(symbol='000711', name='ST京蓝'):
             print(f"最近5天倍量柱次数: {len(recent_5d[recent_5d['DOUBLE_VOL']])}")
             
             print("\nMACD指标:")
-            print(f"DIF: {latest_daily['DIF']:.4f}")
-            print(f"DEA: {latest_daily['DEA']:.4f}")
-            print(f"MACD: {latest_daily['MACD']:.4f}")
-            print(f"EMAMACD: {latest_daily['EMAMACD']:.4f}")
+            # print(f"DIF: {latest_daily['DIF']:.4f}")
+            # print(f"DEA: {latest_daily['DEA']:.4f}")
+            # print(f"MACD: {latest_daily['MACD']:.4f}")
+            # print(f"EMAMACD: {latest_daily['EMAMACD']:.4f}")
             
             # 4. 检查信号条件
             has_daily_signal = (
-                latest_daily['笑脸信号_做多'] == 1 or 
-                latest_daily['笑脸信号_做空'] == 1 or 
-                len(recent_daily[recent_daily['BLUE'] > 150]) >= 3
+                latest_daily['phantom_buy'] or 
+                latest_daily['phantom_sell'] or 
+                len(recent_daily[recent_daily['phantom_blue'] > 150]) >= 3
             )
             
             has_weekly_signal = (
-                latest_weekly['笑脸信号_做多'] == 1 or 
-                latest_weekly['笑脸信号_做空'] == 1 or 
-                len(recent_weekly[recent_weekly['BLUE'] > 150]) >= 2
+                latest_weekly['phantom_buy'] or 
+                latest_weekly['phantom_sell'] or 
+                len(recent_weekly[recent_weekly['phantom_blue'] > 150]) >= 2
             )
             
             has_volume_signal = (
@@ -125,6 +122,50 @@ def debug_stock(symbol='000711', name='ST京蓝'):
                     print("- 缺少周线信号")
                 if not has_daily_signal and not has_volume_signal:
                     print("- 缺少日线信号和成交量信号")
+            
+            # 添加安全区域信号检查
+            print("\n安全区域指标:")
+            print("\n日线区域:")
+            print(f"趋势值: {latest_daily['趋势']:.2f}")
+            print(f"顶底线: {latest_daily['顶底线']:.2f}")
+            print(f"高安全区: {'是' if latest_daily['高安全区'] else '否'}")
+            print(f"安全区: {'是' if latest_daily['安全区'] else '否'}")
+            print(f"粉区持币: {'是' if latest_daily['粉区持币'] else '否'}")
+            print(f"绿区持股: {'是' if latest_daily['绿区持股'] else '否'}")
+            print(f"风险区: {'是' if latest_daily['风险区'] else '否'}")
+            print(f"高风险区: {'是' if latest_daily['高风险区'] else '否'}")
+            
+            print("\n日线信号:")
+            print(f"强拉升: {'是' if latest_daily['强拉升'] else '否'}")
+            print(f"加强拉升: {'是' if latest_daily['加强拉升'] else '否'}")
+            print(f"买半注: {'是' if latest_daily['买半注'] else '否'}")
+            print(f"BBUY: {'是' if latest_daily['BBUY'] else '否'}")
+            print(f"减仓: {'是' if latest_daily['减仓'] else '否'}")
+            print(f"BUY: {latest_daily['BUY']:.2f}")
+            print(f"SOLD: {latest_daily['SOLD']:.2f}")
+            print(f"TREND1: {latest_daily['TREND1']:.2f}")
+            print(f"火焰山: {latest_daily['火焰山']:.2f}")
+            
+            print("\n周线区域:")
+            print(f"趋势值: {latest_weekly['趋势']:.2f}")
+            print(f"顶底线: {latest_weekly['顶底线']:.2f}")
+            print(f"高安全区: {'是' if latest_weekly['高安全区'] else '否'}")
+            print(f"安全区: {'是' if latest_weekly['安全区'] else '否'}")
+            print(f"粉区持币: {'是' if latest_weekly['粉区持币'] else '否'}")
+            print(f"绿区持股: {'是' if latest_weekly['绿区持股'] else '否'}")
+            print(f"风险区: {'是' if latest_weekly['风险区'] else '否'}")
+            print(f"高风险区: {'是' if latest_weekly['高风险区'] else '否'}")
+            
+            print("\n周线信号:")
+            print(f"强拉升: {'是' if latest_weekly['强拉升'] else '否'}")
+            print(f"加强拉升: {'是' if latest_weekly['加强拉升'] else '否'}")
+            print(f"买半注: {'是' if latest_weekly['买半注'] else '否'}")
+            print(f"BBUY: {'是' if latest_weekly['BBUY'] else '否'}")
+            print(f"减仓: {'是' if latest_weekly['减仓'] else '否'}")
+            print(f"BUY: {latest_weekly['BUY']:.2f}")
+            print(f"SOLD: {latest_weekly['SOLD']:.2f}")
+            print(f"TREND1: {latest_weekly['TREND1']:.2f}")
+            print(f"火焰山: {latest_weekly['火焰山']:.2f}")
             
             # 如果成功获取和处理了数据，就跳出重试循环
             break

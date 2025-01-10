@@ -26,50 +26,53 @@ def process_single_stock(symbol):
             with print_lock:
                 print(f"{symbol} 无法获取日线数据")
             return None
+        
+        # 计算最近5天内最低价的涨幅
+        if len(data_daily) >= 5:
+            recent_data = data_daily.iloc[-5:]  # 最近5天数据
+            min_price = recent_data['Low'].min()  # 5天内最低价
+            current_price = data_daily['Close'].iloc[-1]  # 当前收盘价
+            recent_change = (current_price / min_price - 1) * 100  # 相对最低价的涨幅
             
+            if recent_change > 5:  # 涨幅超过5%的股票跳过
+                return None
+        
         # 重采样为周线数据，使用周一作为时间戳
         data_weekly = data_daily.resample('W-MON').agg({
             'Open': 'first',
             'High': 'max',
             'Low': 'min',
             'Close': 'last',
-            'Volume': 'mean'  # 取平均
-        }).dropna()  # 删除空值
+            'Volume': 'mean'
+        }).dropna()
         
-        # 2. 计算周线指标，添加缩放比例
+        # 2. 计算周线指标
         analysis_weekly = StockAnalysis(data_weekly)
-        df_weekly = analysis_weekly.calculate_phantom_indicators()
-        
-        # 添加缩放比例计算
-        max_blue = df_weekly['BLUE'].max()  # 获取整个周期内的最大BLUE值
-        radio1 = 200 / max_blue if max_blue > 0 else 1  # 根据原版公式设置缩放比例
-        
-        # 应用缩放
-        df_weekly['BLUE'] = df_weekly['BLUE'] * radio1
-        
-        recent_weekly = df_weekly.tail(10)
-        latest_weekly = df_weekly.iloc[-1]
+        df_weekly = analysis_weekly.calculate_phantom_force()
         
         # 计算日线指标
         analysis_daily = StockAnalysis(data_daily)
-        df_daily = analysis_daily.calculate_phantom_indicators()
-        df_daily=analysis_daily.calculate_heatmap_volume()
-        df_daily=analysis_daily.calculate_macd_signals()
+        df_daily = analysis_daily.calculate_phantom_force()
+        df_daily = analysis_daily.calculate_heatmap_volume()
+        df_daily = analysis_daily.calculate_macd_signals()
+        
+        recent_weekly = df_weekly.tail(10)
+        latest_weekly = df_weekly.iloc[-1]
         recent_daily = df_daily.tail(10)
         latest_daily = df_daily.iloc[-1]
         recent_5d = df_daily.tail(5)
         
         # 检查信号条件
         has_daily_signal = (
-            latest_daily['笑脸信号_做多'] == 1 or 
-            latest_daily['笑脸信号_做空'] == 1 or 
-            len(recent_daily[recent_daily['BLUE'] > 150]) >= 3
+            latest_daily['phantom_buy'] or 
+            latest_daily['phantom_sell'] or 
+            len(recent_daily[recent_daily['phantom_blue'] > 150]) >= 3
         )
         
         has_weekly_signal = (
-            latest_weekly['笑脸信号_做多'] == 1 or 
-            latest_weekly['笑脸信号_做空'] == 1 or 
-            len(recent_weekly[recent_weekly['BLUE'] > 150]) >= 2
+            latest_weekly['phantom_buy'] or 
+            latest_weekly['phantom_sell'] or 
+            len(recent_weekly[recent_weekly['phantom_blue'] > 150]) >= 2
         )
         
         has_volume_signal = (
@@ -84,23 +87,23 @@ def process_single_stock(symbol):
                 'price': latest_daily['Close'],
                 'Volume': latest_daily['Volume'],
                 'turnover': latest_daily['Volume'] * latest_daily['Close'],
-                'pink_daily': latest_daily['PINK'],
-                'blue_daily': latest_daily['BLUE'],
-                'max_blue_daily': recent_daily['BLUE'].max(),
-                'blue_days': len(recent_daily[recent_daily['BLUE'] > 150]),
-                'pink_weekly': latest_weekly['PINK'],
-                'blue_weekly': latest_weekly['BLUE'],
-                'max_blue_weekly': recent_weekly['BLUE'].max(),
-                'blue_weeks': len(recent_weekly[recent_weekly['BLUE'] > 150]),
-                'smile_long_daily': latest_daily['笑脸信号_做多'],
-                'smile_short_daily': latest_daily['笑脸信号_做空'],
-                'smile_long_weekly': latest_weekly['笑脸信号_做多'],
-                'smile_short_weekly': latest_weekly['笑脸信号_做空'],
+                'pink_daily': latest_daily['phantom_pink'],
+                'blue_daily': latest_daily['phantom_blue'],
+                'max_blue_daily': recent_daily['phantom_blue'].max(),
+                'blue_days': len(recent_daily[recent_daily['phantom_blue'] > 150]),
+                'pink_weekly': latest_weekly['phantom_pink'],
+                'blue_weekly': latest_weekly['phantom_blue'],
+                'max_blue_weekly': recent_weekly['phantom_blue'].max(),
+                'blue_weeks': len(recent_weekly[recent_weekly['phantom_blue'] > 150]),
+                'smile_long_daily': latest_daily['phantom_buy'],
+                'smile_short_daily': latest_daily['phantom_sell'],
+                'smile_long_weekly': latest_weekly['phantom_buy'],
+                'smile_short_weekly': latest_weekly['phantom_sell'],
                 'vol_times': latest_daily['VOL_TIMES'],
                 'vol_color': latest_daily['HVOL_COLOR'],
                 'gold_vol_count': len(recent_5d[recent_5d['GOLD_VOL']]),
                 'double_vol_count': len(recent_5d[recent_5d['DOUBLE_VOL']]),
-                # 添加MACD相关指标
+                # MACD相关指标
                 'DIF': latest_daily['DIF'],
                 'DEA': latest_daily['DEA'],
                 'MACD': latest_daily['MACD'],
@@ -130,7 +133,7 @@ def scan_signals_parallel(max_workers=10):
     """并行扫描股票信号"""
     # 获取所有股票代码
     print("正在获取股票列表...")
-    tickers = get_sp500_tickers()
+    tickers = get_all_tickers()
     print(f"共获取到 {len(tickers)} 只股票")
     
     results = []

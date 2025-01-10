@@ -96,7 +96,7 @@ def scan_signals():
             
             # 计算指标
             analysis = StockAnalysis(data)
-            df = analysis.calculate_phantom_indicators()
+            df = analysis.calculate_phantom_force()
             
             # 获取最近数据
             recent = df.tail(10)

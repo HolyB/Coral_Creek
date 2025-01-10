@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from .MyTT import *
 
 class StockAnalysis:
     def __init__(self, df: pd.DataFrame):
@@ -808,6 +809,7 @@ class StockAnalysis:
         self.calculate_phantom_indicators()
         self.calculate_heatmap_volume()
         self.calculate_heima_wangzi()
+        self.calculate_phantom_force()
         
         return self.df
 
@@ -1085,6 +1087,183 @@ class StockAnalysis:
         
         return df
 
+    def calculate_phantom_force(self):
+        """计算幻影主力指标"""
+        
+        # 1. 海底捞月部分
+        def calculate_haidilaoyue(HIGH, LOW, OPEN, CLOSE):
+            VAR1 = REF((LOW + OPEN + CLOSE + HIGH) / 4, 1)
+            
+            # 多头部分
+            VAR2 = SMA(ABS(LOW - VAR1), 13, 1) / SMA(MAX(LOW - VAR1, 0), 10, 1)
+            VAR3 = EMA(VAR2, 10)
+            VAR4 = LLV(LOW, 33)
+            VAR5 = EMA(IF(LOW <= VAR4, VAR3, 0), 3)
+            VAR6 = POW(VAR5, 0.3)
+            
+            # 空头部分
+            VAR21 = SMA(ABS(HIGH - VAR1), 13, 1) / SMA(MIN(HIGH - VAR1, 0), 10, 1)
+            VAR31 = EMA(VAR21, 10)
+            VAR41 = HHV(HIGH, 33)
+            VAR51 = EMA(IF(HIGH >= VAR41, -VAR31, 0), 3)
+            VAR61 = POW(VAR51, 0.3)
+            
+            # 缩放比例
+            RADIO1 = 200 / CONST(HHV(MAX(VAR6, VAR61), len(HIGH)))
+            
+            # 计算最终结果
+            BLUE = IF(VAR5 > REF(VAR5, 1), VAR6 * RADIO1, 0)
+            LIRED = IF(VAR51 > REF(VAR51, 1), -VAR61 * RADIO1, 0)
+            
+            return BLUE, LIRED
+        
+        # 2. 资金力度部分
+        def calculate_zijinlidu(HIGH, LOW, OPEN, CLOSE, VOL):
+            QJJ = VOL / ((HIGH - LOW) * 2 - ABS(CLOSE - OPEN))
+            XVL = IF(CLOSE == OPEN, 0, (CLOSE - OPEN) * QJJ)
+            HSL = XVL / 20 / 1.15
+            attack_flow = HSL * 0.55 + REF(HSL, 1) * 0.33 + REF(HSL, 2) * 0.22
+            LLJX = EMA(attack_flow, 3)
+            
+            # 缩放比例
+            RADIO = 10000 / CONST(HHV(VOL, len(VOL)))
+            
+            RED = IF(LLJX > 0, LLJX * RADIO, 0)
+            YELLOW = IF(HSL > 0, HSL * 0.6 * RADIO, 0)
+            GREEN = IF((LLJX < 0) | (HSL < 0), MIN(LLJX, HSL * 0.6) * RADIO, 0)
+            LIGHTBLUE = DMA(attack_flow, 0.222228) * RADIO
+            
+            return RED, YELLOW, GREEN, LIGHTBLUE, attack_flow
+        
+        # 3. KDJ部分
+        def calculate_kdj_custom(HIGH, LOW, CLOSE):
+            RSV1 = (CLOSE - LLV(LOW, 39)) / (HHV(HIGH, 39) - LLV(LOW, 39)) * 100
+            K = SMA(RSV1, 2, 1)
+            D = SMA(K, 2, 1)
+            J = 3 * K - 2 * D
+            PINK = SMA(J, 2, 1)
+            
+            return PINK
+        
+        # 计算所有指标
+        HIGH, LOW = self.df['High'].values, self.df['Low'].values
+        OPEN, CLOSE = self.df['Open'].values, self.df['Close'].values
+        VOL = self.df['Volume'].values
+        
+        # 计算三个部分的指标
+        BLUE, LIRED = calculate_haidilaoyue(HIGH, LOW, OPEN, CLOSE)
+        RED, YELLOW, GREEN, LIGHTBLUE, attack_flow = calculate_zijinlidu(HIGH, LOW, OPEN, CLOSE, VOL)
+        PINK = calculate_kdj_custom(HIGH, LOW, CLOSE)
+        
+        # 生成信号
+        buy_signals = CROSS(10, PINK)  # PINK线上穿10
+        sell_signals = CROSS(PINK, 94)  # PINK线下穿90
+        
+        # 保存结果到DataFrame
+        self.df['phantom_blue'] = BLUE
+        self.df['phantom_red'] = RED
+        self.df['phantom_yellow'] = YELLOW
+        self.df['phantom_green'] = GREEN
+        self.df['phantom_pink'] = PINK
+        self.df['phantom_lightblue'] = LIGHTBLUE
+        self.df['phantom_buy'] = buy_signals
+        self.df['phantom_sell'] = sell_signals
+        
+        return self.df  
+
+    def calculate_safe_zone(self):
+        """计算安全区域指标"""
+        df = self.df
+        CLOSE, HIGH, LOW = df['Close'].values, df['High'].values, df['Low'].values
+        
+        # 计算顶底线
+        RSVA1 = (CLOSE - LLV(LOW, 9)) / (HHV(HIGH, 9) - LLV(LOW, 9)) * 100
+        RSVA2 = 100 * (HHV(HIGH, 9) - CLOSE) / (HHV(HIGH, 9) - LLV(LOW, 9))
+        VAR21 = SMA(RSVA2, 9, 1) + 100
+        VAR11 = SMA(RSVA1, 3, 1)
+        VAR51 = SMA(VAR11, 3, 1) + 100
+        df['顶底线'] = VAR51 - VAR21 + 50
+        
+        # 计算趋势
+        VAR2 = LLV(LOW, 330)
+        VAR3 = HHV(HIGH, 210)
+        VAR4 = EMA((CLOSE - VAR2) / (VAR3 - VAR2) * 100, 10) * -1 + 100
+        df['趋势'] = 100 - EMA(0.191 * REF(VAR4, 1) + 0.809 * VAR4, 1)
+        
+        # 计算区域信号
+        df['顶底线上升'] = df['顶底线'] > REF(df['顶底线'].values, 1)
+        df['顶底线下降'] = df['顶底线'] < REF(df['顶底线'].values, 1)
+        df['趋势上升'] = df['趋势'] > REF(df['趋势'].values, 1)
+        df['趋势下降'] = df['趋势'] < REF(df['趋势'].values, 1)
+        
+        # 计算强拉升信号
+        Y1 = LLV(LOW, 17)
+        Y2 = SMA(ABS(LOW - REF(LOW, 1)), 17, 1)
+        Y3 = SMA(MAX(LOW - REF(LOW, 1), 0), 17, 2)
+        Q = -(EMA(IF(LOW <= Y1, Y2/Y3, -3), 1))
+        df['强拉升'] = CROSS(Q, 0)
+        
+        # 计算加强拉升信号
+        Q1 = (CLOSE - MA(CLOSE, 40)) / MA(CLOSE, 40) * 100
+        df['加强拉升'] = CROSS(Q1, -24)
+        
+        # 计算买半注信号
+        VAR22_temp = (2 * CLOSE + HIGH + LOW) / 4
+        VAR22 = EMA(EMA(EMA(VAR22_temp, 4), 4), 4)  # 使用EMA替代EXPMA
+        天 = MA((VAR22 - REF(VAR22, 1)) / REF(VAR22, 1) * 100, 2)
+        地 = MA((VAR22 - REF(VAR22, 1)) / REF(VAR22, 1) * 100, 1)
+        df['买半注'] = (地 > 天) & (地 < 0)
+        
+        # 计算TREND1
+        VAR1B = (HHV(HIGH, 9) - CLOSE) / (HHV(HIGH, 9) - LLV(LOW, 9)) * 100 - 70
+        VAR2B = SMA(VAR1B, 9, 1) + 100
+        VAR3B = (CLOSE - LLV(LOW, 9)) / (HHV(HIGH, 9) - LLV(LOW, 9)) * 100
+        VAR4B = SMA(VAR3B, 3, 1)
+        VAR5B = SMA(VAR4B, 3, 1) + 100
+        VAR6B = VAR5B - VAR2B
+        df['TREND1'] = IF(VAR6B > 45, VAR6B - 45, 0)
+        df['TREND1上升'] = REF(df['TREND1'], 1) < df['TREND1']
+        df['TREND1下降'] = REF(df['TREND1'], 1) > df['TREND1']
+        
+        # 计算火焰山
+        VAR2Q = REF(LOW, 1)
+        VAR3Q = SMA(ABS(LOW - VAR2Q), 3, 1) / SMA(MAX(LOW - VAR2Q, 0), 3, 1) * 100
+        VAR4Q = EMA(IF(CLOSE * 1.3, VAR3Q * 10, VAR3Q / 10), 3)
+        VAR5Q = LLV(LOW, 30)
+        VAR6Q = HHV(VAR4Q, 30)
+        VAR7Q = IF(MA(CLOSE, 58), 1, 0)
+        VAR8Q = EMA(IF(LOW <= VAR5Q, (VAR4Q + VAR6Q * 2) / 2, 0), 3) / 999 * VAR7Q
+        df['火焰山'] = IF(VAR8Q > 100, 100, VAR8Q)
+        
+        # 计算BBUY信号
+        D1 = (CLOSE + LOW + HIGH) / 3
+        D2 = EMA(D1, 6)
+        D3 = EMA(D2, 5)
+        df['BBUY'] = CROSS(D2, D3)
+        
+        # 计算减仓信号
+        VARR1 = SMA(MAX(CLOSE - REF(CLOSE, 1), 0), 6, 1) / SMA(ABS(CLOSE - REF(CLOSE, 1)), 6, 1) * 100
+        df['减仓'] = CROSS(80, VARR1)
+        
+        # 计算趋势和能量线
+        V1 = (CLOSE - LLV(LOW, 25)) / (HHV(HIGH, 25) - LLV(LOW, 25)) * 100
+        V2 = SMA(V1, 3, 1)
+        TREND = SMA(V2, 3, 1)
+        POWERLINE = SMA(TREND, 3, 1)
+        
+        # 计算买卖信号
+        df['BUY'] = IF(CROSS(TREND, POWERLINE) & (TREND < 25), 20, 0)
+        df['SOLD'] = IF(CROSS(POWERLINE, TREND) & (POWERLINE > 80), 85, 100)
+        
+        # 计算区域
+        df['高安全区'] = (df['趋势'] >= 90)
+        df['安全区'] = (df['趋势'] >= 80) & (df['趋势'] < 90)
+        df['粉区持币'] = (df['趋势'] >= 45) & (df['趋势'] < 80)
+        df['绿区持股'] = (df['趋势'] >= 20) & (df['趋势'] < 45)
+        df['风险区'] = (df['趋势'] >= 10) & (df['趋势'] < 20)
+        df['高风险区'] = (df['趋势'] < 10)
+        
+        return df
 
 
 # 示例代码
