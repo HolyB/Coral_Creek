@@ -1,0 +1,2252 @@
+{
+  "AFGE": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "AGGS": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "AMC": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "AMZD": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "AZTR": {
+    "signals": [
+      "日BLUE>150(4天)",
+      "周BLUE>150(4周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_100217",
+    "appear_count": 1
+  },
+  "BBBL": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "BCAN": {
+    "signals": [
+      "周BLUE>150(6周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "BEEM": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "BILD": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "BITF": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "BRAZ": {
+    "signals": [
+      "日PINK下穿94",
+      "周BLUE>150(5周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "BUJAW": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "CDTG": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "COHU": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "CPSI": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "CRON": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "CTCXW": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "DMYY": {
+    "signals": [
+      "日PINK下穿94",
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "DWCR": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "DXD": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "DYN": {
+    "signals": [
+      "日BLUE>150(5天)",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ECCW": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_093542",
+    "appear_count": 1
+  },
+  "EGY": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "EMDM": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "EVHY": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "EVNT": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "EVTV": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "FBYDW": {
+    "signals": [
+      "日BLUE>150(5天)",
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "FBZ": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "黄金柱(1次)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_093542",
+    "appear_count": 1
+  },
+  "FCX": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "FLAO": {
+    "signals": [
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FLJJ": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FLYD": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "FRNW": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "GENM": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "GODNU": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "GSIB": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "HF": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "HOWL": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "IBAT": {
+    "signals": [
+      "周PINK上穿10",
+      "周BLUE>150(4周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "IFN": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "INBX": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "INTG": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "JDVI": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(4次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "JETD": {
+    "signals": [
+      "日BLUE>150(4天)",
+      "周BLUE>150(6周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "JLQD": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "KSS": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(7周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "MCSE": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "MEDX": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_100217",
+    "appear_count": 1
+  },
+  "MFUT": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "MHLA": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "MSAI": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "NRES": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "NVDY": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "NVEE": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(7周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "NWGL": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "OCEN": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(4次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ON": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(4周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "PED": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "PSQ": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "QQQD": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "QQQY": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(6周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "QSR": {
+    "signals": [
+      "日BLUE>150(4天)",
+      "周BLUE>150(5周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "QTJL": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "RSPS": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SAM": {
+    "signals": [
+      "日BLUE>150(4天)",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SAIC": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "SCC": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SH": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SHMD": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SHMDW": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SKF": {
+    "signals": [
+      "周PINK上穿10",
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SOLR": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "黄金柱(1次)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SPCE": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "STE": {
+    "signals": [
+      "日PINK下穿94",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "STSSW": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "SUPN": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "SYTA": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "TIVC": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "TNON": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(7周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "UGRO": {
+    "signals": [
+      "周BLUE>150(6周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "UPAR": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "UTZ": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "UYM": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "VCIG": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "VECO": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "VETZ": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "VMAR": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "VNDA": {
+    "signals": [
+      "日BLUE>150(5天)",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "WAT": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94"
+    ],
+    "timestamp": "20250127_100217",
+    "appear_count": 1
+  },
+  "XXCH": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ZSC": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "ZURA": {
+    "signals": [
+      "日BLUE>150(8天)",
+      "周BLUE>150(4周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "CMSA": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "XSVN": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "XTWY": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "GLACU": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "SCCE": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SPSK": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ACGLN": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ANNX": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "CAPTW": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "CBUS": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "CCM": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "EMP": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "FEAM": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "GHLD": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "HAE": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "HCAT": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "NKTR": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "OZEM": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "PCSA": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "REFR": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SOJD": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SOXL": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "STRRP": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "TRNS": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_105322",
+    "appear_count": 1
+  },
+  "WSBCP": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "AMDY": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ARE": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "BMRN": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "CMSD": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "CSWC": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "DGLY": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "EBON": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "EUDV": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "EWUS": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "EWY": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "GIC": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "GMAB": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "HYMCW": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "IMNM": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ITUB": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "JIRE": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "JUNT": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "LITB": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(8周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "LND": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "MEGI": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "MREO": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "MSFO": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "NTIC": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "PMN": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "QDTE": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "QTI": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SEF": {
+    "signals": [
+      "周PINK上穿10",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "SPDN": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "TPMN": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "VFF": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "WIW": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ZCAR": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ZJYL": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250127_122522",
+    "appear_count": 1
+  },
+  "ACSI": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "AIM": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "AMJB": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "AMIX": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(5周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "AMRC": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "AOS": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "BNGO": {
+    "signals": [
+      "日BLUE>150(4天)",
+      "周BLUE>150(5周)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "BSMW": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "CAL": {
+    "signals": [
+      "日BLUE>150(4天)",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "DRIO": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "DTC": {
+    "signals": [
+      "日BLUE>150(8天)",
+      "周BLUE>150(4周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "ESGG": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FGB": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "FINS": {
+    "signals": [
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FLBR": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FTHF": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "FXZ": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "GENK": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "GGLS": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "GNLN": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(5周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "HLF": {
+    "signals": [
+      "日BLUE>150(4天)",
+      "周BLUE>150(4周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "HLT": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "HRL": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "IAUM": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "ICCT": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(4周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "ICFI": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "IMUX": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "IOPP": {
+    "signals": [
+      "日BLUE>150(4天)",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "ISHG": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "IXP": {
+    "signals": [
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "JOUT": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "JUNE": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "KF": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "KW": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "LGIH": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "LLYVA": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "LOCT": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "LZM": {
+    "signals": [
+      "日BLUE>150(6天)",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MAYS": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MBRX": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "METD": {
+    "signals": [
+      "日PINK上穿10",
+      "日BLUE>150(3天)",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MGRE": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MHLD": {
+    "signals": [
+      "日BLUE>150(9天)",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MLAC": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MLPB": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MLPA": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "MNTL": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MRNY": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MRK": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "OFOS": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "OPXS": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_110952",
+    "appear_count": 1
+  },
+  "PSCW": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "PSFE.WS": {
+    "signals": [
+      "日BLUE>150(4天)",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250204_110952",
+    "appear_count": 1
+  },
+  "RINC": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "SCLX": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_110952",
+    "appear_count": 1
+  },
+  "SCVL": {
+    "signals": [
+      "日BLUE>150(5天)",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "SHOO": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "SOHO": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "SPAX": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "STPZ": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "STRR": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "SUPL": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "TAFM": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "TOGA": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "TXN": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "VIRX": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "XLC": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "XLO": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "XWEL": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "YYAI": {
+    "signals": [
+      "日BLUE>150(5天)",
+      "周BLUE>150(5周)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "ZTEN": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "LEJU": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_111252",
+    "appear_count": 1
+  },
+  "AGRI": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "BNAIW": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "BTOC": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "GLADZ": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "JNJ": {
+    "signals": [
+      "日PINK下穿94",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "LGHL": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MVRL": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_112340",
+    "appear_count": 1
+  },
+  "PRME": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "RETO": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "ABOS": {
+    "signals": [
+      "日BLUE>150(3天)",
+      "周BLUE>150(6周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "ABT": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "AGYS": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "BIT": {
+    "signals": [
+      "日PINK下穿94",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "BKCI": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "CDT": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "CVGI": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "CYTK": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "DJP": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "DTW": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "DUSA": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "EKG": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "EQLS": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FCOM": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FDND": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FDN": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FRAF": {
+    "signals": [
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "FTNT": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "HRZN": {
+    "signals": [
+      "日PINK下穿94",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "IDX": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "IMTX": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "KNOP": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "LBAY": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "LEGR": {
+    "signals": [
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "LGMK": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "LQDI": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "黄金柱(1次)",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "LRND": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MBIO": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MMA": {
+    "signals": [
+      "周BLUE>150(5周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MLN": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MRNS": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "MTN": {
+    "signals": [
+      "日PINK上穿10",
+      "周PINK上穿10"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "NRC": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(2周)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "OCSL": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "OGIG": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "ONLN": {
+    "signals": [
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "PSCJ": {
+    "signals": [
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "PSFD": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "PSFJ": {
+    "signals": [
+      "周PINK下穿94",
+      "倍量柱(3次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "PTIX": {
+    "signals": [
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "QQQA": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "TINT": {
+    "signals": [
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "TLSA": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "UNMA": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "UTEN": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "VALU": {
+    "signals": [
+      "周PINK上穿10",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "VLCN": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(3周)",
+      "倍量柱(2次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "VMO": {
+    "signals": [
+      "周BLUE>150(2周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "VOX": {
+    "signals": [
+      "日PINK下穿94",
+      "周PINK下穿94",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "WEBS": {
+    "signals": [
+      "日PINK上穿10",
+      "周BLUE>150(4周)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  },
+  "XDSQ": {
+    "signals": [
+      "周PINK下穿94",
+      "黄金柱(1次)",
+      "倍量柱(1次)"
+    ],
+    "timestamp": "20250204_214323"
+  }
+}

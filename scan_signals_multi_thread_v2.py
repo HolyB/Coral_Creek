@@ -8,12 +8,27 @@ import concurrent.futures
 import threading
 import requests
 from bs4 import BeautifulSoup
+import os
+import json
+from tqdm import tqdm
+import yfinance as yf
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from Stock_utils.stock_analysis import StockAnalysis
 from Stock_utils.stock_data_fetcher import StockDataFetcher
 from scan_signals import get_all_tickers
 # 创建一个线程锁用于打印
 print_lock = threading.Lock()
+
+# 全局变量存储公司信息
+COMPANY_INFO = {}
+
+def init_company_info():
+    """初始化公司信息"""
+    global COMPANY_INFO
+    print("\n正在初始化公司信息...")
+    COMPANY_INFO = get_company_info()
+    print(f"初始化完成，共加载 {len(COMPANY_INFO)} 家公司信息")
 
 def process_single_stock(symbol):
     """处理单个股票"""
@@ -215,21 +230,243 @@ def additional_sp_500():
     ]
     return list(set(additional_tickers))  # 去重
 
+def get_company_info():
+    """获取公司信息字典，优先使用缓存"""
+    try:
+        cache_file = 'company_info_cache.json'
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        cache_path = os.path.join(current_dir, cache_file)
+        
+        # 如果缓存文件存在，检查是否完整
+        if os.path.exists(cache_path):
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                existing_data = json.load(f)
+                # 检查是否有足够多的公司信息（比如至少3000家）
+                if len(existing_data) > 3000:
+                    print(f"从缓存加载完整的公司信息: {len(existing_data)} 家公司")
+                    return existing_data
+                else:
+                    print(f"缓存数据不完整，仅有 {len(existing_data)} 家公司，重新获取")
+        
+        import yfinance as yf
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        
+        def get_single_stock_info(ticker):
+            """获取单个股票信息，带重试机制"""
+            for attempt in range(3):  # 最多重试3次
+                try:
+                    # 首先尝试 yfinance
+                    stock = yf.Ticker(ticker)
+                    info = stock.info
+                    if info.get('longName'):
+                        return ticker, info['longName']
+                    elif info.get('shortName'):
+                        return ticker, info['shortName']
+                    
+                    # 如果 yfinance 失败，尝试 polygon
+                    api_key = "6X6PDR2zxXXhGxCpBGKXzGOu_2dGYB0t"
+                    url = f"https://api.polygon.io/v3/reference/tickers/{ticker}?apiKey={api_key}"
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if 'results' in data and data['results'].get('name'):
+                            return ticker, data['results']['name']
+                    
+                    # 如果都失败了，使用网页抓取
+                    url = f"https://finance.yahoo.com/quote/{ticker}"
+                    headers = {'User-Agent': 'Mozilla/5.0'}
+                    response = requests.get(url, headers=headers)
+                    if response.status_code == 200:
+                        soup = BeautifulSoup(response.text, 'html.parser')
+                        h1 = soup.find('h1')
+                        if h1:
+                            name = h1.text.split('(')[0].strip()
+                            if name:
+                                return ticker, name
+                    
+                    time.sleep(1)  # 失败后等待1秒再重试
+                    
+                except Exception as e:
+                    print(f"获取 {ticker} 信息失败 (尝试 {attempt+1}/3): {e}")
+                    time.sleep(2)  # 出错后等待2秒
+            
+            return ticker, f"{ticker} Stock"  # 所有尝试都失败后的默认值
+
+        # 获取所有股票代码
+        tickers = get_sp500_tickers()  # 使用你原有的函数获取股票列表
+        
+        # 加载现有缓存（如果存在）
+        company_dict = {}
+        if os.path.exists(cache_path):
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                company_dict = json.load(f)
+        
+        # 找出需要获取信息的股票
+        missing_tickers = [t for t in tickers if t not in company_dict]
+        if missing_tickers:
+            print(f"\n需要获取 {len(missing_tickers)} 只股票的信息")
+            
+            # 使用线程池并行处理
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                future_to_ticker = {executor.submit(get_single_stock_info, ticker): ticker 
+                                  for ticker in missing_tickers}
+                
+                for i, future in enumerate(as_completed(future_to_ticker), 1):
+                    ticker = future_to_ticker[future]
+                    try:
+                        ticker, name = future.result()
+                        company_dict[ticker] = name
+                        
+                        # 每获取100个公司就保存一次
+                        if i % 100 == 0:
+                            print(f"已获取 {i}/{len(missing_tickers)} 家公司信息")
+                            with open(cache_path, 'w', encoding='utf-8') as f:
+                                json.dump(company_dict, f, ensure_ascii=False, indent=2)
+                    except Exception as e:
+                        print(f"处理 {ticker} 失败: {e}")
+        
+        print(f"共获取到 {len(company_dict)} 家公司信息")
+        
+        # 最终保存
+        with open(cache_path, 'w', encoding='utf-8') as f:
+            json.dump(company_dict, f, ensure_ascii=False, indent=2)
+        print("公司信息已保存到缓存")
+        
+        return company_dict
+        
+    except Exception as e:
+        print(f"获取公司信息失败: {e}")
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except:
+                pass
+        return {}
+
+def load_history():
+    """加载历史信号记录"""
+    try:
+        history_file = 'signals_history.json'
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        history_path = os.path.join(current_dir, history_file)
+        
+        if os.path.exists(history_path):
+            with open(history_path, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+                # 添加出现次数统计
+                for symbol in history:
+                    if 'appear_count' not in history[symbol]:
+                        history[symbol]['appear_count'] = 1
+                return history
+        return {}
+    except Exception as e:
+        print(f"加载历史记录失败: {e}")
+        return {}
+
+def save_history(history_dict):
+    """保存历史信号记录"""
+    try:
+        history_file = 'signals_history.json'
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        history_path = os.path.join(current_dir, history_file)
+        
+        with open(history_path, 'w', encoding='utf-8') as f:
+            json.dump(history_dict, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"保存历史记录失败: {e}")
+
 def main():
     """主函数"""
+    # 加载历史记录
+    history_dict = load_history()
+    
+    # 程序开始时初始化公司信息
+    init_company_info()
+    
     start_time = time.time()
+    print("\n开始扫描股票...")
     
     # 并行扫描股票
-    results = scan_signals_parallel(max_workers=20)  # 使用20个线程
+    results = scan_signals_parallel(max_workers=20)
     
     if not results.empty:
-        # 保存v2格式的结果
+        # 使用全局的公司信息添加公司名称
+        results['company_name'] = results['symbol'].map(lambda x: COMPANY_INFO.get(x, 'N/A'))
+        
+        # 创建当前信号的字典，用于比较
+        current_signals = {}
+        for _, row in results.iterrows():
+            signals = []
+            if row['smile_long_daily'] == 1:
+                signals.append('日PINK上穿10')
+            if row['smile_short_daily'] == 1:
+                signals.append('日PINK下穿94')
+            if row['blue_days'] >= 3:
+                signals.append(f'日BLUE>150({row["blue_days"]}天)')
+            if row['smile_long_weekly'] == 1:
+                signals.append('周PINK上穿10')
+            if row['smile_short_weekly'] == 1:
+                signals.append('周PINK下穿94')
+            if row['blue_weeks'] >= 2:
+                signals.append(f'周BLUE>150({row["blue_weeks"]}周)')
+            if row['gold_vol_count'] > 0:
+                signals.append(f'黄金柱({row["gold_vol_count"]}次)')
+            if row['double_vol_count'] > 0:
+                signals.append(f'倍量柱({row["double_vol_count"]}次)')
+            
+            # 保存当前信号
+            current_signals[row['symbol']] = {
+                'signals': signals,
+                'timestamp': time.strftime("%Y%m%d_%H%M%S")
+            }
+        
+        # 找出新的信号
+        new_signals = {}
+        for symbol, info in current_signals.items():
+            if symbol not in history_dict or set(info['signals']) != set(history_dict[symbol]['signals']):
+                new_signals[symbol] = info
+        
+        # 更新历史记录
+        history_dict.update(current_signals)
+        save_history(history_dict)
+        
+        # 只显示新信号
+        if new_signals:
+            print("\n新发现的信号:")
+            print("=" * 260)
+            print(f"{'代码':<8} | {'公司名称':<40} | {'价格':>8} | {'成交量':>12} | {'成交额':>12} | "  # 添加公司名称列
+                  f"{'日PINK':>8} | {'日BLUE':>8} | {'日BLUE天数':>4} | "
+                  f"{'周PINK':>8} | {'周BLUE':>8} | {'周BLUE周数':>4} | "
+                  f"{'成交倍数':>8} | {'热力值':>4} | {'黄金柱':>4} | {'倍量柱':>4} | "
+                  f"{'DIF':>8} | {'DEA':>8} | {'MACD':>8} | {'EMAMACD':>8} | {'信号':<40}")
+            print("-" * 260)
+            
+            for symbol in new_signals.keys():
+                row = results[results['symbol'] == symbol].iloc[0]
+                signals = new_signals[symbol]['signals']
+                signals_str = ', '.join(signals)
+                print(f"{symbol:<8} | {row['company_name']:<40} | {row['price']:8.2f} | {row['Volume']:12.0f} | {row['turnover']:12.0f} | "  # 添加公司名称
+                      f"{row['pink_daily']:8.2f} | {row['blue_daily']:8.2f} | {row['blue_days']:4d} | "
+                      f"{row['pink_weekly']:8.2f} | {row['blue_weekly']:8.2f} | {row['blue_weeks']:4d} | "
+                      f"{row['vol_times']:8.1f} | {row['vol_color']:4.0f} | "
+                      f"{row['gold_vol_count']:4d} | {row['double_vol_count']:4d} | "
+                      f"{row.get('DIF', 0):8.2f} | {row.get('DEA', 0):8.2f} | {row.get('MACD', 0):8.2f} | "
+                      f"{row.get('EMAMACD', 0):8.2f} | {signals_str:<40}")
+            
+            print("=" * 260)
+            print(f"共发现 {len(new_signals)} 只新信号股票")
+        else:
+            print("\n未发现新的信号")
+            
+        # 保存完整的结果到CSV（包含所有信号）
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         filename_v2 = f'signals_v2_{timestamp}.csv'
         
         # 创建v2格式的DataFrame
         df_v2 = pd.DataFrame({
             'symbol': results['symbol'],
+            'company_name': results['company_name'],  # 添加公司名称
             'signals': results.apply(lambda row: ', '.join([
                 '日PINK上穿10' if row['smile_long_daily'] == 1 else '',
                 '日PINK下穿94' if row['smile_short_daily'] == 1 else '',
@@ -256,13 +493,13 @@ def main():
         
         # 显示结果
         print("\n发现信号的股票:")
-        print("=" * 220)  # 增加显示宽度
-        print(f"{'代码':<8} | {'价格':>8} | {'成交量':>12} | {'成交额':>12} | "
+        print("=" * 260)  # 增加显示宽度以适应公司名称
+        print(f"{'代码':<8} | {'公司名称':<40} | {'价格':>8} | {'成交量':>12} | {'成交额':>12} | "  # 添加公司名称列
               f"{'日PINK':>8} | {'日BLUE':>8} | {'日BLUE天数':>4} | "
               f"{'周PINK':>8} | {'周BLUE':>8} | {'周BLUE周数':>4} | "
               f"{'成交倍数':>8} | {'热力值':>4} | {'黄金柱':>4} | {'倍量柱':>4} | "
               f"{'DIF':>8} | {'DEA':>8} | {'MACD':>8} | {'EMAMACD':>8} | {'信号':<40}")
-        print("-" * 220)  # 增加显示宽度
+        print("-" * 260)
         
         for _, row in results.iterrows():
             signals = []
@@ -300,7 +537,7 @@ def main():
                 signals.append('顶背离')
             
             signals_str = ', '.join(signals)
-            print(f"{row['symbol']:<8} | {row['price']:8.2f} | {row['Volume']:12.0f} | {row['turnover']:12.0f} | "
+            print(f"{row['symbol']:<8} | {row['company_name']:<40} | {row['price']:8.2f} | {row['Volume']:12.0f} | {row['turnover']:12.0f} | "  # 添加公司名称
                   f"{row['pink_daily']:8.2f} | {row['blue_daily']:8.2f} | {row['blue_days']:4d} | "
                   f"{row['pink_weekly']:8.2f} | {row['blue_weekly']:8.2f} | {row['blue_weeks']:4d} | "
                   f"{row['vol_times']:8.1f} | {row['vol_color']:4.0f} | "
@@ -308,7 +545,7 @@ def main():
                   f"{row.get('DIF', 0):8.2f} | {row.get('DEA', 0):8.2f} | {row.get('MACD', 0):8.2f} | "
                   f"{row.get('EMAMACD', 0):8.2f} | {signals_str:<40}")
         
-        print("=" * 220)
+        print("=" * 260)
         print(f"共发现 {len(results)} 只股票有信号")
     else:
         print("\n未发现任何信号")
