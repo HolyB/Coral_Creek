@@ -30,7 +30,7 @@ class StockDataFetcher:
         """
         # 设置默认起始和结束时间
         if self.start is None:
-            self.start = (datetime.now() - timedelta(days=365*3)).strftime('%Y-%m-%d')
+            self.start = (datetime.now() - timedelta(days=365*5)).strftime('%Y-%m-%d')
         if self.end is None:
             self.end = datetime.now().strftime('%Y-%m-%d')
 

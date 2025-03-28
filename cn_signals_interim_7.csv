@@ -1,0 +1,5 @@
+﻿symbol,name,price,Volume,turnover,blue_daily,blue_days,latest_day_blue_value,blue_weekly,blue_weeks,latest_week_blue_value,lired_daily,lired_days,latest_day_lired_value,lired_weekly,lired_weeks,latest_week_lired_value,has_day_blue,has_week_blue,has_day_lired,has_week_lired,has_day_week_blue,has_day_week_lired
+SZ300097,ST智云,4.89,43590.0,21.315509999999996,0.0,0,0.0,0.0,2,200.0,0.0,0,0,0.0,0,0,False,True,False,False,False,False
+SZ300935,盈建科,20.42,8618.0,17.597956000000003,163.97922067547273,3,163.97922067547273,0.0,0,0.0,0.0,0,0,0.0,0,0,True,False,False,False,False,False
+SH600025,华能水电,8.97,190216.0,170.623752,0.0,0,0.0,0.0,2,188.32351079949655,0.0,0,0,0.0,0,0,False,True,False,False,False,False
+SH600483,福能股份,9.33,124209.0,115.886997,0.0,0,0.0,0.0,2,200.0,0.0,0,0,0.0,0,0,False,True,False,False,False,False

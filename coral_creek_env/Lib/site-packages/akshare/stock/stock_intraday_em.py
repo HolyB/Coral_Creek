@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 """
-Date: 2023/10/14 22:00
+Date: 2025/2/24 18:00
 Desc: 东财财富-日内分时数据
 https://quote.eastmoney.com/f1.html?newcode=0.000001
 """
@@ -21,12 +21,12 @@ def __code_id_map_em() -> dict:
     :return: 股票和市场代码
     :rtype: dict
     """
-    url = "http://80.push2.eastmoney.com/api/qt/clist/get"
+    url = "https://80.push2.eastmoney.com/api/qt/clist/get"
     params = {
         "pn": "1",
         "pz": "50000",
         "po": "1",
-        "np": "1",
+        "np": "2",
         "ut": "bd1d9ddb04089700cf9c27f6f7426281",
         "fltt": "2",
         "invt": "2",
@@ -39,7 +39,7 @@ def __code_id_map_em() -> dict:
     data_json = r.json()
     if not data_json["data"]["diff"]:
         return dict()
-    temp_df = pd.DataFrame(data_json["data"]["diff"])
+    temp_df = pd.DataFrame(data_json["data"]["diff"]).T
     temp_df["market_id"] = 1
     temp_df.columns = ["sh_code", "sh_id"]
     code_id_dict = dict(zip(temp_df["sh_code"], temp_df["sh_id"]))
@@ -47,7 +47,7 @@ def __code_id_map_em() -> dict:
         "pn": "1",
         "pz": "50000",
         "po": "1",
-        "np": "1",
+        "np": "2",
         "ut": "bd1d9ddb04089700cf9c27f6f7426281",
         "fltt": "2",
         "invt": "2",
@@ -60,14 +60,14 @@ def __code_id_map_em() -> dict:
     data_json = r.json()
     if not data_json["data"]["diff"]:
         return dict()
-    temp_df_sz = pd.DataFrame(data_json["data"]["diff"])
+    temp_df_sz = pd.DataFrame(data_json["data"]["diff"]).T
     temp_df_sz["sz_id"] = 0
     code_id_dict.update(dict(zip(temp_df_sz["f12"], temp_df_sz["sz_id"])))
     params = {
         "pn": "1",
         "pz": "50000",
         "po": "1",
-        "np": "1",
+        "np": "2",
         "ut": "bd1d9ddb04089700cf9c27f6f7426281",
         "fltt": "2",
         "invt": "2",
@@ -80,7 +80,7 @@ def __code_id_map_em() -> dict:
     data_json = r.json()
     if not data_json["data"]["diff"]:
         return dict()
-    temp_df_sz = pd.DataFrame(data_json["data"]["diff"])
+    temp_df_sz = pd.DataFrame(data_json["data"]["diff"]).T
     temp_df_sz["bj_id"] = 0
     code_id_dict.update(dict(zip(temp_df_sz["f12"], temp_df_sz["bj_id"])))
     return code_id_dict

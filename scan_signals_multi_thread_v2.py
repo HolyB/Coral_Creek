@@ -148,6 +148,7 @@ def scan_signals_parallel(max_workers=10):
     """并行扫描股票信号"""
     # 获取所有股票代码
     print("正在获取股票列表...")
+    # tickers = get_sp500_tickers()
     tickers = get_all_tickers()
     print(f"共获取到 {len(tickers)} 只股票")
     
