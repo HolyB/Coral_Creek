@@ -1,0 +1,3 @@
+﻿symbol,name,price,Volume,turnover,blue_daily,blue_days,latest_day_blue_value,blue_weekly,blue_weeks,latest_week_blue_value,lired_daily,lired_days,latest_day_lired_value,lired_weekly,lired_weeks,latest_week_lired_value,has_day_blue,has_week_blue,has_day_lired,has_week_lired,has_day_week_blue,has_day_week_lired
+SZ000691,亚太实业,2.89,374372.0,108.19350800000001,0.0,0,0,0.0,2,119.41537747475664,0.0,0,0,0.0,0,0,False,True,False,False,False,False
+SZ001279,强邦新材,41.0,82262.0,337.2742,0.0,0,0,0.0,2,200.0,-80.785064944853,0,0,0.0,0,0,False,True,False,False,False,False

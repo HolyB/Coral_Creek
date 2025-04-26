@@ -207,6 +207,11 @@ def process_single_stock(symbol):
         
         if data_daily is None or data_daily.empty:
             return None
+            
+        # 计算成交额（万元）并添加过滤
+        latest_turnover = data_daily['Volume'].iloc[-1] * data_daily['Close'].iloc[-1] / 10000
+        if latest_turnover < 100:  # 过滤成交额小于100万的股票
+            return None
         
         data_weekly = data_daily.resample('W-MON').agg({
             'Open': 'first',
@@ -399,7 +404,7 @@ def main(limit=None):
     if not results.empty:
         results['company_name'] = results['symbol'].map(lambda x: COMPANY_INFO.get(x, 'N/A'))
         
-        print("\n发现信号的股票（仅BLUE和LIRED）：")
+        print("\n发现信号的股票（仅BLUE和LIRED，成交额>100万）：")
         print("=" * 160)
         print(f"{'代码':<8} | {'公司名称':<40} | {'价格':>8} | {'成交额(万)':>12} | {'日BLUE':>8} | {'日BLUE天数':>4} | {'日LIRED':>8} | {'日LIRED数':>4} | "
               f"{'周BLUE':>8} | {'周BLUE周数':>4} | {'周LIRED':>8} | {'周LIRED数':>4} | {'信号':<20}")
@@ -455,4 +460,4 @@ def main(limit=None):
     print(f"\n扫描完成，耗时: {end_time - start_time:.2f} 秒")
 
 if __name__ == "__main__":
-    main(limit=1000)
+    main(limit=20000)

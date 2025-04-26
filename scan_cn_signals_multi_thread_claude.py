@@ -255,8 +255,12 @@ def LLV(series, periods):
 def HHV(series, periods):
     return pd.Series(series).rolling(window=periods, min_periods=1).max().values
 
-def process_single_stock(stock, thresholds=None, require_both_timeframes=True, signal_type='both'):
-    """处理单个股票，支持配置日周信号是否需同时满足及信号类型"""
+def process_single_stock(stock, thresholds=None, require_both_timeframes=True, signal_type='both', min_turnover=100):
+    """处理单个股票，支持配置日周信号是否需同时满足及信号类型
+    Args:
+        ...
+        min_turnover: 最小成交额（万元），默认100万
+    """
     default_thresholds = {
         'day_blue': 150,
         'day_lired': -150,
@@ -393,12 +397,19 @@ def process_single_stock(stock, thresholds=None, require_both_timeframes=True, s
             signal_detected = has_day_week_blue or has_day_week_lired
         
         if signal_detected:
+            turnover = latest_daily['Volume'] * latest_daily['Close'] / 10000  # 转换为万元
+            
+            # 添加成交额过滤条件
+            if turnover < min_turnover:
+                logging.info(f"{symbol} 成交额{turnover:.2f}万元 < {min_turnover}万元，忽略信号")
+                return None
+            
             result = {
                 'symbol': symbol,
                 'name': name,
                 'price': latest_daily['Close'],
                 'Volume': latest_daily['Volume'],
-                'turnover': latest_daily['Volume'] * latest_daily['Close'] / 10000,
+                'turnover': turnover,
                 'blue_daily': latest_daily['BLUE'],
                 'blue_days': day_blue_count,
                 'latest_day_blue_value': latest_day_blue_value,
@@ -418,7 +429,7 @@ def process_single_stock(stock, thresholds=None, require_both_timeframes=True, s
                 'has_day_week_blue': has_day_blue and has_week_blue,
                 'has_day_week_lired': has_day_lired and has_week_lired
             }
-            logging.info(f"{symbol} 发现信号")
+            logging.info(f"{symbol} 发现信号，成交额: {turnover:.2f}万元")
             return result
         
         return None
@@ -429,7 +440,7 @@ def process_single_stock(stock, thresholds=None, require_both_timeframes=True, s
             traceback.print_exc()
         return None
 
-def _scan_batch(batch, max_workers=5, max_wait_time=600, thresholds=None, require_both_timeframes=True, signal_type='both'):
+def _scan_batch(batch, max_workers=5, max_wait_time=300, thresholds=None, require_both_timeframes=True, signal_type='both', min_turnover=100):
     results = []
     problem_stocks = []
     completed_count = 0
@@ -460,7 +471,7 @@ def _scan_batch(batch, max_workers=5, max_wait_time=600, thresholds=None, requir
     
     with tqdm(total=len(batch), desc="批次扫描进度") as pbar:
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(process_single_stock, stock, thresholds, require_both_timeframes, signal_type): stock for _, stock in batch.iterrows()}
+            futures = {executor.submit(process_single_stock, stock, thresholds, require_both_timeframes, signal_type, min_turnover): stock for _, stock in batch.iterrows()}
             for future, stock in futures.items():
                 future.add_done_callback(lambda f: process_result(f, stock))
             
@@ -486,7 +497,7 @@ def _scan_batch(batch, max_workers=5, max_wait_time=600, thresholds=None, requir
     
     return pd.DataFrame(results) if results else pd.DataFrame()
 
-def scan_in_batches(batch_size=500, cooldown=60, max_workers=5, start_batch=1, end_batch=None, max_wait_time=600, thresholds=None, send_email=True, require_both_timeframes=True, signal_type='both'):
+def scan_in_batches(batch_size=500, cooldown=30, max_workers=5, start_batch=1, end_batch=None, max_wait_time=300, thresholds=None, send_email=True, require_both_timeframes=True, signal_type='both', min_turnover=100):
     logging.info("正在获取A股列表...")
     stock_list = get_cn_tickers()
     
@@ -516,7 +527,7 @@ def scan_in_batches(batch_size=500, cooldown=60, max_workers=5, start_batch=1, e
         logging.info(f"开始扫描第 {batch_num}/{batch_count} 批次 ({len(batch)} 只股票)...")
         
         batch_start_time = time.time()
-        results_df = _scan_batch(batch, max_workers=max_workers, max_wait_time=max_wait_time, thresholds=thresholds, require_both_timeframes=require_both_timeframes, signal_type=signal_type)
+        results_df = _scan_batch(batch, max_workers=max_workers, max_wait_time=max_wait_time, thresholds=thresholds, require_both_timeframes=require_both_timeframes, signal_type=signal_type, min_turnover=min_turnover)
         batch_end_time = time.time()
         
         if not results_df.empty:
@@ -558,7 +569,7 @@ def scan_in_batches(batch_size=500, cooldown=60, max_workers=5, start_batch=1, e
     else:
         return pd.DataFrame()
 
-def main(batch_size=500, max_workers=30, start_batch=1, end_batch=None, thresholds=None, send_email=True, require_both_timeframes=True, signal_type='both'):
+def main(batch_size=500, max_workers=30, start_batch=1, end_batch=None, thresholds=None, send_email=True, require_both_timeframes=True, signal_type='both', min_turnover=100):
     default_thresholds = {
         'day_blue': 100,
         'day_lired': -100,
@@ -579,6 +590,7 @@ def main(batch_size=500, max_workers=30, start_batch=1, end_batch=None, threshol
     logging.info(f"周线LIRED阈值: {default_thresholds['week_lired']}, 所需周数: {default_thresholds['week_lired_count']}")
     logging.info(f"日周信号要求: {'同时满足' if require_both_timeframes else '单独满足即可'}")
     logging.info(f"信号类型: {signal_type} ({'只看BLUE' if signal_type == 'blue' else '只看LIRED' if signal_type == 'lired' else 'BLUE和LIRED都看'})")
+    logging.info(f"最小成交额要求: {min_turnover}万元")
     
     start_time = time.time()
     
@@ -598,15 +610,16 @@ def main(batch_size=500, max_workers=30, start_batch=1, end_batch=None, threshol
     # 扫描股票
     results = scan_in_batches(
         batch_size=batch_size,
-        cooldown=20,
+        cooldown=30,
         max_workers=max_workers,
         start_batch=start_batch,
         end_batch=end_batch,
-        max_wait_time=600,
+        max_wait_time=300,
         thresholds=default_thresholds,
         send_email=send_email,
         require_both_timeframes=require_both_timeframes,
-        signal_type=signal_type
+        signal_type=signal_type,
+        min_turnover=min_turnover
     )
     
     if not results.empty:
@@ -667,7 +680,7 @@ def main(batch_size=500, max_workers=30, start_batch=1, end_batch=None, threshol
     print(f"\n扫描完成，耗时: {end_time - start_time:.2f} 秒")
 
 if __name__ == "__main__":
-    # 示例 1：只看 BLUE 信号，日周单独满足
+    # 示例：只看 BLUE 信号，日周单独满足，成交额大于100万
     main(
         batch_size=500,
         max_workers=30,
@@ -676,7 +689,8 @@ if __name__ == "__main__":
         thresholds=None,
         send_email=True,
         require_both_timeframes=False,
-        signal_type='blue'
+        signal_type='blue',
+        min_turnover=100  # 设置最小成交额为100万
     )
     
     # 示例 2：只看 LIRED 信号，日周同时满足

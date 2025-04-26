@@ -1,5 +1,3 @@
-
-
 import warnings
 warnings.filterwarnings('ignore')
 import pandas as pd
@@ -510,12 +508,7 @@ def init_company_info():
     print(f"初始化完成，共加载 {len(COMPANY_INFO)} 家公司信息")
 
 def process_single_stock(symbol, thresholds=None):
-    """处理单个股票，仅关注BLUE和LIRED信号，调整为最近6天和5周，支持可配置阈值
-    
-    Args:
-        symbol (str): 股票代码
-        thresholds (dict, optional): 信号阈值配置. 默认为 None (使用默认阈值)
-    """
+    """处理单个股票，仅关注BLUE和LIRED信号，调整为最近6天和5周，支持可配置阈值"""
     # 设置默认阈值
     default_thresholds = {
         'day_blue': 100,
@@ -528,7 +521,6 @@ def process_single_stock(symbol, thresholds=None):
         'week_lired_count': 2
     }
     
-    # 使用传入的阈值更新默认阈值
     if thresholds:
         default_thresholds.update(thresholds)
     
@@ -537,6 +529,11 @@ def process_single_stock(symbol, thresholds=None):
         data_daily = fetcher_daily.get_stock_data()
         
         if data_daily is None or data_daily.empty:
+            return None
+            
+        # 计算成交额（万元）并添加过滤
+        latest_turnover = data_daily['Volume'].iloc[-1] * data_daily['Close'].iloc[-1] / 10000
+        if latest_turnover < 100:  # 过滤成交额小于100万的股票
             return None
         
         data_weekly = data_daily.resample('W-MON').agg({
@@ -736,7 +733,7 @@ def main(limit=None, thresholds=None, send_email=True, only_dual_signals=False):
     if not results.empty:
         results['company_name'] = results['symbol'].map(lambda x: COMPANY_INFO.get(x, 'N/A'))
         
-        print("\n发现信号的股票（仅BLUE和LIRED）：")
+        print("\n发现信号的股票（仅BLUE和LIRED，成交额>100万）：")
         print("=" * 180)
         print(f"{'代码':<8} | {'公司名称':<40} | {'价格':>8} | {'成交额(万)':>12} | {'日BLUE':>8} | {'日BLUE天数':>4} | {'最近日BLUE':>10} | {'日LIRED':>8} | "
               f"{'日LIRED数':>4} | {'最近日LIRED':>10} | {'周BLUE':>8} | {'周BLUE周数':>4} | {'最近周BLUE':>10} | {'周LIRED':>8} | {'周LIRED数':>4} | "
@@ -923,4 +920,4 @@ def scan_signals_parallel(max_workers=30, batch_size=100, cooldown=5, limit=None
 
 if __name__ == "__main__":
     # 默认扫描1000只股票并发送邮件通知，只报告日周同时有信号的股票
-    main(limit=20000, send_email=True, only_dual_signals=True)
+    main(limit=20000, send_email=True, only_dual_signals=False)

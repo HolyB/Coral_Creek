@@ -41,7 +41,14 @@ def process_single_stock(symbol):
         
         if data_daily is None or data_daily.empty:
             return None
+            
+        # 计算成交额（万元）
+        latest_turnover = data_daily['Volume'].iloc[-1] * data_daily['Close'].iloc[-1] / 10000
         
+        # 过滤成交额小于100万的股票
+        if latest_turnover < 100:
+            return None
+            
         # 计算最近5天内最低价的涨幅
         if len(data_daily) >= 5:
             recent_data = data_daily.iloc[-5:]  # 最近5天数据
