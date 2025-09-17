@@ -1,0 +1,160 @@
+{
+    "scheduler_settings": {
+        "timezone": "Asia/Shanghai",
+        "log_file": "enhanced_stock_scanner_scheduler.log",
+        "check_interval_seconds": 60,
+        "status_report_interval_hours": 1
+    },
+    "trading_sessions": {
+        "cn_stock": {
+            "morning": {"start": "09:30", "end": "11:30", "name": "A股上午交易时段"},
+            "afternoon": {"start": "13:00", "end": "15:00", "name": "A股下午交易时段"}
+        },
+        "hk_stock": {
+            "morning": {"start": "09:30", "end": "12:00", "name": "港股上午交易时段"},
+            "afternoon": {"start": "13:00", "end": "16:00", "name": "港股下午交易时段"}
+        }
+    },
+    "scan_schedules": {
+        "premarket_early": {
+            "time": "08:30",
+            "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            "description": "盘前早期扫描",
+            "execution_mode": "sequential"
+        },
+        "premarket": {
+            "time": "09:00",
+            "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            "description": "盘前扫描",
+            "execution_mode": "parallel"
+        },
+        "intraday_morning": {
+            "time": "10:30",
+            "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            "description": "上午盘中扫描",
+            "execution_mode": "parallel"
+        },
+        "intraday_afternoon": {
+            "time": "14:00",
+            "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            "description": "下午盘中扫描",
+            "execution_mode": "parallel"
+        },
+        "postmarket": {
+            "time": "15:30",
+            "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            "description": "盘后扫描",
+            "execution_mode": "sequential"
+        },
+        "postmarket_deep": {
+            "time": "16:30",
+            "days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            "description": "盘后深度扫描",
+            "execution_mode": "parallel"
+        },
+        "weekend_saturday": {
+            "time": "10:00",
+            "days": ["saturday"],
+            "description": "周六综合扫描",
+            "execution_mode": "parallel"
+        },
+        "weekend_sunday": {
+            "time": "20:00",
+            "days": ["sunday"],
+            "description": "周日准备扫描",
+            "execution_mode": "parallel"
+        }
+    },
+    "scan_parameters": {
+        "cn_stock": {
+            "premarket_early": {
+                "batch_size": 300,
+                "max_workers": 5,
+                "signal_type": "bullish",
+                "min_turnover": 100,
+                "timeout_seconds": 3600
+            },
+            "premarket": {
+                "batch_size": 400,
+                "max_workers": 8,
+                "signal_type": "bullish",
+                "min_turnover": 150,
+                "timeout_seconds": 3600
+            },
+            "intraday": {
+                "batch_size": 500,
+                "max_workers": 10,
+                "signal_type": "both",
+                "min_turnover": 500,
+                "timeout_seconds": 3600
+            },
+            "postmarket": {
+                "batch_size": 400,
+                "max_workers": 8,
+                "signal_type": "both",
+                "min_turnover": 200,
+                "timeout_seconds": 3600
+            },
+            "weekend": {
+                "batch_size": 600,
+                "max_workers": 12,
+                "signal_type": "both",
+                "min_turnover": 100,
+                "timeout_seconds": 7200
+            }
+        },
+        "hk_stock": {
+            "premarket_early": {
+                "batch_size": 200,
+                "max_workers": 6,
+                "signal_type": "bullish",
+                "min_turnover": 500,
+                "timeout_seconds": 3600
+            },
+            "premarket": {
+                "batch_size": 250,
+                "max_workers": 8,
+                "signal_type": "bullish",
+                "min_turnover": 800,
+                "timeout_seconds": 3600
+            },
+            "intraday": {
+                "batch_size": 300,
+                "max_workers": 10,
+                "signal_type": "both",
+                "min_turnover": 1000,
+                "timeout_seconds": 3600
+            },
+            "postmarket": {
+                "batch_size": 250,
+                "max_workers": 8,
+                "signal_type": "both",
+                "min_turnover": 800,
+                "timeout_seconds": 3600
+            },
+            "weekend": {
+                "batch_size": 400,
+                "max_workers": 12,
+                "signal_type": "both",
+                "min_turnover": 500,
+                "timeout_seconds": 7200
+            }
+        }
+    },
+    "notification_settings": {
+        "send_email": true,
+        "email_on_error": true,
+        "email_on_completion": true,
+        "daily_summary": true,
+        "weekly_report": true
+    },
+    "system_settings": {
+        "max_retry_attempts": 3,
+        "retry_delay_seconds": 300,
+        "parallel_execution_delay": 15,
+        "sequential_execution_delay": 180,
+        "log_level": "INFO",
+        "enable_trading_day_check": true,
+        "enable_trading_session_check": true
+    }
+} 
