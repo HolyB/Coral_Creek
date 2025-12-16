@@ -1,22 +1,50 @@
-# 🔵 A股BLUE信号专用扫描器 使用说明
+# 🔵 BLUE信号专用扫描器 使用说明
 
 ## 📋 概述
 
-基于您的需求，我为您创建了一个专门扫描BLUE信号的A股扫描器，**移除了所有LIRED相关逻辑**，只专注于BLUE信号的检测。
+基于您的需求，我为您创建了专门扫描BLUE信号的扫描器，**移除了所有LIRED相关逻辑**，只专注于BLUE信号的检测。
 
-## 🚀 可用版本
+支持美股和A股两个市场。
 
-### 1. **简化版** (推荐) - `scan_blue_signals_simple.py`
-- ✅ **已测试成功**
-- ✅ 使用简化的数据获取方法
-- ✅ 直接使用AKShare获取数据
-- ✅ 内置多数据源股票列表获取
-- ✅ 自动处理数据格式转换
+## 📁 版本管理
 
-### 2. **完整版** - `scan_blue_signals_only.py`  
-- ⚠️ 依赖Stock_utils模块
-- 🔧 需要修复数据获取接口
-- 📧 包含邮件通知功能
+所有版本都存放在 `versions/` 文件夹中，每个版本都有独立的说明文档。
+
+### 📂 当前可用版本
+
+- **[v1 - 初始版本](./versions/v1/)** ⭐ 推荐使用
+  - 创建日期: 2025-12-15
+  - 状态: ✅ 稳定版本
+  - 包含文件:
+    - `scan_signals_blue_only.py` - 美股版本
+    - `scan_cn_signals_blue_only.py` - A股版本
+  - [详细文档](./versions/v1/README.md)
+
+### 🔄 版本选择
+
+- **查看所有版本**: [versions/README.md](./versions/README.md)
+- **使用最新版本**: 推荐使用v1版本
+
+## 🚀 快速开始
+
+### 使用v1版本（推荐）
+
+```bash
+# 方式1: 从根目录运行（如果文件已链接）
+python scan_signals_blue_only.py          # 美股
+python scan_cn_signals_blue_only.py        # A股
+
+# 方式2: 从版本目录运行
+cd versions/v1
+python scan_signals_blue_only.py           # 美股
+python scan_cn_signals_blue_only.py        # A股
+```
+
+### 其他版本
+
+- **简化版** - `scan_blue_signals_simple.py` (旧版本，位于根目录)
+  - ✅ 使用AKShare获取数据
+  - ✅ 内置多数据源股票列表获取
 
 ## 🎯 BLUE信号检测逻辑
 
@@ -41,7 +69,52 @@ BLUE信号是一种技术分析指标，用于识别股票的潜在买入机会�
 
 ## 🛠️ 使用方法
 
-### 基本用法
+### v1版本 - 美股扫描器
+
+```bash
+# 扫描所有BLUE信号（日线+周线）
+python scan_signals_blue_only.py
+
+# 只看日线BLUE信号
+python scan_signals_blue_only.py --period daily
+
+# 只看周线BLUE信号
+python scan_signals_blue_only.py --period weekly
+
+# 只看BLUE+黑马信号同时出现的股票
+python scan_signals_blue_only.py --with-heima
+
+# 限制扫描数量
+python scan_signals_blue_only.py --limit 1000
+
+# 不发送邮件
+python scan_signals_blue_only.py --no-email
+```
+
+### v1版本 - A股扫描器
+
+```bash
+# 扫描所有BLUE信号（日线+周线）
+python scan_cn_signals_blue_only.py
+
+# 只看日线BLUE信号
+python scan_cn_signals_blue_only.py --period daily
+
+# 只看周线BLUE信号
+python scan_cn_signals_blue_only.py --period weekly
+
+# 只看BLUE+黑马信号同时出现的股票
+python scan_cn_signals_blue_only.py --with-heima
+
+# 指定批次范围
+python scan_cn_signals_blue_only.py --start-batch 1 --end-batch 3
+
+# 不发送邮件
+python scan_cn_signals_blue_only.py --no-email
+```
+
+### 旧版本 - 简化版（A股）
+
 ```bash
 # 使用默认参数扫描
 python scan_blue_signals_simple.py
@@ -204,21 +277,40 @@ python scan_blue_signals_simple.py \
 | 运行稳定性 | 中等 | 高 |
 | 使用难度 | 高 | 低 |
 
-## 📝 更新日志
+## 📝 版本历史
 
-### v1.0 - 简化版
+### v1.0 (2025-12-15) - 初始版本
+- ✅ 移除所有LIRED相关逻辑
+- ✅ 支持美股和A股两个市场
+- ✅ 支持周期过滤和黑马信号过滤
+- ✅ 完整的邮件通知功能
+- ✅ 多线程并发扫描
+- 📁 位置: `versions/v1/`
+- 📖 [详细文档](./versions/v1/README.md)
+
+### 旧版本 - 简化版
 - ✅ 移除所有LIRED相关逻辑
 - ✅ 简化数据获取方式
 - ✅ 集成多数据源股票列表
 - ✅ 优化错误处理和用户体验
-- ✅ 添加详细的输出和统计信息
+- 📁 位置: 根目录 `scan_blue_signals_simple.py`
+
+## 🔗 相关文档
+
+- [版本管理说明](./versions/README.md)
+- [v1详细文档](./versions/v1/README.md)
 
 ---
 
 **现在您就有了一个专门的BLUE信号扫描器！** 🎉
 
-运行命令：
+### 推荐使用方式：
+
 ```bash
-python scan_blue_signals_simple.py --batch_size 100 --timing "测试运行"
+# 美股扫描（v1版本）
+python scan_signals_blue_only.py --limit 100
+
+# A股扫描（v1版本）
+python scan_cn_signals_blue_only.py --start-batch 1 --end-batch 1 --batch-size 50
 ```
 
