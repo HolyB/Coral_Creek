@@ -1,0 +1,8 @@
+{
+    "email_enabled": true,
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_sender": "stockprofile138@gmail.com",
+    "smtp_password": "vselpmwrjacmgdib",
+    "email_receivers": ["stockprofile138@gmail.com"]
+}

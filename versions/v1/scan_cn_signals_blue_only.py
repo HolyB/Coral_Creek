@@ -37,10 +37,8 @@ from tqdm import tqdm
 import os
 import traceback
 import logging
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 import argparse
+from notification_manager import NotificationManager
 
 # 设置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -140,97 +138,6 @@ def calculate_heima_signal(high, low, close, open_price):
     juedi_signal = (VAR2 < -110) & (VAR3 > 0)
     
     return heima_signal, juedi_signal, VAR2, VAR3, VAR4
-
-
-# ==================== 邮件通知类 ====================
-
-class SignalNotifier:
-    """股票信号邮件通知类"""
-    def __init__(self, symbol, result_data):
-        self.symbol = symbol
-        self.data = result_data
-        self.sender_email = "stockprofile138@gmail.com"
-        self.receiver_emails = ["stockprofile138@gmail.com"]
-        self.email_password = "vselpmwrjacmgdib"
-    
-    @staticmethod
-    def send_summary_email(results, signal_counts, period_type=PeriodType.ALL, with_heima=False):
-        """发送信号总结邮件"""
-        if results.empty:
-            print("没有检测到股票信号，不发送总结邮件")
-            return False
-        
-        period_desc = {
-            PeriodType.ALL: "日线+周线",
-            PeriodType.DAILY: "仅日线",
-            PeriodType.WEEKLY: "仅周线"
-        }.get(period_type, "日线+周线")
-        
-        heima_desc = " + 黑马信号" if with_heima else ""
-        
-        sender_email = "stockprofile138@gmail.com"
-        receiver_emails = ["stockprofile138@gmail.com"]
-        email_password = "vselpmwrjacmgdib"
-        
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        report_title = f"A股BLUE信号扫描{heima_desc} ({period_desc})"
-        subject = f"{report_title} ({current_time})"
-        
-        body = f"{report_title} ({current_time})\n\n"
-        
-        body += "信号统计总结:\n"
-        body += "-" * 40 + "\n"
-        for signal, count in signal_counts.items():
-            if count > 0:
-                body += f"{signal:<15}: {count:>5} 只\n"
-        body += "-" * 40 + "\n"
-        body += f"共发现 {len(results)} 只股票有信号\n\n"
-        
-        body += "股票列表：\n"
-        body += "=" * 100 + "\n"
-        body += f"{'代码':<12} | {'公司名称':<20} | {'价格':>8} | {'成交额(万)':>12} | {'信号':<40}\n"
-        body += "-" * 100 + "\n"
-        
-        for _, row in results.iterrows():
-            signals = []
-            if row.get('has_day_blue', False):
-                signals.append(f"日BLUE({row.get('blue_days', 0)}天)")
-            if row.get('has_week_blue', False):
-                signals.append(f"周BLUE({row.get('blue_weeks', 0)}周)")
-            if with_heima:
-                if row.get('has_day_heima', False):
-                    signals.append("日黑马")
-                if row.get('has_week_heima', False):
-                    signals.append("周黑马")
-            
-            signals_str = ', '.join(signals)
-            company_name = row.get('name', 'N/A')
-            if len(str(company_name)) > 20:
-                company_name = str(company_name)[:17] + "..."
-            
-            body += f"{row['symbol']:<12} | {company_name:<20} | {row['price']:8.2f} | {row['turnover']:12.2f} | {signals_str:<40}\n"
-        
-        body += "=" * 100 + "\n"
-        
-        msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = ", ".join(receiver_emails)
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
-        
-        try:
-            print(f"正在尝试发送{report_title}邮件...")
-            server = smtplib.SMTP('smtp.gmail.com', 587)
-            server.starttls()
-            server.login(sender_email, email_password)
-            server.sendmail(sender_email, receiver_emails, msg.as_string())
-            server.quit()
-            print(f"{report_title}邮件发送成功，包含 {len(results)} 只股票")
-            return True
-        except Exception as e:
-            print(f"{report_title}邮件发送失败: {e}")
-            print(f"详细错误信息: {traceback.format_exc()}")
-            return False
 
 
 # ==================== 数据获取函数 ====================
@@ -422,10 +329,22 @@ def process_single_stock(stock, thresholds=None, period_type=PeriodType.ALL,
         day_blue_signals = []
         week_blue_signals = []
         
+        # 记录信号日期
+        day_blue_dates = []
+        week_blue_dates = []
+        
         if period_type in [PeriodType.ALL, PeriodType.DAILY]:
-            day_blue_signals = recent_daily[recent_daily['BLUE'] > default_thresholds['day_blue']]['BLUE'].tolist()
+            day_blue_df = recent_daily[recent_daily['BLUE'] > default_thresholds['day_blue']]
+            day_blue_signals = day_blue_df['BLUE'].tolist()
+            # 记录日期和对应的BLUE数值（格式：列表，每个元素是{"date": "2025-12-30", "value": 150.5}）
+            day_blue_dates = [{"date": date.strftime('%Y-%m-%d'), "value": float(blue_value)} 
+                             for date, blue_value in zip(day_blue_df.index, day_blue_df['BLUE'])]
         if period_type in [PeriodType.ALL, PeriodType.WEEKLY]:
-            week_blue_signals = recent_weekly[recent_weekly['BLUE'] > default_thresholds['week_blue']]['BLUE'].tolist()
+            week_blue_df = recent_weekly[recent_weekly['BLUE'] > default_thresholds['week_blue']]
+            week_blue_signals = week_blue_df['BLUE'].tolist()
+            # 记录日期和对应的BLUE数值
+            week_blue_dates = [{"date": date.strftime('%Y-%m-%d'), "value": float(blue_value)} 
+                              for date, blue_value in zip(week_blue_df.index, week_blue_df['BLUE'])]
         
         day_blue_count = len(day_blue_signals)
         week_blue_count = len(week_blue_signals)
@@ -438,6 +357,18 @@ def process_single_stock(stock, thresholds=None, period_type=PeriodType.ALL,
         
         has_day_heima = day_heima_count > 0 or day_juedi_count > 0
         has_week_heima = week_heima_count > 0 or week_juedi_count > 0
+        
+        # 记录黑马信号日期
+        heima_dates = []
+        if has_day_heima:
+            day_heima_df = recent_daily[(recent_daily['heima'] == True) | (recent_daily['juedi'] == True)]
+            if not day_heima_df.empty:
+                heima_dates.extend(day_heima_df.index.strftime('%Y-%m-%d').tolist())
+        if has_week_heima:
+            week_heima_df = recent_weekly[(recent_weekly['heima'] == True) | (recent_weekly['juedi'] == True)]
+            if not week_heima_df.empty:
+                heima_dates.extend(week_heima_df.index.strftime('%Y-%m-%d').tolist())
+        heima_dates = sorted(list(set(heima_dates)))  # 去重并排序
         
         latest_day_blue_value = day_blue_signals[-1] if day_blue_signals else 0
         latest_week_blue_value = week_blue_signals[-1] if week_blue_signals else 0
@@ -498,7 +429,11 @@ def process_single_stock(stock, thresholds=None, period_type=PeriodType.ALL,
                 'has_day_heima': has_day_heima,
                 'has_week_heima': has_week_heima,
                 'latest_cci_daily': float(latest_daily['cci']) if not np.isnan(latest_daily['cci']) else 0,
-                'latest_cci_weekly': float(latest_weekly['cci']) if not np.isnan(latest_weekly['cci']) else 0
+                'latest_cci_weekly': float(latest_weekly['cci']) if not np.isnan(latest_weekly['cci']) else 0,
+                # 信号日期列表
+                'day_blue_dates': day_blue_dates,
+                'week_blue_dates': week_blue_dates,
+                'heima_dates': heima_dates
             }
             return result
         
@@ -578,6 +513,13 @@ def scan_in_batches(batch_size=500, cooldown=30, max_workers=5, start_batch=1, e
     
     total_stocks = len(stock_list)
     logging.info(f"共获取到 {total_stocks} 只股票")
+    
+    # 限制扫描数量为2000只
+    limit_stocks = 2000
+    if total_stocks > limit_stocks:
+        stock_list = stock_list.head(limit_stocks)
+        total_stocks = limit_stocks
+        logging.info(f"限制扫描数量为 {limit_stocks} 只股票")
     
     batch_count = (total_stocks + batch_size - 1) // batch_size
     if end_batch is None:
@@ -757,13 +699,52 @@ def main(batch_size=500, max_workers=30, start_batch=1, end_batch=None, threshol
         results.to_csv(filename, index=False, encoding='utf-8-sig')
         print(f"\n结果已保存到 {filename}")
         
+        # 保存到数据库
+        try:
+            from database_manager import StockDatabase
+            print("正在保存到数据库...")
+            db = StockDatabase()
+            db.save_results_from_df(results, market='CN')
+            db.close()
+        except Exception as e:
+            print(f"数据库保存失败: {e}")
+        
         # 发送邮件
         if send_email:
             try:
                 print("\n准备发送信号总结邮件...")
-                SignalNotifier.send_summary_email(results, signal_counts, period_type, with_heima)
+                nm = NotificationManager()
+                if nm.config.get('email_enabled'):
+                    # 准备数据
+                    total_scanned = total_stocks if 'total_stocks' in locals() else len(results)
+                    blue_stocks = results[results['has_day_blue'] | results['has_week_blue']].to_dict('records')
+                    heima_stocks = results[results['has_day_heima'] | results['has_week_heima']].to_dict('records')
+                    
+                    # 检查自选股命中
+                    favorites_hits = []
+                    try:
+                        favorites_df = db.get_all_favorites()
+                        if not favorites_df.empty:
+                            fav_symbols = set(favorites_df['symbol'].tolist())
+                            # A股代码可能有后缀，需要处理一下匹配
+                            # 数据库里的A股代码通常带后缀（如 .SH），这里扫描结果的 symbol 也是带后缀的
+                            favorites_hits = results[results['symbol'].isin(fav_symbols)].to_dict('records')
+                    except Exception as e:
+                        logging.warning(f"检查自选股命中失败: {e}")
+                        pass
+                    
+                    nm.send_scan_report(
+                        market='CN',
+                        total_scanned=total_scanned,
+                        blue_stocks=blue_stocks,
+                        heima_stocks=heima_stocks,
+                        favorites_hits=favorites_hits
+                    )
+                else:
+                    print("Email notification disabled in config.")
             except Exception as e:
                 print(f"发送信号总结邮件失败: {e}")
+                print(f"详细错误信息: {traceback.format_exc()}")
     else:
         print("\n未发现任何信号")
     
@@ -838,8 +819,8 @@ def parse_args():
     parser.add_argument(
         '--workers',
         type=int,
-        default=30,
-        help='并发线程数 (默认: 30)'
+        default=5,
+        help='并发线程数 (默认: 5)'
     )
     
     parser.add_argument(
