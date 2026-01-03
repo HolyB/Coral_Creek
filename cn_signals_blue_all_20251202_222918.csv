@@ -1,0 +1,11 @@
+﻿symbol,name,price,Volume,turnover,blue_daily,blue_days,latest_day_blue_value,blue_weekly,blue_weeks,latest_week_blue_value,lired_daily,lired_days,latest_day_lired_value,lired_weekly,lired_weeks,latest_week_lired_value,has_day_blue,has_week_blue,has_day_lired,has_week_lired,has_day_week_blue,has_day_week_lired,day_heima_count,week_heima_count,day_juedi_count,week_juedi_count,has_day_heima,has_week_heima,latest_cci_daily,latest_cci_weekly
+000002.SZ,万科A,5.2,1686909.29,877.1928308,0.0,5,183.90399428310502,0.0,3,200.0,0.0,0,0,0.0,0,0,True,True,False,False,True,False,0,0,1,1,True,True,-140.4138310304528,-202.06398348813212
+000048.SZ,京基智农,13.17,143469.98,188.94996366,91.04174157842274,0,0.0,200.0,2,200.0,0.0,0,0,0.0,0,0,False,True,False,False,False,False,0,0,0,1,False,True,-105.09238310708908,-264.2552684133653
+000403.SZ,派林生物,14.75,80350.39,118.51682525,124.21949012713112,1,124.21949012713112,115.22923382626249,2,115.22923382626249,0.0,0,0,0.0,0,0,False,True,False,False,False,False,1,0,0,1,True,True,-96.13191554939131,-157.55386056469928
+000709.SZ,河钢股份,2.33,835398.09,194.64775497000002,0.0,3,138.13116279007932,0.0,0,0.0,0.0,0,0,0.0,0,0,True,False,False,False,False,False,0,0,0,1,False,True,-53.54927636113022,-138.16179584921662
+000712.SZ,锦龙股份,12.76,88043.38,112.34335288,0.0,3,145.8035650246949,0.0,0,0.0,0.0,0,0,0.0,0,0,True,False,False,False,False,False,1,0,1,1,True,True,-110.46487387950758,-160.9158103479359
+000728.SZ,国元证券,8.19,170364.29,139.52835351,0.0,3,171.55075477726703,0.0,0,0.0,0.0,0,0,0.0,0,0,True,False,False,False,False,False,0,0,1,2,True,True,-63.99108138238579,-132.9502716255745
+000783.SZ,长江证券,8.02,496071.98,397.84972795999994,0.0,4,200.0,0.0,0,0.0,0.0,0,0,0.0,0,0,True,False,False,False,False,False,0,0,0,0,False,False,-50.54932003088088,-87.41377765833585
+000825.SZ,太钢不锈,4.4,1509742.94,664.2868936000001,0.0,3,139.1358494057115,0.0,0,0.0,-108.08006873536017,0,0,0.0,0,0,True,False,False,False,False,False,0,0,0,0,False,False,92.02898550724645,124.84885126964902
+000880.SZ,潍柴重机,26.4,71741.29,189.39700559999997,0.0,0,0.0,0.0,2,200.0,0.0,0,0,0.0,0,0,False,True,False,False,False,False,0,0,0,0,False,False,-48.96848896271232,-84.89777101629682
+000998.SZ,隆平高科,9.7,111805.69,108.4515193,0.0,4,111.50190850303564,0.0,0,0.0,0.0,0,0,0.0,0,0,True,False,False,False,False,False,1,0,0,1,True,True,-74.84276729559724,-108.16081608160746

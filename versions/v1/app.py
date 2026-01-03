@@ -1,17 +1,19 @@
 import streamlit as st
 from database_manager import StockDatabase
 import pandas as pd
+import numpy as np
 import os
 import json
 from data_fetcher import get_stock_data
 from chart_utils import create_candlestick_chart
+from simple_backtest import SimpleBacktester
 
 st.set_page_config(page_title="股票信号扫描监控台", layout="wide", page_icon="📈")
 
 st.title("📈 股票信号扫描监控台")
 
 # 侧边栏导航
-page = st.sidebar.radio("选择功能", ["📊 信号扫描", "❤️ 自选看板"])
+page = st.sidebar.radio("选择功能", ["📊 信号扫描", "❤️ 自选看板", "🔄 策略回测"])
 
 # 初始化数据库连接
 try:
@@ -116,11 +118,11 @@ if page == "📊 信号扫描":
             df = db.get_results_by_date(selected_date)
             
             if not df.empty:
-            # 获取自选股数据
-            favorites_df = db.get_all_favorites()
-            favorite_symbols = set(favorites_df['symbol'].tolist()) if not favorites_df.empty else set()
-    
-            # Filter by market
+                # 获取自选股数据
+                favorites_df = db.get_all_favorites()
+                favorite_symbols = set(favorites_df['symbol'].tolist()) if not favorites_df.empty else set()
+        
+                # Filter by market
             if market_filter:
                 df = df[df['market'].isin(market_filter)]
             
@@ -129,8 +131,7 @@ if page == "📊 信号扫描":
                 df = df[df['symbol'].isin(favorite_symbols)]
             
             # Summary Metrics
-
-# --------------------------
+            col1, col2, col3, col4, col5 = st.columns(5)
             with col1:
                 st.metric("扫描到的股票总数", len(df))
             with col2:
@@ -954,162 +955,156 @@ elif page == "❤️ 自选看板":
                         except Exception as e:
                             st.error(f"加载图表失败: {e}")
 
-
-# 页面 2: 自选看板 (新功能)
 # --------------------------
-elif page == "❤️ 自选看板":
-    st.header("❤️ 自选股行情看板")
+# 页面 3: 策略回测 (新功能)
+# --------------------------
+elif page == "🔄 策略回测":
+    st.header("🔄 BLUE 策略回测 (v1.0)")
+    st.info("策略逻辑: 日线 BLUE > 阈值 (买入) -> KDJ J > 100 (卖出)")
     
-    # 获取所有自选股
-    favorites_df = db.get_all_favorites()
-    
-    if favorites_df.empty:
-        st.info("您还没有添加任何自选股。请在“信号扫描”页面中点击 ⭐ 添加。")
-    else:
-        # 获取最新扫描日期
-        available_dates = db.get_available_dates()
-        latest_date = available_dates[0] if available_dates else None
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        symbol_input = st.text_input("股票代码", value="NVDA", help="例如: NVDA, AAPL, 600519.SH")
+        symbol = symbol_input.upper().strip() if symbol_input else ""
+    with col2:
+        market = st.selectbox("市场", ["US", "CN"], index=0)
+    with col3:
+        initial_capital = st.number_input("初始资金", value=100000.0, step=10000.0)
+    with col4:
+        days = st.number_input("回测天数", value=1095, step=365, help="365天 = 1年")
         
-        if not latest_date:
-            st.warning("数据库中暂无扫描数据，无法显示最新行情。")
-        else:
-            st.write(f"数据来源: 最近一次扫描 ({latest_date})")
-            
-            # 获取最新日期的所有扫描结果
-            latest_scan_df = db.get_results_by_date(latest_date)
-            
-            # 合并自选股和扫描结果
-            # favorites_df 有 columns: symbol, added_at, note
-            # latest_scan_df 有 columns: symbol, name, market, price, ...
-            
-            merged_df = pd.merge(favorites_df, latest_scan_df, on='symbol', how='left')
-            
-            # 显示列表
-            st.markdown("### 自选股列表")
-            
-            # 统计
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("自选股总数", len(merged_df))
-            with col2:
-                has_signal_count = len(merged_df[
-                    (merged_df['has_day_blue'] == True) | 
-                    (merged_df['has_week_blue'] == True) |
-                    (merged_df['has_heima'] == True)
-                ])
-                st.metric("今日有信号", has_signal_count)
-            
-            # 展示卡片式布局或表格
-            # 这里为了复用图表功能，使用类似信号扫描页面的 expander 列表
-            
-            for idx, row in merged_df.iterrows():
-                symbol = row['symbol']
-                name = row.get('name', symbol)
-                if pd.isna(name): name = symbol # 如果没有扫描数据，name可能是NaN
-                market = row.get('market', '未知')
-                price = row.get('price', 0)
-                
-                # 构建标题
-                title = f"⭐ {symbol} ({name})"
-                if price > 0:
-                    title += f" - 价格: {price:.2f}"
-                else:
-                    title += " - (暂无最新价格)"
-                
-                # 信号标记
-                signal_badges = []
-                if row.get('has_day_blue', False): signal_badges.append("🔵日线")
-                if row.get('has_week_blue', False): signal_badges.append("🔵周线")
-                if row.get('has_heima', False): signal_badges.append("🐴黑马")
-                
-                if signal_badges:
-                    title += " " + " ".join(signal_badges)
-                
-                with st.expander(title, expanded=False):
-                    # 操作栏
-                    col1, col2, col3, col4 = st.columns([1.5, 1, 1, 1])
+    col5, col6 = st.columns(2)
+    with col5:
+        threshold = st.slider("BLUE 买入阈值", min_value=50.0, max_value=200.0, value=100.0, step=10.0)
+    with col6:
+        commission = st.number_input("佣金费率", value=0.001, format="%.4f")
+        
+    col7, col8 = st.columns(2)
+    with col7:
+        require_heima = st.checkbox("✅ 必须包含黑马/掘底信号", value=False, help="更严格：仅当同时出现黑马或掘底信号时才买入")
+    with col8:
+        require_week_blue = st.checkbox("✅ 必须包含周线BLUE共振", value=False, help="更严格：仅当周线BLUE同时也大于阈值时才买入")
+        
+    require_vp = st.checkbox("✅ 必须筹码形态良好", value=False, help="过滤掉获利盘极低且被筹码峰压制的假反弹")
+    
+    # --- 智能推荐模块 ---
+    if st.button("🔍 分析波动率 & 推荐阈值"):
+        with st.spinner(f"正在分析 {symbol} 的历史波动率..."):
+            try:
+                # 获取1年数据用于分析
+                df_vol = get_stock_data(symbol, market, days=365)
+                if df_vol is not None and not df_vol.empty:
+                    # 计算日收益率
+                    df_vol['returns'] = df_vol['Close'].pct_change()
+                    # 计算年化波动率
+                    volatility = df_vol['returns'].std() * np.sqrt(252)
                     
-                    with col1:
-                        show_chart = st.button(f"📈 查看图表", key=f"fav_chart_{symbol}_{idx}")
+                    # 自适应逻辑
+                    rec_threshold = 90 # 默认
+                    stock_type = "中等波动 (正常)"
                     
-                    with col2:
-                        chart_period = st.selectbox(
-                            "周期",
-                            options=["daily", "weekly", "monthly"],
-                            format_func=lambda x: {"daily": "日线", "weekly": "周线", "monthly": "月线"}.get(x, x),
-                            index=0,
-                            key=f"fav_period_{symbol}_{idx}",
-                            label_visibility="collapsed"
-                        )
-                    
-                    with col3:
-                        show_volume_profile = st.checkbox("筹码分布", value=True, key=f"fav_vp_{symbol}_{idx}")
-                    
-                    # 筹码天数选择 (仅当开启筹码分布时显示)
-                    profile_days = None
-                    if show_volume_profile:
-                        profile_days = st.slider(
-                            "统计天数", 
-                            min_value=10, 
-                            max_value=730, 
-                            value=180, 
-                            step=10, 
-                            key=f"fav_vp_days_{symbol}_{idx}"
-                        )
-
-                    with col4:
-                        if st.button("❌ 移除", key=f"fav_remove_{symbol}_{idx}"):
-                            db.remove_favorite(symbol)
-                            st.rerun()
-                    
-                    # 显示备注
-                    note = row.get('note')
-                    if note:
-                        st.info(f"备注: {note}")
-                    
-                    # 显示图表
-                    if show_chart:
-                        # 确定市场（如果合并数据中没有市场信息，尝试推断或默认）
-                        # 这里如果merged_df中没有market信息（即该股票不在最新扫描结果中），我们需要一种方式知道它是美股还是A股
-                        # 简单的做法：看代码格式。数字开头是A股，字母是美股
-                        if pd.isna(market) or market == '未知':
-                            if str(symbol)[0].isdigit():
-                                market = 'CN'
-                            else:
-                                market = 'US'
+                    if volatility > 0.45:
+                        rec_threshold = 110
+                        stock_type = "🔥 高波动 (成长/妖股)"
+                    elif volatility < 0.20:
+                        rec_threshold = 70
+                        stock_type = "🛡️ 低波动 (防守/价值)"
+                    elif volatility < 0.30:
+                        rec_threshold = 80
+                        stock_type = "⚖️ 中低波动 (稳健)"
                         
-                        with st.spinner(f"正在加载 {symbol} 的历史数据..."):
-                            try:
-                                days_map = {
-                                    "daily": 730,
-                                    "weekly": 1095,
-                                    "monthly": 1825
-                                }
-                                days = days_map.get(chart_period, 730)
-                                
-                                hist_data = get_stock_data(symbol, market=market, days=days)
-                                
-                                if hist_data is not None and not hist_data.empty:
-                                    # 注意：如果是自选股但不在最新扫描结果中，我们可能没有它的信号日期数据
-                                    # 这里只能显示图表，可能没有信号标注
-                                    day_blue_dates = row.get('day_blue_dates') if pd.notna(row.get('day_blue_dates')) else None
-                                    week_blue_dates = row.get('week_blue_dates') if pd.notna(row.get('week_blue_dates')) else None
-                                    heima_dates = row.get('heima_dates') if pd.notna(row.get('heima_dates')) else None
-                                    
-                                    fig = create_candlestick_chart(
-                                        hist_data,
-                                        symbol,
-                                        name,
-                                        period=chart_period,
-                                        day_blue_dates=day_blue_dates,
-                                        week_blue_dates=week_blue_dates,
-                                        heima_dates=heima_dates,
-                                        show_volume_profile=show_volume_profile,
-                                        profile_days=profile_days
-                                    )
-                                    st.plotly_chart(fig, use_container_width=True)
-                                else:
-                                    st.warning("无法获取数据")
-                            except Exception as e:
-                                st.error(f"加载图表失败: {e}")
-        col1, col2, col3, col4, col5 = st.columns(5)
+                    st.info(f"""
+                    **分析结果**:
+                    - 年化波动率: `{volatility:.2%}`
+                    - 股票类型: **{stock_type}**
+                    - 💡 **推荐 BLUE 阈值**: `{rec_threshold}` (请手动调整上方滑块)
+                    """)
+                else:
+                    st.error("无法获取数据进行分析")
+            except Exception as e:
+                st.error(f"分析失败: {e}")
+        
+    if st.button("🚀 开始回测"):
+        with st.spinner(f"正在回测 {symbol} ..."):
+            try:
+                # 初始化回测引擎
+                backtester = SimpleBacktester(
+                    symbol=symbol, 
+                    market=market, 
+                    initial_capital=initial_capital, 
+                    days=days, 
+                    commission_rate=commission,
+                    blue_threshold=threshold,
+                    require_heima=require_heima,
+                    require_week_blue=require_week_blue,
+                    require_vp_filter=require_vp
+                )
+                
+                # 加载数据
+                if not backtester.load_data():
+                    st.error(f"❌ 数据加载失败: 无法获取 {symbol} 的数据。可能是网络问题或API限制，请稍后重试。")
+                else:
+                    # 运行回测
+                    backtester.calculate_signals()
+                    backtester.run_backtest()
+                    
+                    # 显示结果摘要
+                    res = backtester.results
+                    
+                    st.success("✅ 回测完成！")
+                    
+                    # 关键指标卡片
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("总收益率", f"{res['Total Return']:.2%}", delta_color="normal")
+                    m2.metric("年化收益率", f"{res['Annual Return']:.2%}")
+                    m3.metric("最大回撤", f"{res['Max Drawdown']:.2%}", delta_color="inverse")
+                    m4.metric("胜率", f"{res['Win Rate']:.2%}", f"{res['Total Trades']} 笔交易")
+                    
+                    # 资金曲线图
+                    fig = backtester.plot_results(show=False)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                    # 交易详情表
+                    if backtester.trades:
+                        st.subheader("📋 交易记录 & 筹码分布")
+                        
+                        trade_data = []
+                        for t in backtester.trades:
+                            vp = t.get('vp_metrics', {})
+                            trade_data.append({
+                                "日期": t['date'].strftime('%Y-%m-%d'),
+                                "类型": t['type'],
+                                "价格": f"{t['price']:.2f}",
+                                "数量": t['shares'],
+                                "金额": f"{t['value']:.2f}",
+                                "盈亏": f"{t.get('pnl', 0):.2f}" if 'pnl' in t else "-",
+                                "筹码获利比": f"{vp.get('profit_ratio', 0):.2%}" if vp else "-",
+                                "相对POC": vp.get('price_pos', '-') if vp else "-",
+                                "筹码集中度": f"{vp.get('concentration', 0):.2f}" if vp else "-"
+                            })
+                        
+                        st.dataframe(pd.DataFrame(trade_data), width="stretch")
+                    else:
+                        st.warning("在此期间未触发任何交易。")
+
+                    # 被过滤的信号表 (New Feature)
+                    if hasattr(backtester, 'rejected_trades') and backtester.rejected_trades:
+                        with st.expander("🚫 查看被过滤的信号 (诊断报告)", expanded=True):
+                            st.caption("以下信号满足了基础 BLUE 阈值，但被您的高级过滤条件（周线/黑马/筹码分布）拒绝。")
+                            
+                            rejected_data = []
+                            for r in backtester.rejected_trades:
+                                rejected_data.append({
+                                    "日期": r['date'].strftime('%Y-%m-%d'),
+                                    "价格": f"{r['price']:.2f}",
+                                    "Day BLUE": f"{r['blue']:.1f}",
+                                    "拒绝原因 ❌": r['reason']
+                                })
+                            
+                            st.dataframe(pd.DataFrame(rejected_data), width="stretch")
+                        
+            except Exception as e:
+                st.error(f"回测出错: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
