@@ -43,11 +43,15 @@ jobs:
       
       - name: Run daily scan
         working-directory: versions/v2
+        env:
+          TZ: America/New_York
+          PYTHONPATH: ${{ github.workspace }}/versions/v2
         run: |
-          # 确定扫描日期
+          # 确定扫描日期 (使用美东时间)
           SCAN_DATE="${{ github.event.inputs.scan_date }}"
           if [ -z "$SCAN_DATE" ]; then
-            SCAN_DATE=$(date +%Y-%m-%d)
+            # 使用美东时间获取日期
+            SCAN_DATE=$(TZ='America/New_York' date +%Y-%m-%d)
           fi
           
           LIMIT="${{ github.event.inputs.limit }}"
@@ -55,8 +59,12 @@ jobs:
             LIMIT="0"
           fi
           
-          echo "📅 Scanning for date: $SCAN_DATE"
+          echo "📅 Scanning for date: $SCAN_DATE (Eastern Time)"
           echo "📊 Stock limit: $LIMIT"
+          echo "🔧 PYTHONPATH: $PYTHONPATH"
+          
+          # 创建数据库目录
+          mkdir -p db
           
           # 运行扫描
           python services/scan_service.py --date "$SCAN_DATE" --workers 10 --limit "$LIMIT"
