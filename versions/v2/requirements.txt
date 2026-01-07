@@ -1,0 +1,12 @@
+# Coral Creek V2 Dependencies
+pandas>=2.0.0
+numpy>=1.24.0
+plotly>=5.18.0
+streamlit>=1.29.0
+polygon-api-client>=1.12.0
+tqdm>=4.66.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+
+
