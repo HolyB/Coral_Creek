@@ -49,3 +49,7 @@ logs/
 
 # Artifacts
 scan_summary.json
+
+# Allow Coral Creek database for Streamlit Cloud
+!versions/v2/db/coral_creek.db
+

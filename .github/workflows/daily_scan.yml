@@ -137,5 +137,21 @@ jobs:
               -d "text=$MESSAGE" \
               -d "parse_mode=Markdown"
           fi
-
-
+      
+      # 提交数据库到仓库 - 用于 Streamlit Cloud
+      - name: Commit database to repo
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # 添加数据库文件
+          git add versions/v2/db/coral_creek.db || true
+          git add versions/v2/scan_summary.json || true
+          
+          # 检查是否有变化
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📊 Auto-update: Scan results for $(TZ='America/New_York' date +%Y-%m-%d)"
+            git push
+          fi
