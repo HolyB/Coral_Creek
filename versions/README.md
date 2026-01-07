@@ -1,82 +1,106 @@
-# BLUE信号扫描器 - 版本管理
+# Coral Creek 量化系统 - 版本管理
 
-## 📁 版本结构
+本目录包含 Coral Creek 系统的所有迭代版本。
 
-本目录包含BLUE信号扫描器的所有版本，每个版本都有独立的文件夹和说明文档。
+## 📋 版本概览
 
-## 📋 当前版本
-
-### [v1 - 初始版本](./v1/)
-- **创建日期**: 2025-12-15
-- **状态**: ✅ 稳定版本
-- **特性**: 仅扫描BLUE信号，移除LIRED信号
-- **包含文件**:
-  - `scan_signals_blue_only.py` - 美股版本
-  - `scan_cn_signals_blue_only.py` - A股版本
-
-## 🔄 版本选择
-
-### 如何选择版本？
-
-1. **推荐使用最新稳定版本** - 通常包含最新的功能和修复
-2. **查看版本说明** - 每个版本文件夹都有详细的README.md
-3. **根据需求选择** - 不同版本可能有不同的特性
-
-## 📝 版本命名规则
-
-- `v1`, `v2`, `v3` - 主版本号，重大功能变更
-- 每个版本文件夹包含：
-  - 源代码文件
-  - README.md 说明文档
-  - 可能包含配置文件或示例
-
-## 🚀 快速开始
-
-### 使用当前版本（v1）
-
-```bash
-# 进入版本目录
-cd versions/v1
-
-# 运行美股版本
-python scan_signals_blue_only.py --limit 100
-
-# 运行A股版本
-python scan_cn_signals_blue_only.py --start-batch 1 --end-batch 1
-```
-
-### 从根目录使用
-
-根目录的脚本文件会指向最新版本，或者你可以直接使用：
-
-```bash
-# 从根目录运行（如果已链接到最新版本）
-python scan_signals_blue_only.py
-python scan_cn_signals_blue_only.py
-```
-
-## 📊 版本对比
-
-| 版本 | 创建日期 | BLUE信号 | LIRED信号 | 周期过滤 | 黑马信号 | 状态 |
-|------|----------|----------|-----------|----------|----------|------|
-| v1 | 2025-12-15 | ✅ | ❌ | ✅ | ✅ | ✅ 稳定 |
-
-## 🔄 版本更新计划
-
-- **v2** (计划中): 性能优化、更多过滤选项
-- **v3** (计划中): 添加回测功能、信号评分系统
-
-## 📌 注意事项
-
-1. **版本兼容性**: 不同版本之间可能不兼容，请查看各版本的README
-2. **数据格式**: 输出CSV格式可能在不同版本间有差异
-3. **API要求**: 确保API密钥和依赖库版本匹配
-
-## 🔗 相关文档
-
-- [根目录使用说明](../BLUE信号扫描器使用说明.md)
-- [v1详细文档](./v1/README.md)
+| 版本 | 目录 | 状态 | 核心特性 |
+| :--- | :--- | :--- | :--- |
+| **V2.1** | `versions/v2/` | 🚀 **最新推荐** | **数据库存储 + 历史回溯 + 批量回填**。<br>支持按日期查询历史扫描结果。 |
+| V2.0 | `versions/v2/` | ✅ 稳定 | 自适应扫描 + 波浪识别 + 白盒风控 + Dashboard |
+| V1.x | `versions/v1/` | 🛑 存档 | 初始版本，基于固定阈值的简单扫描 |
 
 ---
 
-**最后更新**: 2025-12-15
+## 🚀 快速开始 (V2.1)
+
+### 1. 安装依赖
+```bash
+cd versions/v2
+pip install pandas numpy plotly streamlit polygon-api-client tqdm
+```
+
+### 2. 初始化数据库
+```bash
+python -c "from db.database import init_db; init_db()"
+```
+
+### 3. 运行每日扫描
+```bash
+# 扫描今天的数据
+python scripts/run_daily_scan.py
+
+# 或指定日期
+python services/scan_service.py --date 2026-01-07 --workers 30
+```
+
+### 4. 批量回填历史数据
+```bash
+# 查看缺失日期 (dry-run)
+python scripts/backfill.py --start 2025-12-01 --end 2026-01-07 --dry-run
+
+# 执行回填
+python scripts/backfill.py --start 2025-12-01 --end 2026-01-07 --workers 30
+```
+
+### 5. 启动 Web 界面
+```bash
+streamlit run app.py --server.port 8502
+```
+
+---
+
+## 📁 V2.1 目录结构
+
+```
+versions/v2/
+├── app.py                    # Streamlit 前端 (支持日期选择)
+├── scanner.py                # 扫描引擎 (CSV 输出，兼容旧版)
+├── backtester.py             # 回测引擎
+├── indicator_utils.py        # 技术指标计算
+├── chart_utils.py            # 图表工具
+├── data_fetcher.py           # 数据获取 (Polygon API)
+│
+├── db/                       # 📦 数据库模块 (V2.1 新增)
+│   ├── database.py           # SQLite 操作
+│   └── coral_creek.db        # 数据库文件
+│
+├── services/                 # 🔧 服务模块 (V2.1 新增)
+│   └── scan_service.py       # 扫描服务 (支持指定日期)
+│
+└── scripts/                  # 📜 脚本 (V2.1 新增)
+    ├── run_daily_scan.py     # 每日扫描
+    └── backfill.py           # 批量回填
+```
+
+---
+
+## 🗄️ 数据库设计 (V2.1)
+
+### scan_results 表
+存储每日扫描结果，支持按日期查询历史数据。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| symbol | VARCHAR | 股票代码 |
+| scan_date | DATE | 扫描日期 (关键索引) |
+| blue_daily | FLOAT | 日线 BLUE 信号 |
+| blue_weekly | FLOAT | 周线 BLUE 信号 |
+| blue_monthly | FLOAT | 月线 BLUE 信号 |
+| adx | FLOAT | 趋势强度 |
+| ... | ... | 其他指标 |
+
+### scan_jobs 表
+记录扫描任务状态。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| scan_date | DATE | 扫描日期 |
+| status | VARCHAR | pending/running/done/failed |
+| signals_found | INT | 发现信号数 |
+
+---
+
+## 📝 详细变更日志
+
+请查阅 [V2 Changelog](v2/CHANGELOG.md) 获取详细技术细节。
