@@ -115,6 +115,7 @@ jobs:
           name: scan-summary-${{ github.run_number }}
           path: versions/v2/scan_summary.json
           retention-days: 30
+          if-no-files-found: ignore
       
       # 可选: 发送 Telegram 通知
       - name: Send Telegram notification
