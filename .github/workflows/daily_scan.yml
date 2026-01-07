@@ -1,0 +1,128 @@
+name: Daily Stock Scan
+
+on:
+  # 定时触发 - 美东时间
+  schedule:
+    # UTC 21:30 = 美东 16:30 (盘后30分钟)
+    - cron: '30 21 * * 1-5'  # 周一到周五
+  
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      scan_date:
+        description: 'Scan date (YYYY-MM-DD), leave empty for today'
+        required: false
+        default: ''
+      limit:
+        description: 'Limit number of stocks (0 = all)'
+        required: false
+        default: '0'
+
+env:
+  POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60  # 最长运行1小时
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy plotly polygon-api-client tqdm requests
+      
+      - name: Run daily scan
+        working-directory: versions/v2
+        run: |
+          # 确定扫描日期
+          SCAN_DATE="${{ github.event.inputs.scan_date }}"
+          if [ -z "$SCAN_DATE" ]; then
+            SCAN_DATE=$(date +%Y-%m-%d)
+          fi
+          
+          LIMIT="${{ github.event.inputs.limit }}"
+          if [ -z "$LIMIT" ]; then
+            LIMIT="0"
+          fi
+          
+          echo "📅 Scanning for date: $SCAN_DATE"
+          echo "📊 Stock limit: $LIMIT"
+          
+          # 运行扫描
+          python services/scan_service.py --date "$SCAN_DATE" --workers 10 --limit "$LIMIT"
+      
+      - name: Generate scan report
+        working-directory: versions/v2
+        run: |
+          python -c "
+          from db.database import get_db_stats, query_scan_results, get_scanned_dates
+          import json
+          
+          stats = get_db_stats()
+          print('📊 Scan Statistics:')
+          print(f'   Total records: {stats[\"total_records\"]}')
+          print(f'   Total symbols: {stats[\"total_symbols\"]}')
+          print(f'   Date range: {stats[\"min_date\"]} ~ {stats[\"max_date\"]}')
+          
+          # 获取最新扫描结果
+          dates = get_scanned_dates()
+          if dates:
+              latest = dates[0]
+              results = query_scan_results(scan_date=latest, limit=20)
+              
+              print(f'\n🏆 Top 20 signals for {latest}:')
+              for r in results:
+                  print(f'   {r[\"symbol\"]:6} | \${r[\"price\"]:8.2f} | BLUE: {r[\"blue_daily\"]:5.1f} | Week: {r[\"blue_weekly\"]:5.1f}')
+              
+              # 保存摘要到文件
+              summary = {
+                  'date': latest,
+                  'total_signals': len(query_scan_results(scan_date=latest)),
+                  'top_10': [{'symbol': r['symbol'], 'price': r['price'], 'blue_daily': r['blue_daily']} for r in results[:10]]
+              }
+              with open('scan_summary.json', 'w') as f:
+                  json.dump(summary, f, indent=2)
+          "
+      
+      - name: Upload database artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-database-${{ github.run_number }}
+          path: versions/v2/db/coral_creek.db
+          retention-days: 30
+      
+      - name: Upload scan summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-summary-${{ github.run_number }}
+          path: versions/v2/scan_summary.json
+          retention-days: 30
+      
+      # 可选: 发送 Telegram 通知
+      - name: Send Telegram notification
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' }}
+        run: |
+          cd versions/v2
+          if [ -f scan_summary.json ]; then
+            SUMMARY=$(cat scan_summary.json)
+            DATE=$(echo $SUMMARY | python -c "import sys,json; print(json.load(sys.stdin)['date'])")
+            TOTAL=$(echo $SUMMARY | python -c "import sys,json; print(json.load(sys.stdin)['total_signals'])")
+            
+            MESSAGE="🌊 *Coral Creek Daily Scan*%0A📅 Date: $DATE%0A📊 Signals found: $TOTAL%0A%0A✅ Scan completed successfully!"
+            
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+              -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+              -d "text=$MESSAGE" \
+              -d "parse_mode=Markdown"
+          fi
+
