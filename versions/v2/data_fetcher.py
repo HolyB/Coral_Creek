@@ -8,17 +8,44 @@ import numpy as np
 from datetime import datetime, timedelta
 import time
 
+# 加载 .env 文件
+try:
+    from dotenv import load_dotenv
+    # 尝试从多个位置加载 .env
+    env_paths = [
+        os.path.join(os.path.dirname(__file__), '.env'),  # versions/v2/.env
+        os.path.join(os.path.dirname(__file__), '..', '..', '.env'),  # 项目根目录/.env
+    ]
+    for env_path in env_paths:
+        if os.path.exists(env_path):
+            load_dotenv(env_path)
+            break
+except ImportError:
+    pass  # dotenv not installed, rely on environment variables
+
 # 修复Windows编码问题
 if sys.platform == 'win32':
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
+def _get_polygon_api_key():
+    """获取 Polygon API Key，如果未设置则抛出错误"""
+    api_key = os.getenv('POLYGON_API_KEY')
+    if not api_key:
+        raise ValueError(
+            "POLYGON_API_KEY not set! Please either:\n"
+            "1. Create a .env file with POLYGON_API_KEY=your_key\n"
+            "2. Set the environment variable: export POLYGON_API_KEY=your_key\n"
+            "Get your key at: https://polygon.io/dashboard/api-keys"
+        )
+    return api_key
+
 def get_all_us_tickers():
     """从Polygon API获取所有活跃美股代码"""
     try:
         from polygon import RESTClient
-        api_key = os.getenv('POLYGON_API_KEY', 'qFVjhzvJAyc0zsYIegmpUclYLoWKMh7D')
+        api_key = _get_polygon_api_key()
         client = RESTClient(api_key)
         
         print("Fetching all active US tickers from Polygon...")
@@ -51,7 +78,7 @@ def get_us_stock_data(symbol, days=365):
     try:
         from polygon import RESTClient
         
-        api_key = os.getenv('POLYGON_API_KEY', 'qFVjhzvJAyc0zsYIegmpUclYLoWKMh7D')
+        api_key = _get_polygon_api_key()
         client = RESTClient(api_key)
         
         end_date = datetime.now()
@@ -97,7 +124,7 @@ def get_ticker_details(symbol):
     """获取股票详细信息（市值、流通股本等）"""
     try:
         from polygon import RESTClient
-        api_key = os.getenv('POLYGON_API_KEY', 'qFVjhzvJAyc0zsYIegmpUclYLoWKMh7D')
+        api_key = _get_polygon_api_key()
         client = RESTClient(api_key)
         
         # 调用 Ticker Details v3
