@@ -299,11 +299,12 @@ def render_scan_page():
         if st.button("🔄 刷新数据"):
             st.rerun()
     
-    # 加载数据 - 根据选择的市场过滤
+    # 加载数据 - 暂时不按市场过滤，显示所有数据
+    # TODO: 改进日期选择器，按市场分别显示可用日期
     if use_db and selected_date:
-        df, data_source = load_scan_results_from_db(selected_date, market=selected_market)
+        df, data_source = load_scan_results_from_db(selected_date, market=None)  # 暂不过滤
         if data_source:
-            data_source = f"📅 {data_source} ({selected_market})"
+            data_source = f"📅 {data_source}"
     else:
         df, data_source = load_latest_scan_results()
         if data_source and not data_source.startswith("📅"):
