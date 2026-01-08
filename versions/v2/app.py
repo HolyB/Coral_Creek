@@ -344,7 +344,7 @@ def render_scan_page():
                 "最低日成交额 ($M)", 
                 min_value=0.0, 
                 max_value=min(max_turnover, 500.0),  # 上限500M，避免slider太长
-                value=1.0,  # 默认1百万美元
+                value=0.0,  # 默认0 (显示所有)
                 step=0.5,
                 help="过滤成交额过低的股票，避免流动性风险"
             )
@@ -371,7 +371,7 @@ def render_scan_page():
                 "最低 ADX (趋势强度)",
                 min_value=0.0,
                 max_value=80.0,
-                value=20.0,  # 默认 20 (弱趋势起点)
+                value=0.0,  # 默认 0 (显示所有)
                 step=5.0,
                 help="ADX > 25 表示趋势明确，ADX > 40 表示强趋势"
             )
