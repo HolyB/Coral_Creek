@@ -105,6 +105,13 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_job_status ON scan_jobs(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_job_date ON scan_jobs(scan_date)")
         
+        # 迁移: 如果 market 列不存在，添加它
+        try:
+            cursor.execute("SELECT market FROM scan_results LIMIT 1")
+        except sqlite3.OperationalError:
+            print("🔄 Adding market column to scan_results...")
+            cursor.execute("ALTER TABLE scan_results ADD COLUMN market VARCHAR(10) DEFAULT 'US'")
+        
         print(f"✅ Database initialized at: {DB_PATH}")
 
 
