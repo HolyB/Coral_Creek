@@ -227,8 +227,22 @@ def get_ticker_details(symbol):
         # print(f"Error fetching details for {symbol}: {e}")
         return None
 
+# Tushare API 调用计数器 (限流)
+_tushare_call_count = 0
+_tushare_call_limit = 450  # 每450次暂停一下 (Tushare 限制约500次/分钟)
+_tushare_pause_seconds = 60
+
 def get_cn_stock_data(symbol, days=365):
     """获取A股历史数据（使用Tushare API）"""
+    global _tushare_call_count
+    
+    # 限流：每450次调用暂停60秒
+    _tushare_call_count += 1
+    if _tushare_call_count % _tushare_call_limit == 0:
+        import time
+        print(f"⏸️ Tushare rate limit: pausing for {_tushare_pause_seconds}s after {_tushare_call_count} calls...")
+        time.sleep(_tushare_pause_seconds)
+    
     try:
         import tushare as ts
         
