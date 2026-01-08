@@ -18,8 +18,13 @@ on:
         required: false
         default: '0'
 
+# 权限 - 允许写入仓库
+permissions:
+  contents: write
+
 env:
   POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+
 
 jobs:
   scan:

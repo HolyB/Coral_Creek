@@ -18,9 +18,14 @@ on:
         required: false
         default: '0'
 
+# 权限 - 允许写入仓库
+permissions:
+  contents: write
+
 env:
   POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
   TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+
 
 jobs:
   scan:
