@@ -158,6 +158,7 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "📊 Auto-update: Scan results for $(TZ='America/New_York' date +%Y-%m-%d)"
+            git pull --rebase origin main || true
             git push
           fi
 

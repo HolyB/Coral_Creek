@@ -139,5 +139,6 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "📊 Auto-update: CN A-Share scan results for $(TZ='Asia/Shanghai' date +%Y-%m-%d)"
+            git pull --rebase origin main || true
             git push
           fi
