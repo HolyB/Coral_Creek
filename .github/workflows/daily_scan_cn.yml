@@ -1,0 +1,138 @@
+name: Daily Stock Scan (CN A-Share)
+
+on:
+  # 定时触发 - 北京时间
+  schedule:
+    # UTC 09:30 = 北京 17:30 (盘后30分钟)
+    - cron: '30 9 * * 1-5'  # 周一到周五
+  
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      scan_date:
+        description: 'Scan date (YYYY-MM-DD), leave empty for today'
+        required: false
+        default: ''
+      limit:
+        description: 'Limit number of stocks (0 = all)'
+        required: false
+        default: '0'
+
+env:
+  POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+  TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 最长运行2小时 (A股约5000只)
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy plotly tushare tqdm requests python-dotenv
+      
+      - name: Run CN A-Share scan
+        working-directory: versions/v2
+        env:
+          TZ: Asia/Shanghai
+          PYTHONPATH: ${{ github.workspace }}/versions/v2
+        run: |
+          # 确定扫描日期 (使用北京时间)
+          SCAN_DATE="${{ github.event.inputs.scan_date }}"
+          if [ -z "$SCAN_DATE" ]; then
+            # 使用北京时间获取日期
+            SCAN_DATE=$(TZ='Asia/Shanghai' date +%Y-%m-%d)
+          fi
+          
+          LIMIT="${{ github.event.inputs.limit }}"
+          if [ -z "$LIMIT" ]; then
+            LIMIT="0"
+          fi
+          
+          echo "📅 Scanning CN A-Shares for date: $SCAN_DATE (Beijing Time)"
+          echo "📊 Stock limit: $LIMIT"
+          echo "🔧 PYTHONPATH: $PYTHONPATH"
+          
+          # 创建数据库目录
+          mkdir -p db
+          
+          # 运行A股扫描
+          python services/scan_service.py --date "$SCAN_DATE" --market CN --workers 10 --limit "$LIMIT"
+      
+      - name: Generate scan report
+        working-directory: versions/v2
+        run: |
+          python -c "
+          from db.database import get_db_stats, query_scan_results, get_scanned_dates
+          import json
+          
+          stats = get_db_stats()
+          print('📊 Scan Statistics:')
+          print(f'   Total records: {stats[\"total_records\"]}')
+          print(f'   Total symbols: {stats[\"total_symbols\"]}')
+          print(f'   Date range: {stats[\"min_date\"]} ~ {stats[\"max_date\"]}')
+          
+          # 获取最新扫描结果
+          dates = get_scanned_dates()
+          if dates:
+              latest = dates[0]
+              results = query_scan_results(scan_date=latest, limit=20)
+              
+              print(f'\n🏆 Top 20 A-Share signals for {latest}:')
+              for r in results:
+                  print(f'   {r[\"symbol\"]:10} | ¥{r[\"price\"]:8.2f} | BLUE: {r[\"blue_daily\"]:5.1f} | Week: {r[\"blue_weekly\"]:5.1f}')
+              
+              # 保存摘要到文件
+              summary = {
+                  'date': latest,
+                  'market': 'CN',
+                  'total_signals': len(query_scan_results(scan_date=latest)),
+                  'top_10': [{'symbol': r['symbol'], 'price': r['price'], 'blue_daily': r['blue_daily']} for r in results[:10]]
+              }
+              with open('scan_summary_cn.json', 'w') as f:
+                  json.dump(summary, f, indent=2)
+          "
+      
+      - name: Upload database artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-database-cn-${{ github.run_number }}
+          path: versions/v2/db/coral_creek.db
+          retention-days: 30
+      
+      - name: Upload scan summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-summary-cn-${{ github.run_number }}
+          path: versions/v2/scan_summary_cn.json
+          retention-days: 30
+          if-no-files-found: ignore
+      
+      # 提交数据库到仓库 - 用于 Render
+      - name: Commit database to repo
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # 添加数据库文件
+          git add versions/v2/db/coral_creek.db || true
+          git add versions/v2/scan_summary_cn.json || true
+          
+          # 检查是否有变化
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📊 Auto-update: CN A-Share scan results for $(TZ='Asia/Shanghai' date +%Y-%m-%d)"
+            git push
+          fi

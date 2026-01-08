@@ -19,7 +19,7 @@ from db.database import (
     create_scan_job, update_scan_job, get_scan_job,
     init_db
 )
-from data_fetcher import get_us_stock_data, get_all_us_tickers, get_ticker_details
+from data_fetcher import get_us_stock_data, get_all_us_tickers, get_ticker_details, get_cn_stock_data, get_all_cn_tickers
 from indicator_utils import (
     calculate_blue_signal_series, calculate_heima_signal_series,
     calculate_adx_series, calculate_volume_profile_metrics,
@@ -51,8 +51,9 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
         
         if market == 'US':
             df = get_us_stock_data(symbol, days=days_needed)
+        elif market == 'CN':
+            df = get_cn_stock_data(symbol, days=days_needed)
         else:
-            # TODO: 支持 CN 市场
             return None
         
         if df is None or len(df) < 60:
@@ -262,6 +263,10 @@ def run_scan_for_date(target_date, market='US', max_workers=30, limit=0, save_to
     if market == 'US':
         print("Fetching all active US tickers...")
         tickers = get_all_us_tickers()
+        print(f"Fetched {len(tickers)} tickers.")
+    elif market == 'CN':
+        print("Fetching all active CN A-share tickers...")
+        tickers = get_all_cn_tickers()
         print(f"Fetched {len(tickers)} tickers.")
     else:
         tickers = []

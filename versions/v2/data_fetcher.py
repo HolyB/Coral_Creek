@@ -73,6 +73,36 @@ def get_all_us_tickers():
                 return [line.strip() for line in f if line.strip()]
         return []
 
+def get_all_cn_tickers():
+    """从Tushare API获取所有A股股票代码"""
+    try:
+        import tushare as ts
+        
+        token = os.getenv('TUSHARE_TOKEN')
+        if token:
+            ts.set_token(token)
+        
+        pro = ts.pro_api()
+        
+        print("Fetching all active CN A-share tickers from Tushare...")
+        
+        # 获取上市状态为正常的股票
+        df = pro.stock_basic(
+            exchange='', 
+            list_status='L',
+            fields='ts_code,symbol,name,area,industry,list_date'
+        )
+        
+        if df is not None and not df.empty:
+            tickers = df['ts_code'].tolist()
+            print(f"Fetched {len(tickers)} CN tickers.")
+            return tickers
+        return []
+    except Exception as e:
+        print(f"Error fetching CN tickers: {e}")
+        return []
+
+
 def get_us_stock_data(symbol, days=365):
     """获取美股历史数据（使用Polygon API）"""
     try:
