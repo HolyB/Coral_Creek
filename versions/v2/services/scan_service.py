@@ -403,3 +403,4 @@ if __name__ == "__main__":
         for r in sorted_results:
             print(f"  {r['Symbol']:6} | Price: ${r['Price']:8.2f} | Day BLUE: {r['Blue_Daily']:5.1f} | Week BLUE: {r['Blue_Weekly']:5.1f}")
 
+
