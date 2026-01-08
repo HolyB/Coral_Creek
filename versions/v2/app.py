@@ -359,7 +359,7 @@ def render_scan_page():
                 "Day BLUE 范围",
                 min_value=0.0,
                 max_value=200.0,
-                value=(50.0, 200.0),  # 默认 50-200
+                value=(0.0, 200.0),  # 默认 0-200 (显示所有)
                 step=10.0,
                 help="BLUE 越高代表抄底信号越强"
             )
