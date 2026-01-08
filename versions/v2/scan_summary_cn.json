@@ -1,0 +1,57 @@
+{
+  "date": "2026-01-07",
+  "market": "CN",
+  "total_signals": 359,
+  "top_10": [
+    {
+      "symbol": "WBI",
+      "price": 18.76,
+      "blue_daily": 200.0
+    },
+    {
+      "symbol": "VSA",
+      "price": 2.41,
+      "blue_daily": 200.0
+    },
+    {
+      "symbol": "QBTZ",
+      "price": 6.81,
+      "blue_daily": 200.0
+    },
+    {
+      "symbol": "PRT",
+      "price": 2.66,
+      "blue_daily": 200.0
+    },
+    {
+      "symbol": "PCR",
+      "price": 22.18,
+      "blue_daily": 200.0
+    },
+    {
+      "symbol": "MGN",
+      "price": 1.5,
+      "blue_daily": 200.0
+    },
+    {
+      "symbol": "FOFO",
+      "price": 6.06,
+      "blue_daily": 200.0
+    },
+    {
+      "symbol": "ETHZ",
+      "price": 5.0,
+      "blue_daily": 200.0
+    },
+    {
+      "symbol": "CRDU",
+      "price": 14.25,
+      "blue_daily": 200.0
+    },
+    {
+      "symbol": "ANGX",
+      "price": 4.21,
+      "blue_daily": 200.0
+    }
+  ]
+}
