@@ -108,23 +108,23 @@ def init_db():
         print(f"✅ Database initialized at: {DB_PATH}")
 
 
-def get_scanned_dates(start_date=None, end_date=None):
-    """获取已扫描的日期列表"""
+def get_scanned_dates(start_date=None, end_date=None, market=None):
+    """获取已扫描的日期列表，可按市场过滤"""
     with get_db() as conn:
         cursor = conn.cursor()
         
-        query = "SELECT DISTINCT scan_date FROM scan_results"
+        query = "SELECT DISTINCT scan_date FROM scan_results WHERE 1=1"
         params = []
         
-        if start_date or end_date:
-            conditions = []
-            if start_date:
-                conditions.append("scan_date >= ?")
-                params.append(start_date)
-            if end_date:
-                conditions.append("scan_date <= ?")
-                params.append(end_date)
-            query += " WHERE " + " AND ".join(conditions)
+        if start_date:
+            query += " AND scan_date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND scan_date <= ?"
+            params.append(end_date)
+        if market:
+            query += " AND market = ?"
+            params.append(market)
         
         query += " ORDER BY scan_date DESC"
         

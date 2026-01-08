@@ -272,8 +272,8 @@ def render_scan_page():
             st.caption(f"📊 总记录: {stats['total_records']:,}")
             st.caption(f"📅 日期范围: {stats['min_date']} ~ {stats['max_date']}")
             
-            # 日期选择器
-            available_dates = get_scanned_dates()
+            # 日期选择器 - 按所选市场过滤
+            available_dates = get_scanned_dates(market=selected_market)
             if available_dates:
                 # 转换为 datetime 对象用于 selectbox
                 date_options = available_dates[:30]  # 最近30天
@@ -281,7 +281,7 @@ def render_scan_page():
                     "📅 选择日期",
                     options=date_options,
                     index=0,
-                    help="选择要查看的扫描日期"
+                    help=f"选择要查看的 {selected_market} 扫描日期"
                 )
                 
                 # 显示该日期的扫描状态
@@ -291,7 +291,7 @@ def render_scan_page():
                     st.caption(f"📈 发现信号: {job.get('signals_found', 'N/A')} 只")
             else:
                 selected_date = None
-                st.warning("暂无扫描数据")
+                st.warning(f"暂无 {selected_market} 扫描数据")
         else:
             st.info("📁 CSV 文件模式")
             selected_date = None
@@ -299,12 +299,11 @@ def render_scan_page():
         if st.button("🔄 刷新数据"):
             st.rerun()
     
-    # 加载数据 - 暂时不按市场过滤，显示所有数据
-    # TODO: 改进日期选择器，按市场分别显示可用日期
+    # 加载数据 - 按所选市场过滤
     if use_db and selected_date:
-        df, data_source = load_scan_results_from_db(selected_date, market=None)  # 暂不过滤
+        df, data_source = load_scan_results_from_db(selected_date, market=selected_market)
         if data_source:
-            data_source = f"📅 {data_source}"
+            data_source = f"📅 {data_source} ({selected_market})"
     else:
         df, data_source = load_latest_scan_results()
         if data_source and not data_source.startswith("📅"):
