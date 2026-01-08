@@ -1,57 +1,57 @@
 {
-  "date": "2026-01-07",
+  "date": "2026-01-08",
   "market": "CN",
-  "total_signals": 359,
+  "total_signals": 71,
   "top_10": [
     {
-      "symbol": "WBI",
-      "price": 18.76,
+      "symbol": "605008.SH",
+      "price": 14.24,
       "blue_daily": 200.0
     },
     {
-      "symbol": "VSA",
-      "price": 2.41,
+      "symbol": "300979.SZ",
+      "price": 50.16,
       "blue_daily": 200.0
     },
     {
-      "symbol": "QBTZ",
-      "price": 6.81,
-      "blue_daily": 200.0
+      "symbol": "002668.SZ",
+      "price": 10.19,
+      "blue_daily": 173.7
     },
     {
-      "symbol": "PRT",
-      "price": 2.66,
-      "blue_daily": 200.0
+      "symbol": "002694.SZ",
+      "price": 3.87,
+      "blue_daily": 171.7
     },
     {
-      "symbol": "PCR",
-      "price": 22.18,
-      "blue_daily": 200.0
+      "symbol": "601006.SH",
+      "price": 5.13,
+      "blue_daily": 171.4
     },
     {
-      "symbol": "MGN",
-      "price": 1.5,
-      "blue_daily": 200.0
+      "symbol": "001222.SZ",
+      "price": 23.03,
+      "blue_daily": 165.3
     },
     {
-      "symbol": "FOFO",
-      "price": 6.06,
-      "blue_daily": 200.0
+      "symbol": "920925.BJ",
+      "price": 26.57,
+      "blue_daily": 163.9
     },
     {
-      "symbol": "ETHZ",
-      "price": 5.0,
-      "blue_daily": 200.0
+      "symbol": "002024.SZ",
+      "price": 1.69,
+      "blue_daily": 160.4
     },
     {
-      "symbol": "CRDU",
-      "price": 14.25,
-      "blue_daily": 200.0
+      "symbol": "600233.SH",
+      "price": 16.49,
+      "blue_daily": 158.4
     },
     {
-      "symbol": "ANGX",
-      "price": 4.21,
-      "blue_daily": 200.0
+      "symbol": "601398.SH",
+      "price": 7.69,
+      "blue_daily": 144.6
     }
   ]
 }
