@@ -103,6 +103,56 @@ def get_all_cn_tickers():
         return []
 
 
+# 缓存 A 股基本信息
+_cn_stock_info_cache = {}
+
+def get_cn_ticker_details(symbol):
+    """获取A股股票详细信息（名称、行业等）"""
+    global _cn_stock_info_cache
+    
+    # 如果缓存为空，加载所有股票基本信息
+    if not _cn_stock_info_cache:
+        try:
+            import tushare as ts
+            
+            token = os.getenv('TUSHARE_TOKEN')
+            if token:
+                ts.set_token(token)
+            
+            pro = ts.pro_api()
+            
+            # 获取所有股票基本信息
+            df = pro.stock_basic(
+                exchange='', 
+                list_status='L',
+                fields='ts_code,symbol,name,area,industry,market,list_date'
+            )
+            
+            if df is not None and not df.empty:
+                for _, row in df.iterrows():
+                    _cn_stock_info_cache[row['ts_code']] = {
+                        'name': row.get('name', ''),
+                        'industry': row.get('industry', ''),
+                        'area': row.get('area', ''),
+                        'market': row.get('market', ''),
+                        'list_date': row.get('list_date', '')
+                    }
+        except Exception as e:
+            print(f"Error loading CN stock info cache: {e}")
+    
+    # 从缓存返回
+    if symbol in _cn_stock_info_cache:
+        info = _cn_stock_info_cache[symbol]
+        return {
+            'market_cap': None,  # Tushare 基础版不提供市值
+            'shares_outstanding': None,
+            'name': info.get('name', symbol),
+            'sic_description': info.get('industry', ''),
+        }
+    
+    return None
+
+
 def get_us_stock_data(symbol, days=365):
     """获取美股历史数据（使用Polygon API）"""
     try:

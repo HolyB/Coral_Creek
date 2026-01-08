@@ -19,7 +19,7 @@ from db.database import (
     create_scan_job, update_scan_job, get_scan_job,
     init_db
 )
-from data_fetcher import get_us_stock_data, get_all_us_tickers, get_ticker_details, get_cn_stock_data, get_all_cn_tickers
+from data_fetcher import get_us_stock_data, get_all_us_tickers, get_ticker_details, get_cn_stock_data, get_all_cn_tickers, get_cn_ticker_details
 from indicator_utils import (
     calculate_blue_signal_series, calculate_heima_signal_series,
     calculate_adx_series, calculate_volume_profile_metrics,
@@ -310,7 +310,12 @@ def run_scan_for_date(target_date, market='US', max_workers=30, limit=0, save_to
     print(f"\n📇 Fetching company info for {len(results)} candidates...")
     for result in tqdm(results, desc="Fetching details"):
         try:
-            details = get_ticker_details(result['Symbol'])
+            # 根据市场选择不同的详情获取函数
+            if market == 'CN':
+                details = get_cn_ticker_details(result['Symbol'])
+            else:
+                details = get_ticker_details(result['Symbol'])
+                
             if details:
                 result['Company_Name'] = details.get('name')
                 result['Industry'] = details.get('sic_description')

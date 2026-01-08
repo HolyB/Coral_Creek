@@ -105,6 +105,20 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_job_status ON scan_jobs(status)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_job_date ON scan_jobs(scan_date)")
         
+        # 股票基本信息表 (缓存所有股票的名称、行业等)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_info (
+                symbol VARCHAR(20) PRIMARY KEY,
+                name VARCHAR(200),
+                industry VARCHAR(200),
+                area VARCHAR(100),
+                market VARCHAR(10),
+                list_date VARCHAR(20),
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_stock_market ON stock_info(market)")
+        
         # 迁移: 如果 market 列不存在，添加它
         try:
             cursor.execute("SELECT market FROM scan_results LIMIT 1")
@@ -363,6 +377,81 @@ def get_db_stats():
             'min_date': date_range['min_date'],
             'max_date': date_range['max_date']
         }
+
+
+# ========== 股票信息缓存 ==========
+
+def upsert_stock_info(symbol, name, industry=None, area=None, market='US', list_date=None):
+    """插入或更新股票基本信息"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO stock_info (symbol, name, industry, area, market, list_date, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(symbol) DO UPDATE SET
+                name = excluded.name,
+                industry = excluded.industry,
+                area = excluded.area,
+                market = excluded.market,
+                list_date = excluded.list_date,
+                updated_at = CURRENT_TIMESTAMP
+        """, (symbol, name, industry, area, market, list_date))
+
+
+def bulk_upsert_stock_info(stock_list):
+    """批量插入股票信息 - stock_list: [{'symbol': '', 'name': '', 'industry': '', 'market': ''}, ...]"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        for stock in stock_list:
+            cursor.execute("""
+                INSERT INTO stock_info (symbol, name, industry, area, market, list_date, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(symbol) DO UPDATE SET
+                    name = excluded.name,
+                    industry = excluded.industry,
+                    area = excluded.area,
+                    market = excluded.market,
+                    list_date = excluded.list_date,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (
+                stock.get('symbol'),
+                stock.get('name'),
+                stock.get('industry'),
+                stock.get('area'),
+                stock.get('market', 'US'),
+                stock.get('list_date')
+            ))
+
+
+def get_stock_info(symbol):
+    """获取单只股票的基本信息"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM stock_info WHERE symbol = ?", (symbol,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def get_stock_info_batch(symbols):
+    """批量获取股票信息"""
+    if not symbols:
+        return {}
+    with get_db() as conn:
+        cursor = conn.cursor()
+        placeholders = ','.join(['?' for _ in symbols])
+        cursor.execute(f"SELECT * FROM stock_info WHERE symbol IN ({placeholders})", symbols)
+        return {row['symbol']: dict(row) for row in cursor.fetchall()}
+
+
+def get_stock_info_count(market=None):
+    """获取股票信息数量"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if market:
+            cursor.execute("SELECT COUNT(*) as cnt FROM stock_info WHERE market = ?", (market,))
+        else:
+            cursor.execute("SELECT COUNT(*) as cnt FROM stock_info")
+        return cursor.fetchone()['cnt']
 
 
 if __name__ == "__main__":

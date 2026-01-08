@@ -17,7 +17,7 @@ from indicator_utils import calculate_blue_signal_series, calculate_heima_signal
 from backtester import SimpleBacktester
 from db.database import (
     query_scan_results, get_scanned_dates, get_db_stats, 
-    get_stock_history, init_db, get_scan_job
+    get_stock_history, init_db, get_scan_job, get_stock_info_batch
 )
 
 # 设置页面配置
@@ -130,6 +130,18 @@ def load_scan_results_from_db(scan_date=None, market=None):
         for col in ['Price', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'Stop Loss', 'ADX', 'Turnover']:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
+        
+        # 从 stock_info 缓存补充缺失的名称和行业
+        symbols_need_info = df[df['Name'].isna() | (df['Name'] == '')]['Ticker'].tolist()
+        if symbols_need_info:
+            stock_info_cache = get_stock_info_batch(symbols_need_info)
+            for idx, row in df.iterrows():
+                ticker = row['Ticker']
+                if ticker in stock_info_cache and (pd.isna(row.get('Name')) or row.get('Name') == ''):
+                    info = stock_info_cache[ticker]
+                    df.at[idx, 'Name'] = info.get('name', '')
+                    if pd.isna(row.get('Industry')) or row.get('Industry') == '':
+                        df.at[idx, 'Industry'] = info.get('industry', '')
         
         return df, scan_date
     except Exception as e:
