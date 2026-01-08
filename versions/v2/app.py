@@ -44,7 +44,7 @@ def format_large_number(num):
     else:
         return f"{num:.2f}"
 
-def load_scan_results_from_db(scan_date=None):
+def load_scan_results_from_db(scan_date=None, market=None):
     """从数据库加载扫描结果"""
     try:
         # 如果没有指定日期，获取最新日期
@@ -54,8 +54,8 @@ def load_scan_results_from_db(scan_date=None):
                 return None, None
             scan_date = dates[0]  # 最新日期
         
-        # 查询数据
-        results = query_scan_results(scan_date=scan_date)
+        # 查询数据 - 传入 market 参数
+        results = query_scan_results(scan_date=scan_date, market=market)
         if not results:
             return None, scan_date
         
@@ -244,6 +244,20 @@ def render_scan_page():
         st.divider()
         st.header("📂 数据源")
         
+        # === 市场选择器 ===
+        st.subheader("🌍 市场选择")
+        market_options = {"🇺🇸 美股 (US)": "US", "🇨🇳 A股 (CN)": "CN"}
+        selected_market_label = st.radio(
+            "选择市场",
+            options=list(market_options.keys()),
+            horizontal=True,
+            index=0,
+            help="切换美股/A股扫描结果"
+        )
+        selected_market = market_options[selected_market_label]
+        
+        st.divider()
+        
         # 检查数据库状态
         try:
             init_db()
@@ -285,11 +299,11 @@ def render_scan_page():
         if st.button("🔄 刷新数据"):
             st.rerun()
     
-    # 加载数据
+    # 加载数据 - 根据选择的市场过滤
     if use_db and selected_date:
-        df, data_source = load_scan_results_from_db(selected_date)
+        df, data_source = load_scan_results_from_db(selected_date, market=selected_market)
         if data_source:
-            data_source = f"📅 {data_source}"
+            data_source = f"📅 {data_source} ({selected_market})"
     else:
         df, data_source = load_latest_scan_results()
         if data_source and not data_source.startswith("📅"):

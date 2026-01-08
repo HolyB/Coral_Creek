@@ -208,7 +208,8 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
             'Industry': None,
             'Stop_Loss': stop_loss,
             'Shares_Rec': shares_rec,
-            'Risk_Reward_Score': round(risk_reward, 2)
+            'Risk_Reward_Score': round(risk_reward, 2),
+            'Market': market
         }
         
     except Exception as e:

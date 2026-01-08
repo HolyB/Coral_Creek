@@ -72,6 +72,7 @@ def init_db():
                 stop_loss REAL,
                 shares_rec INTEGER,
                 risk_reward_score REAL,
+                market VARCHAR(10) DEFAULT 'US',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(symbol, scan_date)
@@ -164,8 +165,8 @@ def insert_scan_result(result_dict):
                 adx, volatility, is_heima, is_juedi, strat_d_trend, strat_c_resonance,
                 legacy_signal, regime, adaptive_thresh, vp_rating, profit_ratio,
                 wave_phase, wave_desc, chan_signal, chan_desc, market_cap, cap_category,
-                company_name, industry, stop_loss, shares_rec, risk_reward_score, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                company_name, industry, stop_loss, shares_rec, risk_reward_score, market, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(symbol, scan_date) DO UPDATE SET
                 price = excluded.price,
                 turnover_m = excluded.turnover_m,
@@ -194,6 +195,7 @@ def insert_scan_result(result_dict):
                 stop_loss = excluded.stop_loss,
                 shares_rec = excluded.shares_rec,
                 risk_reward_score = excluded.risk_reward_score,
+                market = excluded.market,
                 updated_at = CURRENT_TIMESTAMP
         """, (
             result_dict.get('Symbol'),
@@ -224,7 +226,8 @@ def insert_scan_result(result_dict):
             result_dict.get('Industry'),
             result_dict.get('Stop_Loss'),
             result_dict.get('Shares_Rec'),
-            result_dict.get('Risk_Reward_Score')
+            result_dict.get('Risk_Reward_Score'),
+            result_dict.get('Market', 'US')  # 默认 US
         ))
 
 
@@ -235,7 +238,7 @@ def bulk_insert_scan_results(results_list):
 
 
 def query_scan_results(scan_date=None, start_date=None, end_date=None, 
-                       min_blue=None, symbols=None, limit=None):
+                       min_blue=None, symbols=None, market=None, limit=None):
     """查询扫描结果"""
     with get_db() as conn:
         cursor = conn.cursor()
@@ -263,6 +266,10 @@ def query_scan_results(scan_date=None, start_date=None, end_date=None,
             placeholders = ','.join(['?' for _ in symbols])
             query += f" AND symbol IN ({placeholders})"
             params.extend(symbols)
+        
+        if market:
+            query += " AND market = ?"
+            params.append(market)
         
         query += " ORDER BY scan_date DESC, blue_daily DESC"
         
