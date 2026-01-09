@@ -1,0 +1,92 @@
+name: Manual Backfill Scan Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: 'Start date (YYYY-MM-DD)'
+        required: true
+        default: '2025-12-01'
+      end_date:
+        description: 'End date (YYYY-MM-DD)'
+        required: false
+        default: ''
+      market:
+        description: 'Market (US/CN)'
+        required: true
+        default: 'US'
+        type: choice
+        options:
+          - US
+          - CN
+      workers:
+        description: 'Number of parallel workers'
+        required: false
+        default: '15'
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3 hours max
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: versions/v2
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run backfill
+        working-directory: versions/v2
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+        run: |
+          END_DATE="${{ github.event.inputs.end_date }}"
+          if [ -z "$END_DATE" ]; then
+            END_DATE=$(date +%Y-%m-%d)
+          fi
+          
+          echo "📅 Backfilling from ${{ github.event.inputs.start_date }} to $END_DATE"
+          echo "📊 Market: ${{ github.event.inputs.market }}"
+          echo "👷 Workers: ${{ github.event.inputs.workers }}"
+          
+          python scripts/backfill.py \
+            --start ${{ github.event.inputs.start_date }} \
+            --end $END_DATE \
+            --market ${{ github.event.inputs.market }} \
+            --workers ${{ github.event.inputs.workers }}
+
+      - name: Commit database to repo
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add versions/v2/db/coral_creek.db || true
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📊 Backfill: ${{ github.event.inputs.market }} from ${{ github.event.inputs.start_date }}"
+            
+            # Handle conflicts
+            if ! git pull --rebase origin main; then
+              echo "Rebase failed, resolving conflicts..."
+              git rebase --abort || true
+              git pull -X ours origin main || true
+              git push || git push --force-with-lease
+            else
+              git push
+            fi
+          fi
