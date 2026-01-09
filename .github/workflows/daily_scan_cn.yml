@@ -139,6 +139,14 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "📊 Auto-update: CN A-Share scan results for $(TZ='Asia/Shanghai' date +%Y-%m-%d)"
-            git pull --rebase origin main || true
-            git push
+            
+            # 尝试 rebase，如果失败则使用 ours 策略合并
+            if ! git pull --rebase origin main; then
+              echo "Rebase failed, resolving conflicts with ours strategy..."
+              git rebase --abort || true
+              git pull -X ours origin main || true
+              git push || git push --force-with-lease
+            else
+              git push
+            fi
           fi
