@@ -71,7 +71,8 @@ def send_telegram(summary):
         symbol = s.get('symbol', 'N/A')
         price = s.get('price', 0)
         day_blue = s.get('day_blue', 0)
-        lines.append(f'{i}. `{symbol}` {name} ${price:.2f} BLUE:{day_blue:.0f}')
+        week_blue = s.get('week_blue', 0)
+        lines.append(f'{i}. `{symbol}` {name} ${price:.2f} D:{day_blue:.0f} W:{week_blue:.0f}')
     
     lines.append('')
     lines.append('[查看详情](https://coral-creek-park-way.onrender.com)')
