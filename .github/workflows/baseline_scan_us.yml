@@ -2,7 +2,8 @@ name: Baseline Scan (US)
 
 on:
   schedule:
-    - cron: '30 22 * * 1-5'  # 每个工作日 22:30 UTC = 美东 17:30
+    - cron: '0 13 * * 1-5'   # 盘前: 美东 8:00 AM = UTC 13:00
+    - cron: '30 22 * * 1-5'  # 盘后: 美东 5:30 PM = UTC 22:30
   workflow_dispatch:
     inputs:
       limit:
