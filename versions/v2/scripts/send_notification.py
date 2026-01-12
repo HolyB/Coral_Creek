@@ -56,7 +56,7 @@ def send_telegram(summary):
     market_name = "美股" if market == "US" else "A股"
     
     lines = [
-        '🌊 *Coral Creek 每日扫描*',
+        '🦅 *Coral Creek 每日扫描*',
         f'📅 日期: {date}',
         f'📊 市场: {market_name}',
         f'🎯 信号: {total} 个',
@@ -151,7 +151,7 @@ def send_email(summary):
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px;">
         <div style="max-width: 700px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow: hidden;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">
-                <h1 style="margin: 0; font-size: 24px;">🌊 Coral Creek 每日扫描报告</h1>
+                <h1 style="margin: 0; font-size: 24px;">🦅 Coral Creek 每日扫描报告</h1>
                 <p style="margin: 10px 0 0; opacity: 0.9;">{date}</p>
             </div>
             
@@ -195,7 +195,7 @@ def send_email(summary):
     </html>
     """
     
-    subject = f"🌊 Coral Creek 扫描报告 - {date} ({market}) - {total} 个信号"
+    subject = f"🦅 Coral Creek 扫描报告 - {date} ({market}) - {total} 个信号"
     
     try:
         msg = MIMEMultipart('alternative')

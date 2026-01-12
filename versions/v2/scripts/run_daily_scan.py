@@ -18,7 +18,7 @@ from services.scan_service import run_scan_for_date
 
 def main():
     print("="*60)
-    print(f"🌊 Coral Creek Daily Scan")
+    print(f"🦅 Coral Creek Daily Scan")
     print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("="*60)
     

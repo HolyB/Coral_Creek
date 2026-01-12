@@ -1,0 +1,3 @@
+symbol,price,turnover,blue_daily,blue_days,max_day_blue,blue_weekly,blue_weeks,max_week_blue,has_day_week_blue,name
+ALIT,1.665,772.782111,0.0,5,200.0,200.0,3,200.0,True,"Alight, Inc."
+APVO,8.85,111.585225,0.0,3,138.20286036607888,199.99999999999997,5,199.99999999999997,True,Aptevo Therapeutics 

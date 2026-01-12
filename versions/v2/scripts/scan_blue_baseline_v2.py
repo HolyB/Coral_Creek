@@ -137,11 +137,19 @@ def process_single_stock(symbol, thresholds):
         recent_daily = BLUE_D[-thresholds['day_lookback']:]
         recent_weekly = BLUE_W[-thresholds['week_lookback']:]
         
-        day_blue_count = np.sum(recent_daily > thresholds['day_blue'])
-        week_blue_count = np.sum(recent_weekly > thresholds['week_blue'])
+        # 找到满足条件的信号值
+        day_blue_signals = [v for v in recent_daily if v > thresholds['day_blue']]
+        week_blue_signals = [v for v in recent_weekly if v > thresholds['week_blue']]
+        
+        day_blue_count = len(day_blue_signals)
+        week_blue_count = len(week_blue_signals)
         
         has_day_blue = day_blue_count >= thresholds['day_blue_count']
         has_week_blue = week_blue_count >= thresholds['week_blue_count']
+        
+        # 最近一次满足条件的信号值
+        latest_day_blue_value = day_blue_signals[-1] if day_blue_signals else 0
+        latest_week_blue_value = week_blue_signals[-1] if week_blue_signals else 0
         
         # 必须日线和周线同时有信号
         if has_day_blue and has_week_blue:
@@ -151,10 +159,10 @@ def process_single_stock(symbol, thresholds):
                 'turnover': float(latest_turnover),
                 'blue_daily': float(BLUE_D[-1]),
                 'blue_days': int(day_blue_count),
-                'max_day_blue': float(np.max(recent_daily)),
+                'latest_day_blue': float(latest_day_blue_value),
                 'blue_weekly': float(BLUE_W[-1]),
                 'blue_weeks': int(week_blue_count),
-                'max_week_blue': float(np.max(recent_weekly)),
+                'latest_week_blue': float(latest_week_blue_value),
                 'has_day_week_blue': True,
             }
         
@@ -162,6 +170,8 @@ def process_single_stock(symbol, thresholds):
         
     except Exception as e:
         return None
+
+
 
 
 
@@ -205,12 +215,12 @@ def send_telegram_notification(results, market='US'):
         '📈 *Top 10:*'
     ]
     
-    # 按 BLUE 值排序
-    sorted_results = sorted(results, key=lambda x: x['blue_daily'], reverse=True)[:10]
+    # 按最新信号值排序
+    sorted_results = sorted(results, key=lambda x: x.get('latest_day_blue', 0), reverse=True)[:10]
     
     for i, r in enumerate(sorted_results, 1):
-        day_b = r.get('blue_daily', 0)
-        week_b = r.get('blue_weekly', 0)
+        day_b = r.get('latest_day_blue', 0)
+        week_b = r.get('latest_week_blue', 0)
         lines.append(f"{i}. `{r['symbol']}` ${r['price']:.2f} D:{day_b:.0f} W:{week_b:.0f}")
     
     message = '\n'.join(lines)
@@ -249,33 +259,83 @@ def send_email_notification(results, market='US'):
     date = datetime.now().strftime('%Y-%m-%d')
     subject = f"🔵 Baseline BLUE Scan - {market} - {date} - {len(results)} signals"
     
-    # 构建邮件正文
-    body = f"Baseline BLUE Signal Scan Results\n"
-    body += f"Date: {date}\n"
-    body += f"Market: {market}\n"
-    body += f"Total Signals: {len(results)}\n\n"
-    body += "=" * 60 + "\n"
-    body += f"{'Symbol':<8} | {'Price':>10} | {'Turnover':>12} | {'BLUE':>8} | {'Days':>4}\n"
-    body += "-" * 60 + "\n"
+    # 构建 HTML 表格行
+    sorted_results = sorted(results, key=lambda x: x.get('latest_day_blue', 0), reverse=True)
+    rows = ""
+    for i, r in enumerate(sorted_results, 1):
+        day_b = r.get('latest_day_blue', 0)
+        week_b = r.get('latest_week_blue', 0)
+        name = r.get('name', '')[:15]
+        rows += f"""
+        <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 10px 8px; color: #666;">{i}</td>
+            <td style="padding: 10px 8px;"><strong>{r['symbol']}</strong></td>
+            <td style="padding: 10px 8px;">{name}</td>
+            <td style="padding: 10px 8px; text-align: right;">${r['price']:.2f}</td>
+            <td style="padding: 10px 8px; text-align: right; color: #2196F3;"><strong>{day_b:.0f}</strong></td>
+            <td style="padding: 10px 8px; text-align: right; color: #4CAF50;"><strong>{week_b:.0f}</strong></td>
+        </tr>"""
     
-    sorted_results = sorted(results, key=lambda x: x['blue_daily'], reverse=True)
-    
-    for r in sorted_results:
-        body += f"{r['symbol']:<8} | ${r['price']:>9.2f} | {r['turnover']:>10.0f}万 | {r['blue_daily']:>7.1f} | {r['blue_days']:>4}\n"
-    
-    body += "=" * 60 + "\n"
+    # 构建 HTML 邮件
+    html = f"""
+    <html>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%); color: white; padding: 30px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">🔵 Baseline BLUE Scan</h1>
+            <p style="margin: 10px 0 0; opacity: 0.9;">{date} | {market} Market</p>
+        </div>
+        
+        <div style="display: flex; justify-content: space-around; padding: 20px; background: #fafafa;">
+            <div style="text-align: center;">
+                <div style="font-size: 28px; font-weight: bold; color: #333;">{len(results)}</div>
+                <div style="font-size: 12px; color: #666; margin-top: 4px;">信号数量</div>
+            </div>
+        </div>
+        
+        <div style="padding: 20px;">
+            <h3 style="margin: 0 0 15px; color: #333;">📈 信号列表</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f0f0f0;">
+                        <th style="padding: 10px 8px; text-align: left; font-size: 12px; color: #666;">#</th>
+                        <th style="padding: 10px 8px; text-align: left; font-size: 12px; color: #666;">代码</th>
+                        <th style="padding: 10px 8px; text-align: left; font-size: 12px; color: #666;">名称</th>
+                        <th style="padding: 10px 8px; text-align: right; font-size: 12px; color: #666;">价格</th>
+                        <th style="padding: 10px 8px; text-align: right; font-size: 12px; color: #2196F3;">Day BLUE</th>
+                        <th style="padding: 10px 8px; text-align: right; font-size: 12px; color: #4CAF50;">Week BLUE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows if rows else '<tr><td colspan="6" style="padding: 20px; text-align: center; color: #999;">暂无信号</td></tr>'}
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+            <a href="https://coral-creek-park-way.onrender.com" style="color: #2196F3;">查看完整报告</a>
+            <br><br>
+            Coral Creek V2.0 - Baseline Scanner
+        </div>
+    </body>
+    </html>
+    """
     
     try:
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = smtp_sender
         msg['To'] = receivers
-        msg.attach(MIMEText(body, 'plain'))
+        msg.attach(MIMEText(html, 'html', 'utf-8'))
         
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=30)
+        try:
+            server.ehlo()
             server.starttls()
+            server.ehlo()
             server.login(smtp_sender, smtp_password)
             server.sendmail(smtp_sender, receivers.split(','), msg.as_string())
+        finally:
+            server.quit()
         
         print("✅ Email notification sent")
         return True
@@ -360,21 +420,23 @@ def main():
         print("\n📊 Enriching with company info...")
         results = enrich_with_company_info(results)
         
-        # 按 BLUE 排序
-        results = sorted(results, key=lambda x: x['blue_daily'], reverse=True)
+        # 按最新信号值排序
+        results = sorted(results, key=lambda x: x.get('latest_day_blue', 0), reverse=True)
         
         # 打印结果
         print(f"\n✅ Found {len(results)} stocks with BLUE signals:")
-        print("=" * 70)
-        print(f"{'Symbol':<8} | {'Name':<20} | {'Price':>8} | {'Turnover':>10} | {'BLUE':>6}")
-        print("-" * 70)
+        print("=" * 75)
+        print(f"{'Symbol':<8} | {'Name':<20} | {'Price':>8} | {'Turnover':>8} | {'D BLUE':>6} | {'W BLUE':>6}")
+        print("-" * 75)
         
         for r in results[:20]:
-            print(f"{r['symbol']:<8} | {r.get('name', ''):<20} | ${r['price']:>7.2f} | {r['turnover']:>8.0f}万 | {r['blue_daily']:>5.0f}")
+            day_b = r.get('latest_day_blue', 0)
+            week_b = r.get('latest_week_blue', 0)
+            print(f"{r['symbol']:<8} | {r.get('name', ''):<20} | ${r['price']:>7.2f} | {r['turnover']:>6.0f}万 | {day_b:>6.0f} | {week_b:>6.0f}")
         
         if len(results) > 20:
             print(f"... and {len(results) - 20} more")
-        print("=" * 70)
+        print("=" * 75)
         
         # 保存结果
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
