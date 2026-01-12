@@ -1,0 +1,52 @@
+name: Baseline Scan (CN)
+
+on:
+  schedule:
+    - cron: '30 9 * * 1-5'  # 每个工作日 09:30 UTC = 北京 17:30
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Number of stocks to scan (0 for all)'
+        required: false
+        default: '0'
+
+jobs:
+  baseline-scan-cn:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy requests tqdm tushare smtplib-local python-dotenv
+          pip install -r versions/v2/requirements.txt
+      
+      - name: Run baseline scan (CN)
+        working-directory: versions/v2
+        env:
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+          SMTP_SENDER: ${{ secrets.SMTP_SENDER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        run: |
+          LIMIT="${{ github.event.inputs.limit || '0' }}"
+          if [ "$LIMIT" = "0" ]; then
+            python scripts/scan_cn_blue_baseline.py
+          else
+            python scripts/scan_cn_blue_baseline.py --limit "$LIMIT"
+          fi
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: baseline-scan-cn-${{ github.run_number }}
+          path: versions/v2/baseline_scan_results_*.csv
+          retention-days: 30
+          if-no-files-found: ignore
