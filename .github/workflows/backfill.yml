@@ -24,9 +24,9 @@ on:
         required: false
         default: '15'
       limit:
-        description: 'Limit stocks per day (0=all, 1000 recommended)'
+        description: 'Limit stocks per day (0=all, recommended for full coverage)'
         required: false
-        default: '1000'
+        default: '0'
 
 permissions:
   contents: write
