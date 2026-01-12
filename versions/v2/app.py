@@ -23,7 +23,7 @@ from db.database import (
 # 设置页面配置
 st.set_page_config(
     page_title="Coral Creek V2.0 - 智能量化系统",
-    page_icon="🌊",
+    page_icon="🦅",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -249,7 +249,7 @@ def get_market_mood(df):
 # --- 页面逻辑 ---
 
 def render_scan_page():
-    st.header("🌊 每日机会扫描 (Opportunity Scanner)")
+    st.header("🦅 每日机会扫描 (Opportunity Scanner)")
     
     # 侧边栏：数据源选择
     with st.sidebar:
@@ -912,7 +912,7 @@ def render_scan_page():
             
             col_w, col_c = st.columns(2)
             with col_w:
-                st.info(f"**🌊 波浪**: {wave_desc} ({wave_phase})")
+                st.info(f"**🦅 波浪**: {wave_desc} ({wave_phase})")
             with col_c:
                 if "3rd Buy" in str(chan_signal):
                     st.success(f"**🧘 缠论**: {chan_desc}")
@@ -1655,7 +1655,7 @@ def render_backtest_page():
 
 # --- 主导航 ---
 
-st.sidebar.title("Coral Creek 🌊")
+st.sidebar.title("Coral Creek 🦅")
 page = st.sidebar.radio("功能导航", ["📊 每日机会扫描", "🔍 个股查询", "📈 信号追踪", "🧪 策略回测实验"])
 
 if page == "📊 每日机会扫描":
