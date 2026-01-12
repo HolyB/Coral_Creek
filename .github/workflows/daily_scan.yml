@@ -78,7 +78,7 @@ jobs:
         working-directory: versions/v2
         run: |
           python -c "
-          from db.database import get_db_stats, query_scan_results, get_scanned_dates
+          from db.database import get_db_stats, query_scan_results, get_scanned_dates, get_stock_info_batch
           import json
           
           stats = get_db_stats()
@@ -88,23 +88,42 @@ jobs:
           print(f'   Date range: {stats[\"min_date\"]} ~ {stats[\"max_date\"]}')
           
           # 获取最新扫描结果
-          dates = get_scanned_dates()
+          dates = get_scanned_dates(market='US')
           if dates:
               latest = dates[0]
-              results = query_scan_results(scan_date=latest, limit=20)
+              results = query_scan_results(scan_date=latest, market='US', limit=20)
+              
+              # 获取股票名称
+              symbols = [r['symbol'] for r in results]
+              stock_info = get_stock_info_batch(symbols) if symbols else {}
               
               print(f'\n🏆 Top 20 signals for {latest}:')
               for r in results:
-                  print(f'   {r[\"symbol\"]:6} | \${r[\"price\"]:8.2f} | BLUE: {r[\"blue_daily\"]:5.1f} | Week: {r[\"blue_weekly\"]:5.1f}')
+                  info = stock_info.get(r['symbol'], {})
+                  name = info.get('name', '')[:15] if info else ''
+                  print(f'   {r[\"symbol\"]:6} | {name:15} | \${r[\"price\"]:8.2f} | BLUE: {r[\"blue_daily\"]:5.1f}')
+              
+              # 构建 top_signals
+              top_signals = []
+              for r in results[:15]:
+                  info = stock_info.get(r['symbol'], {})
+                  top_signals.append({
+                      'symbol': r['symbol'],
+                      'name': info.get('name', '') if info else '',
+                      'price': r['price'],
+                      'day_blue': r['blue_daily'],
+                      'week_blue': r['blue_weekly']
+                  })
               
               # 保存摘要到文件
               summary = {
                   'date': latest,
-                  'total_signals': len(query_scan_results(scan_date=latest)),
-                  'top_10': [{'symbol': r['symbol'], 'price': r['price'], 'blue_daily': r['blue_daily']} for r in results[:10]]
+                  'market': 'US',
+                  'total_signals': len(query_scan_results(scan_date=latest, market='US')),
+                  'top_signals': top_signals
               }
               with open('scan_summary.json', 'w') as f:
-                  json.dump(summary, f, indent=2)
+                  json.dump(summary, f, indent=2, ensure_ascii=False)
           "
       
       - name: Upload database artifact
@@ -122,26 +141,19 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
       
-      # 可选: 发送 Telegram 通知
-      - name: Send Telegram notification
-        if: ${{ env.TELEGRAM_BOT_TOKEN != '' }}
+      # 发送通知 (Telegram + Email)
+      - name: Send notifications
+        working-directory: versions/v2
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SENDER: ${{ secrets.SMTP_SENDER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_RECEIVERS: ${{ secrets.EMAIL_RECEIVERS }}
         run: |
-          cd versions/v2
-          if [ -f scan_summary.json ]; then
-            SUMMARY=$(cat scan_summary.json)
-            DATE=$(echo $SUMMARY | python -c "import sys,json; print(json.load(sys.stdin)['date'])")
-            TOTAL=$(echo $SUMMARY | python -c "import sys,json; print(json.load(sys.stdin)['total_signals'])")
-            
-            MESSAGE="🌊 *Coral Creek Daily Scan*%0A📅 Date: $DATE%0A📊 Signals found: $TOTAL%0A%0A✅ Scan completed successfully!"
-            
-            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-              -d "chat_id=${TELEGRAM_CHAT_ID}" \
-              -d "text=$MESSAGE" \
-              -d "parse_mode=Markdown"
-          fi
+          python scripts/send_notification.py
       
       # 提交数据库到仓库 - 用于 Streamlit Cloud
       - name: Commit database to repo

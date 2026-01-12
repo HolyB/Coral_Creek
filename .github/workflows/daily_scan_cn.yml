@@ -79,7 +79,7 @@ jobs:
         working-directory: versions/v2
         run: |
           python -c "
-          from db.database import get_db_stats, query_scan_results, get_scanned_dates
+          from db.database import get_db_stats, query_scan_results, get_scanned_dates, get_stock_info_batch
           import json
           
           stats = get_db_stats()
@@ -89,24 +89,42 @@ jobs:
           print(f'   Date range: {stats[\"min_date\"]} ~ {stats[\"max_date\"]}')
           
           # 获取最新扫描结果
-          dates = get_scanned_dates()
+          dates = get_scanned_dates(market='CN')
           if dates:
               latest = dates[0]
-              results = query_scan_results(scan_date=latest, limit=20)
+              results = query_scan_results(scan_date=latest, market='CN', limit=20)
+              
+              # 获取股票名称
+              symbols = [r['symbol'] for r in results]
+              stock_info = get_stock_info_batch(symbols) if symbols else {}
               
               print(f'\n🏆 Top 20 A-Share signals for {latest}:')
               for r in results:
-                  print(f'   {r[\"symbol\"]:10} | ¥{r[\"price\"]:8.2f} | BLUE: {r[\"blue_daily\"]:5.1f} | Week: {r[\"blue_weekly\"]:5.1f}')
+                  info = stock_info.get(r['symbol'], {})
+                  name = info.get('name', '')[:8] if info else ''
+                  print(f'   {r[\"symbol\"]:10} | {name:8} | ¥{r[\"price\"]:8.2f} | BLUE: {r[\"blue_daily\"]:5.1f}')
+              
+              # 构建 top_signals
+              top_signals = []
+              for r in results[:15]:
+                  info = stock_info.get(r['symbol'], {})
+                  top_signals.append({
+                      'symbol': r['symbol'],
+                      'name': info.get('name', '') if info else '',
+                      'price': r['price'],
+                      'day_blue': r['blue_daily'],
+                      'week_blue': r['blue_weekly']
+                  })
               
               # 保存摘要到文件
               summary = {
                   'date': latest,
                   'market': 'CN',
-                  'total_signals': len(query_scan_results(scan_date=latest)),
-                  'top_10': [{'symbol': r['symbol'], 'price': r['price'], 'blue_daily': r['blue_daily']} for r in results[:10]]
+                  'total_signals': len(query_scan_results(scan_date=latest, market='CN')),
+                  'top_signals': top_signals
               }
               with open('scan_summary_cn.json', 'w') as f:
-                  json.dump(summary, f, indent=2)
+                  json.dump(summary, f, indent=2, ensure_ascii=False)
           "
       
       - name: Upload database artifact
@@ -123,6 +141,27 @@ jobs:
           path: versions/v2/scan_summary_cn.json
           retention-days: 30
           if-no-files-found: ignore
+      
+      # 发送通知 (Telegram + Email)
+      - name: Send notifications
+        working-directory: versions/v2
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SENDER: ${{ secrets.SMTP_SENDER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_RECEIVERS: ${{ secrets.EMAIL_RECEIVERS }}
+        run: |
+          # For CN market, rename summary file temporarily
+          if [ -f scan_summary_cn.json ]; then
+            mv scan_summary_cn.json scan_summary.json
+          fi
+          python scripts/send_notification.py
+          if [ -f scan_summary.json ]; then
+            mv scan_summary.json scan_summary_cn.json
+          fi
       
       # 提交数据库到仓库 - 用于 Render
       - name: Commit database to repo
