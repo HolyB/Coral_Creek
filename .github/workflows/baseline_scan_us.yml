@@ -26,27 +26,30 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install pandas numpy requests tqdm smtplib-local python-dotenv
           pip install -r versions/v2/requirements.txt
       
       - name: Run baseline scan
         working-directory: versions/v2
         env:
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SMTP_SENDER: ${{ secrets.SMTP_SENDER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_RECEIVERS: ${{ secrets.EMAIL_RECEIVERS }}
         run: |
           LIMIT="${{ github.event.inputs.limit || '0' }}"
           if [ "$LIMIT" = "0" ]; then
-            python scripts/scan_blue_baseline.py
+            python scripts/scan_blue_baseline_v2.py
           else
-            python scripts/scan_blue_baseline.py --limit "$LIMIT"
+            python scripts/scan_blue_baseline_v2.py --limit "$LIMIT"
           fi
       
       - name: Upload results
         uses: actions/upload-artifact@v4
         with:
           name: baseline-scan-us-${{ github.run_number }}
-          path: versions/v2/baseline_scan_results_*.csv
+          path: versions/v2/baseline_scan_*.csv
           retention-days: 30
           if-no-files-found: ignore
+
