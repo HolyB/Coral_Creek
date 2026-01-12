@@ -1283,317 +1283,254 @@ def render_signal_tracker_page():
     st.header("📈 信号追踪 (Signal Tracker)")
     st.info("查看历史扫描结果中股票的后续走势，验证信号有效性。")
     
-    # 加载所有历史扫描结果
-    files = glob.glob(os.path.join(current_dir, "enhanced_scan_results_*.csv"))
-    if not files:
-        st.warning("未找到历史扫描结果文件。")
-        return
+    # 导入服务
+    from services.signal_tracker_service import (
+        get_signal_performance_summary,
+        calculate_signal_returns,
+        batch_calculate_returns
+    )
     
-    # 按日期排序
-    files_sorted = sorted(files, key=os.path.getmtime, reverse=True)
-    
-    # 提取文件名中的日期
-    file_options = {}
-    for f in files_sorted[:20]:  # 只显示最近20个
-        basename = os.path.basename(f)
-        # enhanced_scan_results_US_20260107_104820.csv
-        try:
-            parts = basename.replace('.csv', '').split('_')
-            date_str = parts[3]  # 20260107
-            time_str = parts[4]  # 104820
-            display_name = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:]} {time_str[:2]}:{time_str[2:4]}"
-            file_options[display_name] = f
-        except:
-            file_options[basename] = f
-    
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        selected_date = st.selectbox(
-            "选择历史扫描日期",
-            options=list(file_options.keys()),
-            index=0
+    # 侧边栏设置
+    with st.sidebar:
+        st.subheader("📊 追踪设置")
+        
+        # 市场选择
+        market = st.radio(
+            "选择市场",
+            ["🇺🇸 美股", "🇨🇳 A股"],
+            horizontal=True,
+            key="tracker_market"
         )
+        market_code = "US" if "美股" in market else "CN"
         
-        if selected_date:
-            selected_file = file_options[selected_date]
-            
-            try:
-                hist_df = pd.read_csv(selected_file)
-                st.success(f"加载了 {len(hist_df)} 条信号记录")
-                
-                # 筛选条件
-                st.markdown("### 筛选条件")
-                
-                min_blue = st.slider("最小 Day BLUE", 0, 200, 100)
-                
-                filter_options = st.multiselect(
-                    "信号类型",
-                    ["Strat_D_Trend", "Strat_C_Resonance", "Is_Heima"],
-                    default=["Strat_D_Trend"]
-                )
-                
-            except Exception as e:
-                st.error(f"加载文件失败: {e}")
-                return
-    
-    with col2:
-        if selected_date and 'hist_df' in dir():
-            # 应用筛选
-            filtered_df = hist_df.copy()
-            
-            if 'Blue_Daily' in filtered_df.columns:
-                filtered_df = filtered_df[filtered_df['Blue_Daily'] >= min_blue]
-            
-            for opt in filter_options:
-                if opt in filtered_df.columns:
-                    filtered_df = filtered_df[filtered_df[opt] == True]
-            
-            st.markdown(f"### 筛选后: {len(filtered_df)} 条信号")
-            
-            if len(filtered_df) == 0:
-                st.warning("没有符合条件的信号")
-                return
-            
-            # 显示信号列表
-            display_cols = ['Symbol', 'Price', 'Blue_Daily', 'Blue_Weekly', 'Date']
-            existing_cols = [c for c in display_cols if c in filtered_df.columns]
-            
-            st.dataframe(
-                filtered_df[existing_cols].head(50),
-                use_container_width=True,
-                hide_index=True
-            )
-    
-    st.divider()
-    
-    # 信号追踪分析
-    st.markdown("## 📊 信号后续表现分析")
-    
-    if 'filtered_df' in dir() and len(filtered_df) > 0:
-        # 选择要追踪的股票
-        symbols = filtered_df['Symbol'].tolist()[:20]  # 最多20个
+        # 获取历史扫描日期
+        dates = get_scanned_dates(market=market_code)
         
-        selected_symbols = st.multiselect(
-            "选择要追踪的股票 (最多5个)",
-            options=symbols,
-            default=symbols[:min(3, len(symbols))],
-            max_selections=5
+        if not dates:
+            st.warning(f"暂无 {market} 的历史扫描数据")
+            return
+        
+        # 日期选择
+        selected_date = st.selectbox(
+            "选择扫描日期",
+            options=dates[:30],  # 最近30天
+            index=0,
+            help="选择要追踪的历史扫描日期"
         )
         
         # 追踪天数
-        track_days = st.slider("追踪天数", 5, 60, 20)
+        track_days = st.slider("追踪天数", 5, 30, 20)
         
-        if st.button("🔍 分析后续走势", type="primary"):
-            if not selected_symbols:
-                st.warning("请选择至少一个股票")
-                return
+        # 计算按钮
+        calculate_btn = st.button("🔍 计算信号表现", type="primary", use_container_width=True)
+    
+    # 主区域
+    if not calculate_btn:
+        # 显示说明
+        st.markdown("""
+        ### 使用说明
+        
+        1. 在左侧选择 **市场** 和 **历史扫描日期**
+        2. 点击 **"计算信号表现"** 按钮
+        3. 系统将分析该日期扫描出的信号在后续的表现
+        
+        #### 指标说明
+        - **胜率**: 信号后续上涨的比例
+        - **平均收益**: 所有信号的平均收益率
+        - **5D/10D/20D**: 信号后 5/10/20 个交易日的收益
+        """)
+        
+        # 显示可用日期概览
+        if dates:
+            st.markdown("### 📅 可用历史日期")
             
-            # 获取信号日期
-            try:
-                signal_date_str = filtered_df[filtered_df['Symbol'] == selected_symbols[0]]['Date'].iloc[0]
-                signal_date = pd.to_datetime(signal_date_str)
-            except:
-                signal_date = pd.Timestamp.now() - pd.Timedelta(days=30)
+            # 获取每个日期的信号数量
+            date_info = []
+            for d in dates[:10]:
+                count = len(query_scan_results(scan_date=d, market=market_code, limit=1000))
+                date_info.append({'日期': d, '信号数': count})
             
-            st.markdown(f"**信号日期**: {signal_date.strftime('%Y-%m-%d')}")
+            if date_info:
+                st.dataframe(pd.DataFrame(date_info), hide_index=True, use_container_width=True)
+        return
+    
+    # 执行计算
+    with st.spinner(f"正在计算 {selected_date} 的信号表现..."):
+        # 获取该天的扫描结果
+        scan_results = query_scan_results(scan_date=selected_date, market=market_code, limit=100)
+        
+        if not scan_results:
+            st.error("该日期没有扫描结果")
+            return
+        
+        st.success(f"找到 {len(scan_results)} 个信号，正在计算后续表现...")
+        
+        # 准备信号列表
+        signals = [{
+            'symbol': r['symbol'],
+            'signal_date': selected_date,
+            'day_blue': r.get('blue_daily', 0),
+            'week_blue': r.get('blue_weekly', 0),
+            'name': r.get('name', ''),
+            'entry_price': r.get('price', 0)
+        } for r in scan_results]
+        
+        # 批量计算收益
+        progress_bar = st.progress(0, text="计算中...")
+        returns = batch_calculate_returns(signals, market_code, max_workers=15)
+        progress_bar.progress(100, text="计算完成!")
+        
+        if not returns:
+            st.warning("无法获取足够的历史数据来计算收益")
+            return
+    
+    # 转换为 DataFrame
+    df = pd.DataFrame(returns)
+    
+    # 显示统计摘要
+    st.markdown("---")
+    st.markdown("### 📊 整体表现统计")
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        total = len(returns)
+        st.metric("分析信号数", f"{total}")
+    
+    with col2:
+        if 'return_5d' in df.columns:
+            valid_5d = df['return_5d'].dropna()
+            avg_5d = valid_5d.mean() if len(valid_5d) > 0 else 0
+            st.metric("平均 5D 收益", f"{avg_5d:+.2f}%",
+                     delta="盈利" if avg_5d > 0 else "亏损",
+                     delta_color="normal" if avg_5d > 0 else "inverse")
+    
+    with col3:
+        if 'return_10d' in df.columns:
+            valid_10d = df['return_10d'].dropna()
+            avg_10d = valid_10d.mean() if len(valid_10d) > 0 else 0
+            st.metric("平均 10D 收益", f"{avg_10d:+.2f}%",
+                     delta="盈利" if avg_10d > 0 else "亏损",
+                     delta_color="normal" if avg_10d > 0 else "inverse")
+    
+    with col4:
+        if 'return_20d' in df.columns:
+            valid_20d = df['return_20d'].dropna()
+            avg_20d = valid_20d.mean() if len(valid_20d) > 0 else 0
+            st.metric("平均 20D 收益", f"{avg_20d:+.2f}%",
+                     delta="盈利" if avg_20d > 0 else "亏损",
+                     delta_color="normal" if avg_20d > 0 else "inverse")
+    
+    with col5:
+        if 'return_20d' in df.columns:
+            valid = df['return_20d'].dropna()
+            if len(valid) > 0:
+                win_rate = len(valid[valid > 0]) / len(valid) * 100
+                st.metric("20D 胜率", f"{win_rate:.0f}%",
+                         delta="优秀" if win_rate > 60 else ("一般" if win_rate > 40 else "较差"))
+    
+    # 信号分类
+    st.markdown("### 🎯 信号分类")
+    
+    if 'return_20d' in df.columns:
+        df_valid = df.dropna(subset=['return_20d'])
+        
+        excellent = df_valid[df_valid['return_20d'] > 10]
+        good = df_valid[(df_valid['return_20d'] > 0) & (df_valid['return_20d'] <= 10)]
+        poor = df_valid[df_valid['return_20d'] <= 0]
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.success(f"### ✅ 优质信号: {len(excellent)}")
+            st.caption("20D 收益 > 10%")
+            if len(excellent) > 0:
+                st.write(f"平均 BLUE: {excellent['day_blue'].mean():.0f}")
+        
+        with col2:
+            st.info(f"### 🟡 一般信号: {len(good)}")
+            st.caption("20D 收益 0-10%")
+            if len(good) > 0:
+                st.write(f"平均 BLUE: {good['day_blue'].mean():.0f}")
+        
+        with col3:
+            st.warning(f"### ❌ 差信号: {len(poor)}")
+            st.caption("20D 收益 < 0%")
+            if len(poor) > 0:
+                st.write(f"平均 BLUE: {poor['day_blue'].mean():.0f}")
+    
+    # 详细数据表格
+    st.markdown("### 📋 详细数据")
+    
+    # 准备显示数据
+    display_df = df[['symbol', 'name', 'day_blue', 'entry_price', 
+                     'return_5d', 'return_10d', 'return_20d', 
+                     'max_gain', 'max_drawdown', 'current_return']].copy()
+    
+    display_df.columns = ['代码', '名称', 'Day BLUE', '入场价', 
+                          '5D收益', '10D收益', '20D收益', 
+                          '最大涨幅', '最大回撤', '当前收益']
+    
+    # 格式化
+    for col in ['5D收益', '10D收益', '20D收益', '最大涨幅', '最大回撤', '当前收益']:
+        if col in display_df.columns:
+            display_df[col] = display_df[col].apply(
+                lambda x: f"{x:+.2f}%" if pd.notna(x) else "N/A"
+            )
+    
+    display_df['入场价'] = display_df['入场价'].apply(
+        lambda x: f"${x:.2f}" if pd.notna(x) and x > 0 else "N/A"
+    )
+    
+    # 排序选项
+    sort_col = st.selectbox("排序方式", ['20D收益', '10D收益', '5D收益', 'Day BLUE'], key="sort_col")
+    
+    # 因为已经格式化为字符串，需要对原始数据排序
+    sort_map = {'20D收益': 'return_20d', '10D收益': 'return_10d', '5D收益': 'return_5d', 'Day BLUE': 'day_blue'}
+    if sort_map[sort_col] in df.columns:
+        sort_idx = df[sort_map[sort_col]].sort_values(ascending=False).index
+        display_df = display_df.loc[sort_idx]
+    
+    st.dataframe(display_df, hide_index=True, use_container_width=True)
+    
+    # 信号质量评估
+    st.markdown("### 💡 信号质量评估")
+    
+    if 'return_20d' in df.columns:
+        valid_20d = df['return_20d'].dropna()
+        if len(valid_20d) > 0:
+            avg_return = valid_20d.mean()
+            win_rate = len(valid_20d[valid_20d > 0]) / len(valid_20d) * 100
             
-            # 分析每个股票
-            results = []
-            
-            progress_bar = st.progress(0)
-            
-            for i, symbol in enumerate(selected_symbols):
-                progress_bar.progress((i + 1) / len(selected_symbols))
+            if avg_return > 5 and win_rate > 55:
+                st.success(f"""
+                **✅ 优质信号批次**
                 
-                with st.spinner(f"分析 {symbol}..."):
-                    try:
-                        # 获取数据
-                        df = fetch_data_from_polygon(symbol, days=365)
-                        
-                        if df is None or df.empty:
-                            continue
-                        
-                        # 找到信号日期
-                        signal_row = filtered_df[filtered_df['Symbol'] == symbol].iloc[0]
-                        signal_price = signal_row.get('Price', 0)
-                        signal_blue = signal_row.get('Blue_Daily', 0)
-                        
-                        # 计算后续表现
-                        # 找到信号日期之后的数据
-                        df_after = df[df.index >= signal_date].head(track_days + 1)
-                        
-                        if len(df_after) < 2:
-                            continue
-                        
-                        entry_price = df_after['Close'].iloc[0]
-                        
-                        # 计算各时间点收益
-                        returns = {}
-                        for d in [5, 10, 20, track_days]:
-                            if d < len(df_after):
-                                exit_price = df_after['Close'].iloc[d]
-                                ret = (exit_price - entry_price) / entry_price * 100
-                                returns[f'{d}D'] = ret
-                        
-                        # 最大回撤和最大涨幅
-                        max_price = df_after['High'].max()
-                        min_price = df_after['Low'].min()
-                        max_gain = (max_price - entry_price) / entry_price * 100
-                        max_dd = (min_price - entry_price) / entry_price * 100
-                        
-                        # 当前价格
-                        current_price = df['Close'].iloc[-1]
-                        current_ret = (current_price - entry_price) / entry_price * 100
-                        
-                        results.append({
-                            'Symbol': symbol,
-                            'Signal BLUE': signal_blue,
-                            'Entry Price': entry_price,
-                            'Current Price': current_price,
-                            '5D Return': returns.get('5D', None),
-                            '10D Return': returns.get('10D', None),
-                            '20D Return': returns.get('20D', None),
-                            'Max Gain': max_gain,
-                            'Max DD': max_dd,
-                            'Current Return': current_ret
-                        })
-                        
-                    except Exception as e:
-                        st.warning(f"{symbol} 分析失败: {e}")
-            
-            progress_bar.empty()
-            
-            if results:
-                results_df = pd.DataFrame(results)
+                - 平均 20D 收益: {avg_return:.2f}%
+                - 胜率: {win_rate:.0f}%
+                - 优质信号占比: {len(excellent)/len(df_valid)*100:.0f}%
                 
-                # 统计摘要
-                st.markdown("### 📋 表现统计")
+                该批次信号表现优秀，策略参数有效！
+                """)
+            elif avg_return > 0 and win_rate > 40:
+                st.info(f"""
+                **🟡 一般信号批次**
                 
-                col1, col2, col3, col4 = st.columns(4)
+                - 平均 20D 收益: {avg_return:.2f}%
+                - 胜率: {win_rate:.0f}%
                 
-                with col1:
-                    avg_5d = results_df['5D Return'].mean() if '5D Return' in results_df else 0
-                    st.metric("平均 5 日收益", f"{avg_5d:.2f}%",
-                             delta="盈利" if avg_5d > 0 else "亏损",
-                             delta_color="normal" if avg_5d > 0 else "inverse")
-                
-                with col2:
-                    avg_10d = results_df['10D Return'].mean() if '10D Return' in results_df else 0
-                    st.metric("平均 10 日收益", f"{avg_10d:.2f}%",
-                             delta="盈利" if avg_10d > 0 else "亏损",
-                             delta_color="normal" if avg_10d > 0 else "inverse")
-                
-                with col3:
-                    avg_20d = results_df['20D Return'].mean() if '20D Return' in results_df else 0
-                    st.metric("平均 20 日收益", f"{avg_20d:.2f}%",
-                             delta="盈利" if avg_20d > 0 else "亏损",
-                             delta_color="normal" if avg_20d > 0 else "inverse")
-                
-                with col4:
-                    win_rate = (results_df['Current Return'] > 0).mean() * 100
-                    st.metric("胜率", f"{win_rate:.0f}%",
-                             delta="优秀" if win_rate > 60 else ("一般" if win_rate > 40 else "较差"))
-                
-                # 详细表格
-                st.markdown("### 📊 详细数据")
-                
-                # 格式化显示
-                styled_df = results_df.copy()
-                for col in ['5D Return', '10D Return', '20D Return', 'Max Gain', 'Max DD', 'Current Return']:
-                    if col in styled_df.columns:
-                        styled_df[col] = styled_df[col].apply(lambda x: f"{x:+.2f}%" if pd.notna(x) else "N/A")
-                
-                for col in ['Entry Price', 'Current Price']:
-                    if col in styled_df.columns:
-                        styled_df[col] = styled_df[col].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
-                
-                st.dataframe(styled_df, use_container_width=True, hide_index=True)
-                
-                # 走势图
-                st.markdown("### 📈 后续走势图")
-                
-                import plotly.graph_objects as go
-                from plotly.subplots import make_subplots
-                
-                fig = go.Figure()
-                
-                for symbol in selected_symbols:
-                    try:
-                        df = fetch_data_from_polygon(symbol, days=365)
-                        if df is None:
-                            continue
-                        
-                        df_after = df[df.index >= signal_date].head(track_days + 1)
-                        if len(df_after) < 2:
-                            continue
-                        
-                        entry_price = df_after['Close'].iloc[0]
-                        # 归一化为百分比变化
-                        normalized = (df_after['Close'] / entry_price - 1) * 100
-                        
-                        fig.add_trace(go.Scatter(
-                            x=list(range(len(normalized))),
-                            y=normalized,
-                            mode='lines+markers',
-                            name=symbol,
-                            hovertemplate=f'{symbol}<br>Day %{{x}}<br>Return: %{{y:.2f}}%<extra></extra>'
-                        ))
-                    except:
-                        pass
-                
-                # 添加零线
-                fig.add_hline(y=0, line_dash="dash", line_color="gray")
-                
-                fig.update_layout(
-                    title="信号后续收益走势 (归一化)",
-                    xaxis_title="交易日",
-                    yaxis_title="收益率 (%)",
-                    height=400,
-                    hovermode='x unified'
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # 信号质量评估
-                st.markdown("### 🎯 信号质量评估")
-                
-                avg_return = results_df['Current Return'].mean()
-                avg_max_gain = results_df['Max Gain'].mean()
-                avg_max_dd = results_df['Max DD'].mean()
-                
-                if avg_return > 10 and win_rate > 60:
-                    st.success(f"""
-                    **✅ 优质信号批次**
-                    - 平均收益: {avg_return:.2f}%
-                    - 胜率: {win_rate:.0f}%
-                    - 平均最大涨幅: {avg_max_gain:.2f}%
-                    - 平均最大回撤: {avg_max_dd:.2f}%
-                    
-                    该批次信号表现优秀，策略参数可以继续使用。
-                    """)
-                elif avg_return > 0 and win_rate > 40:
-                    st.info(f"""
-                    **🟡 一般信号批次**
-                    - 平均收益: {avg_return:.2f}%
-                    - 胜率: {win_rate:.0f}%
-                    - 平均最大涨幅: {avg_max_gain:.2f}%
-                    - 平均最大回撤: {avg_max_dd:.2f}%
-                    
-                    该批次信号表现一般，建议结合其他指标筛选。
-                    """)
-                else:
-                    st.warning(f"""
-                    **⚠️ 低质量信号批次**
-                    - 平均收益: {avg_return:.2f}%
-                    - 胜率: {win_rate:.0f}%
-                    - 平均最大涨幅: {avg_max_gain:.2f}%
-                    - 平均最大回撤: {avg_max_dd:.2f}%
-                    
-                    该批次信号表现不佳，建议调整策略参数或增加筛选条件。
-                    """)
+                该批次信号表现一般，建议结合其他指标筛选。
+                """)
             else:
-                st.warning("没有成功分析的股票")
+                st.warning(f"""
+                **⚠️ 低质量信号批次**
+                
+                - 平均 20D 收益: {avg_return:.2f}%
+                - 胜率: {win_rate:.0f}%
+                
+                该批次信号表现不佳，建议调整策略参数。
+                """)
+
 
 
 def render_backtest_page():

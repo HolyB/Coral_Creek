@@ -97,7 +97,7 @@ def send_telegram(summary):
 def send_email(summary):
     """发送 Email 通知"""
     smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.getenv('SMTP_PORT', 587))
+    smtp_port = int(os.getenv('SMTP_PORT') or 587)
     smtp_sender = os.getenv('SMTP_SENDER')
     smtp_password = os.getenv('SMTP_PASSWORD')
     receivers_str = os.getenv('EMAIL_RECEIVERS', '')

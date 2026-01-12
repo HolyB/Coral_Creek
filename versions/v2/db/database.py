@@ -119,6 +119,25 @@ def init_db():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_stock_market ON stock_info(market)")
         
+        # 信号性能缓存表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS signal_performance (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol VARCHAR(20),
+                scan_date VARCHAR(20),
+                market VARCHAR(10) DEFAULT 'US',
+                return_5d REAL,
+                return_10d REAL,
+                return_20d REAL,
+                max_gain REAL,
+                max_drawdown REAL,
+                calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(symbol, scan_date, market)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_perf_date ON signal_performance(scan_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_perf_market ON signal_performance(market)")
+        
         # 迁移: 如果 market 列不存在，添加它
         try:
             cursor.execute("SELECT market FROM scan_results LIMIT 1")
