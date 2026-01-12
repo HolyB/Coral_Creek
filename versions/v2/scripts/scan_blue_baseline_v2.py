@@ -209,7 +209,9 @@ def send_telegram_notification(results, market='US'):
     sorted_results = sorted(results, key=lambda x: x['blue_daily'], reverse=True)[:10]
     
     for i, r in enumerate(sorted_results, 1):
-        lines.append(f"{i}. `{r['symbol']}` ${r['price']:.2f} BLUE:{r['blue_daily']:.0f}")
+        day_b = r.get('blue_daily', 0)
+        week_b = r.get('blue_weekly', 0)
+        lines.append(f"{i}. `{r['symbol']}` ${r['price']:.2f} D:{day_b:.0f} W:{week_b:.0f}")
     
     message = '\n'.join(lines)
     
