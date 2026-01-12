@@ -415,3 +415,4 @@ if __name__ == "__main__":
             print(f"  {r['Symbol']:6} | Price: ${r['Price']:8.2f} | Day BLUE: {r['Blue_Daily']:5.1f} | Week BLUE: {r['Blue_Weekly']:5.1f}")
 
 
+
