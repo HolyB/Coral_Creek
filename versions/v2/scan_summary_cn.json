@@ -1,57 +1,112 @@
 {
-  "date": "2026-01-09",
+  "date": "2026-01-12",
   "market": "CN",
-  "total_signals": 68,
-  "top_10": [
+  "total_signals": 47,
+  "top_signals": [
     {
       "symbol": "605008.SH",
-      "price": 14.24,
-      "blue_daily": 200.0
-    },
-    {
-      "symbol": "300391.SZ",
-      "price": 0.81,
-      "blue_daily": 200.0
+      "name": "长鸿高科",
+      "price": 14.17,
+      "day_blue": 200.0,
+      "week_blue": 0.0
     },
     {
       "symbol": "002024.SZ",
-      "price": 1.67,
-      "blue_daily": 184.1
+      "name": "ST易购",
+      "price": 1.65,
+      "day_blue": 200.0,
+      "week_blue": 118.1
     },
     {
-      "symbol": "920925.BJ",
-      "price": 26.2,
-      "blue_daily": 165.7
-    },
-    {
-      "symbol": "600941.SH",
-      "price": 100.12,
-      "blue_daily": 162.9
+      "symbol": "001222.SZ",
+      "name": "源飞宠物",
+      "price": 23.23,
+      "day_blue": 168.0,
+      "week_blue": 0.0
     },
     {
       "symbol": "601916.SH",
+      "name": "浙商银行",
       "price": 3.03,
-      "blue_daily": 157.0
-    },
-    {
-      "symbol": "601398.SH",
-      "price": 7.71,
-      "blue_daily": 155.6
-    },
-    {
-      "symbol": "000895.SZ",
-      "price": 25.9,
-      "blue_daily": 152.4
+      "day_blue": 165.7,
+      "week_blue": 0.0
     },
     {
       "symbol": "601963.SH",
+      "name": "重庆银行",
       "price": 10.45,
-      "blue_daily": 151.7
+      "day_blue": 160.6,
+      "week_blue": 0.0
     },
     {
-      "symbol": "002521.SZ",
-      "price": 8.45,
-      "blue_daily": 148.5
+      "symbol": "000895.SZ",
+      "name": "双汇发展",
+      "price": 25.81,
+      "day_blue": 158.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601658.SH",
+      "name": "邮储银行",
+      "price": 5.34,
+      "day_blue": 155.2,
+      "week_blue": 92.7
+    },
+    {
+      "symbol": "002831.SZ",
+      "name": "裕同科技",
+      "price": 27.25,
+      "day_blue": 153.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301448.SZ",
+      "name": "开创电气",
+      "price": 46.66,
+      "day_blue": 153.5,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002231.SZ",
+      "name": "*ST奥维",
+      "price": 1.15,
+      "day_blue": 152.3,
+      "week_blue": 92.1
+    },
+    {
+      "symbol": "600690.SH",
+      "name": "海尔智家",
+      "price": 26.2,
+      "day_blue": 147.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300344.SZ",
+      "name": "*ST立方",
+      "price": 1.01,
+      "day_blue": 146.2,
+      "week_blue": 143.7
+    },
+    {
+      "symbol": "920392.BJ",
+      "name": "佳合科技",
+      "price": 29.58,
+      "day_blue": 142.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002948.SZ",
+      "name": "青岛银行",
+      "price": 4.43,
+      "day_blue": 136.5,
+      "week_blue": 99.8
+    },
+    {
+      "symbol": "603565.SH",
+      "name": "中谷物流",
+      "price": 10.08,
+      "day_blue": 135.2,
+      "week_blue": 0.0
     }
   ]
 }
