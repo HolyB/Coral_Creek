@@ -17,6 +17,14 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
+# 加载 .env 文件（本地开发用）
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(parent_dir, '.env'))
+except ImportError:
+    pass  # dotenv not required in GitHub Actions
+
+
 
 def load_scan_summary():
     """加载扫描摘要"""
