@@ -23,6 +23,10 @@ on:
         description: 'Number of parallel workers'
         required: false
         default: '15'
+      limit:
+        description: 'Limit stocks per day (0=all, 1000 recommended)'
+        required: false
+        default: '1000'
 
 permissions:
   contents: write
@@ -61,12 +65,14 @@ jobs:
           echo "📅 Backfilling from ${{ github.event.inputs.start_date }} to $END_DATE"
           echo "📊 Market: ${{ github.event.inputs.market }}"
           echo "👷 Workers: ${{ github.event.inputs.workers }}"
+          echo "📈 Limit: ${{ github.event.inputs.limit }} stocks/day"
           
           python scripts/backfill.py \
             --start ${{ github.event.inputs.start_date }} \
             --end $END_DATE \
             --market ${{ github.event.inputs.market }} \
-            --workers ${{ github.event.inputs.workers }}
+            --workers ${{ github.event.inputs.workers }} \
+            --limit ${{ github.event.inputs.limit }}
 
       - name: Commit database to repo
         run: |

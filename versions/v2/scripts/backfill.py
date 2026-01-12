@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--end', type=str, default=None, help='End date (YYYY-MM-DD), default: today')
     parser.add_argument('--market', type=str, default='US', help='Market (US/CN)')
     parser.add_argument('--workers', type=int, default=30, help='Number of parallel workers')
+    parser.add_argument('--limit', type=int, default=0, help='Limit stocks per day (0=all)')
     parser.add_argument('--dry-run', action='store_true', help='Only show missing dates, do not scan')
     
     args = parser.parse_args()
@@ -57,7 +58,7 @@ def main():
         print(f"[{i+1}/{len(missing)}] Backfilling {date}")
         print(f"{'='*60}")
         
-        run_scan_for_date(date, market=args.market, max_workers=args.workers, save_to_db=True)
+        run_scan_for_date(date, market=args.market, limit=args.limit, max_workers=args.workers, save_to_db=True)
     
     print("\n" + "="*60)
     print("✅ Backfill complete!")
