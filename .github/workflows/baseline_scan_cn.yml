@@ -2,7 +2,8 @@ name: Baseline Scan (CN)
 
 on:
   schedule:
-    - cron: '30 9 * * 1-5'  # 每个工作日 09:30 UTC = 北京 17:30
+    - cron: '0 1 * * 1-5'   # 盘前: 北京 9:00 AM = UTC 01:00
+    - cron: '30 9 * * 1-5'  # 盘后: 北京 17:30 = UTC 09:30
   workflow_dispatch:
     inputs:
       limit:
@@ -26,15 +27,17 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install pandas numpy requests tqdm tushare smtplib-local python-dotenv
           pip install -r versions/v2/requirements.txt
       
       - name: Run baseline scan (CN)
         working-directory: versions/v2
         env:
           TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SMTP_SENDER: ${{ secrets.SMTP_SENDER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_RECEIVERS: ${{ secrets.EMAIL_RECEIVERS }}
         run: |
           LIMIT="${{ github.event.inputs.limit || '0' }}"
           if [ "$LIMIT" = "0" ]; then
@@ -47,6 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: baseline-scan-cn-${{ github.run_number }}
-          path: versions/v2/baseline_scan_results_*.csv
+          path: versions/v2/*.csv
           retention-days: 30
           if-no-files-found: ignore
+
