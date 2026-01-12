@@ -65,7 +65,9 @@ def send_telegram(summary):
     ]
     
     for i, s in enumerate(top, 1):
+        # 转义 Markdown 特殊字符
         name = s.get('name', '')[:8] if s.get('name') else ''
+        name = name.replace('*', '').replace('_', '').replace('`', '').replace('[', '').replace(']', '')
         symbol = s.get('symbol', 'N/A')
         price = s.get('price', 0)
         day_blue = s.get('day_blue', 0)
@@ -202,10 +204,15 @@ def send_email(summary):
         
         msg.attach(MIMEText(html, 'html', 'utf-8'))
         
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
+        try:
+            server.ehlo()
             server.starttls()
+            server.ehlo()
             server.login(smtp_sender, smtp_password)
             server.sendmail(smtp_sender, receivers, msg.as_string())
+        finally:
+            server.quit()
         
         print(f"✅ Email sent to {', '.join(receivers)}")
         return True
