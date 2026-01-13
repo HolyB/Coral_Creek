@@ -1325,15 +1325,36 @@ def render_stock_lookup_page():
 def render_signal_tracker_page():
     """信号追踪页面 - 查看历史扫描信号的后续表现"""
     st.header("📈 信号追踪 (Signal Tracker)")
-    st.info("查看历史扫描结果中股票的后续走势，验证信号有效性。")
     
-    # 导入服务
-    from services.signal_tracker_service import (
-        get_signal_performance_summary,
-        calculate_signal_returns,
-        batch_calculate_returns
+    # 导入数据库函数
+    from db.database import (
+        get_signal_history, get_portfolio, add_to_watchlist, 
+        add_trade, get_trades, update_watchlist_status, delete_from_watchlist
     )
     
+    # Tab 结构
+    tab1, tab2, tab3 = st.tabs(["📊 信号表现", "🔍 信号复盘", "💼 我的持仓"])
+    
+    # ==================== Tab 1: 信号表现 (原有功能) ====================
+    with tab1:
+        st.info("查看历史扫描结果中股票的后续走势，验证信号有效性。")
+        render_signal_performance_tab()
+    
+    # ==================== Tab 2: 信号复盘 ====================
+    with tab2:
+        st.info("选择股票查看历史所有信号点及后续表现")
+        render_signal_review_tab()
+    
+    # ==================== Tab 3: 我的持仓 ====================
+    with tab3:
+        st.info("添加并跟踪你的实际持仓，记录交易")
+        render_portfolio_tab()
+
+
+def render_signal_performance_tab():
+    """信号表现 Tab (原有功能)"""
+    from services.signal_tracker_service import batch_calculate_returns
+
     # 侧边栏设置
     with st.sidebar:
         st.subheader("📊 追踪设置")
@@ -1575,6 +1596,177 @@ def render_signal_tracker_page():
                 该批次信号表现不佳，建议调整策略参数。
                 """)
 
+
+def render_signal_review_tab():
+    """信号复盘 Tab - 查看个股历史信号"""
+    from db.database import get_signal_history
+    
+    st.markdown("### 🔍 选择股票查看历史信号")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        symbol = st.text_input("输入股票代码", value="", placeholder="例如: NVDA, AAPL", key="review_symbol")
+    
+    with col2:
+        market = st.radio("市场", ["US", "CN"], horizontal=True, key="review_market")
+    
+    if not symbol:
+        st.info("请输入股票代码开始查看信号历史")
+        return
+    
+    symbol = symbol.upper().strip()
+    
+    with st.spinner(f"正在加载 {symbol} 的历史信号..."):
+        signals = get_signal_history(symbol, market=market, limit=100)
+    
+    if not signals:
+        st.warning(f"未找到 {symbol} 的历史信号记录")
+        return
+    
+    st.success(f"找到 {len(signals)} 条历史信号记录")
+    
+    # 转换为 DataFrame
+    df = pd.DataFrame(signals)
+    
+    # 显示信号列表
+    st.markdown("### 📋 历史信号列表")
+    
+    display_cols = ['scan_date', 'price', 'blue_daily', 'blue_weekly', 'wave_phase']
+    available_cols = [c for c in display_cols if c in df.columns]
+    display_df = df[available_cols].copy()
+    display_df.columns = ['信号日期', '当日价格', 'Day BLUE', 'Week BLUE', '波浪阶段'][:len(available_cols)]
+    
+    st.dataframe(display_df, hide_index=True, use_container_width=True)
+    
+    # 信号统计
+    st.markdown("### 📊 信号统计")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("信号次数", len(signals))
+    with col2:
+        avg_blue = df['blue_daily'].mean() if 'blue_daily' in df.columns else 0
+        st.metric("平均 Day BLUE", f"{avg_blue:.0f}" if avg_blue else "N/A")
+    with col3:
+        max_blue = df['blue_daily'].max() if 'blue_daily' in df.columns else 0
+        st.metric("最高 Day BLUE", f"{max_blue:.0f}" if max_blue else "N/A")
+
+
+def render_portfolio_tab():
+    """我的持仓 Tab - 手动添加和跟踪持仓"""
+    from db.database import (
+        get_portfolio, add_to_watchlist, add_trade, 
+        get_trades, update_watchlist_status, delete_from_watchlist
+    )
+    
+    # 权限检查
+    if not is_admin():
+        st.warning("⚠️ 持仓管理需要管理员权限，您当前为访客模式（只读）")
+        st.markdown("---")
+    
+    # 添加股票表单 (仅管理员可见)
+    if is_admin():
+        st.markdown("### ➕ 添加持仓")
+        
+        with st.expander("添加新持仓", expanded=False):
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                new_symbol = st.text_input("股票代码", placeholder="NVDA", key="add_symbol")
+            with col2:
+                new_price = st.number_input("买入价格", min_value=0.01, value=100.0, key="add_price")
+            with col3:
+                new_shares = st.number_input("股数", min_value=1, value=100, key="add_shares")
+            
+            col4, col5 = st.columns(2)
+            with col4:
+                new_market = st.selectbox("市场", ["US", "CN"], key="add_market")
+            with col5:
+                new_date = st.date_input("买入日期", key="add_date")
+            
+            notes = st.text_input("备注", placeholder="可选", key="add_notes")
+            
+            if st.button("✅ 添加持仓", type="primary"):
+                if new_symbol:
+                    symbol = new_symbol.upper().strip()
+                    entry_date = new_date.strftime('%Y-%m-%d')
+                    
+                    # 添加到持仓列表
+                    add_to_watchlist(symbol, new_price, new_shares, entry_date, new_market, 'holding', notes)
+                    
+                    # 记录买入交易
+                    add_trade(symbol, 'BUY', new_price, new_shares, entry_date, new_market, notes)
+                    
+                    st.success(f"✅ 已添加 {symbol} 到持仓")
+                    st.rerun()
+                else:
+                    st.error("请输入股票代码")
+    
+    # 当前持仓
+    st.markdown("### 💼 当前持仓")
+    
+    portfolio = get_portfolio(status='holding')
+    
+    if not portfolio:
+        st.info("暂无持仓，点击上方添加")
+    else:
+        for item in portfolio:
+            col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 1])
+            
+            with col1:
+                st.write(f"**{item['symbol']}**")
+                st.caption(f"买入: ${item['entry_price']:.2f}")
+            
+            with col2:
+                st.write(f"{item['shares']} 股")
+                st.caption(f"日期: {item['entry_date']}")
+            
+            with col3:
+                st.write(f"持仓中")
+                st.caption(f"市场: {item['market']}")
+            
+            with col4:
+                if item.get('notes'):
+                    st.caption(item['notes'])
+            
+            with col5:
+                if is_admin():
+                    if st.button("卖出", key=f"sell_{item['id']}"):
+                        st.session_state[f"show_sell_{item['id']}"] = True
+            
+            # 卖出对话框
+            if is_admin() and st.session_state.get(f"show_sell_{item['id']}"):
+                with st.container():
+                    sell_price = st.number_input(
+                        f"卖出价格 ({item['symbol']})", 
+                        min_value=0.01, 
+                        value=float(item['entry_price']),
+                        key=f"sell_price_{item['id']}"
+                    )
+                    if st.button(f"确认卖出", key=f"confirm_sell_{item['id']}"):
+                        add_trade(item['symbol'], 'SELL', sell_price, item['shares'], 
+                                 datetime.now().strftime('%Y-%m-%d'), item['market'])
+                        update_watchlist_status(item['symbol'], item['entry_date'], 'sold', item['market'])
+                        st.success(f"✅ 已卖出 {item['symbol']}")
+                        st.session_state[f"show_sell_{item['id']}"] = False
+                        st.rerun()
+            
+            st.divider()
+    
+    # 交易历史
+    st.markdown("### 📜 交易历史")
+    
+    trades = get_trades(limit=20)
+    
+    if trades:
+        df = pd.DataFrame(trades)
+        display_df = df[['symbol', 'trade_type', 'price', 'shares', 'trade_date', 'market']].copy()
+        display_df.columns = ['代码', '类型', '价格', '股数', '日期', '市场']
+        display_df['价格'] = display_df['价格'].apply(lambda x: f"${x:.2f}")
+        st.dataframe(display_df, hide_index=True, use_container_width=True)
+    else:
+        st.info("暂无交易记录")
 
 
 def render_backtest_page():
