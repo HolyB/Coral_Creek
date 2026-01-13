@@ -138,6 +138,32 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_perf_date ON signal_performance(scan_date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_perf_market ON signal_performance(market)")
         
+        # Baseline 扫描结果表 (用于对比)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS baseline_scan_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol VARCHAR(20) NOT NULL,
+                scan_date DATE NOT NULL,
+                scan_time VARCHAR(10) DEFAULT 'post',  -- pre/mid/post
+                market VARCHAR(10) DEFAULT 'US',
+                price REAL,
+                turnover_m REAL,
+                blue_daily REAL,
+                blue_weekly REAL,
+                blue_days INTEGER,
+                blue_weeks INTEGER,
+                latest_day_blue REAL,
+                latest_week_blue REAL,
+                has_day_week_blue BOOLEAN,
+                company_name VARCHAR(200),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(symbol, scan_date, market, scan_time)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_baseline_date ON baseline_scan_results(scan_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_baseline_market ON baseline_scan_results(market)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_baseline_symbol ON baseline_scan_results(symbol)")
+        
         # 迁移: 如果 market 列不存在，添加它
         try:
             cursor.execute("SELECT market FROM scan_results LIMIT 1")
@@ -473,10 +499,99 @@ def get_stock_info_count(market=None):
         return cursor.fetchone()['cnt']
 
 
+# ==================== Baseline 扫描结果操作 ====================
+
+def save_baseline_results(results, scan_date, market='US', scan_time='post'):
+    """批量保存 baseline 扫描结果"""
+    if not results:
+        return 0
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        saved = 0
+        
+        for r in results:
+            try:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO baseline_scan_results (
+                        symbol, scan_date, scan_time, market, price, turnover_m,
+                        blue_daily, blue_weekly, blue_days, blue_weeks,
+                        latest_day_blue, latest_week_blue, has_day_week_blue, company_name
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    r.get('symbol'),
+                    scan_date,
+                    scan_time,
+                    market,
+                    r.get('price'),
+                    r.get('turnover'),
+                    r.get('blue_daily'),
+                    r.get('blue_weekly'),
+                    r.get('blue_days'),
+                    r.get('blue_weeks'),
+                    r.get('latest_day_blue'),
+                    r.get('latest_week_blue'),
+                    r.get('has_day_week_blue', True),
+                    r.get('name', '')
+                ))
+                saved += 1
+            except Exception as e:
+                print(f"Error saving {r.get('symbol')}: {e}")
+        
+        return saved
+
+
+def query_baseline_results(scan_date=None, market=None, limit=100):
+    """查询 baseline 扫描结果"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        query = "SELECT * FROM baseline_scan_results WHERE 1=1"
+        params = []
+        
+        if scan_date:
+            query += " AND scan_date = ?"
+            params.append(scan_date)
+        if market:
+            query += " AND market = ?"
+            params.append(market)
+        
+        query += " ORDER BY latest_day_blue DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def compare_scan_results(scan_date, market='US'):
+    """比较同一天的 baseline 和常规扫描结果"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # 获取 baseline 结果的 symbols
+        cursor.execute("""
+            SELECT symbol FROM baseline_scan_results 
+            WHERE scan_date = ? AND market = ?
+        """, (scan_date, market))
+        baseline_symbols = set(row['symbol'] for row in cursor.fetchall())
+        
+        # 获取常规扫描结果的 symbols
+        cursor.execute("""
+            SELECT symbol FROM scan_results 
+            WHERE scan_date = ? AND market = ?
+        """, (scan_date, market))
+        regular_symbols = set(row['symbol'] for row in cursor.fetchall())
+        
+        return {
+            'baseline_only': list(baseline_symbols - regular_symbols),
+            'regular_only': list(regular_symbols - baseline_symbols),
+            'both': list(baseline_symbols & regular_symbols),
+            'baseline_count': len(baseline_symbols),
+            'regular_count': len(regular_symbols),
+        }
+
+
 if __name__ == "__main__":
     # 初始化数据库
     init_db()
     print(get_db_stats())
-
-
-

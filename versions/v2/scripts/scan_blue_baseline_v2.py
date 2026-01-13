@@ -34,7 +34,7 @@ load_dotenv(os.path.join(parent_dir, '.env'))
 
 # 导入 v2 模块
 from data_fetcher import get_all_us_tickers, get_us_stock_data, get_ticker_details
-from db.database import init_db, get_stock_info_batch, upsert_stock_info
+from db.database import init_db, get_stock_info_batch, upsert_stock_info, save_baseline_results
 
 
 # ==================== 技术指标函数 ====================
@@ -438,11 +438,16 @@ def main():
             print(f"... and {len(results) - 20} more")
         print("=" * 75)
         
-        # 保存结果
+        # 保存结果到 CSV
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         filename = f"baseline_scan_US_{timestamp}.csv"
         pd.DataFrame(results).to_csv(os.path.join(parent_dir, filename), index=False)
         print(f"\n💾 Results saved to {filename}")
+        
+        # 保存结果到数据库
+        scan_date = datetime.now().strftime('%Y-%m-%d')
+        saved = save_baseline_results(results, scan_date, market='US', scan_time='post')
+        print(f"💾 Saved {saved} results to database")
         
         # 发送通知
         if not args.no_telegram:
