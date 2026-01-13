@@ -1653,10 +1653,115 @@ def render_backtest_page():
             except Exception as e:
                 st.error(f"回测出错: {str(e)}")
 
+# --- Baseline 对比页面 ---
+
+def render_baseline_comparison_page():
+    """Baseline 扫描对比页面"""
+    st.header("🔄 Baseline 对比 (Scan Comparison)")
+    st.info("对比 Baseline 扫描方法与当前扫描方法的结果差异")
+    
+    from db.database import query_baseline_results, compare_scan_results, get_scanned_dates
+    
+    # 侧边栏设置
+    with st.sidebar:
+        st.subheader("📊 对比设置")
+        
+        # 市场选择
+        market = st.radio("选择市场", ["🇺🇸 US", "🇨🇳 CN"], horizontal=True, key="cmp_market")
+        market_code = "US" if "US" in market else "CN"
+        
+        # 获取可用日期
+        dates = get_scanned_dates(market=market_code)
+        if not dates:
+            st.warning("暂无扫描数据")
+            return
+        
+        selected_date = st.selectbox("选择日期", dates[:30], key="cmp_date")
+        
+        compare_btn = st.button("🔍 开始对比", type="primary", use_container_width=True)
+    
+    if not compare_btn:
+        st.markdown("""
+        ### 使用说明
+        
+        1. 在左侧选择 **市场** 和 **日期**
+        2. 点击 **开始对比** 按钮
+        3. 查看两种扫描方法的结果差异
+        
+        #### Baseline vs 当前方法
+        - **Baseline**: 原始的 BLUE 信号扫描算法
+        - **当前方法**: 包含更多过滤条件的优化版本
+        """)
+        return
+    
+    with st.spinner("正在对比数据..."):
+        comparison = compare_scan_results(selected_date, market_code)
+        baseline_results = query_baseline_results(scan_date=selected_date, market=market_code, limit=200)
+    
+    # 显示统计摘要
+    st.markdown("---")
+    st.markdown("### 📊 对比统计")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Baseline 信号数", comparison['baseline_count'])
+    with col2:
+        st.metric("当前方法信号数", comparison['regular_count'])
+    with col3:
+        st.metric("共同发现", len(comparison['both']))
+    with col4:
+        overlap = 0
+        if comparison['baseline_count'] > 0:
+            overlap = len(comparison['both']) / comparison['baseline_count'] * 100
+        st.metric("重叠率", f"{overlap:.0f}%")
+    
+    # 三列布局显示差异
+    st.markdown("---")
+    st.markdown("### 📋 详细对比")
+    
+    tab1, tab2, tab3 = st.tabs(["🟢 共同发现", "🔵 仅 Baseline", "🟠 仅当前方法"])
+    
+    with tab1:
+        if comparison['both']:
+            st.success(f"两种方法共同发现 {len(comparison['both'])} 只股票")
+            st.write(", ".join(comparison['both'][:50]))
+        else:
+            st.info("没有共同发现的股票")
+    
+    with tab2:
+        if comparison['baseline_only']:
+            st.info(f"Baseline 独有 {len(comparison['baseline_only'])} 只股票（当前方法未发现）")
+            st.write(", ".join(comparison['baseline_only'][:50]))
+        else:
+            st.success("Baseline 没有独有的发现")
+    
+    with tab3:
+        if comparison['regular_only']:
+            st.info(f"当前方法独有 {len(comparison['regular_only'])} 只股票（Baseline 未发现）")
+            st.write(", ".join(comparison['regular_only'][:50]))
+        else:
+            st.success("当前方法没有独有的发现")
+    
+    # Baseline 详细结果
+    if baseline_results:
+        st.markdown("---")
+        st.markdown("### 📈 Baseline 详细结果")
+        
+        df = pd.DataFrame(baseline_results)
+        display_cols = ['symbol', 'company_name', 'price', 'latest_day_blue', 'latest_week_blue', 'scan_time']
+        available_cols = [c for c in display_cols if c in df.columns]
+        
+        if available_cols:
+            display_df = df[available_cols].copy()
+            display_df.columns = ['代码', '名称', '价格', 'Day BLUE', 'Week BLUE', '扫描时段'][:len(available_cols)]
+            st.dataframe(display_df, hide_index=True, use_container_width=True)
+
+
 # --- 主导航 ---
 
 st.sidebar.title("Coral Creek 🦅")
-page = st.sidebar.radio("功能导航", ["📊 每日机会扫描", "🔍 个股查询", "📈 信号追踪", "🧪 策略回测实验"])
+page = st.sidebar.radio("功能导航", ["📊 每日机会扫描", "🔍 个股查询", "📈 信号追踪", "🔄 Baseline对比", "🧪 策略回测实验"])
 
 if page == "📊 每日机会扫描":
     render_scan_page()
@@ -1664,5 +1769,7 @@ elif page == "🔍 个股查询":
     render_stock_lookup_page()
 elif page == "📈 信号追踪":
     render_signal_tracker_page()
+elif page == "🔄 Baseline对比":
+    render_baseline_comparison_page()
 elif page == "🧪 策略回测实验":
     render_backtest_page()
