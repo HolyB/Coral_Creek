@@ -591,6 +591,108 @@ def compare_scan_results(scan_date, market='US'):
         }
 
 
+# ==================== 交易和持仓操作 ====================
+
+def get_signal_history(symbol, market='US', limit=50):
+    """获取股票的历史信号记录"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT scan_date, price, turnover_m, blue_daily, blue_weekly, blue_monthly,
+                   is_heima, is_juedi, wave_phase, chan_signal
+            FROM scan_results 
+            WHERE symbol = ? AND market = ?
+            ORDER BY scan_date DESC
+            LIMIT ?
+        """, (symbol, market, limit))
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def add_trade(symbol, trade_type, price, shares, trade_date, market='US', notes=''):
+    """添加交易记录"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO trades (symbol, market, trade_type, price, shares, trade_date, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (symbol, market, trade_type.upper(), price, shares, trade_date, notes))
+        return cursor.lastrowid
+
+
+def add_to_watchlist(symbol, entry_price, shares=0, entry_date=None, market='US', status='holding', notes=''):
+    """添加股票到持仓/关注列表"""
+    if entry_date is None:
+        entry_date = datetime.now().strftime('%Y-%m-%d')
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO watchlist (symbol, market, entry_date, entry_price, shares, status, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (symbol, market, entry_date, entry_price, shares, status, notes))
+        return cursor.lastrowid
+
+
+def get_portfolio(status='holding', market=None):
+    """获取持仓列表"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        query = "SELECT * FROM watchlist WHERE status = ?"
+        params = [status]
+        
+        if market:
+            query += " AND market = ?"
+            params.append(market)
+        
+        query += " ORDER BY entry_date DESC"
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_trades(symbol=None, market=None, limit=100):
+    """获取交易记录"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        query = "SELECT * FROM trades WHERE 1=1"
+        params = []
+        
+        if symbol:
+            query += " AND symbol = ?"
+            params.append(symbol)
+        if market:
+            query += " AND market = ?"
+            params.append(market)
+        
+        query += " ORDER BY trade_date DESC, created_at DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def update_watchlist_status(symbol, entry_date, new_status, market='US'):
+    """更新持仓状态 (holding -> sold)"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE watchlist SET status = ? 
+            WHERE symbol = ? AND entry_date = ? AND market = ?
+        """, (new_status, symbol, entry_date, market))
+        return cursor.rowcount
+
+
+def delete_from_watchlist(symbol, entry_date, market='US'):
+    """从持仓列表删除"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM watchlist WHERE symbol = ? AND entry_date = ? AND market = ?
+        """, (symbol, entry_date, market))
+        return cursor.rowcount
+
+
 if __name__ == "__main__":
     # 初始化数据库
     init_db()
