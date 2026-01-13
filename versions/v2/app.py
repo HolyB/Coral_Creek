@@ -28,6 +28,50 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- 登录验证 ---
+
+def check_password():
+    """角色验证 - Admin 可管理持仓，Guest 只能查看"""
+    if "user_role" not in st.session_state:
+        st.session_state["user_role"] = None
+    
+    if st.session_state["user_role"] is None:
+        st.markdown("## 🦅 Coral Creek V2.0")
+        st.markdown("智能量化扫描系统")
+        st.markdown("---")
+        
+        password = st.text_input("密码", type="password", key="password_input")
+        
+        if st.button("登录", type="primary"):
+            # 获取密码配置
+            try:
+                admin_password = st.secrets.get("admin_password", "admin2026")
+                guest_password = st.secrets.get("guest_password", "coral2026")
+            except:
+                admin_password = "admin2026"
+                guest_password = "coral2026"
+            
+            if password == admin_password:
+                st.session_state["user_role"] = "admin"
+                st.success("✅ 欢迎，管理员！")
+                st.rerun()
+            elif password == guest_password:
+                st.session_state["user_role"] = "guest"
+                st.success("✅ 欢迎访客！")
+                st.rerun()
+            elif password:
+                st.error("❌ 密码错误")
+        
+        st.markdown("---")
+        st.caption("Admin: 完整功能 | Guest: 只读模式")
+        st.stop()
+
+def is_admin():
+    """检查当前用户是否为管理员"""
+    return st.session_state.get("user_role") == "admin"
+
+check_password()
+
 # --- 工具函数 ---
 
 def format_large_number(num):
