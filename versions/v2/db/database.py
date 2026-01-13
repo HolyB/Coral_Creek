@@ -164,6 +164,41 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_baseline_market ON baseline_scan_results(market)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_baseline_symbol ON baseline_scan_results(symbol)")
         
+        # 交易记录表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS trades (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol VARCHAR(20) NOT NULL,
+                market VARCHAR(10) DEFAULT 'US',
+                trade_type VARCHAR(10) NOT NULL,
+                price REAL NOT NULL,
+                shares INTEGER NOT NULL,
+                trade_date DATE NOT NULL,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_trades_date ON trades(trade_date)")
+        
+        # 持仓/关注列表表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS watchlist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol VARCHAR(20) NOT NULL,
+                market VARCHAR(10) DEFAULT 'US',
+                entry_date DATE NOT NULL,
+                entry_price REAL NOT NULL,
+                shares INTEGER DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'holding',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(symbol, market, entry_date)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist(symbol)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_status ON watchlist(status)")
+        
         # 迁移: 如果 market 列不存在，添加它
         try:
             cursor.execute("SELECT market FROM scan_results LIMIT 1")
