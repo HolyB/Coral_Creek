@@ -3,8 +3,10 @@ name: Daily Stock Scan (CN A-Share)
 on:
   # 定时触发 - 北京时间
   schedule:
-    # UTC 09:30 = 北京 17:30 (盘后30分钟)
-    - cron: '30 9 * * 1-5'  # 周一到周五
+    # 盘前: UTC 01:00 = 北京 9:00 AM
+    - cron: '0 1 * * 1-5'
+    # 盘后: UTC 09:30 = 北京 17:30 (盘后30分钟)
+    - cron: '30 9 * * 1-5'
   
   # 手动触发
   workflow_dispatch:
