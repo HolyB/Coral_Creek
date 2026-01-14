@@ -1,112 +1,112 @@
 {
-  "date": "2026-01-13",
+  "date": "2026-01-14",
   "market": "CN",
-  "total_signals": 32,
+  "total_signals": 58,
   "top_signals": [
     {
-      "symbol": "300391.SZ",
-      "name": "*ST长药",
-      "price": 0.79,
-      "day_blue": 200.0,
-      "week_blue": 144.1
-    },
-    {
-      "symbol": "002831.SZ",
-      "name": "裕同科技",
-      "price": 27.39,
-      "day_blue": 171.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000895.SZ",
-      "name": "双汇发展",
-      "price": 25.71,
-      "day_blue": 164.4,
+      "symbol": "002668.SZ",
+      "name": "TCL智家",
+      "price": 10.08,
+      "day_blue": 172.6,
       "week_blue": 0.0
     },
     {
       "symbol": "002231.SZ",
       "name": "*ST奥维",
-      "price": 1.09,
-      "day_blue": 158.0,
+      "price": 1.04,
+      "day_blue": 163.0,
       "week_blue": 92.2
+    },
+    {
+      "symbol": "601916.SH",
+      "name": "浙商银行",
+      "price": 3.02,
+      "day_blue": 161.6,
+      "week_blue": 0.0
     },
     {
       "symbol": "600690.SH",
       "name": "海尔智家",
-      "price": 25.9,
-      "day_blue": 153.8,
+      "price": 25.93,
+      "day_blue": 159.5,
       "week_blue": 0.0
     },
     {
       "symbol": "300344.SZ",
       "name": "*ST立方",
-      "price": 0.97,
-      "day_blue": 151.2,
+      "price": 0.92,
+      "day_blue": 155.1,
       "week_blue": 143.8
     },
     {
       "symbol": "920392.BJ",
       "name": "佳合科技",
-      "price": 27.3,
-      "day_blue": 148.2,
+      "price": 26.51,
+      "day_blue": 154.3,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "601658.SH",
+      "name": "邮储银行",
+      "price": 5.28,
+      "day_blue": 154.3,
+      "week_blue": 92.7
     },
     {
       "symbol": "688772.SH",
       "name": "珠海冠宇",
-      "price": 20.57,
-      "day_blue": 131.9,
+      "price": 20.37,
+      "day_blue": 143.0,
       "week_blue": 0.0
     },
     {
       "symbol": "301227.SZ",
       "name": "森鹰窗业",
-      "price": 37.44,
-      "day_blue": 128.1,
+      "price": 36.38,
+      "day_blue": 141.2,
       "week_blue": 0.0
     },
     {
-      "symbol": "000921.SZ",
-      "name": "海信家电",
-      "price": 24.65,
-      "day_blue": 116.8,
+      "symbol": "601825.SH",
+      "name": "沪农商行",
+      "price": 8.91,
+      "day_blue": 134.1,
       "week_blue": 0.0
     },
     {
-      "symbol": "300866.SZ",
-      "name": "安克创新",
-      "price": 103.98,
-      "day_blue": 116.8,
+      "symbol": "600015.SH",
+      "name": "华夏银行",
+      "price": 6.58,
+      "day_blue": 129.6,
       "week_blue": 0.0
     },
     {
-      "symbol": "603559.SH",
-      "name": "ST通脉",
-      "price": 6.71,
-      "day_blue": 109.3,
-      "week_blue": 116.3
+      "symbol": "603277.SH",
+      "name": "银都股份",
+      "price": 16.45,
+      "day_blue": 129.3,
+      "week_blue": 0.0
     },
     {
-      "symbol": "001205.SZ",
-      "name": "盛航股份",
-      "price": 16.27,
-      "day_blue": 105.2,
+      "symbol": "603565.SH",
+      "name": "中谷物流",
+      "price": 9.95,
+      "day_blue": 126.0,
       "week_blue": 0.0
     },
     {
       "symbol": "300677.SZ",
       "name": "英科医疗",
-      "price": 38.21,
-      "day_blue": 104.2,
+      "price": 41.41,
+      "day_blue": 120.2,
       "week_blue": 0.0
     },
     {
-      "symbol": "601058.SH",
-      "name": "赛轮轮胎",
-      "price": 15.53,
-      "day_blue": 103.6,
-      "week_blue": 0.0
+      "symbol": "920145.BJ",
+      "name": "恒合股份",
+      "price": 20.08,
+      "day_blue": 119.4,
+      "week_blue": 125.5
     }
   ]
 }
