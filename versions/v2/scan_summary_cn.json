@@ -1,7 +1,7 @@
 {
   "date": "2026-01-14",
   "market": "CN",
-  "total_signals": 79,
+  "total_signals": 91,
   "top_signals": [
     {
       "symbol": "300577.SZ",
@@ -22,6 +22,13 @@
       "name": "TCL智家",
       "price": 10.08,
       "day_blue": 172.6,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000895.SZ",
+      "name": "双汇发展",
+      "price": 25.66,
+      "day_blue": 169.9,
       "week_blue": 0.0
     },
     {
@@ -88,24 +95,17 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "002948.SZ",
+      "name": "青岛银行",
+      "price": 4.39,
+      "day_blue": 139.1,
+      "week_blue": 99.9
+    },
+    {
       "symbol": "601825.SH",
       "name": "沪农商行",
       "price": 8.91,
       "day_blue": 134.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600015.SH",
-      "name": "华夏银行",
-      "price": 6.58,
-      "day_blue": 129.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603277.SH",
-      "name": "银都股份",
-      "price": 16.45,
-      "day_blue": 129.3,
       "week_blue": 0.0
     }
   ]
