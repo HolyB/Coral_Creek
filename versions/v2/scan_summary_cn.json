@@ -1,8 +1,22 @@
 {
   "date": "2026-01-14",
   "market": "CN",
-  "total_signals": 58,
+  "total_signals": 79,
   "top_signals": [
+    {
+      "symbol": "300577.SZ",
+      "name": "开润股份",
+      "price": 20.84,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600941.SH",
+      "name": "中国移动",
+      "price": 99.03,
+      "day_blue": 178.6,
+      "week_blue": 136.9
+    },
     {
       "symbol": "002668.SZ",
       "name": "TCL智家",
@@ -30,6 +44,13 @@
       "price": 25.93,
       "day_blue": 159.5,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "601006.SH",
+      "name": "大秦铁路",
+      "price": 5.09,
+      "day_blue": 158.7,
+      "week_blue": 200.0
     },
     {
       "symbol": "300344.SZ",
@@ -86,27 +107,6 @@
       "price": 16.45,
       "day_blue": 129.3,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "603565.SH",
-      "name": "中谷物流",
-      "price": 9.95,
-      "day_blue": 126.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300677.SZ",
-      "name": "英科医疗",
-      "price": 41.41,
-      "day_blue": 120.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920145.BJ",
-      "name": "恒合股份",
-      "price": 20.08,
-      "day_blue": 119.4,
-      "week_blue": 125.5
     }
   ]
 }
