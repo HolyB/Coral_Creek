@@ -8,10 +8,13 @@ services:
     region: oregon
     plan: free
     rootDir: versions/v2
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0
+    buildCommand: pip install --no-cache-dir -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false
+    healthCheckPath: /_stcore/health
     envVars:
       - key: POLYGON_API_KEY
         sync: false
       - key: PYTHON_VERSION
         value: "3.12.0"
+      - key: STREAMLIT_SERVER_HEADLESS
+        value: "true"
