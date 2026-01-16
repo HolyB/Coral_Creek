@@ -98,12 +98,18 @@ def send_telegram(summary):
 
 
 def send_email(summary):
-    """发送 Email 通知"""
+    """发送 Email 通知 - 使用更健壮的连接处理"""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
     smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
     smtp_port = int(os.getenv('SMTP_PORT') or 587)
     smtp_sender = os.getenv('SMTP_SENDER')
     smtp_password = os.getenv('SMTP_PASSWORD')
     receivers_str = os.getenv('EMAIL_RECEIVERS', '')
+    
+    print(f"📧 SMTP Config: host={smtp_host}, port={smtp_port}, sender={smtp_sender}")
     
     if not smtp_sender or not smtp_password:
         print("⚠️ Email credentials not configured, skipping")
@@ -113,6 +119,8 @@ def send_email(summary):
     if not receivers:
         print("⚠️ No email receivers configured, skipping")
         return False
+    
+    print(f"📧 Receivers: {receivers}")
     
     date = summary.get('date', 'Unknown')
     market = summary.get('market', 'US')
@@ -202,24 +210,29 @@ def send_email(summary):
         msg['Subject'] = subject
         msg['From'] = smtp_sender
         msg['To'] = ', '.join(receivers)
-        
         msg.attach(MIMEText(html, 'html', 'utf-8'))
         
-        server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
-        try:
-            server.ehlo()
+        print(f"📧 Connecting to {smtp_host}:{smtp_port}...")
+        
+        # 使用 with 语句确保连接正确关闭
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=60) as server:
+            print("📧 Connected, starting TLS...")
             server.starttls()
-            server.ehlo()
+            print("📧 TLS started, logging in...")
             server.login(smtp_sender, smtp_password)
+            print("📧 Logged in, sending email...")
             server.sendmail(smtp_sender, receivers, msg.as_string())
-        finally:
-            server.quit()
         
         print(f"✅ Email sent to {', '.join(receivers)}")
         return True
         
+    except smtplib.SMTPException as e:
+        print(f"❌ SMTP Error: {type(e).__name__}: {e}")
+        return False
     except Exception as e:
-        print(f"❌ Email error: {e}")
+        print(f"❌ Email error: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
