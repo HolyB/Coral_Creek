@@ -1,7 +1,7 @@
 {
   "date": "2026-01-15",
   "market": "CN",
-  "total_signals": 70,
+  "total_signals": 87,
   "top_signals": [
     {
       "symbol": "600941.SH",
@@ -9,6 +9,13 @@
       "price": 97.1,
       "day_blue": 200.0,
       "week_blue": 137.4
+    },
+    {
+      "symbol": "002668.SZ",
+      "name": "TCL智家",
+      "price": 10.05,
+      "day_blue": 196.4,
+      "week_blue": 0.0
     },
     {
       "symbol": "601006.SH",
@@ -81,6 +88,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "600015.SH",
+      "name": "华夏银行",
+      "price": 6.54,
+      "day_blue": 146.8,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "601997.SH",
       "name": "贵阳银行",
       "price": 5.82,
@@ -88,24 +102,10 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "601838.SH",
-      "name": "成都银行",
-      "price": 15.99,
-      "day_blue": 135.6,
-      "week_blue": 97.4
-    },
-    {
-      "symbol": "600483.SH",
-      "name": "福能股份",
-      "price": 9.24,
-      "day_blue": 133.9,
-      "week_blue": 68.7
-    },
-    {
-      "symbol": "688278.SH",
-      "name": "特宝生物",
-      "price": 76.18,
-      "day_blue": 133.7,
+      "symbol": "000921.SZ",
+      "name": "海信家电",
+      "price": 24.37,
+      "day_blue": 139.5,
       "week_blue": 0.0
     }
   ]
