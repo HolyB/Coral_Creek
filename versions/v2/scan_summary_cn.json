@@ -1,8 +1,15 @@
 {
   "date": "2026-01-15",
   "market": "CN",
-  "total_signals": 87,
+  "total_signals": 103,
   "top_signals": [
+    {
+      "symbol": "300391.SZ",
+      "name": "*ST长药",
+      "price": 0.68,
+      "day_blue": 200.0,
+      "week_blue": 144.2
+    },
     {
       "symbol": "600941.SH",
       "name": "中国移动",
@@ -15,6 +22,13 @@
       "name": "TCL智家",
       "price": 10.05,
       "day_blue": 196.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300539.SZ",
+      "name": "横河精密",
+      "price": 37.46,
+      "day_blue": 189.8,
       "week_blue": 0.0
     },
     {
@@ -37,6 +51,13 @@
       "price": 9.62,
       "day_blue": 173.6,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "002231.SZ",
+      "name": "*ST奥维",
+      "price": 0.99,
+      "day_blue": 167.8,
+      "week_blue": 92.2
     },
     {
       "symbol": "601658.SH",
@@ -85,27 +106,6 @@
       "name": "银都股份",
       "price": 16.61,
       "day_blue": 149.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600015.SH",
-      "name": "华夏银行",
-      "price": 6.54,
-      "day_blue": 146.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "601997.SH",
-      "name": "贵阳银行",
-      "price": 5.82,
-      "day_blue": 139.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000921.SZ",
-      "name": "海信家电",
-      "price": 24.37,
-      "day_blue": 139.5,
       "week_blue": 0.0
     }
   ]
