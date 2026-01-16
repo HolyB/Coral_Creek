@@ -1,112 +1,112 @@
 {
-  "date": "2026-01-15",
+  "date": "2026-01-16",
   "market": "CN",
-  "total_signals": 103,
+  "total_signals": 107,
   "top_signals": [
-    {
-      "symbol": "300391.SZ",
-      "name": "*ST长药",
-      "price": 0.68,
-      "day_blue": 200.0,
-      "week_blue": 144.2
-    },
     {
       "symbol": "600941.SH",
       "name": "中国移动",
-      "price": 97.1,
+      "price": 96.28,
       "day_blue": 200.0,
-      "week_blue": 137.4
+      "week_blue": 137.7
     },
     {
-      "symbol": "002668.SZ",
-      "name": "TCL智家",
-      "price": 10.05,
-      "day_blue": 196.4,
-      "week_blue": 0.0
+      "symbol": "300391.SZ",
+      "name": "*ST长药",
+      "price": 0.54,
+      "day_blue": 200.0,
+      "week_blue": 144.4
     },
     {
-      "symbol": "300539.SZ",
-      "name": "横河精密",
-      "price": 37.46,
-      "day_blue": 189.8,
-      "week_blue": 0.0
+      "symbol": "002024.SZ",
+      "name": "ST易购",
+      "price": 1.61,
+      "day_blue": 200.0,
+      "week_blue": 118.1
+    },
+    {
+      "symbol": "001965.SZ",
+      "name": "招商公路",
+      "price": 9.53,
+      "day_blue": 200.0,
+      "week_blue": 200.0
     },
     {
       "symbol": "601006.SH",
       "name": "大秦铁路",
-      "price": 5.03,
-      "day_blue": 180.7,
+      "price": 4.99,
+      "day_blue": 194.2,
       "week_blue": 200.0
     },
     {
       "symbol": "601916.SH",
       "name": "浙商银行",
-      "price": 3.0,
-      "day_blue": 175.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "001965.SZ",
-      "name": "招商公路",
-      "price": 9.62,
-      "day_blue": 173.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002231.SZ",
-      "name": "*ST奥维",
-      "price": 0.99,
-      "day_blue": 167.8,
-      "week_blue": 92.2
-    },
-    {
-      "symbol": "601658.SH",
-      "name": "邮储银行",
-      "price": 5.18,
-      "day_blue": 161.3,
-      "week_blue": 93.1
-    },
-    {
-      "symbol": "300344.SZ",
-      "name": "*ST立方",
-      "price": 0.83,
-      "day_blue": 159.0,
-      "week_blue": 143.9
-    },
-    {
-      "symbol": "601825.SH",
-      "name": "沪农商行",
-      "price": 8.77,
-      "day_blue": 155.4,
+      "price": 2.98,
+      "day_blue": 185.3,
       "week_blue": 0.0
     },
     {
       "symbol": "000568.SZ",
       "name": "泸州老窖",
-      "price": 115.36,
-      "day_blue": 155.4,
+      "price": 114.28,
+      "day_blue": 178.9,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "601825.SH",
+      "name": "沪农商行",
+      "price": 8.77,
+      "day_blue": 167.6,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300344.SZ",
+      "name": "*ST立方",
+      "price": 0.67,
+      "day_blue": 163.6,
+      "week_blue": 144.0
     },
     {
       "symbol": "002948.SZ",
       "name": "青岛银行",
-      "price": 4.33,
-      "day_blue": 152.5,
-      "week_blue": 100.0
+      "price": 4.25,
+      "day_blue": 162.3,
+      "week_blue": 100.3
     },
     {
-      "symbol": "301227.SZ",
-      "name": "森鹰窗业",
-      "price": 36.0,
-      "day_blue": 151.0,
+      "symbol": "601658.SH",
+      "name": "邮储银行",
+      "price": 5.17,
+      "day_blue": 161.8,
+      "week_blue": 93.2
+    },
+    {
+      "symbol": "600690.SH",
+      "name": "海尔智家",
+      "price": 25.7,
+      "day_blue": 155.7,
       "week_blue": 0.0
     },
     {
-      "symbol": "603277.SH",
-      "name": "银都股份",
-      "price": 16.61,
-      "day_blue": 149.2,
-      "week_blue": 0.0
+      "symbol": "601838.SH",
+      "name": "成都银行",
+      "price": 15.76,
+      "day_blue": 154.7,
+      "week_blue": 97.6
+    },
+    {
+      "symbol": "601997.SH",
+      "name": "贵阳银行",
+      "price": 5.77,
+      "day_blue": 154.5,
+      "week_blue": 72.4
+    },
+    {
+      "symbol": "002958.SZ",
+      "name": "青农商行",
+      "price": 3.07,
+      "day_blue": 151.6,
+      "week_blue": 111.4
     }
   ]
 }
