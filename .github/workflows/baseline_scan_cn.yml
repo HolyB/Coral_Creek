@@ -11,6 +11,10 @@ on:
         required: false
         default: '0'
 
+# 权限 - 允许写入仓库
+permissions:
+  contents: write
+
 jobs:
   baseline-scan-cn:
     runs-on: ubuntu-latest
@@ -53,4 +57,30 @@ jobs:
           path: versions/v2/*.csv
           retention-days: 30
           if-no-files-found: ignore
+      
+      # 提交数据库到仓库 - 保存 baseline 结果
+      - name: Commit database to repo
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # 添加数据库文件
+          git add versions/v2/db/coral_creek.db || true
+          
+          # 检查是否有变化
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📊 Baseline CN: $(TZ='Asia/Shanghai' date +%Y-%m-%d)"
+            
+            # 尝试 rebase，如果失败则使用 ours 策略合并
+            if ! git pull --rebase origin main; then
+              echo "Rebase failed, resolving conflicts with ours strategy..."
+              git rebase --abort || true
+              git pull -X ours origin main || true
+              git push || git push --force-with-lease
+            else
+              git push
+            fi
+          fi
 
