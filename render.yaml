@@ -9,7 +9,7 @@ services:
     plan: free
     rootDir: versions/v2
     buildCommand: pip install --no-cache-dir -r requirements.txt
-    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false
+    # 使用 Procfile 定义启动命令
     healthCheckPath: /_stcore/health
     envVars:
       - key: POLYGON_API_KEY
@@ -18,3 +18,5 @@ services:
         value: "3.12.0"
       - key: STREAMLIT_SERVER_HEADLESS
         value: "true"
+      - key: STREAMLIT_BROWSER_GATHER_USAGE_STATS
+        value: "false"
