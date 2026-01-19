@@ -22,11 +22,24 @@ from db.database import (
 
 # 设置页面配置
 st.set_page_config(
-    page_title="Coral Creek V2.0 - 智能量化系统",
+    page_title="Coral Creek V2.1 - 智能量化系统",
     page_icon="🦅",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# --- 加载自定义 CSS ---
+def load_custom_css():
+    """加载自定义 CSS 样式"""
+    css_path = os.path.join(current_dir, "static", "custom.css")
+    if os.path.exists(css_path):
+        with open(css_path, 'r', encoding='utf-8') as f:
+            css = f.read()
+        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+
+# 应用自定义样式
+load_custom_css()
+
 
 # --- 登录验证 ---
 
@@ -1769,6 +1782,213 @@ def render_portfolio_tab():
         st.info("暂无交易记录")
 
 
+# --- 信号表现验证页面 (新增) ---
+
+def render_signal_performance_page():
+    """信号表现验证仪表盘 - 验证 BLUE 信号的历史有效性"""
+    st.header("📊 信号表现验证 (Signal Performance)")
+    st.info("验证 BLUE 信号的历史盈利能力，对比 SPY 基准表现")
+    
+    from services.backtest_service import run_signal_backtest, get_backtest_summary_table
+    from datetime import datetime, timedelta
+    
+    # 侧边栏参数
+    with st.sidebar:
+        st.subheader("🎛️ 回测参数")
+        
+        # 市场选择
+        market = st.radio("市场", ["US", "CN"], horizontal=True)
+        
+        # 日期范围
+        col1, col2 = st.columns(2)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=60)
+        
+        with col1:
+            start = st.date_input("开始日期", value=start_date)
+        with col2:
+            end = st.date_input("结束日期", value=end_date)
+        
+        # BLUE 阈值
+        min_blue = st.slider("最低 BLUE 阈值", min_value=50, max_value=200, value=100, step=10)
+        
+        # 持仓周期
+        forward_days = st.select_slider(
+            "持仓周期 (天)",
+            options=[5, 10, 20, 30],
+            value=10,
+            help="信号触发后持有多少天"
+        )
+        
+        # 分析数量限制
+        limit = st.number_input("最大分析数量", min_value=50, max_value=500, value=200, step=50)
+        
+        run_btn = st.button("🚀 开始验证", type="primary", use_container_width=True)
+    
+    # 使用说明
+    if not run_btn:
+        st.markdown("""
+        ### 🎯 使用说明
+        
+        1. 在左侧设置 **回测参数**
+        2. 点击 **开始验证** 按钮
+        3. 查看 BLUE 信号的历史表现
+        
+        ---
+        
+        ### 📈 关键指标说明
+        
+        | 指标 | 说明 |
+        |------|------|
+        | **Win Rate** | 信号触发后盈利的比例 |
+        | **Avg Return** | 平均每笔信号的收益率 |
+        | **Sharpe Ratio** | 风险调整后收益 (>1 优秀) |
+        | **Max Drawdown** | 最大回撤幅度 |
+        | **Profit Factor** | 盈利/亏损比 (>1.5 优秀) |
+        
+        > ⚠️ **注意**: 需要信号日期后有足够的交易日数据才能计算收益
+        """)
+        return
+    
+    # 运行回测
+    with st.spinner(f"正在分析 {market} 市场的 BLUE 信号..."):
+        result = run_signal_backtest(
+            start_date=start.strftime('%Y-%m-%d'),
+            end_date=end.strftime('%Y-%m-%d'),
+            market=market,
+            min_blue=min_blue,
+            forward_days=forward_days,
+            limit=limit
+        )
+    
+    metrics = result.get('metrics', {})
+    spy_metrics = result.get('spy_metrics', {})
+    signals = result.get('signals', [])
+    params = result.get('params', {})
+    
+    # 顶部摘要卡片
+    st.markdown("---")
+    st.subheader("📊 表现概览")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        win_rate = metrics.get('win_rate', 0)
+        st.metric(
+            "胜率 (Win Rate)",
+            f"{win_rate:.1f}%",
+            delta=f"vs SPY {spy_metrics.get('win_rate', 0):.1f}%" if spy_metrics else None,
+            delta_color="normal" if win_rate > spy_metrics.get('win_rate', 0) else "inverse"
+        )
+    
+    with col2:
+        avg_ret = metrics.get('avg_return', 0)
+        st.metric(
+            "平均收益",
+            f"{avg_ret:.2f}%",
+            delta=f"vs SPY {spy_metrics.get('avg_return', 0):.2f}%" if spy_metrics else None,
+            delta_color="normal" if avg_ret > spy_metrics.get('avg_return', 0) else "inverse"
+        )
+    
+    with col3:
+        sharpe = metrics.get('sharpe', 0)
+        st.metric(
+            "Sharpe Ratio",
+            f"{sharpe:.2f}",
+            delta="优秀" if sharpe > 1 else ("良好" if sharpe > 0.5 else "待改进")
+        )
+    
+    with col4:
+        pf = metrics.get('profit_factor', 0)
+        st.metric(
+            "Profit Factor",
+            f"{pf:.2f}",
+            delta="优秀" if pf > 1.5 else ("一般" if pf > 1 else "亏损")
+        )
+    
+    # 第二行指标
+    col5, col6, col7, col8 = st.columns(4)
+    
+    with col5:
+        st.metric("分析信号数", metrics.get('total_signals', 0))
+    
+    with col6:
+        st.metric("盈利信号", metrics.get('winning_signals', 0))
+    
+    with col7:
+        st.metric("亏损信号", metrics.get('losing_signals', 0))
+    
+    with col8:
+        mdd = metrics.get('max_drawdown', 0)
+        st.metric("最大回撤", f"{mdd:.2f}%", delta_color="inverse")
+    
+    # 对比表格
+    st.markdown("---")
+    st.subheader("📋 BLUE vs SPY 对比")
+    
+    summary_df = get_backtest_summary_table(result)
+    st.dataframe(summary_df, use_container_width=True, hide_index=True)
+    
+    # 信号详情表
+    if signals:
+        st.markdown("---")
+        st.subheader(f"📈 信号详情 ({len(signals)} 条)")
+        
+        # 转换为 DataFrame
+        signals_df = pd.DataFrame(signals)
+        
+        # 根据 forward_days 动态确定列名
+        ret_col = f'return_{forward_days}d'
+        spy_ret_col = f'spy_return_{forward_days}d'
+        
+        # 格式化显示
+        if ret_col in signals_df.columns:
+            signals_df[f'{forward_days}d收益%'] = signals_df[ret_col].apply(
+                lambda x: f"{x*100:.2f}%" if x is not None else "N/A"
+            )
+        if spy_ret_col in signals_df.columns:
+            signals_df[f'SPY{forward_days}d%'] = signals_df[spy_ret_col].apply(
+                lambda x: f"{x*100:.2f}%" if x is not None else "N/A"
+            )
+        if 'alpha' in signals_df.columns:
+            signals_df['Alpha%'] = signals_df['alpha'].apply(
+                lambda x: f"{x*100:.2f}%" if x is not None else "N/A"
+            )
+        
+        display_cols = ['symbol', 'signal_date', 'blue_daily', 'price', 
+                       f'{forward_days}d收益%', f'SPY{forward_days}d%', 'Alpha%']
+        display_cols = [c for c in display_cols if c in signals_df.columns]
+        
+        # 重命名列
+        rename_map = {
+            'symbol': '代码',
+            'signal_date': '信号日期',
+            'blue_daily': 'Day BLUE',
+            'price': '信号价格'
+        }
+        display_df = signals_df[display_cols].rename(columns=rename_map)
+        
+        st.dataframe(
+            display_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Day BLUE": st.column_config.ProgressColumn(
+                    "Day BLUE",
+                    format="%.0f",
+                    min_value=0,
+                    max_value=200
+                )
+            }
+        )
+    else:
+        st.warning("未找到符合条件的信号。请调整日期范围或 BLUE 阈值。")
+    
+    # 参数摘要
+    with st.expander("🔧 回测参数"):
+        st.json(params)
+
+
 def render_backtest_page():
     st.header("🧪 策略回测实验室 (Strategy Lab)")
     st.info("在这里您可以对单只股票进行历史回测，验证策略参数的有效性。")
@@ -1997,7 +2217,14 @@ def render_baseline_comparison_page():
 # --- 主导航 ---
 
 st.sidebar.title("Coral Creek 🦅")
-page = st.sidebar.radio("功能导航", ["📊 每日机会扫描", "🔍 个股查询", "📈 信号追踪", "🔄 Baseline对比", "🧪 策略回测实验"])
+page = st.sidebar.radio("功能导航", [
+    "📊 每日机会扫描", 
+    "🔍 个股查询", 
+    "📈 信号追踪",
+    "📉 信号验证",  # 新增
+    "🔄 Baseline对比", 
+    "🧪 策略回测实验"
+])
 
 if page == "📊 每日机会扫描":
     render_scan_page()
@@ -2005,7 +2232,10 @@ elif page == "🔍 个股查询":
     render_stock_lookup_page()
 elif page == "📈 信号追踪":
     render_signal_tracker_page()
+elif page == "📉 信号验证":
+    render_signal_performance_page()
 elif page == "🔄 Baseline对比":
     render_baseline_comparison_page()
 elif page == "🧪 策略回测实验":
     render_backtest_page()
+
