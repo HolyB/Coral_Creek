@@ -626,6 +626,122 @@ def compare_scan_results(scan_date, market='US'):
         }
 
 
+# ==================== Signal Performance Cache ====================
+
+def upsert_signal_performance(symbol: str, scan_date: str, market: str = 'US',
+                              return_5d: float = None, return_10d: float = None, 
+                              return_20d: float = None, max_gain: float = None,
+                              max_drawdown: float = None):
+    """插入或更新信号性能缓存"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO signal_performance 
+            (symbol, scan_date, market, return_5d, return_10d, return_20d, max_gain, max_drawdown, calculated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(symbol, scan_date, market) DO UPDATE SET
+                return_5d = excluded.return_5d,
+                return_10d = excluded.return_10d,
+                return_20d = excluded.return_20d,
+                max_gain = excluded.max_gain,
+                max_drawdown = excluded.max_drawdown,
+                calculated_at = CURRENT_TIMESTAMP
+        """, (symbol, scan_date, market, return_5d, return_10d, return_20d, max_gain, max_drawdown))
+
+
+def bulk_upsert_signal_performance(performance_list: list):
+    """批量插入信号性能数据"""
+    for p in performance_list:
+        upsert_signal_performance(
+            symbol=p.get('symbol'),
+            scan_date=p.get('scan_date'),
+            market=p.get('market', 'US'),
+            return_5d=p.get('return_5d'),
+            return_10d=p.get('return_10d'),
+            return_20d=p.get('return_20d'),
+            max_gain=p.get('max_gain'),
+            max_drawdown=p.get('max_drawdown')
+        )
+
+
+def query_signal_performance(start_date: str = None, end_date: str = None, 
+                             market: str = None, limit: int = 1000):
+    """查询信号性能缓存"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT sp.*, sr.blue_daily, sr.price, sr.turnover_m 
+            FROM signal_performance sp
+            LEFT JOIN scan_results sr ON sp.symbol = sr.symbol AND sp.scan_date = sr.scan_date
+            WHERE 1=1
+        """
+        params = []
+        
+        if start_date:
+            query += " AND sp.scan_date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND sp.scan_date <= ?"
+            params.append(end_date)
+        if market:
+            query += " AND sp.market = ?"
+            params.append(market)
+        
+        query += " ORDER BY sp.scan_date DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_signals_without_performance(market: str = 'US', min_days_old: int = 5, limit: int = 500):
+    """获取没有性能缓存的信号（用于计算前向收益）"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # 只选择至少 min_days_old 天前的信号（确保有足够的前向数据）
+        cursor.execute("""
+            SELECT sr.symbol, sr.scan_date, sr.price, sr.blue_daily, sr.market
+            FROM scan_results sr
+            LEFT JOIN signal_performance sp 
+                ON sr.symbol = sp.symbol AND sr.scan_date = sp.scan_date AND sr.market = sp.market
+            WHERE sp.id IS NULL
+            AND sr.market = ?
+            AND DATE(sr.scan_date) <= DATE('now', ? || ' days')
+            ORDER BY sr.scan_date DESC
+            LIMIT ?
+        """, (market, f'-{min_days_old}', limit))
+        
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_performance_stats(market: str = None):
+    """获取性能缓存统计"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        if market:
+            cursor.execute("""
+                SELECT COUNT(*) as total,
+                       AVG(return_5d) as avg_5d,
+                       AVG(return_10d) as avg_10d,
+                       AVG(return_20d) as avg_20d
+                FROM signal_performance WHERE market = ?
+            """, (market,))
+        else:
+            cursor.execute("""
+                SELECT COUNT(*) as total,
+                       AVG(return_5d) as avg_5d,
+                       AVG(return_10d) as avg_10d,
+                       AVG(return_20d) as avg_20d
+                FROM signal_performance
+            """)
+        
+        row = cursor.fetchone()
+        return dict(row) if row else {}
+
+
 # ==================== 交易和持仓操作 ====================
 
 def get_signal_history(symbol, market='US', limit=50):
@@ -732,3 +848,4 @@ if __name__ == "__main__":
     # 初始化数据库
     init_db()
     print(get_db_stats())
+

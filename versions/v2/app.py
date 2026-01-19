@@ -2286,35 +2286,60 @@ def render_ml_lab_page():
         if st.button("🚀 开始训练", type="primary", use_container_width=True):
             with st.spinner("正在准备数据并训练模型..."):
                 try:
-                    # 1. 加载数据
-                    from services.backtest_service import run_signal_backtest
+                    # 1. 优先从缓存加载数据
+                    from db.database import query_signal_performance, get_performance_stats
                     from ml.feature_engineering import prepare_training_data
                     from ml.statistical_models import SignalClassifier
                     
-                    st.text("📊 正在加载历史信号数据...")
-                    result = run_signal_backtest(
+                    st.text("📊 正在从缓存加载历史信号数据...")
+                    
+                    # 尝试从缓存读取
+                    cached_data = query_signal_performance(
                         start_date=train_start.strftime('%Y-%m-%d'),
                         end_date=train_end.strftime('%Y-%m-%d'),
                         market='US',
-                        min_blue=min_blue,
-                        forward_days=forward_days,
                         limit=1000
                     )
                     
-                    signals = result.get('signals', [])
+                    if len(cached_data) >= 30:
+                        st.text(f"✅ 从缓存加载了 {len(cached_data)} 条性能数据")
+                        
+                        # 转换为训练格式
+                        ret_col = f'return_{forward_days}d'
+                        valid_data = [d for d in cached_data if d.get(ret_col) is not None and d.get('blue_daily') is not None]
+                        
+                        import pandas as pd
+                        X = pd.DataFrame([{
+                            'blue_daily': d.get('blue_daily', 0),
+                            'price': d.get('price', 0),
+                        } for d in valid_data])
+                        
+                        y = pd.Series([1 if d[ret_col] > 0 else 0 for d in valid_data])
+                        
+                    else:
+                        st.warning(f"⚠️ 缓存数据不足 ({len(cached_data)} 条)，尝试实时计算...")
+                        
+                        # 回退到实时计算
+                        from services.backtest_service import run_signal_backtest
+                        
+                        result = run_signal_backtest(
+                            start_date=train_start.strftime('%Y-%m-%d'),
+                            end_date=train_end.strftime('%Y-%m-%d'),
+                            market='US',
+                            min_blue=min_blue,
+                            forward_days=forward_days,
+                            limit=500
+                        )
+                        
+                        signals = result.get('signals', [])
+                        if len(signals) < 30:
+                            st.error(f"❌ 数据不足！仅找到 {len(signals)} 个信号")
+                            st.info("💡 运行: `python scripts/compute_performance.py --limit 200` 预计算性能数据")
+                            return
+                        
+                        X, y = prepare_training_data(signals, forward_days, 'binary')
                     
-                    if len(signals) < 30:
-                        st.error(f"❌ 数据不足！仅找到 {len(signals)} 个信号，需要至少 30 个才能训练。")
-                        st.info("💡 建议: 扩大日期范围 或 降低 BLUE 阈值")
-                        return
-                    
-                    st.text(f"✅ 加载了 {len(signals)} 个信号")
-                    
-                    # 2. 准备特征
-                    st.text("🔧 正在准备训练特征...")
-                    X, y = prepare_training_data(signals, forward_days, 'binary')
-                    
-                    if X.empty:
+                    if X.empty or len(y) < 30:
                         st.error("❌ 特征准备失败，可能是收益数据不足")
                         return
                     
