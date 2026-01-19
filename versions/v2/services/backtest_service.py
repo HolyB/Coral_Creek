@@ -316,6 +316,185 @@ def get_backtest_summary_table(backtest_result: Dict) -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
+def create_cumulative_returns_chart(backtest_result: Dict) -> 'go.Figure':
+    """
+    创建累积收益曲线图 (BLUE Signals vs SPY)
+    
+    Args:
+        backtest_result: run_signal_backtest 的返回结果
+    
+    Returns:
+        Plotly Figure object
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    
+    signals = backtest_result.get('signals', [])
+    params = backtest_result.get('params', {})
+    forward_days = params.get('forward_days', 10)
+    ret_col = f'return_{forward_days}d'
+    spy_ret_col = f'spy_return_{forward_days}d'
+    
+    if not signals:
+        # 返回空图表
+        fig = go.Figure()
+        fig.add_annotation(
+            text="No signal data available",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=16, color="#8b949e")
+        )
+        fig.update_layout(
+            template="plotly_dark",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+        return fig
+    
+    # 按日期排序
+    df = pd.DataFrame(signals)
+    df = df.sort_values('signal_date').reset_index(drop=True)
+    
+    # 过滤有效收益数据
+    df_valid = df[df[ret_col].notna()].copy()
+    
+    if df_valid.empty:
+        fig = go.Figure()
+        fig.add_annotation(
+            text="Insufficient forward data for returns calculation",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=14, color="#8b949e")
+        )
+        fig.update_layout(
+            template="plotly_dark",
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
+        )
+        return fig
+    
+    # 计算累积收益
+    df_valid['blue_cumulative'] = (1 + df_valid[ret_col]).cumprod() - 1
+    
+    if spy_ret_col in df_valid.columns and df_valid[spy_ret_col].notna().any():
+        df_valid['spy_cumulative'] = (1 + df_valid[spy_ret_col].fillna(0)).cumprod() - 1
+    else:
+        df_valid['spy_cumulative'] = 0
+    
+    # 计算 Alpha
+    df_valid['alpha_cumulative'] = df_valid['blue_cumulative'] - df_valid['spy_cumulative']
+    
+    # 计算回撤
+    blue_peak = (1 + df_valid['blue_cumulative']).cummax()
+    df_valid['drawdown'] = ((1 + df_valid['blue_cumulative']) - blue_peak) / blue_peak * 100
+    
+    # 创建双 Y 轴图表
+    fig = make_subplots(
+        rows=2, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.08,
+        row_heights=[0.7, 0.3],
+        subplot_titles=('Cumulative Returns', 'Drawdown')
+    )
+    
+    # 主图: 累积收益曲线
+    # BLUE 信号收益
+    fig.add_trace(
+        go.Scatter(
+            x=df_valid['signal_date'],
+            y=df_valid['blue_cumulative'] * 100,
+            mode='lines',
+            name='BLUE Signals',
+            line=dict(color='#58a6ff', width=2.5),
+            fill='tozeroy',
+            fillcolor='rgba(88, 166, 255, 0.1)',
+            hovertemplate='<b>Date</b>: %{x}<br><b>Return</b>: %{y:.2f}%<extra></extra>'
+        ),
+        row=1, col=1
+    )
+    
+    # SPY 基准收益
+    fig.add_trace(
+        go.Scatter(
+            x=df_valid['signal_date'],
+            y=df_valid['spy_cumulative'] * 100,
+            mode='lines',
+            name='SPY Benchmark',
+            line=dict(color='#f0883e', width=2, dash='dot'),
+            hovertemplate='<b>Date</b>: %{x}<br><b>SPY Return</b>: %{y:.2f}%<extra></extra>'
+        ),
+        row=1, col=1
+    )
+    
+    # Alpha
+    fig.add_trace(
+        go.Scatter(
+            x=df_valid['signal_date'],
+            y=df_valid['alpha_cumulative'] * 100,
+            mode='lines',
+            name='Alpha (vs SPY)',
+            line=dict(color='#3fb950', width=1.5),
+            hovertemplate='<b>Date</b>: %{x}<br><b>Alpha</b>: %{y:.2f}%<extra></extra>'
+        ),
+        row=1, col=1
+    )
+    
+    # 子图: 回撤
+    fig.add_trace(
+        go.Scatter(
+            x=df_valid['signal_date'],
+            y=df_valid['drawdown'],
+            mode='lines',
+            name='Drawdown',
+            line=dict(color='#f85149', width=1.5),
+            fill='tozeroy',
+            fillcolor='rgba(248, 81, 73, 0.2)',
+            hovertemplate='<b>Date</b>: %{x}<br><b>Drawdown</b>: %{y:.2f}%<extra></extra>',
+            showlegend=False
+        ),
+        row=2, col=1
+    )
+    
+    # 更新布局
+    fig.update_layout(
+        template="plotly_dark",
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        height=500,
+        margin=dict(l=20, r=20, t=40, b=20),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5,
+            bgcolor='rgba(0,0,0,0)'
+        ),
+        hovermode='x unified'
+    )
+    
+    # 更新坐标轴
+    fig.update_xaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(48, 54, 61, 0.5)',
+        zeroline=False
+    )
+    fig.update_yaxes(
+        showgrid=True,
+        gridwidth=1,
+        gridcolor='rgba(48, 54, 61, 0.5)',
+        zeroline=True,
+        zerolinecolor='rgba(139, 148, 158, 0.3)',
+        ticksuffix='%'
+    )
+    
+    # 子图标题样式
+    fig.update_annotations(font=dict(size=12, color='#8b949e'))
+    
+    return fig
+
+
 if __name__ == "__main__":
     # 测试回测
     result = run_signal_backtest(

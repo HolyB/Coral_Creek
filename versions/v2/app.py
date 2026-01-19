@@ -1929,6 +1929,14 @@ def render_signal_performance_page():
     summary_df = get_backtest_summary_table(result)
     st.dataframe(summary_df, use_container_width=True, hide_index=True)
     
+    # 累积收益曲线图表
+    st.markdown("---")
+    st.subheader("📈 累积收益曲线 (Cumulative Returns)")
+    
+    from services.backtest_service import create_cumulative_returns_chart
+    cumulative_chart = create_cumulative_returns_chart(result)
+    st.plotly_chart(cumulative_chart, use_container_width=True)
+    
     # 信号详情表
     if signals:
         st.markdown("---")
@@ -2214,6 +2222,88 @@ def render_baseline_comparison_page():
             st.dataframe(display_df, hide_index=True, use_container_width=True)
 
 
+# --- ML Lab 页面 (新增) ---
+
+def render_ml_lab_page():
+    """机器学习实验室 - 统计ML、深度学习、LLM"""
+    st.header("🤖 ML 实验室 (Machine Learning Lab)")
+    
+    # 检查依赖
+    from ml.statistical_models import check_ml_dependencies, get_available_models
+    deps = check_ml_dependencies()
+    
+    # 显示依赖状态
+    with st.expander("📦 ML 依赖状态", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            status = "✅" if deps['sklearn'] else "❌"
+            st.write(f"{status} scikit-learn")
+        with col2:
+            status = "✅" if deps['xgboost'] else "❌"
+            st.write(f"{status} XGBoost")
+        with col3:
+            status = "✅" if deps['lightgbm'] else "❌"
+            st.write(f"{status} LightGBM")
+        
+        if not all(deps.values()):
+            st.code("pip install scikit-learn xgboost lightgbm", language="bash")
+    
+    # 三个 Tab
+    tab1, tab2, tab3 = st.tabs(["📊 统计ML", "🧠 深度学习", "💬 LLM智能"])
+    
+    with tab1:
+        st.subheader("统计机器学习")
+        st.info("使用 XGBoost, LightGBM, Random Forest 等模型预测信号成功率")
+        
+        available_models = get_available_models()
+        if available_models:
+            model_type = st.selectbox("选择模型", available_models)
+            st.caption(f"当前可用模型: {', '.join(available_models)}")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                test_size = st.slider("测试集比例", 0.1, 0.4, 0.2, 0.05)
+            with col2:
+                cv_folds = st.slider("交叉验证折数", 3, 10, 5)
+            
+            if st.button("🚀 开始训练", type="primary"):
+                st.warning("⚠️ 需要更多历史数据才能训练有效模型。请先积累至少 100 个历史信号。")
+        else:
+            st.error("未安装任何 ML 依赖。请运行上面的安装命令。")
+    
+    with tab2:
+        st.subheader("深度学习")
+        st.info("使用 LSTM/GRU 时间序列模型进行价格预测")
+        
+        st.markdown("""
+        ### 🚧 开发中
+        
+        计划功能:
+        - LSTM/GRU 时序预测
+        - Transformer 模型
+        - CNN 图表形态识别
+        - 注意力可视化
+        """)
+        
+        st.caption("需要安装: `pip install torch` 或 `pip install tensorflow`")
+    
+    with tab3:
+        st.subheader("LLM 智能分析")
+        st.info("使用大语言模型进行市场分析和自然语言查询")
+        
+        st.markdown("""
+        ### 🚧 开发中
+        
+        计划功能:
+        - 📰 新闻情感分析
+        - 💬 自然语言查询 ("找出超卖的科技股")
+        - 📝 自动生成市场报告
+        - 🔍 财报摘要分析
+        """)
+        
+        st.caption("需要配置: `OPENAI_API_KEY` 或 `ANTHROPIC_API_KEY`")
+
+
 # --- 主导航 ---
 
 st.sidebar.title("Coral Creek 🦅")
@@ -2221,7 +2311,8 @@ page = st.sidebar.radio("功能导航", [
     "📊 每日机会扫描", 
     "🔍 个股查询", 
     "📈 信号追踪",
-    "📉 信号验证",  # 新增
+    "📉 信号验证",
+    "🤖 ML实验室",  # 新增
     "🔄 Baseline对比", 
     "🧪 策略回测实验"
 ])
@@ -2234,8 +2325,11 @@ elif page == "📈 信号追踪":
     render_signal_tracker_page()
 elif page == "📉 信号验证":
     render_signal_performance_page()
+elif page == "🤖 ML实验室":
+    render_ml_lab_page()
 elif page == "🔄 Baseline对比":
     render_baseline_comparison_page()
 elif page == "🧪 策略回测实验":
     render_backtest_page()
+
 
