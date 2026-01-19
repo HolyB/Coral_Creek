@@ -41,7 +41,7 @@ div[data-testid="metric-container"]:hover {
 }
 
 /* Metric value styling */
-div[data-testid="metric-container"] > div > div > div {
+div[data-testid="metric-container"]>div>div>div {
     font-weight: 700 !important;
     font-size: 1.8rem !important;
 }
@@ -65,7 +65,7 @@ div[data-testid="metric-container"] [data-testid="stMetricDeltaIcon-Down"] {
     border: 1px solid var(--cc-border);
 }
 
-.stDataFrame > div > div > div > div {
+.stDataFrame>div>div>div>div {
     background: var(--cc-bg-secondary) !important;
 }
 
@@ -103,19 +103,19 @@ section[data-testid="stSidebar"] {
     border-right: 1px solid var(--cc-border);
 }
 
-section[data-testid="stSidebar"] .stRadio > label {
+section[data-testid="stSidebar"] .stRadio>label {
     padding: 10px 15px !important;
     border-radius: 8px;
     margin: 2px 0;
     transition: all 0.2s ease;
 }
 
-section[data-testid="stSidebar"] .stRadio > label:hover {
+section[data-testid="stSidebar"] .stRadio>label:hover {
     background: var(--cc-bg-tertiary);
 }
 
 /* Active radio button */
-section[data-testid="stSidebar"] .stRadio > label[data-checked="true"] {
+section[data-testid="stSidebar"] .stRadio>label[data-checked="true"] {
     background: linear-gradient(135deg, rgba(88, 166, 255, 0.2), rgba(163, 113, 247, 0.2));
     border-left: 3px solid var(--cc-accent-blue);
 }
@@ -123,19 +123,19 @@ section[data-testid="stSidebar"] .stRadio > label[data-checked="true"] {
 /* ==========================================================================
    BUTTONS - Modern Style
    ========================================================================== */
-.stButton > button {
+.stButton>button {
     border-radius: 8px !important;
     font-weight: 600 !important;
     transition: all 0.3s ease !important;
     border: none !important;
 }
 
-.stButton > button:hover {
+.stButton>button:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
 }
 
-.stButton > button[kind="primary"] {
+.stButton>button[kind="primary"] {
     background: var(--cc-gradient-1) !important;
 }
 
@@ -159,7 +159,9 @@ section[data-testid="stSidebar"] .stRadio > label[data-checked="true"] {
 /* ==========================================================================
    HEADERS - Typography
    ========================================================================== */
-h1, h2, h3 {
+h1,
+h2,
+h3 {
     font-weight: 700 !important;
     letter-spacing: -0.5px;
 }
@@ -174,7 +176,7 @@ h1 {
 /* ==========================================================================
    PROGRESS BARS - Styled
    ========================================================================== */
-.stProgress > div > div > div {
+.stProgress>div>div>div {
     background: var(--cc-gradient-2) !important;
     border-radius: 4px !important;
 }
@@ -230,18 +232,18 @@ div[data-testid="stNotificationContentError"] {
 /* ==========================================================================
    SELECTBOX & INPUT - Modern Form Controls
    ========================================================================== */
-.stSelectbox > div > div,
-.stTextInput > div > div > input,
-.stNumberInput > div > div > input {
+.stSelectbox>div>div,
+.stTextInput>div>div>input,
+.stNumberInput>div>div>input {
     border-radius: 8px !important;
     border: 1px solid var(--cc-border) !important;
     background: var(--cc-bg-tertiary) !important;
     transition: all 0.2s ease !important;
 }
 
-.stSelectbox > div > div:focus-within,
-.stTextInput > div > div > input:focus,
-.stNumberInput > div > div > input:focus {
+.stSelectbox>div>div:focus-within,
+.stTextInput>div>div>input:focus,
+.stNumberInput>div>div>input:focus {
     border-color: var(--cc-accent-blue) !important;
     box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2) !important;
 }
@@ -281,8 +283,15 @@ hr {
    ANIMATIONS
    ========================================================================== */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .main .block-container {
@@ -292,6 +301,230 @@ hr {
 /* ==========================================================================
    LOADING SPINNER
    ========================================================================== */
-.stSpinner > div {
+.stSpinner>div {
     border-color: var(--cc-accent-blue) transparent transparent transparent !important;
+}
+
+/* ==========================================================================
+   ENHANCED ANIMATIONS
+   ========================================================================== */
+
+/* Pulse animation for positive values */
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 5px rgba(88, 166, 255, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(88, 166, 255, 0.5);
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Staggered animation for metric cards */
+div[data-testid="column"]:nth-child(1) div[data-testid="metric-container"] {
+    animation: slideInUp 0.4s ease 0.0s both;
+}
+
+div[data-testid="column"]:nth-child(2) div[data-testid="metric-container"] {
+    animation: slideInUp 0.4s ease 0.1s both;
+}
+
+div[data-testid="column"]:nth-child(3) div[data-testid="metric-container"] {
+    animation: slideInUp 0.4s ease 0.2s both;
+}
+
+div[data-testid="column"]:nth-child(4) div[data-testid="metric-container"] {
+    animation: slideInUp 0.4s ease 0.3s both;
+}
+
+/* ==========================================================================
+   SIDEBAR LOGO AREA
+   ========================================================================== */
+section[data-testid="stSidebar"]>div:first-child {
+    padding-top: 1rem;
+}
+
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] .css-1d391kg {
+    font-size: 1.5rem !important;
+    text-align: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--cc-border);
+    margin-bottom: 1rem;
+}
+
+/* ==========================================================================
+   CHART CONTAINER
+   ========================================================================== */
+.js-plotly-plot {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   STAT BADGE - For inline stats
+   ========================================================================== */
+.stat-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.stat-badge.positive {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--cc-accent-green);
+}
+
+.stat-badge.negative {
+    background: rgba(248, 81, 73, 0.15);
+    color: var(--cc-accent-red);
+}
+
+.stat-badge.neutral {
+    background: rgba(139, 148, 158, 0.15);
+    color: var(--cc-text-secondary);
+}
+
+/* ==========================================================================
+   SKELETON LOADING
+   ========================================================================== */
+.skeleton {
+    background: linear-gradient(90deg, var(--cc-bg-tertiary) 25%, var(--cc-bg-secondary) 50%, var(--cc-bg-tertiary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE
+   ========================================================================== */
+@media (max-width: 768px) {
+
+    /* Stack metric cards vertically on mobile */
+    div[data-testid="column"] {
+        padding: 0.25rem !important;
+    }
+
+    div[data-testid="metric-container"] {
+        padding: 12px !important;
+    }
+
+    div[data-testid="metric-container"]>div>div>div {
+        font-size: 1.4rem !important;
+    }
+
+    /* Smaller headers */
+    h1 {
+        font-size: 1.5rem !important;
+    }
+
+    h2 {
+        font-size: 1.25rem !important;
+    }
+
+    h3 {
+        font-size: 1.1rem !important;
+    }
+
+    /* Compact sidebar */
+    section[data-testid="stSidebar"] {
+        min-width: 200px !important;
+    }
+
+    /* Full width tables */
+    .stDataFrame {
+        font-size: 0.8rem !important;
+    }
+}
+
+/* ==========================================================================
+   TOOLTIP ENHANCEMENT
+   ========================================================================== */
+[data-baseweb="tooltip"] {
+    background: var(--cc-bg-secondary) !important;
+    border: 1px solid var(--cc-border) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ==========================================================================
+   SPECIAL HIGHLIGHT FOR IMPORTANT VALUES
+   ========================================================================== */
+.highlight-value {
+    color: var(--cc-accent-blue);
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(88, 166, 255, 0.3);
+}
+
+.highlight-positive {
+    color: var(--cc-accent-green);
+    font-weight: 700;
+}
+
+.highlight-negative {
+    color: var(--cc-accent-red);
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   CARD BORDERS WITH GRADIENT
+   ========================================================================== */
+.gradient-border {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 12px;
+    padding: 1px;
+    background: var(--cc-gradient-1);
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
 }
