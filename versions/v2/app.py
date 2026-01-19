@@ -2256,20 +2256,151 @@ def render_ml_lab_page():
         st.info("使用 XGBoost, LightGBM, Random Forest 等模型预测信号成功率")
         
         available_models = get_available_models()
-        if available_models:
-            model_type = st.selectbox("选择模型", available_models)
-            st.caption(f"当前可用模型: {', '.join(available_models)}")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                test_size = st.slider("测试集比例", 0.1, 0.4, 0.2, 0.05)
-            with col2:
-                cv_folds = st.slider("交叉验证折数", 3, 10, 5)
-            
-            if st.button("🚀 开始训练", type="primary"):
-                st.warning("⚠️ 需要更多历史数据才能训练有效模型。请先积累至少 100 个历史信号。")
-        else:
-            st.error("未安装任何 ML 依赖。请运行上面的安装命令。")
+        if not available_models:
+            st.error("未安装任何 ML 依赖。请运行: `pip install scikit-learn xgboost lightgbm`")
+            return
+        
+        # 参数设置
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            model_type = st.selectbox("选择模型", available_models, help="XGBoost 通常表现最好")
+        with col2:
+            test_size = st.slider("测试集比例", 0.1, 0.4, 0.2, 0.05)
+        with col3:
+            forward_days = st.selectbox("目标收益周期", [5, 10, 20], index=1, help="预测 N 天后的收益")
+        
+        # 数据范围
+        st.markdown("#### 📅 训练数据范围")
+        col4, col5, col6 = st.columns(3)
+        with col4:
+            from datetime import datetime, timedelta
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=180)
+            train_start = st.date_input("开始日期", value=start_date)
+        with col5:
+            train_end = st.date_input("结束日期", value=end_date)
+        with col6:
+            min_blue = st.slider("最低 BLUE 阈值", 50, 150, 80, 10)
+        
+        # 训练按钮
+        if st.button("🚀 开始训练", type="primary", use_container_width=True):
+            with st.spinner("正在准备数据并训练模型..."):
+                try:
+                    # 1. 加载数据
+                    from services.backtest_service import run_signal_backtest
+                    from ml.feature_engineering import prepare_training_data
+                    from ml.statistical_models import SignalClassifier
+                    
+                    st.text("📊 正在加载历史信号数据...")
+                    result = run_signal_backtest(
+                        start_date=train_start.strftime('%Y-%m-%d'),
+                        end_date=train_end.strftime('%Y-%m-%d'),
+                        market='US',
+                        min_blue=min_blue,
+                        forward_days=forward_days,
+                        limit=1000
+                    )
+                    
+                    signals = result.get('signals', [])
+                    
+                    if len(signals) < 30:
+                        st.error(f"❌ 数据不足！仅找到 {len(signals)} 个信号，需要至少 30 个才能训练。")
+                        st.info("💡 建议: 扩大日期范围 或 降低 BLUE 阈值")
+                        return
+                    
+                    st.text(f"✅ 加载了 {len(signals)} 个信号")
+                    
+                    # 2. 准备特征
+                    st.text("🔧 正在准备训练特征...")
+                    X, y = prepare_training_data(signals, forward_days, 'binary')
+                    
+                    if X.empty:
+                        st.error("❌ 特征准备失败，可能是收益数据不足")
+                        return
+                    
+                    st.text(f"✅ 特征矩阵: {X.shape[0]} 样本, {X.shape[1]} 特征")
+                    
+                    # 3. 训练模型
+                    st.text(f"🧠 正在训练 {model_type} 模型...")
+                    classifier = SignalClassifier(model_type=model_type)
+                    metrics = classifier.train(X, y, test_size=test_size)
+                    
+                    st.success("✅ 模型训练完成!")
+                    
+                    # 4. 显示结果
+                    st.markdown("---")
+                    st.subheader("📈 模型性能")
+                    
+                    m1, m2, m3, m4 = st.columns(4)
+                    with m1:
+                        acc = metrics.get('accuracy', 0) * 100
+                        st.metric("准确率 (Accuracy)", f"{acc:.1f}%", 
+                                 delta="好" if acc > 55 else "需改进")
+                    with m2:
+                        prec = metrics.get('precision', 0) * 100
+                        st.metric("精确率 (Precision)", f"{prec:.1f}%")
+                    with m3:
+                        rec = metrics.get('recall', 0) * 100
+                        st.metric("召回率 (Recall)", f"{rec:.1f}%")
+                    with m4:
+                        f1 = metrics.get('f1', 0) * 100
+                        st.metric("F1 Score", f"{f1:.1f}%")
+                    
+                    # 5. 特征重要性
+                    importance_df = classifier.get_feature_importance_df()
+                    if not importance_df.empty:
+                        st.markdown("---")
+                        st.subheader("📊 特征重要性")
+                        
+                        import plotly.express as px
+                        fig = px.bar(
+                            importance_df, 
+                            x='Importance', 
+                            y='Feature',
+                            orientation='h',
+                            title="Feature Importance",
+                            color='Importance',
+                            color_continuous_scale='Blues'
+                        )
+                        fig.update_layout(
+                            template="plotly_dark",
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            height=300,
+                            showlegend=False
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    # 6. 模型解释
+                    st.markdown("---")
+                    st.subheader("💡 模型解读")
+                    
+                    if acc > 55:
+                        st.success(f"""
+                        **模型表现良好!** 准确率 {acc:.1f}% 高于随机猜测 (50%)。
+                        
+                        - 该模型可以作为信号筛选的辅助参考
+                        - 高 BLUE 值的信号有更高的盈利概率
+                        - 建议结合其他技术指标使用
+                        """)
+                    else:
+                        st.warning(f"""
+                        **模型准确率较低** ({acc:.1f}%)，可能原因：
+                        
+                        - 训练数据量不足 (当前: {len(signals)} 个信号)
+                        - 特征与目标的相关性不强
+                        - 市场噪音较大，难以预测
+                        
+                        💡 **建议**: 积累更多历史数据后重新训练
+                        """)
+                    
+                except ImportError as e:
+                    st.error(f"❌ 缺少依赖: {e}")
+                    st.code("pip install scikit-learn xgboost lightgbm", language="bash")
+                except Exception as e:
+                    st.error(f"❌ 训练出错: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
     
     with tab2:
         st.subheader("深度学习")
