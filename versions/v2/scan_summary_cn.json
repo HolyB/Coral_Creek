@@ -1,7 +1,7 @@
 {
   "date": "2026-01-16",
   "market": "CN",
-  "total_signals": 137,
+  "total_signals": 140,
   "top_signals": [
     {
       "symbol": "002668.SZ",
@@ -67,6 +67,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "002231.SZ",
+      "name": "*ST奥维",
+      "price": 0.94,
+      "day_blue": 172.4,
+      "week_blue": 92.3
+    },
+    {
       "symbol": "601825.SH",
       "name": "沪农商行",
       "price": 8.77,
@@ -100,13 +107,6 @@
       "price": 6.45,
       "day_blue": 159.6,
       "week_blue": 77.2
-    },
-    {
-      "symbol": "600690.SH",
-      "name": "海尔智家",
-      "price": 25.7,
-      "day_blue": 155.7,
-      "week_blue": 0.0
     }
   ]
 }
