@@ -1,8 +1,15 @@
 {
   "date": "2026-01-16",
   "market": "CN",
-  "total_signals": 107,
+  "total_signals": 137,
   "top_signals": [
+    {
+      "symbol": "002668.SZ",
+      "name": "TCL智家",
+      "price": 10.0,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
     {
       "symbol": "600941.SH",
       "name": "中国移动",
@@ -46,6 +53,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "002694.SZ",
+      "name": "顾地科技",
+      "price": 3.64,
+      "day_blue": 178.9,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "000568.SZ",
       "name": "泸州老窖",
       "price": 114.28,
@@ -81,32 +95,18 @@
       "week_blue": 93.2
     },
     {
+      "symbol": "600015.SH",
+      "name": "华夏银行",
+      "price": 6.45,
+      "day_blue": 159.6,
+      "week_blue": 77.2
+    },
+    {
       "symbol": "600690.SH",
       "name": "海尔智家",
       "price": 25.7,
       "day_blue": 155.7,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "601838.SH",
-      "name": "成都银行",
-      "price": 15.76,
-      "day_blue": 154.7,
-      "week_blue": 97.6
-    },
-    {
-      "symbol": "601997.SH",
-      "name": "贵阳银行",
-      "price": 5.77,
-      "day_blue": 154.5,
-      "week_blue": 72.4
-    },
-    {
-      "symbol": "002958.SZ",
-      "name": "青农商行",
-      "price": 3.07,
-      "day_blue": 151.6,
-      "week_blue": 111.4
     }
   ]
 }
