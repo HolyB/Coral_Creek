@@ -2428,20 +2428,120 @@ def render_ml_lab_page():
                     st.code(traceback.format_exc())
     
     with tab2:
-        st.subheader("深度学习")
+        st.subheader("深度学习 🧠")
         st.info("使用 LSTM/GRU 时间序列模型进行价格预测")
         
-        st.markdown("""
-        ### 🚧 开发中
+        from ml.deep_learning import check_torch_available
         
-        计划功能:
-        - LSTM/GRU 时序预测
-        - Transformer 模型
-        - CNN 图表形态识别
-        - 注意力可视化
-        """)
+        if not check_torch_available():
+            st.error("❌ PyTorch 未安装")
+            st.code("pip install torch", language="bash")
+            return
         
-        st.caption("需要安装: `pip install torch` 或 `pip install tensorflow`")
+        st.success("✅ PyTorch 已安装")
+        
+        # 参数设置
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            dl_symbol = st.text_input("股票代码", value="AAPL", help="例如: AAPL, NVDA, TSLA")
+        with col2:
+            dl_model = st.selectbox("模型类型", ["LSTM", "GRU"], help="LSTM 更稳定, GRU 更快")
+        with col3:
+            dl_days = st.slider("训练数据天数", 50, 200, 100, 10)
+        
+        col4, col5, col6 = st.columns(3)
+        with col4:
+            seq_length = st.slider("序列长度", 10, 50, 20, 5, help="回看多少天预测未来")
+        with col5:
+            dl_epochs = st.slider("训练轮数", 20, 200, 50, 10)
+        with col6:
+            hidden_size = st.selectbox("隐藏层大小", [32, 64, 128], index=1)
+        
+        if st.button("🚀 开始训练", type="primary", key="dl_train"):
+            with st.spinner(f"正在训练 {dl_model} 模型..."):
+                try:
+                    from ml.deep_learning import train_price_predictor
+                    
+                    result = train_price_predictor(
+                        symbol=dl_symbol.upper(),
+                        days=dl_days,
+                        seq_length=seq_length,
+                        epochs=dl_epochs,
+                        model_type=dl_model
+                    )
+                    
+                    if 'error' in result:
+                        st.error(f"❌ {result['error']}")
+                        return
+                    
+                    st.success("✅ 训练完成!")
+                    
+                    # 显示指标
+                    st.markdown("---")
+                    st.subheader("📈 预测性能")
+                    
+                    m1, m2, m3, m4 = st.columns(4)
+                    with m1:
+                        st.metric("MAE (平均绝对误差)", f"${result['mae']:.2f}")
+                    with m2:
+                        st.metric("RMSE (均方根误差)", f"${result['rmse']:.2f}")
+                    with m3:
+                        acc = result['direction_accuracy'] * 100
+                        st.metric("方向准确率", f"{acc:.1f}%", 
+                                 delta="好" if acc > 55 else "待改进")
+                    with m4:
+                        st.metric("验证损失", f"{result['val_loss']:.6f}")
+                    
+                    # 训练曲线
+                    st.markdown("---")
+                    st.subheader("📉 训练损失曲线")
+                    
+                    chart_data = result.get('chart_data', {})
+                    if chart_data:
+                        import plotly.graph_objects as go
+                        
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(
+                            x=chart_data['epochs'],
+                            y=chart_data['train_loss'],
+                            mode='lines',
+                            name='Training Loss',
+                            line=dict(color='#58a6ff', width=2)
+                        ))
+                        if chart_data.get('val_loss'):
+                            fig.add_trace(go.Scatter(
+                                x=chart_data['epochs'],
+                                y=chart_data['val_loss'],
+                                mode='lines',
+                                name='Validation Loss',
+                                line=dict(color='#f0883e', width=2, dash='dot')
+                            ))
+                        
+                        fig.update_layout(
+                            template="plotly_dark",
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            height=300,
+                            xaxis_title="Epoch",
+                            yaxis_title="Loss (MSE)",
+                            legend=dict(orientation="h", y=1.1)
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    # 预测 vs 实际
+                    st.markdown("---")
+                    st.subheader("🎯 预测 vs 实际 (最近10天)")
+                    
+                    pred_df = pd.DataFrame({
+                        '实际价格': result.get('actuals', []),
+                        '预测价格': result.get('predictions', [])
+                    })
+                    st.dataframe(pred_df.style.format("${:.2f}"), use_container_width=True)
+                    
+                except Exception as e:
+                    st.error(f"❌ 训练出错: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
     
     with tab3:
         st.subheader("LLM 智能分析")
