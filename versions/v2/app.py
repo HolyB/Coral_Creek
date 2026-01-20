@@ -568,7 +568,7 @@ def render_scan_page():
         calc_chip = st.checkbox("🔥 计算筹码形态", value=False, help="计算底部顶格峰 (首次约 30-60 秒，后续使用缓存)")
     
     # 使用 session_state 缓存结果
-    cache_key = f"chip_cache_{selected_date}_{market}"
+    cache_key = f"chip_cache_{selected_date}_{selected_market}"
     
     if calc_chip:
         # 检查缓存
