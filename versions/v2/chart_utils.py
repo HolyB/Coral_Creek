@@ -699,41 +699,84 @@ def create_chip_flow_chart(chip_flow_data, symbol):
     current_profile = chip_flow_data['current_profile'] * 100
     chip_change = chip_flow_data['chip_change'] * 100
     
-    # 创建单独的两个图表，避免重叠问题
+    # 计算当前价格和POC
+    current_price = chip_flow_data.get('current_close', bin_centers[len(bin_centers)//2])
+    poc_idx = np.argmax(chip_flow_data['current_profile'])
+    poc_price = bin_centers[poc_idx]
+    
+    # 根据价格位置生成渐变颜色 (获利=绿色, 套牢=红色)
+    current_colors = []
+    for i, price in enumerate(bin_centers):
+        if price < current_price * 0.95:  # 获利区
+            intensity = min(current_profile[i] / max(current_profile.max(), 1) * 0.8 + 0.2, 1)
+            current_colors.append(f'rgba(50, 205, 50, {intensity})')
+        elif price > current_price * 1.05:  # 套牢区
+            intensity = min(current_profile[i] / max(current_profile.max(), 1) * 0.8 + 0.2, 1)
+            current_colors.append(f'rgba(220, 50, 50, {intensity})')
+        else:  # 成本区
+            intensity = min(current_profile[i] / max(current_profile.max(), 1) * 0.8 + 0.2, 1)
+            current_colors.append(f'rgba(255, 165, 0, {intensity})')
+    
     fig = go.Figure()
     
-    # === 左侧: 筹码对比 (使用负值显示过去) ===
+    # 过去筹码分布 (灰色)
     fig.add_trace(
         go.Bar(
             y=bin_centers,
-            x=-past_profile,  # 负值，显示在左侧
+            x=-past_profile,
             orientation='h',
             name=f'{chip_flow_data["lookback_days"]}天前',
-            marker_color='rgba(150, 150, 150, 0.6)',
-            hovertemplate='%{y:.2f}: %{customdata:.1f}%<extra>过去</extra>',
+            marker_color='rgba(120, 120, 120, 0.5)',
+            hovertemplate='$%{y:.2f}: %{customdata:.1f}%<extra>过去</extra>',
             customdata=past_profile
         )
     )
     
+    # 当前筹码分布 (渐变色)
     fig.add_trace(
         go.Bar(
             y=bin_centers,
-            x=current_profile,  # 正值，显示在右侧
+            x=current_profile,
             orientation='h',
             name='现在',
-            marker_color='rgba(30, 144, 255, 0.7)',
-            hovertemplate='%{y:.2f}: %{x:.1f}%<extra>现在</extra>'
+            marker_color=current_colors,
+            hovertemplate='$%{y:.2f}: %{x:.1f}%<extra>现在</extra>'
         )
     )
     
     # 添加零线
-    fig.add_vline(x=0, line_color="black", line_width=1)
+    fig.add_vline(x=0, line_color="white", line_width=2)
     
-    # 布局
+    # POC 标记线
+    fig.add_hline(
+        y=poc_price, 
+        line_dash="dot", 
+        line_color="rgba(255, 69, 0, 0.8)", 
+        line_width=2,
+        annotation_text=f"POC ${poc_price:.2f}",
+        annotation_position="right",
+        annotation=dict(font_size=10, font_color="orange")
+    )
+    
+    # 当前价格标记
+    fig.add_hline(
+        y=current_price,
+        line_dash="solid",
+        line_color="rgba(0, 191, 255, 0.9)",
+        line_width=2,
+        annotation_text=f"现价 ${current_price:.2f}",
+        annotation_position="left",
+        annotation=dict(font_size=10, font_color="deepskyblue")
+    )
+    
+    # 布局 - 暗色主题
     fig.update_layout(
-        height=400,
+        height=450,
         barmode='overlay',
-        hovermode='y unified',  # 横向联动 hover
+        hovermode='y unified',
+        template='plotly_dark',
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(30,30,30,0.8)',
         legend=dict(
             orientation="h", 
             yanchor="bottom", 
@@ -742,17 +785,19 @@ def create_chip_flow_chart(chip_flow_data, symbol):
             x=0.5,
             font=dict(size=11)
         ),
-        margin=dict(l=60, r=60, t=40, b=50),
+        margin=dict(l=70, r=70, t=40, b=50),
         xaxis=dict(
-            title=dict(text="← 过去 | 现在 →", font=dict(size=11)),
+            title=dict(text="← 过去 | 筹码占比 (%) | 现在 →", font=dict(size=11)),
             tickfont=dict(size=10),
             zeroline=True,
             zerolinewidth=2,
-            zerolinecolor='black'
+            zerolinecolor='white',
+            gridcolor='rgba(255,255,255,0.1)'
         ),
         yaxis=dict(
             title=dict(text="价格 ($)", font=dict(size=11)),
-            tickfont=dict(size=10)
+            tickfont=dict(size=10),
+            gridcolor='rgba(255,255,255,0.1)'
         )
     )
     
