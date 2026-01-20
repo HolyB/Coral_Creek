@@ -320,10 +320,36 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
             elif concentration < 0.25:
                 pattern_desc = "多峰发散 (筹码分散)"
             
-            # 买点评估
+            # === 底部顶格峰检测 ===
+            # 定义: POC 在价格区间的底部 25% 范围内
+            price_range_25 = price_min + (price_max - price_min) * 0.25
+            is_bottom_peak = poc_price <= price_range_25
+            
+            # 更严格的底部顶格峰: POC 在底部 + 获利盘 > 70% + 集中度高
+            is_strong_bottom_peak = is_bottom_peak and profit_ratio > 0.70 and concentration > 0.35
+            
+            # 底部区域筹码占比 (底部 30% 价格区间的筹码)
+            bottom_30_price = price_min + (price_max - price_min) * 0.30
+            bottom_chip_ratio = 0
+            for i, p in enumerate(bin_centers):
+                if p <= bottom_30_price:
+                    bottom_chip_ratio += volume_profile[i]
+            bottom_chip_ratio = bottom_chip_ratio / total_vol if total_vol > 0 else 0
+            
+            # 更新形态描述
+            if is_strong_bottom_peak:
+                pattern_desc = "🔥 底部顶格峰 (强势吸筹)"
+            elif is_bottom_peak:
+                pattern_desc = "📍 底部密集 (关注)"
+            
+            # 买点评估 (增强版)
             buy_signal_strength = ""
-            if profit_ratio > 0.90 and concentration > 0.5:
+            if is_strong_bottom_peak:
+                buy_signal_strength = "🔥 强势买点 (底部顶峰)"
+            elif profit_ratio > 0.90 and concentration > 0.5:
                 buy_signal_strength = "🟢 极佳买点"
+            elif is_bottom_peak and profit_ratio > 0.60:
+                buy_signal_strength = "🟡 底部吸筹 (可关注)"
             elif profit_ratio > 0.80 and concentration > 0.4:
                 buy_signal_strength = "🟡 较好买点"
             elif profit_ratio < 0.30:
@@ -346,7 +372,11 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
                 'resistance_price': resistance_price,
                 'pattern_desc': pattern_desc,
                 'buy_signal_strength': buy_signal_strength,
-                'current_close': current_close
+                'current_close': current_close,
+                # 新增底部顶格峰指标
+                'is_bottom_peak': is_bottom_peak,
+                'is_strong_bottom_peak': is_strong_bottom_peak,
+                'bottom_chip_ratio': bottom_chip_ratio,
             }
             
         except Exception as e:

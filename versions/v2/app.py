@@ -735,7 +735,17 @@ def render_scan_page():
                             cost_low = chip.get('cost_90_low', 0)
                             cost_high = chip.get('cost_90_high', 0)
                             st.caption(f"📏 90%成本区间: **${cost_low:.2f}** ~ **${cost_high:.2f}** (宽度: ${cost_high - cost_low:.2f})")
-                            st.caption(f"📋 形态: **{chip.get('pattern_desc', 'N/A')}**")
+                            
+                            # 形态 + 底部顶格峰指标
+                            pattern = chip.get('pattern_desc', 'N/A')
+                            bottom_ratio = chip.get('bottom_chip_ratio', 0) * 100
+                            
+                            if chip.get('is_strong_bottom_peak'):
+                                st.success(f"🔥 **底部顶格峰!** 底部筹码占比: {bottom_ratio:.1f}% | {pattern}")
+                            elif chip.get('is_bottom_peak'):
+                                st.info(f"📍 **底部密集** 底部筹码占比: {bottom_ratio:.1f}% | {pattern}")
+                            else:
+                                st.caption(f"📋 形态: **{pattern}** | 底部筹码: {bottom_ratio:.1f}%")
                         
                         st.divider()
                         
