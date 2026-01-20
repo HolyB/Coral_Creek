@@ -72,7 +72,9 @@ def send_telegram(summary):
         price = s.get('price', 0)
         day_blue = s.get('day_blue', 0)
         week_blue = s.get('week_blue', 0)
-        lines.append(f'{i}. `{symbol}` {name} ${price:.2f} D:{day_blue:.0f} W:{week_blue:.0f}')
+        chip = s.get('chip_pattern', '')  # 🔥 or 📍
+        chip_str = f' {chip}' if chip else ''
+        lines.append(f'{i}. `{symbol}` {name} ${price:.2f}{chip_str} D:{day_blue:.0f} W:{week_blue:.0f}')
     
     lines.append('')
     lines.append('[查看详情](https://coral-creek-park-way.onrender.com)')
@@ -137,6 +139,7 @@ def send_email(summary):
         price = s.get('price', 0)
         day_blue = s.get('day_blue', 0)
         week_blue = s.get('week_blue', 0)
+        chip_pattern = s.get('chip_pattern', '')  # 🔥 or 📍
         
         color_day = '#4CAF50' if day_blue > 100 else '#666'
         color_week = '#2196F3' if week_blue > 100 else '#666'
@@ -149,6 +152,7 @@ def send_email(summary):
             <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${price:.2f}</td>
             <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: {color_day};">{day_blue:.1f}</td>
             <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right; color: {color_week};">{week_blue:.1f}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center; font-size: 16px;">{chip_pattern}</td>
         </tr>
         """
     
@@ -185,6 +189,7 @@ def send_email(summary):
                             <th style="padding: 10px 8px; text-align: right; font-size: 12px; color: #666;">价格</th>
                             <th style="padding: 10px 8px; text-align: right; font-size: 12px; color: #666;">Day BLUE</th>
                             <th style="padding: 10px 8px; text-align: right; font-size: 12px; color: #666;">Week BLUE</th>
+                            <th style="padding: 10px 8px; text-align: center; font-size: 12px; color: #666;">筹码</th>
                         </tr>
                     </thead>
                     <tbody>

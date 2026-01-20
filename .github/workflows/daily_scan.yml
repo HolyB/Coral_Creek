@@ -83,6 +83,8 @@ jobs:
         run: |
           python -c "
           from db.database import get_db_stats, query_scan_results, get_scanned_dates, get_stock_info_batch
+          from data_fetcher import get_us_stock_data
+          from chart_utils import quick_chip_analysis
           import json
           
           stats = get_db_stats()
@@ -107,17 +109,31 @@ jobs:
                   name = info.get('name', '')[:15] if info else ''
                   print(f'   {r[\"symbol\"]:6} | {name:15} | \${r[\"price\"]:8.2f} | BLUE: {r[\"blue_daily\"]:5.1f}')
               
-              # 构建 top_signals
+              # 构建 top_signals (包含筹码分析)
+              print('\n🔍 Analyzing chip distribution...')
               top_signals = []
               for r in results[:15]:
                   info = stock_info.get(r['symbol'], {})
+                  chip_pattern = ''
+                  try:
+                      stock_df = get_us_stock_data(r['symbol'], days=100)
+                      if stock_df is not None and len(stock_df) >= 30:
+                          chip_result = quick_chip_analysis(stock_df)
+                          if chip_result:
+                              chip_pattern = chip_result.get('label', '')
+                  except Exception as e:
+                      print(f'   Chip analysis error for {r[\"symbol\"]}: {e}')
+                  
                   top_signals.append({
                       'symbol': r['symbol'],
                       'name': info.get('name', '') if info else '',
                       'price': r['price'],
                       'day_blue': r['blue_daily'],
-                      'week_blue': r['blue_weekly']
+                      'week_blue': r['blue_weekly'],
+                      'chip_pattern': chip_pattern
                   })
+                  if chip_pattern:
+                      print(f'   {r[\"symbol\"]:6} -> {chip_pattern}')
               
               # 保存摘要到文件
               summary = {
