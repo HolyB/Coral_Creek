@@ -282,6 +282,213 @@ def load_latest_scan_results():
         st.error(f"读取文件失败: {e}")
         return None, None
 
+
+def render_market_pulse():
+    """
+    Market Pulse Dashboard - 显示大盘指数状态
+    包括 SPY/QQQ/DIA/IWM + VIX，日/周 BLUE 信号，筹码形态
+    """
+    # 缓存键 (每10分钟刷新)
+    from datetime import datetime
+    cache_time_key = datetime.now().strftime("%Y%m%d%H") + str(datetime.now().minute // 10)
+    cache_key = f"market_pulse_{cache_time_key}"
+    
+    # 检查缓存
+    if cache_key not in st.session_state:
+        # 获取指数数据
+        indices = {
+            'SPY': {'name': 'S&P 500', 'emoji': '📊'},
+            'QQQ': {'name': 'Nasdaq 100', 'emoji': '💻'},
+            'DIA': {'name': 'Dow 30', 'emoji': '🏭'},
+            'IWM': {'name': 'Russell 2000', 'emoji': '🏢'},
+        }
+        
+        index_data = {}
+        
+        for symbol, info in indices.items():
+            try:
+                # 获取日线数据
+                df_daily = fetch_data_from_polygon(symbol, days=100)
+                
+                if df_daily is not None and len(df_daily) >= 30:
+                    # 计算日线 BLUE
+                    blue_daily = calculate_blue_signal_series(
+                        df_daily['Open'].values,
+                        df_daily['High'].values,
+                        df_daily['Low'].values,
+                        df_daily['Close'].values
+                    )
+                    
+                    # 计算周线 BLUE
+                    df_weekly = df_daily.resample('W-MON').agg({
+                        'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'
+                    }).dropna()
+                    
+                    blue_weekly = [0]
+                    if len(df_weekly) >= 10:
+                        blue_weekly = calculate_blue_signal_series(
+                            df_weekly['Open'].values,
+                            df_weekly['High'].values,
+                            df_weekly['Low'].values,
+                            df_weekly['Close'].values
+                        )
+                    
+                    # 计算筹码形态
+                    chip_result = quick_chip_analysis(df_daily)
+                    chip_pattern = chip_result.get('label', '') if chip_result else ''
+                    
+                    # 最新价格和变化
+                    latest_price = df_daily['Close'].iloc[-1]
+                    prev_price = df_daily['Close'].iloc[-2] if len(df_daily) > 1 else latest_price
+                    price_change = (latest_price - prev_price) / prev_price * 100
+                    
+                    index_data[symbol] = {
+                        'name': info['name'],
+                        'emoji': info['emoji'],
+                        'price': latest_price,
+                        'change': price_change,
+                        'day_blue': blue_daily[-1] if len(blue_daily) > 0 else 0,
+                        'week_blue': blue_weekly[-1] if len(blue_weekly) > 0 else 0,
+                        'chip': chip_pattern
+                    }
+            except Exception as e:
+                index_data[symbol] = {
+                    'name': info['name'],
+                    'emoji': info['emoji'],
+                    'price': 0,
+                    'change': 0,
+                    'day_blue': 0,
+                    'week_blue': 0,
+                    'chip': '',
+                    'error': str(e)
+                }
+        
+        # VIX 数据
+        try:
+            vix_df = fetch_data_from_polygon('VIX', days=30)
+            if vix_df is not None and len(vix_df) > 0:
+                vix_price = vix_df['Close'].iloc[-1]
+                vix_prev = vix_df['Close'].iloc[-2] if len(vix_df) > 1 else vix_price
+                vix_change = vix_price - vix_prev
+                
+                if vix_price < 15:
+                    vix_mood = "😌 极度贪婪"
+                elif vix_price < 20:
+                    vix_mood = "🙂 平静"
+                elif vix_price < 25:
+                    vix_mood = "😐 中性"
+                elif vix_price < 30:
+                    vix_mood = "😟 焦虑"
+                else:
+                    vix_mood = "😱 恐惧"
+                    
+                index_data['VIX'] = {
+                    'price': vix_price,
+                    'change': vix_change,
+                    'mood': vix_mood
+                }
+        except:
+            index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '未知'}
+        
+        # 计算市场情绪综合评分
+        bullish_count = sum(1 for k, v in index_data.items() 
+                          if k != 'VIX' and v.get('day_blue', 0) > 100)
+        total_indices = len([k for k in index_data if k != 'VIX'])
+        
+        vix_ok = index_data.get('VIX', {}).get('price', 20) < 25
+        
+        if bullish_count >= 3 and vix_ok:
+            market_sentiment = ("🟢 强势做多", "进攻型 60-80%", "#3fb950")
+        elif bullish_count >= 2:
+            market_sentiment = ("🟡 震荡偏多", "平衡型 40-60%", "#d29922")
+        elif bullish_count >= 1:
+            market_sentiment = ("🟠 分化观望", "防守型 20-40%", "#f85149")
+        else:
+            market_sentiment = ("🔴 弱势防守", "空仓或对冲", "#f85149")
+        
+        index_data['_sentiment'] = market_sentiment
+        index_data['_bullish_count'] = bullish_count
+        
+        st.session_state[cache_key] = index_data
+    else:
+        index_data = st.session_state[cache_key]
+    
+    # === UI 渲染 ===
+    with st.container():
+        st.markdown("### 🌍 Market Pulse")
+        
+        # 5列布局: SPY, QQQ, DIA, IWM, VIX
+        cols = st.columns(5)
+        
+        for i, (symbol, col) in enumerate(zip(['SPY', 'QQQ', 'DIA', 'IWM', 'VIX'], cols)):
+            with col:
+                data = index_data.get(symbol, {})
+                
+                if symbol == 'VIX':
+                    # VIX 特殊显示
+                    price = data.get('price', 0)
+                    change = data.get('change', 0)
+                    mood = data.get('mood', '')
+                    
+                    delta_color = "inverse" if change < 0 else "normal"
+                    st.metric(
+                        label="VIX 恐惧指数",
+                        value=f"{price:.1f}",
+                        delta=f"{change:+.1f}",
+                        delta_color=delta_color
+                    )
+                    st.caption(mood)
+                else:
+                    # 常规指数
+                    price = data.get('price', 0)
+                    change = data.get('change', 0)
+                    day_blue = data.get('day_blue', 0)
+                    week_blue = data.get('week_blue', 0)
+                    chip = data.get('chip', '')
+                    name = data.get('name', symbol)
+                    
+                    # 趋势图标
+                    if change > 0.5:
+                        trend = "📈"
+                    elif change < -0.5:
+                        trend = "📉"
+                    else:
+                        trend = "➡️"
+                    
+                    st.metric(
+                        label=f"{symbol} {trend}",
+                        value=f"${price:.2f}",
+                        delta=f"{change:+.2f}%"
+                    )
+                    
+                    # BLUE 信号 + 筹码
+                    blue_text = f"D:{day_blue:.0f} W:{week_blue:.0f}"
+                    if chip:
+                        blue_text += f" {chip}"
+                    
+                    # 颜色编码
+                    if day_blue > 100:
+                        st.markdown(f"<span style='color:#3fb950;font-size:0.85rem;'>{blue_text}</span>", unsafe_allow_html=True)
+                    elif day_blue > 50:
+                        st.markdown(f"<span style='color:#d29922;font-size:0.85rem;'>{blue_text}</span>", unsafe_allow_html=True)
+                    else:
+                        st.caption(blue_text)
+        
+        # 市场情绪总结
+        sentiment = index_data.get('_sentiment', ('未知', '未知', 'gray'))
+        bullish = index_data.get('_bullish_count', 0)
+        
+        st.markdown(f"""
+        <div style="background: rgba(22, 27, 34, 0.8); border-radius: 8px; padding: 12px 16px; margin-top: 10px; border-left: 4px solid {sentiment[2]};">
+            <span style="font-size: 1.1rem; font-weight: 600;">{sentiment[0]}</span>
+            <span style="color: #8b949e; margin-left: 12px;">建议仓位: {sentiment[1]}</span>
+            <span style="color: #8b949e; margin-left: 12px;">({bullish}/4 指数有日BLUE信号)</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.divider()
+
+
 def get_market_mood(df):
     """根据扫描结果判断市场情绪"""
     if df is None or df.empty:
@@ -307,6 +514,9 @@ def get_market_mood(df):
 
 def render_scan_page():
     st.header("🦅 每日机会扫描 (Opportunity Scanner)")
+    
+    # === Market Pulse Dashboard (顶部) ===
+    render_market_pulse()
     
     # 侧边栏：数据源选择
     with st.sidebar:
