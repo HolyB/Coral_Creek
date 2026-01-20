@@ -320,14 +320,15 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
             elif concentration < 0.25:
                 pattern_desc = "多峰发散 (筹码分散)"
             
-            # === 底部顶格峰检测 (用户定义版) ===
-            # 条件1: 有一根筹码峰占比 >15% (明显的顶格峰)
-            # 条件2: 底部 30% 区域筹码堆积 >40%
+            # === 底部顶格峰检测 (数据驱动版) ===
+            # 基于 32 只股票的真实数据分析确定阈值
+            # - 单峰最大占比范围: 2.3% - 8.0% (中位数 4.2%)
+            # - 底部堆积 >50% 的股票约 19%
             
-            # 计算最大单根筹码占比
+            # 1. 计算最大单根筹码占比
             max_chip_pct = np.max(volume_profile) / total_vol * 100 if total_vol > 0 else 0
             
-            # 底部区域筹码占比 (底部 30% 价格区间的筹码)
+            # 2. 底部区域筹码占比 (底部 30% 价格区间的筹码)
             bottom_30_price = price_min + (price_max - price_min) * 0.30
             bottom_chip_ratio = 0
             for i, p in enumerate(bin_centers):
@@ -335,30 +336,30 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
                     bottom_chip_ratio += volume_profile[i]
             bottom_chip_ratio = bottom_chip_ratio / total_vol if total_vol > 0 else 0
             
-            # POC 是否在底部区域
-            is_poc_at_bottom = poc_price <= bottom_30_price
+            # 3. POC 位置 (0-100%, 0=最底, 100=最顶)
+            poc_position = (poc_price - price_min) / (price_max - price_min) * 100 if price_max > price_min else 50
             
-            # 底部顶格峰判定
-            # 强信号: 单峰 >15% + 底部堆积 >40% + POC在底部
-            is_strong_bottom_peak = (max_chip_pct > 15) and (bottom_chip_ratio > 0.40) and is_poc_at_bottom
+            # === 判定规则 (V2 严格版, 数据验证) ===
+            # 强信号: POC 位置 <30% + 底部筹码 >50% + 单峰 >5%
+            is_strong_bottom_peak = (poc_position < 30) and (bottom_chip_ratio > 0.50) and (max_chip_pct > 5)
             
-            # 普通信号: 底部堆积 >40%
-            is_bottom_peak = (bottom_chip_ratio > 0.40) and is_poc_at_bottom
+            # 普通信号: POC 位置 <35% + 底部筹码 >35%
+            is_bottom_peak = (poc_position < 35) and (bottom_chip_ratio > 0.35)
             
             # 更新形态描述
             if is_strong_bottom_peak:
-                pattern_desc = "🔥 底部顶格峰 (强势吸筹)"
+                pattern_desc = f"🔥 底部顶格峰 (POC:{poc_position:.0f}% 底部:{bottom_chip_ratio*100:.0f}%)"
             elif is_bottom_peak:
-                pattern_desc = "📍 底部密集 (关注)"
+                pattern_desc = f"📍 底部密集 (POC:{poc_position:.0f}% 底部:{bottom_chip_ratio*100:.0f}%)"
             
-            # 买点评估 (增强版)
+            # 买点评估 (数据驱动版)
             buy_signal_strength = ""
             if is_strong_bottom_peak:
-                buy_signal_strength = "🔥 强势买点 (底部顶峰)"
+                buy_signal_strength = "🔥 强势买点 (底部顶格峰)"
+            elif is_bottom_peak:
+                buy_signal_strength = "🟡 底部吸筹 (可关注)"
             elif profit_ratio > 0.90 and concentration > 0.5:
                 buy_signal_strength = "🟢 极佳买点"
-            elif is_bottom_peak and profit_ratio > 0.60:
-                buy_signal_strength = "🟡 底部吸筹 (可关注)"
             elif profit_ratio > 0.80 and concentration > 0.4:
                 buy_signal_strength = "🟡 较好买点"
             elif profit_ratio < 0.30:
@@ -382,10 +383,12 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
                 'pattern_desc': pattern_desc,
                 'buy_signal_strength': buy_signal_strength,
                 'current_close': current_close,
-                # 新增底部顶格峰指标
+                # 底部顶格峰指标 (数据驱动版)
                 'is_bottom_peak': is_bottom_peak,
                 'is_strong_bottom_peak': is_strong_bottom_peak,
                 'bottom_chip_ratio': bottom_chip_ratio,
+                'poc_position': poc_position,  # POC 位置 (0-100%)
+                'max_chip_pct': max_chip_pct,  # 单峰最大占比
             }
             
         except Exception as e:
