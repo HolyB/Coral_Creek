@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
-from chart_utils import create_candlestick_chart, create_candlestick_chart_dynamic, analyze_chip_flow, create_chip_flow_chart, create_chip_change_chart
+from chart_utils import create_candlestick_chart, create_candlestick_chart_dynamic, analyze_chip_flow, create_chip_flow_chart, create_chip_change_chart, quick_chip_analysis
 from data_fetcher import get_us_stock_data as fetch_data_from_polygon, get_ticker_details
 from indicator_utils import calculate_blue_signal_series, calculate_heima_signal_series, calculate_adx_series
 from backtester import SimpleBacktester
@@ -550,6 +550,37 @@ def render_scan_page():
 
     # 3. 机会清单
     st.subheader("📋 机会清单 (Opportunity Matrix)")
+    
+    # 底部顶格峰计算选项
+    col_opt1, col_opt2 = st.columns([1, 3])
+    with col_opt1:
+        calc_chip = st.checkbox("🔥 计算筹码形态", value=False, help="计算底部顶格峰 (需要约 1-2 分钟)")
+    
+    # 如果启用，计算筹码分布
+    if calc_chip:
+        with st.spinner("正在分析筹码分布..."):
+            chip_labels = []
+            for ticker in df['Ticker'].tolist():
+                try:
+                    stock_df = fetch_data_from_polygon(ticker, days=100)
+                    if stock_df is not None and len(stock_df) >= 30:
+                        result = quick_chip_analysis(stock_df)
+                        if result:
+                            chip_labels.append(result.get('label', ''))
+                        else:
+                            chip_labels.append('')
+                    else:
+                        chip_labels.append('')
+                except Exception as e:
+                    chip_labels.append('')
+            
+            df['筹码形态'] = chip_labels
+            
+            # 统计底部顶格峰数量
+            strong_peaks = chip_labels.count('🔥')
+            normal_peaks = chip_labels.count('📍')
+            if strong_peaks > 0 or normal_peaks > 0:
+                st.success(f"🔥 强势顶格峰: {strong_peaks} 只 | 📍 底部密集: {normal_peaks} 只")
 
     column_config = {
         "Ticker": st.column_config.TextColumn("代码", help="股票代码", width="small"),
@@ -577,11 +608,12 @@ def render_scan_page():
         "Shares Rec": st.column_config.NumberColumn("建议仓位", format="%d 股", help="基于$1000风险敞口的建议股数"),
         "Wave_Desc": st.column_config.TextColumn("波浪形态", width="medium", help="Elliott Wave"),
         "Chan_Desc": st.column_config.TextColumn("缠论形态", width="medium", help="Chan Theory"),
-        "Profit_Ratio": st.column_config.NumberColumn("获利盘", format="%.0f%%", help="获利盘比例")
+        "Profit_Ratio": st.column_config.NumberColumn("获利盘", format="%.0f%%", help="获利盘比例"),
+        "筹码形态": st.column_config.TextColumn("筹码", width="small", help="🔥=强势顶格峰 📍=底部密集")
     }
 
-    # 显示列顺序：核心指标在前，日/周/月 BLUE 放一起
-    display_cols = ['Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    # 显示列顺序：核心指标在前，筹码形态紧跟策略
+    display_cols = ['Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # 默认按 Day BLUE 降序排列

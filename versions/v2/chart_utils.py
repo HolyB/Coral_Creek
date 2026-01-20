@@ -1144,3 +1144,105 @@ def create_candlestick_chart(df, symbol, name, period='daily', day_blue_dates=No
     
     return fig
 
+
+def quick_chip_analysis(df, decay_factor=0.97):
+    """
+    快速计算筹码分布指标（不生成图表）
+    用于在表格中显示底部顶格峰指标
+    
+    Args:
+        df: 包含 OHLCV 的 DataFrame (日线数据)
+        decay_factor: 时间衰减因子
+    
+    Returns:
+        dict: 筹码分析结果，包含 is_bottom_peak, is_strong_bottom_peak 等
+    """
+    if df is None or len(df) < 30:
+        return None
+    
+    try:
+        price_min = df['Low'].min()
+        price_max = df['High'].max()
+        price_range = price_max - price_min
+        
+        if price_range <= 0:
+            return None
+        
+        bins = 70
+        bin_size = price_range / bins
+        volume_profile = np.zeros(bins)
+        bin_centers = np.linspace(price_min, price_max, bins + 1)
+        bin_centers = (bin_centers[:-1] + bin_centers[1:]) / 2
+        
+        total_days = len(df)
+        for i, (idx, row) in enumerate(df.iterrows()):
+            day_high = row['High']
+            day_low = row['Low']
+            day_close = row['Close']
+            day_vol = row['Volume']
+            
+            days_ago = total_days - 1 - i
+            time_weight = decay_factor ** days_ago
+            weighted_vol = day_vol * time_weight
+            
+            if day_high == day_low or bin_size == 0:
+                bin_idx = int((day_close - price_min) / bin_size)
+                bin_idx = min(max(bin_idx, 0), bins - 1)
+                volume_profile[bin_idx] += weighted_vol
+            else:
+                start_bin = int((day_low - price_min) / bin_size)
+                end_bin = int((day_high - price_min) / bin_size)
+                start_bin = max(start_bin, 0)
+                end_bin = min(end_bin, bins - 1)
+                close_bin = int((day_close - price_min) / bin_size)
+                close_bin = min(max(close_bin, start_bin), end_bin)
+                
+                if start_bin == end_bin:
+                    volume_profile[start_bin] += weighted_vol
+                else:
+                    for b in range(start_bin, end_bin + 1):
+                        dist_to_close = abs(b - close_bin)
+                        max_dist = max(close_bin - start_bin, end_bin - close_bin, 1)
+                        weight = 1.0 - 0.8 * (dist_to_close / max_dist)
+                        volume_profile[b] += weighted_vol * weight
+        
+        total_vol = np.sum(volume_profile)
+        if total_vol == 0:
+            return None
+        
+        # POC
+        poc_idx = np.argmax(volume_profile)
+        poc_price = bin_centers[poc_idx]
+        
+        # 最大单峰占比
+        max_chip_pct = np.max(volume_profile) / total_vol * 100
+        
+        # POC 位置 (0-100%)
+        poc_position = (poc_price - price_min) / price_range * 100
+        
+        # 底部筹码占比
+        bottom_30_price = price_min + price_range * 0.30
+        bottom_chip_ratio = sum(volume_profile[bin_centers <= bottom_30_price]) / total_vol
+        
+        # 判定规则
+        is_strong_bottom_peak = (poc_position < 30) and (bottom_chip_ratio > 0.50) and (max_chip_pct > 5)
+        is_bottom_peak = (poc_position < 35) and (bottom_chip_ratio > 0.35)
+        
+        # 标签
+        if is_strong_bottom_peak:
+            label = "🔥"
+        elif is_bottom_peak:
+            label = "📍"
+        else:
+            label = ""
+        
+        return {
+            'is_bottom_peak': is_bottom_peak,
+            'is_strong_bottom_peak': is_strong_bottom_peak,
+            'bottom_chip_ratio': bottom_chip_ratio,
+            'poc_position': poc_position,
+            'max_chip_pct': max_chip_pct,
+            'label': label
+        }
+    except Exception as e:
+        return None
