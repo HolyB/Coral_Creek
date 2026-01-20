@@ -516,6 +516,17 @@ def render_scan_page():
                 selected_chans = st.multiselect("缠论信号", all_chans, default=all_chans)
                 if selected_chans:
                     df = df[df['Chan_Signal'].isin(selected_chans)]
+            
+            # 筹码形态筛选 (需要先计算筹码)
+            st.caption("💡 勾选下方「计算筹码形态」后可使用筹码筛选")
+            chip_filter = st.selectbox(
+                "🔥 筹码形态筛选",
+                options=["全部", "仅强势顶格峰 🔥", "仅底部密集 📍", "有底部信号 (🔥+📍)"],
+                index=0,
+                help="需要先启用筹码形态计算"
+            )
+            # 存储到 session_state 供后续使用
+            st.session_state['chip_filter'] = chip_filter
         
         # 显示筛选结果统计
         st.divider()
@@ -619,6 +630,18 @@ def render_scan_page():
             normal_peaks = chip_labels.count('📍')
             if strong_peaks > 0 or normal_peaks > 0:
                 st.success(f"✅ 分析完成！🔥 强势顶格峰: {strong_peaks} 只 | 📍 底部密集: {normal_peaks} 只")
+        
+        # 应用筹码筛选器
+        chip_filter = st.session_state.get('chip_filter', '全部')
+        if '筹码形态' in df.columns and chip_filter != '全部':
+            before_count = len(df)
+            if chip_filter == "仅强势顶格峰 🔥":
+                df = df[df['筹码形态'] == '🔥']
+            elif chip_filter == "仅底部密集 📍":
+                df = df[df['筹码形态'] == '📍']
+            elif chip_filter == "有底部信号 (🔥+📍)":
+                df = df[df['筹码形态'].isin(['🔥', '📍'])]
+            st.info(f"📊 筹码筛选: {before_count} → {len(df)} 只")
 
     column_config = {
         "Ticker": st.column_config.TextColumn("代码", help="股票代码", width="small"),
