@@ -2544,20 +2544,130 @@ def render_ml_lab_page():
                     st.code(traceback.format_exc())
     
     with tab3:
-        st.subheader("LLM 智能分析")
+        st.subheader("LLM 智能分析 💬")
         st.info("使用大语言模型进行市场分析和自然语言查询")
         
-        st.markdown("""
-        ### 🚧 开发中
+        from ml.llm_intelligence import check_llm_available, LLMAnalyzer
         
-        计划功能:
-        - 📰 新闻情感分析
-        - 💬 自然语言查询 ("找出超卖的科技股")
-        - 📝 自动生成市场报告
-        - 🔍 财报摘要分析
-        """)
+        # 检查 API 状态
+        llm_status = check_llm_available()
         
-        st.caption("需要配置: `OPENAI_API_KEY` 或 `ANTHROPIC_API_KEY`")
+        col1, col2 = st.columns(2)
+        with col1:
+            status = "✅" if llm_status['openai'] else "❌"
+            st.write(f"{status} OpenAI SDK")
+        with col2:
+            status = "✅" if llm_status['anthropic'] else "❌"
+            st.write(f"{status} Anthropic SDK")
+        
+        # API Key 状态
+        openai_key = os.environ.get('OPENAI_API_KEY', '')
+        anthropic_key = os.environ.get('ANTHROPIC_API_KEY', '')
+        
+        if not openai_key and not anthropic_key:
+            st.warning("⚠️ 未配置 API Key。请设置 `OPENAI_API_KEY` 或 `ANTHROPIC_API_KEY` 环境变量。")
+            st.code("export OPENAI_API_KEY='your-api-key'", language="bash")
+            
+            # 允许临时输入
+            with st.expander("🔑 临时输入 API Key"):
+                temp_key = st.text_input("OpenAI API Key", type="password", key="temp_openai")
+                if temp_key:
+                    os.environ['OPENAI_API_KEY'] = temp_key
+                    st.success("✅ API Key 已设置 (仅本次会话有效)")
+                    st.rerun()
+            return
+        
+        # 选择提供商
+        provider = "openai" if openai_key else "anthropic"
+        st.success(f"✅ 已配置 {provider.upper()} API")
+        
+        # 三个子功能
+        llm_tab1, llm_tab2, llm_tab3 = st.tabs(["💬 AI 问答", "📊 情感分析", "📝 市场报告"])
+        
+        with llm_tab1:
+            st.markdown("### 💬 AI 问答助手")
+            st.caption("问我任何关于量化交易、技术指标的问题")
+            
+            # 聊天历史
+            if 'chat_history' not in st.session_state:
+                st.session_state.chat_history = []
+            
+            # 显示历史
+            for msg in st.session_state.chat_history[-6:]:  # 最近 6 条
+                with st.chat_message(msg['role']):
+                    st.write(msg['content'])
+            
+            # 用户输入
+            user_input = st.chat_input("输入你的问题...")
+            
+            if user_input:
+                # 添加用户消息
+                st.session_state.chat_history.append({"role": "user", "content": user_input})
+                
+                with st.chat_message("user"):
+                    st.write(user_input)
+                
+                # AI 回复
+                with st.chat_message("assistant"):
+                    with st.spinner("思考中..."):
+                        analyzer = LLMAnalyzer(provider)
+                        response = analyzer.natural_query(user_input)
+                        st.write(response)
+                        st.session_state.chat_history.append({"role": "assistant", "content": response})
+        
+        with llm_tab2:
+            st.markdown("### 📊 新闻情感分析")
+            st.caption("分析财经新闻或社交媒体情感")
+            
+            sample_text = st.text_area(
+                "输入文本",
+                placeholder="粘贴新闻标题、推文或财经评论...",
+                height=100
+            )
+            
+            if st.button("🔍 分析情感", key="sentiment_btn"):
+                if sample_text:
+                    with st.spinner("分析中..."):
+                        analyzer = LLMAnalyzer(provider)
+                        result = analyzer.analyze_sentiment(sample_text)
+                        
+                        if 'error' in result:
+                            st.error(result['error'])
+                        else:
+                            # 显示结果
+                            sentiment = result.get('sentiment', 'neutral')
+                            confidence = result.get('confidence', 0)
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                emoji = "🟢" if sentiment == "bullish" else ("🔴" if sentiment == "bearish" else "⚪")
+                                st.metric("情感", f"{emoji} {sentiment.upper()}")
+                            with col2:
+                                st.metric("置信度", f"{confidence:.0%}")
+                            
+                            st.markdown("**要点:**")
+                            for point in result.get('key_points', []):
+                                st.write(f"• {point}")
+                            
+                            st.markdown(f"**分析:** {result.get('reasoning', '')}")
+                else:
+                    st.warning("请输入文本")
+        
+        with llm_tab3:
+            st.markdown("### 📝 AI 市场报告")
+            st.caption("基于当日信号自动生成市场分析报告")
+            
+            if st.button("📄 生成报告", key="report_btn"):
+                with st.spinner("正在生成报告..."):
+                    # 获取今日信号
+                    from datetime import datetime
+                    today = datetime.now().strftime('%Y-%m-%d')
+                    signals = query_scan_results(scan_date=today, market='US', limit=20)
+                    
+                    analyzer = LLMAnalyzer(provider)
+                    report = analyzer.generate_market_report(signals)
+                    
+                    st.markdown(report)
 
 
 # --- 主导航 ---
