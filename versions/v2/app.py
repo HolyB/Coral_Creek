@@ -554,33 +554,71 @@ def render_scan_page():
     # 底部顶格峰计算选项
     col_opt1, col_opt2 = st.columns([1, 3])
     with col_opt1:
-        calc_chip = st.checkbox("🔥 计算筹码形态", value=False, help="计算底部顶格峰 (需要约 1-2 分钟)")
+        calc_chip = st.checkbox("🔥 计算筹码形态", value=False, help="计算底部顶格峰 (首次约 30-60 秒，后续使用缓存)")
     
-    # 如果启用，计算筹码分布
+    # 使用 session_state 缓存结果
+    cache_key = f"chip_cache_{selected_date}_{market}"
+    
     if calc_chip:
-        with st.spinner("正在分析筹码分布..."):
-            chip_labels = []
-            for ticker in df['Ticker'].tolist():
+        # 检查缓存
+        if cache_key in st.session_state:
+            cached_data = st.session_state[cache_key]
+            # 验证缓存是否包含当前所有股票
+            cached_tickers = set(cached_data.keys())
+            current_tickers = set(df['Ticker'].tolist())
+            if current_tickers.issubset(cached_tickers):
+                # 使用缓存
+                chip_labels = [cached_data.get(t, '') for t in df['Ticker'].tolist()]
+                df['筹码形态'] = chip_labels
+                strong_peaks = chip_labels.count('🔥')
+                normal_peaks = chip_labels.count('📍')
+                st.caption(f"⚡ 使用缓存 | 🔥 强势: {strong_peaks} | 📍 底部密集: {normal_peaks}")
+            else:
+                # 缓存不完整，需要重新计算
+                st.session_state.pop(cache_key, None)
+                st.rerun()
+        else:
+            # 并行计算
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            
+            tickers = df['Ticker'].tolist()
+            results = {}
+            
+            def calc_single(ticker):
                 try:
                     stock_df = fetch_data_from_polygon(ticker, days=100)
                     if stock_df is not None and len(stock_df) >= 30:
                         result = quick_chip_analysis(stock_df)
-                        if result:
-                            chip_labels.append(result.get('label', ''))
-                        else:
-                            chip_labels.append('')
-                    else:
-                        chip_labels.append('')
-                except Exception as e:
-                    chip_labels.append('')
+                        return ticker, result.get('label', '') if result else ''
+                    return ticker, ''
+                except:
+                    return ticker, ''
             
+            progress_bar = st.progress(0, text="正在分析筹码分布...")
+            
+            # 使用线程池并行计算 (最多 10 个并发)
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = {executor.submit(calc_single, t): t for t in tickers}
+                completed = 0
+                for future in as_completed(futures):
+                    ticker, label = future.result()
+                    results[ticker] = label
+                    completed += 1
+                    progress_bar.progress(completed / len(tickers), 
+                                          text=f"分析中 {completed}/{len(tickers)} ({ticker})")
+            
+            progress_bar.empty()
+            
+            # 保存到缓存
+            st.session_state[cache_key] = results
+            
+            chip_labels = [results.get(t, '') for t in tickers]
             df['筹码形态'] = chip_labels
             
-            # 统计底部顶格峰数量
             strong_peaks = chip_labels.count('🔥')
             normal_peaks = chip_labels.count('📍')
             if strong_peaks > 0 or normal_peaks > 0:
-                st.success(f"🔥 强势顶格峰: {strong_peaks} 只 | 📍 底部密集: {normal_peaks} 只")
+                st.success(f"✅ 分析完成！🔥 强势顶格峰: {strong_peaks} 只 | 📍 底部密集: {normal_peaks} 只")
 
     column_config = {
         "Ticker": st.column_config.TextColumn("代码", help="股票代码", width="small"),
