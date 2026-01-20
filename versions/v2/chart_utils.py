@@ -320,13 +320,23 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
             elif concentration < 0.25:
                 pattern_desc = "多峰发散 (筹码分散)"
             
-            # === 底部顶格峰检测 ===
-            # 定义: POC 在价格区间的底部 25% 范围内
-            price_range_25 = price_min + (price_max - price_min) * 0.25
-            is_bottom_peak = poc_price <= price_range_25
+            # === 底部顶格峰检测 (修正版) ===
+            # 真正的底部顶格峰: POC 在底部 + 当前价格接近 POC + 筹码集中
+            # 这代表筹码在底部完成换手，主力吸筹完成
             
-            # 更严格的底部顶格峰: POC 在底部 + 获利盘 > 70% + 集中度高
-            is_strong_bottom_peak = is_bottom_peak and profit_ratio > 0.70 and concentration > 0.35
+            # 1. POC 在价格区间的底部 30% 范围内
+            price_range_30 = price_min + (price_max - price_min) * 0.30
+            is_poc_at_bottom = poc_price <= price_range_30
+            
+            # 2. 当前价格接近 POC (在 POC 的 ±15% 以内)
+            price_near_poc = abs(current_close - poc_price) / poc_price < 0.15 if poc_price > 0 else False
+            
+            # 3. 筹码集中度高 (底部聚集)
+            is_concentrated = concentration > 0.30
+            
+            # 底部顶格峰: POC在底部 + 价格接近POC + 筹码集中
+            is_bottom_peak = is_poc_at_bottom and price_near_poc
+            is_strong_bottom_peak = is_bottom_peak and is_concentrated
             
             # 底部区域筹码占比 (底部 30% 价格区间的筹码)
             bottom_30_price = price_min + (price_max - price_min) * 0.30
