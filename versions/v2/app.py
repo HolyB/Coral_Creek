@@ -363,21 +363,22 @@ def render_market_pulse():
                     'error': str(e)
                 }
         
-        # VIX 数据
+        # VIX 数据 (使用 VIXY ETF 因为 VIX 直接指数无法获取)
         try:
-            vix_df = fetch_data_from_polygon('VIX', days=30)
+            vix_df = fetch_data_from_polygon('VIXY', days=30)
             if vix_df is not None and len(vix_df) > 0:
                 vix_price = vix_df['Close'].iloc[-1]
                 vix_prev = vix_df['Close'].iloc[-2] if len(vix_df) > 1 else vix_price
                 vix_change = vix_price - vix_prev
                 
-                if vix_price < 15:
+                # VIXY 的阈值需要调整 (ETF 价格不同于 VIX 指数)
+                if vix_price < 20:
                     vix_mood = "😌 极度贪婪"
-                elif vix_price < 20:
-                    vix_mood = "🙂 平静"
                 elif vix_price < 25:
-                    vix_mood = "😐 中性"
+                    vix_mood = "🙂 平静"
                 elif vix_price < 30:
+                    vix_mood = "😐 中性"
+                elif vix_price < 40:
                     vix_mood = "😟 焦虑"
                 else:
                     vix_mood = "😱 恐惧"
@@ -387,8 +388,41 @@ def render_market_pulse():
                     'change': vix_change,
                     'mood': vix_mood
                 }
+            else:
+                index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '数据不可用'}
         except:
             index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '未知'}
+        
+        # 商品/加密资产数据 (Gold, Silver, BTC)
+        alt_assets = {
+            'GLD': {'name': '黄金', 'emoji': '🥇', 'format': '${:.2f}'},
+            'SLV': {'name': '白银', 'emoji': '🥈', 'format': '${:.2f}'},
+            'X:BTCUSD': {'name': 'BTC', 'emoji': '₿', 'format': '${:,.0f}'}
+        }
+        
+        for symbol, info in alt_assets.items():
+            try:
+                df = fetch_data_from_polygon(symbol, days=30)
+                if df is not None and len(df) > 0:
+                    price = df['Close'].iloc[-1]
+                    prev_price = df['Close'].iloc[-2] if len(df) > 1 else price
+                    change = (price - prev_price) / prev_price * 100
+                    
+                    index_data[symbol] = {
+                        'name': info['name'],
+                        'emoji': info['emoji'],
+                        'price': price,
+                        'change': change,
+                        'format': info['format']
+                    }
+            except:
+                index_data[symbol] = {
+                    'name': info['name'],
+                    'emoji': info['emoji'],
+                    'price': 0,
+                    'change': 0,
+                    'format': info['format']
+                }
         
         # 计算市场情绪综合评分
         bullish_count = sum(1 for k, v in index_data.items() 
@@ -473,6 +507,39 @@ def render_market_pulse():
                         st.markdown(f"<span style='color:#d29922;font-size:0.85rem;'>{blue_text}</span>", unsafe_allow_html=True)
                     else:
                         st.caption(blue_text)
+        
+        # === 第二行: 商品/加密资产 ===
+        st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
+        alt_cols = st.columns(4)
+        
+        for i, (symbol, col) in enumerate(zip(['GLD', 'SLV', 'X:BTCUSD'], alt_cols[:3])):
+            with col:
+                data = index_data.get(symbol, {})
+                price = data.get('price', 0)
+                change = data.get('change', 0)
+                name = data.get('name', symbol)
+                emoji = data.get('emoji', '')
+                fmt = data.get('format', '${:.2f}')
+                
+                # 趋势图标
+                if change > 0.5:
+                    trend = "📈"
+                elif change < -0.5:
+                    trend = "📉"
+                else:
+                    trend = "➡️"
+                
+                # 格式化价格
+                try:
+                    formatted_price = fmt.format(price)
+                except:
+                    formatted_price = f"${price:.2f}"
+                
+                st.metric(
+                    label=f"{emoji} {name} {trend}",
+                    value=formatted_price,
+                    delta=f"{change:+.2f}%"
+                )
         
         # 市场情绪总结
         sentiment = index_data.get('_sentiment', ('未知', '未知', 'gray'))
