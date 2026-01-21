@@ -289,7 +289,7 @@ def render_market_pulse(market='US'):
     US: SPY/QQQ/DIA/IWM + VIX
     CN: 上证/深证/创业板/沪深300
     """
-    from data_fetcher import get_cn_stock_data
+    from data_fetcher import get_cn_index_data
     
     # 缓存键 (每10分钟刷新, 按市场区分)
     from datetime import datetime
@@ -306,7 +306,7 @@ def render_market_pulse(market='US'):
                 '399006.SZ': {'name': '创业板指', 'emoji': '💡'},
                 '000300.SH': {'name': '沪深300', 'emoji': '📊'},
             }
-            data_fetcher = get_cn_stock_data
+            data_fetcher = get_cn_index_data
             currency = '¥'
         else:
             indices = {
