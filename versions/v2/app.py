@@ -1083,25 +1083,184 @@ def render_scan_page():
     display_cols = ['Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
-    # 默认按 Day BLUE 降序排列
-    if 'Day BLUE' in df.columns:
-        df = df.sort_values('Day BLUE', ascending=False)
+    # === 按用户要求分4个标签页 ===
+    # 预先计算各类别数据
+    has_day = df['Day BLUE'] > 0 if 'Day BLUE' in df.columns else False
+    has_week = df['Week BLUE'] > 0 if 'Week BLUE' in df.columns else False
+    has_month = df['Month BLUE'] > 0 if 'Month BLUE' in df.columns else False
+    
+    # 1. 只日BLUE: Day > 0, Week = 0
+    df_day_only = df[has_day & ~has_week].sort_values('Day BLUE', ascending=False) if 'Day BLUE' in df.columns else df.head(0)
+    
+    # 2. 日周/只周: (Day > 0 AND Week > 0) OR (Day = 0 AND Week > 0)
+    df_day_week = df[(has_day & has_week) | (~has_day & has_week)].sort_values('Week BLUE', ascending=False) if 'Week BLUE' in df.columns else df.head(0)
+    
+    # 3. 日周月/只月: (Day > 0 AND Week > 0 AND Month > 0) OR (Month > 0)
+    df_month = df[(has_day & has_week & has_month) | has_month].sort_values('Month BLUE', ascending=False) if 'Month BLUE' in df.columns else df.head(0)
+    
+    # 4. 特殊信号 (黑马/掘地) - 只要有黑马或掘地就显示，不管日周月
+    heima_cache_key = f"heima_cache_{selected_date}_{selected_market}"
+    if heima_cache_key in st.session_state:
+        heima_data = st.session_state[heima_cache_key]
+        df['黑马'] = df['Ticker'].map(lambda t: heima_data.get(t, {}).get('heima', False))
+        df['掘地'] = df['Ticker'].map(lambda t: heima_data.get(t, {}).get('juedi', False))
+        df_special = df[(df['黑马'] == True) | (df['掘地'] == True)].copy()
+    else:
+        df_special = df.head(0)
+    
+    # 计算各标签页数量
+    count_day_only = len(df_day_only)
+    count_day_week = len(df_day_week)
+    count_month = len(df_month)
+    count_special = len(df_special)
+    
+    # 创建标签页
+    tab_day_only, tab_day_week, tab_month, tab_special = st.tabs([
+        f"📈 只日线 ({count_day_only})",
+        f"📊 日+周线 ({count_day_week})",
+        f"📅 含月线 ({count_month})",
+        f"🐴⛏️ 特殊信号 ({count_special})"
+    ])
+    
+    # 用于存储各标签页选择的行 (用于深度透视)
+    selected_ticker = None
+    selected_row_data = None
+    
+    with tab_day_only:
+        st.caption("💡 只有日线信号，尚未形成周线共振，适合短线")
+        if len(df_day_only) > 0:
+            df_day_only = df_day_only.sort_values('Day BLUE', ascending=False)
+            event1 = st.dataframe(
+                df_day_only[existing_cols],
+                column_config=column_config,
+                use_container_width=True,
+                hide_index=True,
+                selection_mode="single-row",
+                on_select="rerun",
+                key="df_day_only"
+            )
+            if event1 and hasattr(event1, 'selection') and event1.selection.rows:
+                idx = event1.selection.rows[0]
+                if idx < len(df_day_only):
+                    selected_ticker = df_day_only.iloc[idx]['Ticker']
+                    selected_row_data = df_day_only.iloc[idx]
+        else:
+            st.info("暂无只有日线信号的股票")
+    
+    with tab_day_week:
+        st.caption("💡 日周双信号共振 或 周线独立信号，中期趋势确认")
+        if len(df_day_week) > 0:
+            df_day_week = df_day_week.sort_values('Week BLUE', ascending=False)
+            event2 = st.dataframe(
+                df_day_week[existing_cols],
+                column_config=column_config,
+                use_container_width=True,
+                hide_index=True,
+                selection_mode="single-row",
+                on_select="rerun",
+                key="df_day_week"
+            )
+            if event2 and hasattr(event2, 'selection') and event2.selection.rows:
+                idx = event2.selection.rows[0]
+                if idx < len(df_day_week):
+                    selected_ticker = df_day_week.iloc[idx]['Ticker']
+                    selected_row_data = df_day_week.iloc[idx]
+        else:
+            st.info("暂无日周共振或周线信号的股票")
+    
+    with tab_month:
+        st.caption("💡 日周月三重共振 或 月线信号，大级别底部机会")
+        if len(df_month) > 0:
+            df_month = df_month.sort_values('Month BLUE', ascending=False)
+            event3 = st.dataframe(
+                df_month[existing_cols],
+                column_config=column_config,
+                use_container_width=True,
+                hide_index=True,
+                selection_mode="single-row",
+                on_select="rerun",
+                key="df_month"
+            )
+            if event3 and hasattr(event3, 'selection') and event3.selection.rows:
+                idx = event3.selection.rows[0]
+                if idx < len(df_month):
+                    selected_ticker = df_month.iloc[idx]['Ticker']
+                    selected_row_data = df_month.iloc[idx]
+        else:
+            st.info("暂无含月线信号的股票")
+    
+    with tab_special:
+        st.caption("🐴 黑马信号 / ⛏️ 掘地信号：有特殊形态的股票（不限日周月）")
+        if heima_cache_key not in st.session_state:
+            st.info("需要先扫描特殊信号，点击下方按钮开始")
+            if st.button("🔍 扫描黑马/掘地信号", key="scan_heima"):
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+                from indicator_utils import calculate_heima_signal_series
+                
+                tickers = df['Ticker'].tolist()
+                results = {}
+                
+                def calc_heima_single(ticker):
+                    try:
+                        stock_df = fetch_data_from_polygon(ticker, days=100)
+                        if stock_df is not None and len(stock_df) >= 30:
+                            heima, juedi = calculate_heima_signal_series(
+                                stock_df['High'].values,
+                                stock_df['Low'].values,
+                                stock_df['Close'].values,
+                                stock_df['Open'].values
+                            )
+                            return ticker, {'heima': bool(heima[-1]), 'juedi': bool(juedi[-1])}
+                        return ticker, {'heima': False, 'juedi': False}
+                    except:
+                        return ticker, {'heima': False, 'juedi': False}
+                
+                progress = st.progress(0, text="正在扫描黑马/掘地信号...")
+                
+                with ThreadPoolExecutor(max_workers=10) as executor:
+                    futures = {executor.submit(calc_heima_single, t): t for t in tickers}
+                    completed = 0
+                    for future in as_completed(futures):
+                        ticker, signals = future.result()
+                        results[ticker] = signals
+                        completed += 1
+                        progress.progress(completed / len(tickers), text=f"扫描中 {completed}/{len(tickers)}")
+                
+                progress.empty()
+                st.session_state[heima_cache_key] = results
+                
+                heima_count = sum(1 for r in results.values() if r['heima'])
+                juedi_count = sum(1 for r in results.values() if r['juedi'])
+                st.success(f"✅ 扫描完成！🐴 黑马: {heima_count} 只 | ⛏️ 掘地: {juedi_count} 只")
+                st.rerun()
+        elif len(df_special) > 0:
+            # 添加信号类型标记
+            df_special['信号类型'] = df_special.apply(
+                lambda r: '🐴黑马' if r.get('黑马') else ('⛏️掘地' if r.get('掘地') else ''), axis=1
+            )
+            display_with_signal = ['信号类型'] + existing_cols
+            cols_to_show = [c for c in display_with_signal if c in df_special.columns]
+            event4 = st.dataframe(
+                df_special[cols_to_show],
+                column_config=column_config,
+                use_container_width=True,
+                hide_index=True,
+                selection_mode="single-row",
+                on_select="rerun",
+                key="df_special"
+            )
+            if event4 and hasattr(event4, 'selection') and event4.selection.rows:
+                idx = event4.selection.rows[0]
+                if idx < len(df_special):
+                    selected_ticker = df_special.iloc[idx]['Ticker']
+                    selected_row_data = df_special.iloc[idx]
+        else:
+            st.info("暂无黑马或掘地信号的股票")
 
-    event = st.dataframe(
-        df[existing_cols],
-        column_config=column_config,
-        use_container_width=True,
-        hide_index=True,
-        selection_mode="single-row",
-        on_select="rerun"
-    )
-
-    # 4. 深度透视
-    selected_rows = event.selection.rows
-    if selected_rows:
-        selected_index = selected_rows[0]
-        selected_row = df.iloc[selected_index]
-        symbol = selected_row['Ticker']
+    # 4. 深度透视 (所有标签页都支持选择)
+    if selected_ticker is not None and selected_row_data is not None:
+        symbol = selected_ticker
+        selected_row = selected_row_data
         
         st.divider()
         st.subheader(f"🔍 深度透视: {symbol}")

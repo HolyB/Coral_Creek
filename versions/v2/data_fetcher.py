@@ -291,6 +291,55 @@ def get_cn_stock_data(symbol, days=365):
         print(f"Error in get_cn_stock_data: {e}")
         return None
 
+
+def get_cn_index_data(symbol, days=365):
+    """获取A股指数历史数据（使用Tushare index_daily API）
+    
+    Args:
+        symbol: 指数代码，如 '000001.SH' (上证指数), '399001.SZ' (深证成指)
+        days: 获取天数
+    """
+    try:
+        import tushare as ts
+        
+        token = os.getenv('TUSHARE_TOKEN')
+        if token:
+            ts.set_token(token)
+        
+        pro = ts.pro_api()
+        
+        end_date = datetime.now().strftime('%Y%m%d')
+        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y%m%d')
+        
+        try:
+            # 使用 index_daily API 获取指数数据
+            df = pro.index_daily(ts_code=symbol, start_date=start_date, end_date=end_date)
+            
+            if df is None or df.empty:
+                return None
+            
+            df['trade_date'] = pd.to_datetime(df['trade_date'], format='%Y%m%d')
+            df.set_index('trade_date', inplace=True)
+            df.sort_index(inplace=True)
+            
+            # 重命名列以匹配标准格式
+            df.rename(columns={
+                'open': 'Open',
+                'high': 'High',
+                'low': 'Low',
+                'close': 'Close',
+                'vol': 'Volume'
+            }, inplace=True)
+            
+            return df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        except Exception as e:
+            print(f"Error fetching Tushare index data for {symbol}: {e}")
+            return None
+    except Exception as e:
+        print(f"Error in get_cn_index_data: {e}")
+        return None
+
+
 def get_stock_data(symbol, market='US', days=365):
     """通用函数：根据市场类型获取股票数据"""
     if market == 'US':
@@ -299,3 +348,4 @@ def get_stock_data(symbol, market='US', days=365):
         return get_cn_stock_data(symbol, days)
     else:
         return None
+
