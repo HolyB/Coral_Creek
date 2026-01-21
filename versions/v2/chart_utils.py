@@ -412,7 +412,7 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
     fig.add_hline(y=100, line_dash="dash", line_color="red", 
                   annotation_text="100", 
                   annotation_position="left",
-                  annotation=dict(font_size=10),
+                   annotation=dict(font_size=10),
                   row=2, col=1)
     
     # 添加止损线 (如果提供)
@@ -422,6 +422,38 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
                      annotation_position="left",
                      annotation=dict(font_size=9),
                      row=1, col=1)
+
+    # === 添加黑马信号标记 ===
+    try:
+        # 计算黑马信号
+        from indicator_utils import calculate_heima_signal_series
+        heima_signal, juedi_signal = calculate_heima_signal_series(HIGH, LOW, CLOSE, OPEN)
+        
+        # 找出黑马信号的日期
+        heima_dates_calc = chart_df.index[heima_signal].tolist()
+        
+        if len(heima_dates_calc) > 0:
+            # 获取黑马信号日期对应的价格 (标记在最低价下方)
+            heima_prices = [chart_df.loc[d, 'Low'] for d in heima_dates_calc if d in chart_df.index]
+            heima_dates_valid = [d for d in heima_dates_calc if d in chart_df.index]
+            
+            if heima_dates_valid:
+                fig.add_trace(
+                    go.Scatter(
+                        x=heima_dates_valid,
+                        y=[p * 0.98 for p in heima_prices],  # 稍微低于最低价
+                        mode='markers+text',
+                        marker=dict(symbol='triangle-up', size=12, color='#a371f7'),
+                        text=['🐴'] * len(heima_dates_valid),
+                        textposition='bottom center',
+                        name='黑马信号',
+                        showlegend=True,
+                        hovertemplate='黑马信号<br>%{x}<extra></extra>'
+                    ),
+                    row=1, col=1
+                )
+    except Exception as e:
+        pass  # 忽略黑马信号计算错误
 
     # === 优化布局，解决字体重叠 ===
     fig.update_layout(
