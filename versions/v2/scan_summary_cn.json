@@ -1,7 +1,7 @@
 {
   "date": "2026-01-20",
   "market": "CN",
-  "total_signals": 62,
+  "total_signals": 83,
   "top_signals": [
     {
       "symbol": "601916.SH",
@@ -32,6 +32,20 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "300436.SZ",
+      "name": "广生堂",
+      "price": 80.19,
+      "day_blue": 153.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002936.SZ",
+      "name": "郑州银行",
+      "price": 1.91,
+      "day_blue": 151.4,
+      "week_blue": 119.0
+    },
+    {
       "symbol": "002685.SZ",
       "name": "华东重机",
       "price": 7.46,
@@ -60,6 +74,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "600016.SH",
+      "name": "民生银行",
+      "price": 3.8,
+      "day_blue": 129.9,
+      "week_blue": 85.5
+    },
+    {
       "symbol": "603633.SH",
       "name": "徕木股份",
       "price": 9.21,
@@ -81,32 +102,11 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "601963.SH",
-      "name": "重庆银行",
-      "price": 10.44,
-      "day_blue": 121.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688266.SH",
-      "name": "泽璟制药-U",
-      "price": 89.11,
-      "day_blue": 120.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000793.SZ",
-      "name": "ST华闻",
-      "price": 2.54,
-      "day_blue": 117.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000596.SZ",
-      "name": "古井贡酒",
-      "price": 132.55,
-      "day_blue": 115.1,
-      "week_blue": 0.0
+      "symbol": "000858.SZ",
+      "name": "五粮液",
+      "price": 104.91,
+      "day_blue": 128.4,
+      "week_blue": 163.2
     }
   ]
 }
