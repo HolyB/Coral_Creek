@@ -629,7 +629,7 @@ def render_market_pulse():
                             st.markdown("##### 💰 筹码流动对比 (30天前 vs 现在)")
                             chip_flow_data = analyze_chip_flow(df_detail, lookback_days=30)
                             if chip_flow_data:
-                                flow_fig = create_chip_flow_chart(chip_flow_data)
+                                flow_fig = create_chip_flow_chart(chip_flow_data, selected_index)
                                 if flow_fig:
                                     st.plotly_chart(flow_fig, use_container_width=True)
                             else:
