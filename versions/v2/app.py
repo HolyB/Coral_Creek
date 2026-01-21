@@ -814,14 +814,32 @@ def render_scan_page():
             
         if turnover_col and turnover_col in df.columns:
             max_turnover = float(df[turnover_col].max()) if df[turnover_col].max() > 0 else 1000
+            
+            # 快捷按钮
+            st.caption("快捷筛选:")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("≥1M", key="t1m", help="成交额≥100万"):
+                    st.session_state['turnover_filter'] = 1.0
+            with col2:
+                if st.button("≥5M", key="t5m", help="成交额≥500万"):
+                    st.session_state['turnover_filter'] = 5.0
+            with col3:
+                if st.button("≥10M", key="t10m", help="成交额≥1000万"):
+                    st.session_state['turnover_filter'] = 10.0
+            
+            # 获取筛选值
+            default_val = st.session_state.get('turnover_filter', 1.0)
+            
             min_turnover_val = st.slider(
-                "最低日成交额 ($M)", 
+                "最低日成交额 (百万)", 
                 min_value=0.0, 
-                max_value=min(max_turnover, 500.0),  # 上限500M，避免slider太长
-                value=0.0,  # 默认0 (显示所有)
+                max_value=min(max_turnover, 100.0),
+                value=min(default_val, max_turnover),
                 step=0.5,
-                help="过滤成交额过低的股票，避免流动性风险"
+                help="过滤成交额过低的股票，避免流动性风险。1M=100万"
             )
+            st.session_state['turnover_filter'] = min_turnover_val
             df = df[df[turnover_col] >= min_turnover_val]
         
         # === 2. 信号强度筛选 ===
