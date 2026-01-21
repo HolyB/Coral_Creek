@@ -283,32 +283,49 @@ def load_latest_scan_results():
         return None, None
 
 
-def render_market_pulse():
+def render_market_pulse(market='US'):
     """
     Market Pulse Dashboard - 显示大盘指数状态
-    包括 SPY/QQQ/DIA/IWM + VIX，日/周 BLUE 信号，筹码形态
+    US: SPY/QQQ/DIA/IWM + VIX
+    CN: 上证/深证/创业板/沪深300
     """
-    # 缓存键 (每10分钟刷新)
+    from data_fetcher import get_cn_stock_data
+    
+    # 缓存键 (每10分钟刷新, 按市场区分)
     from datetime import datetime
     cache_time_key = datetime.now().strftime("%Y%m%d%H") + str(datetime.now().minute // 10)
-    cache_key = f"market_pulse_{cache_time_key}"
+    cache_key = f"market_pulse_{market}_{cache_time_key}"
     
     # 检查缓存
     if cache_key not in st.session_state:
-        # 获取指数数据
-        indices = {
-            'SPY': {'name': 'S&P 500', 'emoji': '📊'},
-            'QQQ': {'name': 'Nasdaq 100', 'emoji': '💻'},
-            'DIA': {'name': 'Dow 30', 'emoji': '🏭'},
-            'IWM': {'name': 'Russell 2000', 'emoji': '🏢'},
-        }
+        # 根据市场选择指数
+        if market == 'CN':
+            indices = {
+                '000001.SH': {'name': '上证指数', 'emoji': '🔴'},
+                '399001.SZ': {'name': '深证成指', 'emoji': '🟢'},
+                '399006.SZ': {'name': '创业板指', 'emoji': '💡'},
+                '000300.SH': {'name': '沪深300', 'emoji': '📊'},
+            }
+            data_fetcher = get_cn_stock_data
+            currency = '¥'
+        else:
+            indices = {
+                'SPY': {'name': 'S&P 500', 'emoji': '📊'},
+                'QQQ': {'name': 'Nasdaq 100', 'emoji': '💻'},
+                'DIA': {'name': 'Dow 30', 'emoji': '🏭'},
+                'IWM': {'name': 'Russell 2000', 'emoji': '🏢'},
+            }
+            data_fetcher = fetch_data_from_polygon
+            currency = '$'
         
         index_data = {}
+        index_data['_currency'] = currency
+        index_data['_market'] = market
         
         for symbol, info in indices.items():
             try:
                 # 获取日线数据
-                df_daily = fetch_data_from_polygon(symbol, days=100)
+                df_daily = data_fetcher(symbol, days=100)
                 
                 if df_daily is not None and len(df_daily) >= 30:
                     # 计算日线 BLUE
@@ -363,73 +380,76 @@ def render_market_pulse():
                     'error': str(e)
                 }
         
-        # VIX 数据 (使用 VIXY ETF 因为 VIX 直接指数无法获取)
-        try:
-            vix_df = fetch_data_from_polygon('VIXY', days=30)
-            if vix_df is not None and len(vix_df) > 0:
-                vix_price = vix_df['Close'].iloc[-1]
-                vix_prev = vix_df['Close'].iloc[-2] if len(vix_df) > 1 else vix_price
-                vix_change = vix_price - vix_prev
-                
-                # VIXY 的阈值需要调整 (ETF 价格不同于 VIX 指数)
-                if vix_price < 20:
-                    vix_mood = "😌 极度贪婪"
-                elif vix_price < 25:
-                    vix_mood = "🙂 平静"
-                elif vix_price < 30:
-                    vix_mood = "😐 中性"
-                elif vix_price < 40:
-                    vix_mood = "😟 焦虑"
-                else:
-                    vix_mood = "😱 恐惧"
-                    
-                index_data['VIX'] = {
-                    'price': vix_price,
-                    'change': vix_change,
-                    'mood': vix_mood
-                }
-            else:
-                index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '数据不可用'}
-        except:
-            index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '未知'}
-        
-        # 商品/加密资产数据 (Gold, Silver, BTC)
-        alt_assets = {
-            'GLD': {'name': '黄金', 'emoji': '🥇', 'format': '${:.2f}'},
-            'SLV': {'name': '白银', 'emoji': '🥈', 'format': '${:.2f}'},
-            'X:BTCUSD': {'name': 'BTC', 'emoji': '₿', 'format': '${:,.0f}'}
-        }
-        
-        for symbol, info in alt_assets.items():
+        # VIX 数据 (仅美股, 使用 VIXY ETF 因为 VIX 直接指数无法获取)
+        if market == 'US':
             try:
-                df = fetch_data_from_polygon(symbol, days=30)
-                if df is not None and len(df) > 0:
-                    price = df['Close'].iloc[-1]
-                    prev_price = df['Close'].iloc[-2] if len(df) > 1 else price
-                    change = (price - prev_price) / prev_price * 100
+                vix_df = fetch_data_from_polygon('VIXY', days=30)
+                if vix_df is not None and len(vix_df) > 0:
+                    vix_price = vix_df['Close'].iloc[-1]
+                    vix_prev = vix_df['Close'].iloc[-2] if len(vix_df) > 1 else vix_price
+                    vix_change = vix_price - vix_prev
                     
+                    # VIXY 的阈值需要调整 (ETF 价格不同于 VIX 指数)
+                    if vix_price < 20:
+                        vix_mood = "😌 极度贪婪"
+                    elif vix_price < 25:
+                        vix_mood = "🙂 平静"
+                    elif vix_price < 30:
+                        vix_mood = "😐 中性"
+                    elif vix_price < 40:
+                        vix_mood = "😟 焦虑"
+                    else:
+                        vix_mood = "😱 恐惧"
+                        
+                    index_data['VIX'] = {
+                        'price': vix_price,
+                        'change': vix_change,
+                        'mood': vix_mood
+                    }
+                else:
+                    index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '数据不可用'}
+            except:
+                index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '未知'}
+        
+        # 商品/加密资产数据 (仅美股: Gold, Silver, BTC)
+        if market == 'US':
+            alt_assets = {
+                'GLD': {'name': '黄金', 'emoji': '🥇', 'format': '${:.2f}'},
+                'SLV': {'name': '白银', 'emoji': '🥈', 'format': '${:.2f}'},
+                'X:BTCUSD': {'name': 'BTC', 'emoji': '₿', 'format': '${:,.0f}'}
+            }
+            
+            for symbol, info in alt_assets.items():
+                try:
+                    df = fetch_data_from_polygon(symbol, days=30)
+                    if df is not None and len(df) > 0:
+                        price = df['Close'].iloc[-1]
+                        prev_price = df['Close'].iloc[-2] if len(df) > 1 else price
+                        change = (price - prev_price) / prev_price * 100
+                        
+                        index_data[symbol] = {
+                            'name': info['name'],
+                            'emoji': info['emoji'],
+                            'price': price,
+                            'change': change,
+                            'format': info['format']
+                        }
+                except:
                     index_data[symbol] = {
                         'name': info['name'],
                         'emoji': info['emoji'],
-                        'price': price,
-                        'change': change,
+                        'price': 0,
+                        'change': 0,
                         'format': info['format']
                     }
-            except:
-                index_data[symbol] = {
-                    'name': info['name'],
-                    'emoji': info['emoji'],
-                    'price': 0,
-                    'change': 0,
-                    'format': info['format']
-                }
         
         # 计算市场情绪综合评分
-        bullish_count = sum(1 for k, v in index_data.items() 
-                          if k != 'VIX' and v.get('day_blue', 0) > 100)
-        total_indices = len([k for k in index_data if k != 'VIX'])
+        # 过滤掉私有键和VIX，只看主要指数
+        main_indices = [k for k in index_data.keys() if not k.startswith('_') and k not in ['VIX', 'GLD', 'SLV', 'X:BTCUSD']]
+        bullish_count = sum(1 for k in main_indices if index_data.get(k, {}).get('day_blue', 0) > 100)
+        total_indices = len(main_indices)
         
-        vix_ok = index_data.get('VIX', {}).get('price', 20) < 25
+        vix_ok = index_data.get('VIX', {}).get('price', 20) < 25 if market == 'US' else True
         
         if bullish_count >= 3 and vix_ok:
             market_sentiment = ("🟢 强势做多", "进攻型 60-80%", "#3fb950")
@@ -449,12 +469,23 @@ def render_market_pulse():
     
     # === UI 渲染 ===
     with st.container():
-        st.markdown("### 🌍 Market Pulse")
+        market = index_data.get('_market', 'US')
+        currency = index_data.get('_currency', '$')
         
-        # 5列布局: SPY, QQQ, DIA, IWM, VIX
-        cols = st.columns(5)
+        market_title = "🇺🇸 US Market Pulse" if market == 'US' else "🇨🇳 A股大盘"
+        st.markdown(f"### {market_title}")
         
-        for i, (symbol, col) in enumerate(zip(['SPY', 'QQQ', 'DIA', 'IWM', 'VIX'], cols)):
+        # 根据市场动态选择要显示的指数
+        if market == 'CN':
+            display_symbols = ['000001.SH', '399001.SZ', '399006.SZ', '000300.SH']
+            col_count = 4
+        else:
+            display_symbols = ['SPY', 'QQQ', 'DIA', 'IWM', 'VIX']
+            col_count = 5
+        
+        cols = st.columns(col_count)
+        
+        for i, (symbol, col) in enumerate(zip(display_symbols, cols)):
             with col:
                 data = index_data.get(symbol, {})
                 
@@ -480,6 +511,7 @@ def render_market_pulse():
                     week_blue = data.get('week_blue', 0)
                     chip = data.get('chip', '')
                     name = data.get('name', symbol)
+                    emoji = data.get('emoji', '')
                     
                     # 趋势图标
                     if change > 0.5:
@@ -489,9 +521,15 @@ def render_market_pulse():
                     else:
                         trend = "➡️"
                     
+                    # 显示标签：A股显示名称，美股显示代码
+                    if market == 'CN':
+                        display_label = f"{emoji} {name} {trend}"
+                    else:
+                        display_label = f"{symbol} {trend}"
+                    
                     st.metric(
-                        label=f"{symbol} {trend}",
-                        value=f"${price:.2f}",
+                        label=display_label,
+                        value=f"{currency}{price:.2f}",
                         delta=f"{change:+.2f}%"
                     )
                     
@@ -508,38 +546,39 @@ def render_market_pulse():
                     else:
                         st.caption(blue_text)
         
-        # === 第二行: 商品/加密资产 ===
-        st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
-        alt_cols = st.columns(4)
-        
-        for i, (symbol, col) in enumerate(zip(['GLD', 'SLV', 'X:BTCUSD'], alt_cols[:3])):
-            with col:
-                data = index_data.get(symbol, {})
-                price = data.get('price', 0)
-                change = data.get('change', 0)
-                name = data.get('name', symbol)
-                emoji = data.get('emoji', '')
-                fmt = data.get('format', '${:.2f}')
-                
-                # 趋势图标
-                if change > 0.5:
-                    trend = "📈"
-                elif change < -0.5:
-                    trend = "📉"
-                else:
-                    trend = "➡️"
-                
-                # 格式化价格
-                try:
-                    formatted_price = fmt.format(price)
-                except:
-                    formatted_price = f"${price:.2f}"
-                
-                st.metric(
-                    label=f"{emoji} {name} {trend}",
-                    value=formatted_price,
-                    delta=f"{change:+.2f}%"
-                )
+        # === 第二行: 商品/加密资产 (仅美股) ===
+        if market == 'US':
+            st.markdown("<div style='margin-top: 8px;'></div>", unsafe_allow_html=True)
+            alt_cols = st.columns(4)
+            
+            for i, (symbol, col) in enumerate(zip(['GLD', 'SLV', 'X:BTCUSD'], alt_cols[:3])):
+                with col:
+                    data = index_data.get(symbol, {})
+                    price = data.get('price', 0)
+                    change = data.get('change', 0)
+                    name = data.get('name', symbol)
+                    emoji = data.get('emoji', '')
+                    fmt = data.get('format', '${:.2f}')
+                    
+                    # 趋势图标
+                    if change > 0.5:
+                        trend = "📈"
+                    elif change < -0.5:
+                        trend = "📉"
+                    else:
+                        trend = "➡️"
+                    
+                    # 格式化价格
+                    try:
+                        formatted_price = fmt.format(price)
+                    except:
+                        formatted_price = f"${price:.2f}"
+                    
+                    st.metric(
+                        label=f"{emoji} {name} {trend}",
+                        value=formatted_price,
+                        delta=f"{change:+.2f}%"
+                    )
         
         # 市场情绪总结
         sentiment = index_data.get('_sentiment', ('未知', '未知', 'gray'))
@@ -670,10 +709,7 @@ def get_market_mood(df):
 def render_scan_page():
     st.header("🦅 每日机会扫描 (Opportunity Scanner)")
     
-    # === Market Pulse Dashboard (顶部) ===
-    render_market_pulse()
-    
-    # 侧边栏：数据源选择
+    # 侧边栏：数据源选择 (必须先执行，才能获得 market 值)
     with st.sidebar:
         st.divider()
         st.header("📂 数据源")
@@ -689,7 +725,12 @@ def render_scan_page():
             help="切换美股/A股扫描结果"
         )
         selected_market = market_options[selected_market_label]
-        
+    
+    # === Market Pulse Dashboard (顶部) - 传入选中的市场 ===
+    render_market_pulse(market=selected_market)
+    
+    # 侧边栏：继续其他设置
+    with st.sidebar:
         st.divider()
         
         # 检查数据库状态
