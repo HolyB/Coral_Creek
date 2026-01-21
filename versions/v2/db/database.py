@@ -394,6 +394,35 @@ def get_stock_history(symbol, limit=30):
         return [dict(row) for row in cursor.fetchall()]
 
 
+def get_first_scan_dates(symbols, market='US'):
+    """批量获取股票首次出现在扫描结果中的日期
+    
+    Args:
+        symbols: 股票代码列表
+        market: 市场 (US/CN)
+    
+    Returns:
+        dict: {symbol: first_scan_date} 
+    """
+    if not symbols:
+        return {}
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        placeholders = ','.join(['?' for _ in symbols])
+        cursor.execute(f"""
+            SELECT symbol, MIN(scan_date) as first_date
+            FROM scan_results 
+            WHERE symbol IN ({placeholders}) AND market = ?
+            GROUP BY symbol
+        """, symbols + [market])
+        
+        result = {}
+        for row in cursor.fetchall():
+            result[row['symbol']] = row['first_date']
+        return result
+
+
 def get_scan_job(scan_date):
     """获取扫描任务状态"""
     with get_db() as conn:

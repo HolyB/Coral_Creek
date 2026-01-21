@@ -17,7 +17,8 @@ from indicator_utils import calculate_blue_signal_series, calculate_heima_signal
 from backtester import SimpleBacktester
 from db.database import (
     query_scan_results, get_scanned_dates, get_db_stats, 
-    get_stock_history, init_db, get_scan_job, get_stock_info_batch
+    get_stock_history, init_db, get_scan_job, get_stock_info_batch,
+    get_first_scan_dates
 )
 
 # 设置页面配置
@@ -1094,11 +1095,44 @@ def render_scan_page():
         "Wave_Desc": st.column_config.TextColumn("波浪形态", width="medium", help="Elliott Wave"),
         "Chan_Desc": st.column_config.TextColumn("缠论形态", width="medium", help="Chan Theory"),
         "Profit_Ratio": st.column_config.NumberColumn("获利盘", format="%.0f%%", help="获利盘比例"),
-        "筹码形态": st.column_config.TextColumn("筹码", width="small", help="🔥=强势顶格峰 📍=底部密集")
+        "筹码形态": st.column_config.TextColumn("筹码", width="small", help="🔥=强势顶格峰 📍=底部密集"),
+        "新发现": st.column_config.TextColumn("状态", width="small", help="🆕=今日新发现, 📅=之前出现过")
     }
 
-    # 显示列顺序：核心指标在前，筹码形态紧跟策略
-    display_cols = ['Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    # === 新发现标记 ===
+    # 查询每只股票首次出现在扫描结果中的日期
+    if 'Ticker' in df.columns and len(df) > 0:
+        tickers = df['Ticker'].tolist()
+        first_dates = get_first_scan_dates(tickers, market=selected_market)
+        
+        def get_newness_label(ticker):
+            first_date = first_dates.get(ticker)
+            if not first_date:
+                return "🆕新发现"  # 没有历史记录，是新发现
+            
+            # 比较首次日期和选择的日期
+            if first_date == selected_date:
+                return "🆕新发现"
+            else:
+                # 计算距今天数
+                from datetime import datetime
+                try:
+                    first_dt = datetime.strptime(first_date, '%Y-%m-%d')
+                    selected_dt = datetime.strptime(selected_date, '%Y-%m-%d')
+                    days_diff = (selected_dt - first_dt).days
+                    if days_diff <= 3:
+                        return f"📅{days_diff}天前"
+                    elif days_diff <= 7:
+                        return f"📅{days_diff}天"
+                    else:
+                        return f"📅{days_diff}天"
+                except:
+                    return "📅老股"
+        
+        df['新发现'] = df['Ticker'].apply(get_newness_label)
+
+    # 显示列顺序：核心指标在前，新发现标记靠前
+    display_cols = ['新发现', 'Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
