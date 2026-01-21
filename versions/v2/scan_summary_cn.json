@@ -1,8 +1,15 @@
 {
   "date": "2026-01-20",
   "market": "CN",
-  "total_signals": 83,
+  "total_signals": 87,
   "top_signals": [
+    {
+      "symbol": "002024.SZ",
+      "name": "ST易购",
+      "price": 1.61,
+      "day_blue": 200.0,
+      "week_blue": 122.9
+    },
     {
       "symbol": "601916.SH",
       "name": "浙商银行",
@@ -100,13 +107,6 @@
       "price": 7.54,
       "day_blue": 129.1,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "000858.SZ",
-      "name": "五粮液",
-      "price": 104.91,
-      "day_blue": 128.4,
-      "week_blue": 163.2
     }
   ]
 }
