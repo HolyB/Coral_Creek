@@ -553,6 +553,94 @@ def render_market_pulse():
         </div>
         """, unsafe_allow_html=True)
         
+        # === 指数详情展开 ===
+        with st.expander("🔍 查看指数/资产详情 (筹码分布 & 资金流向)", expanded=False):
+            # 可选指数列表
+            all_symbols = ['SPY', 'QQQ', 'DIA', 'IWM', 'GLD', 'SLV', 'X:BTCUSD']
+            symbol_labels = {
+                'SPY': '📊 SPY (S&P 500)',
+                'QQQ': '💻 QQQ (Nasdaq 100)',
+                'DIA': '🏭 DIA (Dow 30)',
+                'IWM': '🏢 IWM (Russell 2000)',
+                'GLD': '🥇 GLD (黄金)',
+                'SLV': '🥈 SLV (白银)',
+                'X:BTCUSD': '₿ BTC (比特币)'
+            }
+            
+            selected_index = st.selectbox(
+                "选择要分析的指数/资产",
+                options=all_symbols,
+                format_func=lambda x: symbol_labels.get(x, x),
+                key="market_pulse_index_detail"
+            )
+            
+            if selected_index:
+                with st.spinner(f"正在加载 {selected_index} 数据..."):
+                    try:
+                        # 获取数据
+                        df_detail = fetch_data_from_polygon(selected_index, days=120)
+                        
+                        if df_detail is not None and len(df_detail) >= 30:
+                            detail_cols = st.columns([2, 1])
+                            
+                            with detail_cols[0]:
+                                # K线图 + BLUE 信号
+                                st.markdown("##### 📈 K线图 & BLUE信号")
+                                fig = create_candlestick_chart_dynamic(
+                                    df_full=df_detail,
+                                    df_for_vp=df_detail,
+                                    symbol=selected_index,
+                                    name=symbol_labels.get(selected_index, selected_index),
+                                    period='daily',
+                                    show_volume_profile=True
+                                )
+                                if fig:
+                                    st.plotly_chart(fig, use_container_width=True)
+                                else:
+                                    st.info("无法生成图表")
+                            
+                            with detail_cols[1]:
+                                # 筹码分析摘要
+                                st.markdown("##### 📊 筹码分析")
+                                chip_result = quick_chip_analysis(df_detail)
+                                
+                                if chip_result:
+                                    poc_pos = chip_result.get('poc_position', 50)
+                                    bottom_ratio = chip_result.get('bottom_chip_ratio', 0) * 100
+                                    max_chip = chip_result.get('max_chip_pct', 0)
+                                    is_strong = chip_result.get('is_strong_bottom_peak', False)
+                                    is_peak = chip_result.get('is_bottom_peak', False)
+                                    
+                                    # 显示指标
+                                    st.metric("POC 位置", f"{poc_pos:.1f}%", help="成本峰值在价格区间的位置")
+                                    st.metric("底部筹码", f"{bottom_ratio:.1f}%", help="底部30%价格区间的筹码占比")
+                                    st.metric("单峰最大", f"{max_chip:.1f}%", help="最大筹码柱占比")
+                                    
+                                    if is_strong:
+                                        st.success("🔥 强势顶格峰")
+                                    elif is_peak:
+                                        st.info("📍 底部密集")
+                                    else:
+                                        st.caption("普通形态")
+                                else:
+                                    st.warning("无法计算筹码分布")
+                            
+                            # 资金流向图表 (使用筹码流动对比)
+                            st.markdown("##### 💰 筹码流动对比 (30天前 vs 现在)")
+                            chip_flow_data = analyze_chip_flow(df_detail, lookback_days=30)
+                            if chip_flow_data:
+                                flow_fig = create_chip_flow_chart(chip_flow_data)
+                                if flow_fig:
+                                    st.plotly_chart(flow_fig, use_container_width=True)
+                            else:
+                                st.info("数据不足，无法显示筹码流动")
+                                
+                        else:
+                            st.warning(f"无法获取 {selected_index} 数据")
+                            
+                    except Exception as e:
+                        st.error(f"加载失败: {e}")
+        
         st.divider()
 
 
