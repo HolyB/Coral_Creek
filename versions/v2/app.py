@@ -829,7 +829,7 @@ def render_scan_page():
                     st.session_state['turnover_filter'] = 10.0
             
             # 获取筛选值
-            default_val = st.session_state.get('turnover_filter', 1.0)
+            default_val = st.session_state.get('turnover_filter', 0.5)
             
             min_turnover_val = st.slider(
                 "最低日成交额 (百万)", 
