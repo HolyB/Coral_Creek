@@ -1,8 +1,15 @@
 {
   "date": "2026-01-21",
   "market": "CN",
-  "total_signals": 93,
+  "total_signals": 107,
   "top_signals": [
+    {
+      "symbol": "002024.SZ",
+      "name": "ST易购",
+      "price": 1.6,
+      "day_blue": 200.0,
+      "week_blue": 123.0
+    },
     {
       "symbol": "601916.SH",
       "name": "浙商银行",
@@ -95,18 +102,11 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "300498.SZ",
-      "name": "温氏股份",
-      "price": 15.63,
-      "day_blue": 134.2,
-      "week_blue": 148.3
-    },
-    {
-      "symbol": "000596.SZ",
-      "name": "古井贡酒",
-      "price": 128.6,
-      "day_blue": 130.6,
-      "week_blue": 83.2
+      "symbol": "000858.SZ",
+      "name": "五粮液",
+      "price": 103.05,
+      "day_blue": 135.1,
+      "week_blue": 163.5
     }
   ]
 }
