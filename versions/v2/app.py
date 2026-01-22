@@ -1242,72 +1242,164 @@ def render_scan_page():
             st.info("暂无含月线信号的股票")
     
     with tab_special:
-        st.caption("🐴 黑马信号 / ⛏️ 掘地信号：有特殊形态的股票（不限日周月）")
-        if heima_cache_key not in st.session_state:
-            st.info("需要先扫描特殊信号，点击下方按钮开始")
-            if st.button("🔍 扫描黑马/掘地信号", key="scan_heima"):
+        st.caption("🐴 黑马 / ⛏️ 掘地 / 🔥 顶格峰：特殊形态信号")
+        
+        # === 扫描范围选择 ===
+        scan_scope = st.radio(
+            "扫描范围",
+            options=["📋 当前信号股", "🌐 全量股票"],
+            horizontal=True,
+            help="当前信号股=只扫描已有BLUE信号的股票 | 全量股票=扫描市场所有股票",
+            key="special_scan_scope"
+        )
+        
+        # 根据选择确定扫描列表
+        if scan_scope == "📋 当前信号股":
+            scan_tickers = df['Ticker'].tolist()
+            scope_label = "当前信号股"
+        else:
+            # 全量扫描 - 从数据库获取市场所有股票
+            from db.database import get_stock_info_batch
+            try:
+                # 获取市场所有股票信息
+                all_stocks = get_stock_info_batch(None)  # 获取所有
+                if selected_market == 'CN':
+                    scan_tickers = [s['symbol'] for s in all_stocks if s.get('market') == 'CN'][:200]  # 限制数量
+                else:
+                    scan_tickers = [s['symbol'] for s in all_stocks if s.get('market') == 'US'][:500]
+                scope_label = f"全量扫描 ({len(scan_tickers)} 只)"
+            except:
+                scan_tickers = df['Ticker'].tolist()
+                scope_label = "当前信号股 (全量失败)"
+        
+        st.caption(f"📊 扫描范围: {scope_label} | 共 {len(scan_tickers)} 只股票")
+        
+        # === 特殊信号缓存 ===
+        special_cache_key = f"special_signals_{selected_date}_{selected_market}_{scan_scope}"
+        
+        if special_cache_key not in st.session_state:
+            st.info("需要扫描特殊信号，点击下方按钮开始")
+            
+            if st.button("🔍 扫描黑马/掘地/顶格峰信号", key="scan_special", type="primary"):
                 from concurrent.futures import ThreadPoolExecutor, as_completed
                 from indicator_utils import calculate_heima_signal_series
+                from chart_utils import quick_chip_analysis
                 
-                tickers = df['Ticker'].tolist()
                 results = {}
                 
-                def calc_heima_single(ticker):
+                def calc_special_signals(ticker):
+                    """计算单只股票的特殊信号: 黑马、掘地、顶格峰"""
                     try:
                         stock_df = fetch_data_from_polygon(ticker, days=100)
-                        if stock_df is not None and len(stock_df) >= 30:
-                            heima, juedi = calculate_heima_signal_series(
-                                stock_df['High'].values,
-                                stock_df['Low'].values,
-                                stock_df['Close'].values,
-                                stock_df['Open'].values
-                            )
-                            return ticker, {'heima': bool(heima[-1]), 'juedi': bool(juedi[-1])}
-                        return ticker, {'heima': False, 'juedi': False}
+                        if stock_df is None or len(stock_df) < 30:
+                            return ticker, {'heima': False, 'juedi': False, 'bottom_peak': False}
+                        
+                        # 黑马/掘地信号
+                        heima, juedi = calculate_heima_signal_series(
+                            stock_df['High'].values,
+                            stock_df['Low'].values,
+                            stock_df['Close'].values,
+                            stock_df['Open'].values
+                        )
+                        
+                        # 顶格峰信号 (最近3天内出现)
+                        bottom_peak = False
+                        try:
+                            chip = quick_chip_analysis(stock_df)
+                            if chip and chip.get('is_strong_bottom_peak'):
+                                bottom_peak = True
+                            elif chip and chip.get('is_bottom_peak'):
+                                bottom_peak = True
+                        except:
+                            pass
+                        
+                        return ticker, {
+                            'heima': bool(heima[-1]) if len(heima) > 0 else False,
+                            'juedi': bool(juedi[-1]) if len(juedi) > 0 else False,
+                            'bottom_peak': bottom_peak
+                        }
                     except:
-                        return ticker, {'heima': False, 'juedi': False}
+                        return ticker, {'heima': False, 'juedi': False, 'bottom_peak': False}
                 
-                progress = st.progress(0, text="正在扫描黑马/掘地信号...")
+                progress = st.progress(0, text="正在扫描特殊信号...")
                 
                 with ThreadPoolExecutor(max_workers=10) as executor:
-                    futures = {executor.submit(calc_heima_single, t): t for t in tickers}
+                    futures = {executor.submit(calc_special_signals, t): t for t in scan_tickers}
                     completed = 0
                     for future in as_completed(futures):
                         ticker, signals = future.result()
                         results[ticker] = signals
                         completed += 1
-                        progress.progress(completed / len(tickers), text=f"扫描中 {completed}/{len(tickers)}")
+                        progress.progress(completed / len(scan_tickers), text=f"扫描中 {completed}/{len(scan_tickers)}")
                 
                 progress.empty()
-                st.session_state[heima_cache_key] = results
+                st.session_state[special_cache_key] = results
                 
+                # 统计结果
                 heima_count = sum(1 for r in results.values() if r['heima'])
                 juedi_count = sum(1 for r in results.values() if r['juedi'])
-                st.success(f"✅ 扫描完成！🐴 黑马: {heima_count} 只 | ⛏️ 掘地: {juedi_count} 只")
+                peak_count = sum(1 for r in results.values() if r['bottom_peak'])
+                st.success(f"✅ 扫描完成！🐴 黑马: {heima_count} | ⛏️ 掘地: {juedi_count} | 🔥 顶格峰: {peak_count}")
                 st.rerun()
-        elif len(df_special) > 0:
-            # 添加信号类型标记
-            df_special['信号类型'] = df_special.apply(
-                lambda r: '🐴黑马' if r.get('黑马') else ('⛏️掘地' if r.get('掘地') else ''), axis=1
-            )
-            display_with_signal = ['信号类型'] + existing_cols
-            cols_to_show = [c for c in display_with_signal if c in df_special.columns]
-            event4 = st.dataframe(
-                df_special[cols_to_show],
-                column_config=column_config,
-                use_container_width=True,
-                hide_index=True,
-                selection_mode="single-row",
-                on_select="rerun",
-                key="df_special"
-            )
-            if event4 and hasattr(event4, 'selection') and event4.selection.rows:
-                idx = event4.selection.rows[0]
-                if idx < len(df_special):
-                    selected_ticker = df_special.iloc[idx]['Ticker']
-                    selected_row_data = df_special.iloc[idx]
         else:
-            st.info("暂无黑马或掘地信号的股票")
+            # 显示结果
+            signal_data = st.session_state[special_cache_key]
+            
+            # 构建特殊信号数据框
+            special_rows = []
+            for ticker, signals in signal_data.items():
+                if signals['heima'] or signals['juedi'] or signals['bottom_peak']:
+                    signal_types = []
+                    if signals['heima']:
+                        signal_types.append('🐴黑马')
+                    if signals['juedi']:
+                        signal_types.append('⛏️掘地')
+                    if signals['bottom_peak']:
+                        signal_types.append('🔥顶格峰')
+                    
+                    # 尝试从 df 获取更多信息
+                    ticker_info = df[df['Ticker'] == ticker]
+                    if len(ticker_info) > 0:
+                        row = ticker_info.iloc[0].to_dict()
+                        row['信号类型'] = ' '.join(signal_types)
+                        special_rows.append(row)
+                    else:
+                        # 只有ticker信息
+                        special_rows.append({
+                            'Ticker': ticker,
+                            '信号类型': ' '.join(signal_types)
+                        })
+            
+            if special_rows:
+                df_special_result = pd.DataFrame(special_rows)
+                
+                # 统计显示
+                st.markdown(f"**找到 {len(special_rows)} 只特殊信号股票**")
+                
+                display_with_signal = ['信号类型'] + existing_cols
+                cols_to_show = [c for c in display_with_signal if c in df_special_result.columns]
+                
+                event4 = st.dataframe(
+                    df_special_result[cols_to_show],
+                    column_config=column_config,
+                    use_container_width=True,
+                    hide_index=True,
+                    selection_mode="single-row",
+                    on_select="rerun",
+                    key="df_special"
+                )
+                if event4 and hasattr(event4, 'selection') and event4.selection.rows:
+                    idx = event4.selection.rows[0]
+                    if idx < len(df_special_result):
+                        selected_ticker = df_special_result.iloc[idx]['Ticker']
+                        selected_row_data = df_special_result.iloc[idx]
+            else:
+                st.info("暂无黑马、掘地或顶格峰信号的股票")
+            
+            # 清除缓存按钮
+            if st.button("🔄 重新扫描", key="rescan_special"):
+                del st.session_state[special_cache_key]
+                st.rerun()
 
     # 4. 深度透视 (所有标签页都支持选择)
     if selected_ticker is not None and selected_row_data is not None:
