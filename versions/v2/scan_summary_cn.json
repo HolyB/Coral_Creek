@@ -1,8 +1,15 @@
 {
   "date": "2026-01-22",
   "market": "CN",
-  "total_signals": 69,
+  "total_signals": 101,
   "top_signals": [
+    {
+      "symbol": "601916.SH",
+      "name": "浙商银行",
+      "price": 2.96,
+      "day_blue": 200.0,
+      "week_blue": 73.0
+    },
     {
       "symbol": "000568.SZ",
       "name": "泸州老窖",
@@ -16,6 +23,13 @@
       "price": 8.56,
       "day_blue": 191.5,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "002231.SZ",
+      "name": "*ST奥维",
+      "price": 0.77,
+      "day_blue": 190.2,
+      "week_blue": 95.2
     },
     {
       "symbol": "601328.SH",
@@ -53,6 +67,20 @@
       "week_blue": 88.3
     },
     {
+      "symbol": "000858.SZ",
+      "name": "五粮液",
+      "price": 102.76,
+      "day_blue": 140.9,
+      "week_blue": 163.6
+    },
+    {
+      "symbol": "300750.SZ",
+      "name": "宁德时代",
+      "price": 345.8,
+      "day_blue": 140.4,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "002653.SZ",
       "name": "海思科",
       "price": 50.35,
@@ -67,46 +95,18 @@
       "week_blue": 83.3
     },
     {
-      "symbol": "601066.SH",
-      "name": "中信建投",
-      "price": 24.71,
-      "day_blue": 128.1,
+      "symbol": "601607.SH",
+      "name": "上海医药",
+      "price": 17.31,
+      "day_blue": 133.2,
+      "week_blue": 98.5
+    },
+    {
+      "symbol": "600012.SH",
+      "name": "皖通高速",
+      "price": 14.16,
+      "day_blue": 133.0,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "301557.SZ",
-      "name": "常友科技",
-      "price": 114.97,
-      "day_blue": 128.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600269.SH",
-      "name": "赣粤高速",
-      "price": 4.94,
-      "day_blue": 125.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600900.SH",
-      "name": "长江电力",
-      "price": 26.31,
-      "day_blue": 123.9,
-      "week_blue": 158.2
-    },
-    {
-      "symbol": "920571.BJ",
-      "name": "国航远洋",
-      "price": 9.75,
-      "day_blue": 121.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600559.SH",
-      "name": "老白干酒",
-      "price": 15.89,
-      "day_blue": 115.3,
-      "week_blue": 127.5
     }
   ]
 }
