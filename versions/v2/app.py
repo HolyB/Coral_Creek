@@ -1166,12 +1166,13 @@ def render_scan_page():
     count_month = len(df_month)
     count_special = len(df_special)
     
-    # 创建标签页
-    tab_day_only, tab_day_week, tab_month, tab_special = st.tabs([
+    # 创建标签页 (增加板块热度)
+    tab_day_only, tab_day_week, tab_month, tab_special, tab_sector = st.tabs([
         f"📈 只日线 ({count_day_only})",
         f"📊 日+周线 ({count_day_week})",
         f"📅 含月线 ({count_month})",
-        f"🐴⛏️ 特殊信号 ({count_special})"
+        f"🐴⛏️ 特殊信号 ({count_special})",
+        "🔥 板块热度"
     ])
     
     # 用于存储各标签页选择的行 (用于深度透视)
@@ -1400,6 +1401,96 @@ def render_scan_page():
             if st.button("🔄 重新扫描", key="rescan_special"):
                 del st.session_state[special_cache_key]
                 st.rerun()
+
+    # === 板块热度标签页 ===
+    with tab_sector:
+        st.caption("🔥 行业板块涨跌幅排名 - 追踪市场热点")
+        
+        from data_fetcher import get_sector_data
+        
+        # 缓存板块数据
+        sector_cache_key = f"sector_data_{selected_date}_{selected_market}"
+        
+        if st.button("🔄 刷新板块数据", key="refresh_sector"):
+            if sector_cache_key in st.session_state:
+                del st.session_state[sector_cache_key]
+        
+        if sector_cache_key not in st.session_state:
+            with st.spinner("正在获取板块数据..."):
+                sector_df = get_sector_data(market=selected_market)
+                if sector_df is not None:
+                    st.session_state[sector_cache_key] = sector_df
+        
+        if sector_cache_key in st.session_state:
+            sector_df = st.session_state[sector_cache_key]
+            
+            if sector_df is not None and len(sector_df) > 0:
+                # 统计信息
+                up_count = len(sector_df[sector_df['change_pct'] > 0])
+                down_count = len(sector_df[sector_df['change_pct'] < 0])
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("板块数量", len(sector_df))
+                with col2:
+                    st.metric("🔴 上涨", up_count)
+                with col3:
+                    st.metric("🟢 下跌", down_count)
+                
+                st.divider()
+                
+                # 分两列显示：涨幅榜和跌幅榜
+                col_up, col_down = st.columns(2)
+                
+                with col_up:
+                    st.markdown("### 📈 涨幅榜 Top 15")
+                    top_up = sector_df.head(15).copy()
+                    top_up['change_pct'] = top_up['change_pct'].apply(lambda x: f"+{x:.2f}%" if x > 0 else f"{x:.2f}%")
+                    if 'amount' in top_up.columns:
+                        top_up['amount'] = top_up['amount'].apply(lambda x: f"{x:.1f}亿" if pd.notna(x) else "N/A")
+                    if 'stock_count' in top_up.columns:
+                        display_cols_up = ['name', 'change_pct', 'amount', 'stock_count']
+                    else:
+                        display_cols_up = ['name', 'change_pct']
+                    cols_to_show = [c for c in display_cols_up if c in top_up.columns]
+                    st.dataframe(
+                        top_up[cols_to_show],
+                        column_config={
+                            'name': '板块',
+                            'change_pct': '涨跌幅',
+                            'amount': '成交额',
+                            'stock_count': '股票数'
+                        },
+                        hide_index=True,
+                        use_container_width=True
+                    )
+                
+                with col_down:
+                    st.markdown("### 📉 跌幅榜 Top 15")
+                    top_down = sector_df.tail(15).iloc[::-1].copy()
+                    top_down['change_pct'] = top_down['change_pct'].apply(lambda x: f"+{x:.2f}%" if x > 0 else f"{x:.2f}%")
+                    if 'amount' in top_down.columns:
+                        top_down['amount'] = top_down['amount'].apply(lambda x: f"{x:.1f}亿" if pd.notna(x) else "N/A")
+                    if 'stock_count' in top_down.columns:
+                        display_cols_down = ['name', 'change_pct', 'amount', 'stock_count']
+                    else:
+                        display_cols_down = ['name', 'change_pct']
+                    cols_to_show = [c for c in display_cols_down if c in top_down.columns]
+                    st.dataframe(
+                        top_down[cols_to_show],
+                        column_config={
+                            'name': '板块',
+                            'change_pct': '涨跌幅',
+                            'amount': '成交额',
+                            'stock_count': '股票数'
+                        },
+                        hide_index=True,
+                        use_container_width=True
+                    )
+            else:
+                st.info("暂无板块数据")
+        else:
+            st.info("点击刷新获取板块数据")
 
     # 4. 深度透视 (所有标签页都支持选择)
     if selected_ticker is not None and selected_row_data is not None:

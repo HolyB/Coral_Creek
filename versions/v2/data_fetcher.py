@@ -349,3 +349,152 @@ def get_stock_data(symbol, market='US', days=365):
     else:
         return None
 
+
+# ==================== 板块/行业数据 ====================
+
+def get_cn_sector_data():
+    """获取A股行业板块涨跌数据
+    
+    通过聚合股票数据计算各行业表现
+    
+    Returns:
+        DataFrame with columns: sector, name, change_pct, stock_count
+    """
+    import tushare as ts
+    
+    token = os.getenv('TUSHARE_TOKEN')
+    if not token:
+        print("TUSHARE_TOKEN not found")
+        return None
+    
+    try:
+        ts.set_token(token)
+        pro = ts.pro_api()
+        
+        # 获取所有股票的行业分类
+        stocks = pro.stock_basic(exchange='', list_status='L', fields='ts_code,name,industry')
+        if stocks is None or stocks.empty:
+            print("Failed to get stock basic info")
+            return None
+        
+        # 获取今日行情统计 (使用daily_basic获取更多股票)
+        today = datetime.now()
+        trade_date = today.strftime('%Y%m%d')
+        
+        # 尝试获取最近交易日的数据
+        for days_back in range(5):
+            try:
+                check_date = (today - timedelta(days=days_back)).strftime('%Y%m%d')
+                daily = pro.daily(trade_date=check_date, fields='ts_code,pct_chg,amount')
+                if daily is not None and len(daily) > 100:
+                    trade_date = check_date
+                    break
+            except:
+                continue
+        
+        if daily is None or daily.empty:
+            print("Failed to get daily data")
+            return None
+        
+        # 合并行业信息
+        merged = pd.merge(daily, stocks[['ts_code', 'industry']], on='ts_code', how='left')
+        merged = merged.dropna(subset=['industry'])
+        
+        # 按行业聚合
+        sector_stats = merged.groupby('industry').agg({
+            'pct_chg': 'mean',  # 平均涨跌幅
+            'amount': 'sum',    # 总成交额
+            'ts_code': 'count'  # 股票数量
+        }).reset_index()
+        
+        sector_stats.columns = ['name', 'change_pct', 'amount', 'stock_count']
+        sector_stats['sector'] = sector_stats['name']  # 用名称作为code
+        sector_stats['amount'] = sector_stats['amount'] / 100000  # 转为亿
+        
+        sector_stats = sector_stats.sort_values('change_pct', ascending=False)
+        
+        return sector_stats[['sector', 'name', 'change_pct', 'amount', 'stock_count']]
+        
+    except Exception as e:
+        print(f"Error fetching CN sector data: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def get_us_sector_data():
+    """获取美股行业板块涨跌数据
+    
+    通过聚合股票数据计算各行业表现
+    
+    Returns:
+        DataFrame with columns: sector, name, change_pct, stock_count, top_stocks
+    """
+    # 使用 Polygon 的 grouped daily API 获取所有股票，然后按行业聚合
+    api_key = _get_polygon_api_key()
+    if not api_key:
+        return None
+    
+    try:
+        import requests
+        
+        # 获取昨日所有股票行情
+        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        # 使用 grouped daily API (需要更高级API权限)
+        # 简化版：使用预定义的行业ETF代替
+        sector_etfs = {
+            'XLK': 'Technology',
+            'XLF': 'Financials', 
+            'XLV': 'Healthcare',
+            'XLE': 'Energy',
+            'XLI': 'Industrials',
+            'XLY': 'Consumer Discretionary',
+            'XLP': 'Consumer Staples',
+            'XLU': 'Utilities',
+            'XLB': 'Materials',
+            'XLRE': 'Real Estate',
+            'XLC': 'Communication Services'
+        }
+        
+        sector_data = []
+        
+        for etf, sector_name in sector_etfs.items():
+            try:
+                # 获取ETF最近行情
+                df = get_us_stock_data(etf, days=5)
+                if df is not None and len(df) >= 2:
+                    today_close = df.iloc[-1]['Close']
+                    prev_close = df.iloc[-2]['Close']
+                    change_pct = (today_close - prev_close) / prev_close * 100
+                    
+                    sector_data.append({
+                        'sector': etf,
+                        'name': sector_name,
+                        'close': today_close,
+                        'change_pct': change_pct,
+                        'volume': df.iloc[-1].get('Volume', 0)
+                    })
+            except Exception as e:
+                continue
+        
+        if not sector_data:
+            return None
+        
+        result = pd.DataFrame(sector_data)
+        result = result.sort_values('change_pct', ascending=False)
+        return result
+        
+    except Exception as e:
+        print(f"Error fetching US sector data: {e}")
+        return None
+
+
+def get_sector_data(market='US'):
+    """通用函数：获取板块数据"""
+    if market == 'US':
+        return get_us_sector_data()
+    elif market == 'CN':
+        return get_cn_sector_data()
+    else:
+        return None
