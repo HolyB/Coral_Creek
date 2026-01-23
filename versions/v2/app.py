@@ -1517,6 +1517,76 @@ def render_scan_page():
                     )
             else:
                 st.info("暂无板块数据")
+            
+            # === 板块详情区域 ===
+            st.divider()
+            st.markdown("### 🔍 板块详情")
+            
+            # 板块选择下拉框
+            sector_names = sector_df['name'].tolist()
+            selected_sector = st.selectbox(
+                "选择板块查看详情",
+                options=sector_names,
+                key="sector_detail_select"
+            )
+            
+            if selected_sector:
+                with st.expander(f"📊 {selected_sector} 详情", expanded=True):
+                    detail_col1, detail_col2 = st.columns(2)
+                    
+                    with detail_col1:
+                        st.markdown("#### 🔥 板块热门股")
+                        
+                        # 获取该板块的热门股票
+                        hot_stocks_key = f"hot_stocks_{selected_sector}_{selected_market}"
+                        
+                        if hot_stocks_key not in st.session_state:
+                            with st.spinner("加载热门股..."):
+                                try:
+                                    if selected_market == 'CN':
+                                        from data_fetcher import get_cn_sector_hot_stocks
+                                        hot_df = get_cn_sector_hot_stocks(selected_sector)
+                                    else:
+                                        # 美股暂用 ETF 组成
+                                        hot_df = None
+                                    st.session_state[hot_stocks_key] = hot_df
+                                except Exception as e:
+                                    st.session_state[hot_stocks_key] = None
+                        
+                        hot_df = st.session_state.get(hot_stocks_key)
+                        if hot_df is not None and len(hot_df) > 0:
+                            st.dataframe(
+                                hot_df[['name', 'pct_chg']].head(10),
+                                column_config={
+                                    'name': '股票',
+                                    'pct_chg': '涨跌幅%'
+                                },
+                                hide_index=True,
+                                use_container_width=True
+                            )
+                        else:
+                            st.info("暂无热门股数据")
+                    
+                    with detail_col2:
+                        st.markdown("#### 📰 相关新闻")
+                        
+                        # 显示新闻搜索链接
+                        if selected_market == 'CN':
+                            search_term = f"{selected_sector}板块 股票 新闻"
+                            baidu_url = f"https://www.baidu.com/s?wd={search_term}"
+                            st.markdown(f"🔗 [百度搜索: {selected_sector}新闻]({baidu_url})")
+                            
+                            eastmoney_url = f"https://so.eastmoney.com/news/s?keyword={selected_sector}"
+                            st.markdown(f"🔗 [东方财富: {selected_sector}]({eastmoney_url})")
+                        else:
+                            search_term = f"{selected_sector} sector stocks news"
+                            google_url = f"https://www.google.com/search?q={search_term}&tbm=nws"
+                            st.markdown(f"🔗 [Google News: {selected_sector}]({google_url})")
+                            
+                            yahoo_url = f"https://finance.yahoo.com/quote/{sector_df[sector_df['name']==selected_sector]['sector'].values[0] if len(sector_df[sector_df['name']==selected_sector]) > 0 else 'XLK'}"
+                            st.markdown(f"🔗 [Yahoo Finance]({yahoo_url})")
+                        
+                        st.caption("💡 点击链接查看最新市场资讯")
         else:
             st.info("正在加载板块数据...")
 

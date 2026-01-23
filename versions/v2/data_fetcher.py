@@ -660,3 +660,60 @@ def get_us_sector_data_period(period='1d'):
     except Exception as e:
         print(f"Error in get_us_sector_data_period: {e}")
         return get_us_sector_data()
+
+
+def get_cn_sector_hot_stocks(sector_name, top_n=10):
+    """获取A股指定板块的热门股票
+    
+    Args:
+        sector_name: 行业名称，如 "电气设备", "半导体"
+        top_n: 返回前N只股票
+    
+    Returns:
+        DataFrame with columns: ts_code, name, pct_chg
+    """
+    import tushare as ts
+    
+    token = os.getenv('TUSHARE_TOKEN')
+    if not token:
+        return None
+    
+    try:
+        ts.set_token(token)
+        pro = ts.pro_api()
+        
+        # 获取该行业的股票列表
+        stocks = pro.stock_basic(exchange='', list_status='L', fields='ts_code,name,industry')
+        sector_stocks = stocks[stocks['industry'] == sector_name]
+        
+        if sector_stocks is None or sector_stocks.empty:
+            return None
+        
+        ticker_list = sector_stocks['ts_code'].tolist()
+        
+        # 获取最新交易日行情
+        today = datetime.now()
+        for days_back in range(5):
+            check_date = (today - timedelta(days=days_back)).strftime('%Y%m%d')
+            try:
+                daily = pro.daily(trade_date=check_date, fields='ts_code,close,pct_chg')
+                if daily is not None and len(daily) > 100:
+                    break
+            except:
+                continue
+        
+        if daily is None or daily.empty:
+            return None
+        
+        # 筛选该板块股票并合并名称
+        sector_daily = daily[daily['ts_code'].isin(ticker_list)]
+        sector_daily = pd.merge(sector_daily, sector_stocks[['ts_code', 'name']], on='ts_code', how='left')
+        
+        # 按涨跌幅排序
+        sector_daily = sector_daily.sort_values('pct_chg', ascending=False)
+        
+        return sector_daily[['ts_code', 'name', 'pct_chg']].head(top_n)
+        
+    except Exception as e:
+        print(f"Error in get_cn_sector_hot_stocks: {e}")
+        return None
