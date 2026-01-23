@@ -1264,13 +1264,13 @@ def render_scan_page():
                 # 获取市场所有股票信息
                 all_stocks = get_stock_info_batch(None)  # 获取所有
                 if selected_market == 'CN':
-                    scan_tickers = [s['symbol'] for s in all_stocks if s.get('market') == 'CN'][:200]  # 限制数量
+                    scan_tickers = [s['symbol'] for s in all_stocks if s.get('market') == 'CN']
                 else:
-                    scan_tickers = [s['symbol'] for s in all_stocks if s.get('market') == 'US'][:500]
+                    scan_tickers = [s['symbol'] for s in all_stocks if s.get('market') == 'US']
                 scope_label = f"全量扫描 ({len(scan_tickers)} 只)"
-            except:
+            except Exception as e:
                 scan_tickers = df['Ticker'].tolist()
-                scope_label = "当前信号股 (全量失败)"
+                scope_label = f"当前信号股 (全量失败: {e})"
         
         st.caption(f"📊 扫描范围: {scope_label} | 共 {len(scan_tickers)} 只股票")
         
