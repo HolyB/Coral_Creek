@@ -1406,20 +1406,48 @@ def render_scan_page():
     with tab_sector:
         st.caption("🔥 行业板块涨跌幅排名 - 追踪市场热点")
         
-        from data_fetcher import get_sector_data
+        from data_fetcher import get_sector_data, get_cn_sector_data_period, get_us_sector_data_period
         
-        # 缓存板块数据
-        sector_cache_key = f"sector_data_{selected_date}_{selected_market}"
+        # 时间段选择
+        period_options = {
+            "📅 今日": "1d",
+            "📆 本周": "1w", 
+            "📊 本月": "1m",
+            "📈 今年": "ytd"
+        }
+        selected_period_label = st.radio(
+            "时间范围",
+            options=list(period_options.keys()),
+            horizontal=True,
+            key="sector_period"
+        )
+        selected_period = period_options[selected_period_label]
         
-        if st.button("🔄 刷新板块数据", key="refresh_sector"):
-            if sector_cache_key in st.session_state:
-                del st.session_state[sector_cache_key]
+        # 缓存板块数据 (按时间段)
+        sector_cache_key = f"sector_data_{selected_market}_{selected_period}"
+        
+        col_refresh, col_info = st.columns([1, 3])
+        with col_refresh:
+            if st.button("🔄 刷新", key="refresh_sector"):
+                # 清除所有时间段缓存
+                for p in period_options.values():
+                    key = f"sector_data_{selected_market}_{p}"
+                    if key in st.session_state:
+                        del st.session_state[key]
         
         if sector_cache_key not in st.session_state:
-            with st.spinner("正在获取板块数据..."):
-                sector_df = get_sector_data(market=selected_market)
-                if sector_df is not None:
-                    st.session_state[sector_cache_key] = sector_df
+            with st.spinner(f"正在获取{selected_period_label}板块数据..."):
+                try:
+                    if selected_market == 'CN':
+                        sector_df = get_cn_sector_data_period(period=selected_period)
+                    else:
+                        sector_df = get_us_sector_data_period(period=selected_period)
+                    
+                    if sector_df is not None:
+                        st.session_state[sector_cache_key] = sector_df
+                except Exception as e:
+                    st.error(f"获取数据失败: {e}")
+                    sector_df = None
         
         if sector_cache_key in st.session_state:
             sector_df = st.session_state[sector_cache_key]
@@ -1443,7 +1471,7 @@ def render_scan_page():
                 col_up, col_down = st.columns(2)
                 
                 with col_up:
-                    st.markdown("### 📈 涨幅榜 Top 15")
+                    st.markdown(f"### 📈 {selected_period_label} 涨幅榜 Top 15")
                     top_up = sector_df.head(15).copy()
                     top_up['change_pct'] = top_up['change_pct'].apply(lambda x: f"+{x:.2f}%" if x > 0 else f"{x:.2f}%")
                     if 'amount' in top_up.columns:
@@ -1466,7 +1494,7 @@ def render_scan_page():
                     )
                 
                 with col_down:
-                    st.markdown("### 📉 跌幅榜 Top 15")
+                    st.markdown(f"### 📉 {selected_period_label} 跌幅榜 Top 15")
                     top_down = sector_df.tail(15).iloc[::-1].copy()
                     top_down['change_pct'] = top_down['change_pct'].apply(lambda x: f"+{x:.2f}%" if x > 0 else f"{x:.2f}%")
                     if 'amount' in top_down.columns:
@@ -1490,7 +1518,7 @@ def render_scan_page():
             else:
                 st.info("暂无板块数据")
         else:
-            st.info("点击刷新获取板块数据")
+            st.info("正在加载板块数据...")
 
     # 4. 深度透视 (所有标签页都支持选择)
     if selected_ticker is not None and selected_row_data is not None:

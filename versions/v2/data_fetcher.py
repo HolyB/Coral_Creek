@@ -498,3 +498,165 @@ def get_sector_data(market='US'):
         return get_cn_sector_data()
     else:
         return None
+
+
+def get_cn_sector_data_period(period='1d'):
+    """获取A股行业板块指定时间段的涨跌数据
+    
+    Args:
+        period: '1d'=今日, '1w'=本周, '1m'=本月, 'ytd'=今年
+    """
+    import tushare as ts
+    
+    token = os.getenv('TUSHARE_TOKEN')
+    if not token:
+        return None
+    
+    try:
+        ts.set_token(token)
+        pro = ts.pro_api()
+        
+        # 获取所有股票的行业分类
+        stocks = pro.stock_basic(exchange='', list_status='L', fields='ts_code,name,industry')
+        if stocks is None or stocks.empty:
+            return None
+        
+        # 计算时间范围
+        today = datetime.now()
+        if period == '1d':
+            days_back = 1
+        elif period == '1w':
+            days_back = 7
+        elif period == '1m':
+            days_back = 30
+        elif period == 'ytd':
+            # 从年初到现在
+            days_back = (today - datetime(today.year, 1, 1)).days
+        else:
+            days_back = 1
+        
+        end_date = today.strftime('%Y%m%d')
+        start_date = (today - timedelta(days=days_back + 5)).strftime('%Y%m%d')  # 多取几天防止节假日
+        
+        # 获取期间行情
+        daily_data = []
+        for days_ago in range(min(days_back + 5, 60)):
+            check_date = (today - timedelta(days=days_ago)).strftime('%Y%m%d')
+            try:
+                df = pro.daily(trade_date=check_date, fields='ts_code,close,pct_chg')
+                if df is not None and len(df) > 100:
+                    df['date'] = check_date
+                    daily_data.append(df)
+                    if len(daily_data) >= 2 or (period == '1d' and len(daily_data) >= 1):
+                        break
+            except:
+                continue
+        
+        if not daily_data:
+            return get_cn_sector_data()  # 回退到单日数据
+        
+        if period == '1d' and len(daily_data) >= 1:
+            # 单日直接返回
+            return get_cn_sector_data()
+        
+        # 计算期间涨跌幅 (用最新和最早的收盘价)
+        latest_df = daily_data[0]
+        earliest_df = daily_data[-1] if len(daily_data) > 1 else daily_data[0]
+        
+        merged = pd.merge(
+            latest_df[['ts_code', 'close']].rename(columns={'close': 'close_latest'}),
+            earliest_df[['ts_code', 'close']].rename(columns={'close': 'close_earliest'}),
+            on='ts_code', how='inner'
+        )
+        merged['pct_chg'] = (merged['close_latest'] - merged['close_earliest']) / merged['close_earliest'] * 100
+        
+        # 合并行业信息
+        merged = pd.merge(merged, stocks[['ts_code', 'industry']], on='ts_code', how='left')
+        merged = merged.dropna(subset=['industry'])
+        
+        # 按行业聚合
+        sector_stats = merged.groupby('industry').agg({
+            'pct_chg': 'mean',
+            'ts_code': 'count'
+        }).reset_index()
+        
+        sector_stats.columns = ['name', 'change_pct', 'stock_count']
+        sector_stats['sector'] = sector_stats['name']
+        sector_stats['amount'] = 0  # 期间成交额暂不计算
+        
+        sector_stats = sector_stats.sort_values('change_pct', ascending=False)
+        return sector_stats[['sector', 'name', 'change_pct', 'amount', 'stock_count']]
+        
+    except Exception as e:
+        print(f"Error in get_cn_sector_data_period: {e}")
+        return get_cn_sector_data()  # 回退
+
+
+def get_us_sector_data_period(period='1d'):
+    """获取美股行业板块指定时间段的涨跌数据
+    
+    Args:
+        period: '1d'=今日, '1w'=本周, '1m'=本月, 'ytd'=今年
+    """
+    api_key = _get_polygon_api_key()
+    if not api_key:
+        return None
+    
+    try:
+        # 计算时间范围
+        today = datetime.now()
+        if period == '1d':
+            days_back = 2
+        elif period == '1w':
+            days_back = 7
+        elif period == '1m':
+            days_back = 30
+        elif period == 'ytd':
+            days_back = (today - datetime(today.year, 1, 1)).days
+        else:
+            days_back = 2
+        
+        sector_etfs = {
+            'XLK': 'Technology',
+            'XLF': 'Financials',
+            'XLV': 'Healthcare',
+            'XLE': 'Energy',
+            'XLI': 'Industrials',
+            'XLY': 'Consumer Discretionary',
+            'XLP': 'Consumer Staples',
+            'XLU': 'Utilities',
+            'XLB': 'Materials',
+            'XLRE': 'Real Estate',
+            'XLC': 'Communication Services'
+        }
+        
+        sector_data = []
+        
+        for etf, sector_name in sector_etfs.items():
+            try:
+                df = get_us_stock_data(etf, days=days_back + 10)
+                if df is not None and len(df) >= 2:
+                    latest_close = df.iloc[-1]['Close']
+                    earliest_close = df.iloc[max(0, len(df) - days_back - 1)]['Close']
+                    change_pct = (latest_close - earliest_close) / earliest_close * 100
+                    
+                    sector_data.append({
+                        'sector': etf,
+                        'name': sector_name,
+                        'close': latest_close,
+                        'change_pct': change_pct,
+                        'volume': df.iloc[-1].get('Volume', 0)
+                    })
+            except:
+                continue
+        
+        if not sector_data:
+            return get_us_sector_data()
+        
+        result = pd.DataFrame(sector_data)
+        result = result.sort_values('change_pct', ascending=False)
+        return result
+        
+    except Exception as e:
+        print(f"Error in get_us_sector_data_period: {e}")
+        return get_us_sector_data()
