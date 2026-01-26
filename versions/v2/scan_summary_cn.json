@@ -1,8 +1,29 @@
 {
   "date": "2026-01-23",
   "market": "CN",
-  "total_signals": 73,
+  "total_signals": 96,
   "top_signals": [
+    {
+      "symbol": "601825.SH",
+      "name": "沪农商行",
+      "price": 8.49,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "001965.SZ",
+      "name": "招商公路",
+      "price": 9.42,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "601916.SH",
+      "name": "浙商银行",
+      "price": 2.95,
+      "day_blue": 200.0,
+      "week_blue": 73.0
+    },
     {
       "symbol": "600941.SH",
       "name": "中国移动",
@@ -23,6 +44,13 @@
       "price": 0.73,
       "day_blue": 194.7,
       "week_blue": 95.3
+    },
+    {
+      "symbol": "601328.SH",
+      "name": "交通银行",
+      "price": 6.64,
+      "day_blue": 173.0,
+      "week_blue": 144.9
     },
     {
       "symbol": "301227.SZ",
@@ -79,34 +107,6 @@
       "price": 115.3,
       "day_blue": 136.9,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "301391.SZ",
-      "name": "卡莱特",
-      "price": 77.62,
-      "day_blue": 129.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300979.SZ",
-      "name": "华利集团",
-      "price": 49.08,
-      "day_blue": 127.1,
-      "week_blue": 75.9
-    },
-    {
-      "symbol": "002567.SZ",
-      "name": "唐人神",
-      "price": 4.29,
-      "day_blue": 126.6,
-      "week_blue": 158.7
-    },
-    {
-      "symbol": "600809.SH",
-      "name": "山西汾酒",
-      "price": 164.76,
-      "day_blue": 125.6,
-      "week_blue": 95.1
     }
   ]
 }
