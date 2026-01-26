@@ -3671,6 +3671,199 @@ def render_ml_lab_page():
                     st.markdown(report)
 
 
+# --- 博主推荐追踪页面 ---
+
+def render_blogger_page():
+    """📢 博主推荐追踪页面"""
+    st.header("📢 博主推荐追踪")
+    st.caption("追踪知名博主的股票推荐，计算收益表现")
+    
+    from db.database import (
+        init_blogger_tables, get_all_bloggers, add_blogger, delete_blogger,
+        get_recommendations, add_recommendation, delete_recommendation, get_blogger_stats
+    )
+    from services.blogger_service import get_recommendations_with_returns, get_blogger_performance
+    
+    # 确保表存在
+    init_blogger_tables()
+    
+    tab_bloggers, tab_recs, tab_perf = st.tabs([
+        "👤 博主管理",
+        "📝 推荐记录", 
+        "🏆 业绩排行"
+    ])
+    
+    # === Tab 1: 博主管理 ===
+    with tab_bloggers:
+        st.subheader("博主列表")
+        
+        bloggers = get_all_bloggers()
+        
+        if bloggers:
+            for b in bloggers:
+                with st.expander(f"**{b['name']}** ({b.get('platform', 'N/A')})"):
+                    st.write(f"专长: {b.get('specialty', 'N/A')}")
+                    st.write(f"主页: {b.get('url', 'N/A')}")
+                    if is_admin():
+                        if st.button(f"🗑️ 删除", key=f"del_blogger_{b['id']}"):
+                            delete_blogger(b['id'])
+                            st.success("已删除")
+                            st.rerun()
+        else:
+            st.info("暂无博主，请添加")
+        
+        st.divider()
+        
+        if is_admin():
+            st.subheader("➕ 添加博主")
+            with st.form("add_blogger_form"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    new_name = st.text_input("博主名称*", placeholder="如：唐朝")
+                    new_platform = st.selectbox("平台", ["雪球", "微博", "抖音", "Twitter", "YouTube", "其他"])
+                with col2:
+                    new_specialty = st.selectbox("专长", ["A股", "美股", "港股", "混合"])
+                    new_url = st.text_input("主页链接", placeholder="https://...")
+                
+                if st.form_submit_button("添加博主", type="primary"):
+                    if new_name:
+                        add_blogger(new_name, platform=new_platform, specialty=new_specialty, url=new_url)
+                        st.success(f"✅ 已添加博主: {new_name}")
+                        st.rerun()
+                    else:
+                        st.error("请输入博主名称")
+    
+    # === Tab 2: 推荐记录 ===
+    with tab_recs:
+        st.subheader("推荐记录")
+        
+        bloggers = get_all_bloggers()
+        
+        if not bloggers:
+            st.warning("请先添加博主")
+        else:
+            # 筛选
+            col1, col2 = st.columns(2)
+            with col1:
+                filter_blogger = st.selectbox(
+                    "选择博主",
+                    options=[None] + [b['id'] for b in bloggers],
+                    format_func=lambda x: "全部" if x is None else next((b['name'] for b in bloggers if b['id'] == x), x)
+                )
+            with col2:
+                filter_market = st.selectbox("市场", ["全部", "CN", "US"])
+            
+            # 获取并显示推荐
+            recs = get_recommendations_with_returns(
+                blogger_id=filter_blogger,
+                market=None if filter_market == "全部" else filter_market,
+                limit=50
+            )
+            
+            if recs:
+                rec_df = pd.DataFrame(recs)
+                display_cols = ['blogger_name', 'ticker', 'rec_date', 'rec_type', 'rec_price', 'current_price', 'return_pct', 'days_held']
+                display_cols = [c for c in display_cols if c in rec_df.columns]
+                
+                st.dataframe(
+                    rec_df[display_cols],
+                    column_config={
+                        'blogger_name': '博主',
+                        'ticker': '股票',
+                        'rec_date': '推荐日期',
+                        'rec_type': '类型',
+                        'rec_price': '推荐价',
+                        'current_price': '现价',
+                        'return_pct': st.column_config.NumberColumn('收益%', format="%.2f%%"),
+                        'days_held': '持有天数'
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+            else:
+                st.info("暂无推荐记录")
+            
+            st.divider()
+            
+            # 添加推荐
+            if is_admin():
+                st.subheader("➕ 添加推荐")
+                with st.form("add_rec_form"):
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        rec_blogger = st.selectbox(
+                            "博主*",
+                            options=[b['id'] for b in bloggers],
+                            format_func=lambda x: next((b['name'] for b in bloggers if b['id'] == x), x)
+                        )
+                        rec_ticker = st.text_input("股票代码*", placeholder="如: 600519 或 AAPL")
+                    with col2:
+                        rec_market = st.selectbox("市场", ["CN", "US"])
+                        rec_date = st.date_input("推荐日期", value=datetime.now())
+                    with col3:
+                        rec_type = st.selectbox("类型", ["BUY", "SELL", "HOLD"])
+                        rec_price = st.number_input("推荐价格 (可选)", min_value=0.0, step=0.01)
+                    
+                    rec_notes = st.text_area("推荐理由", height=80)
+                    
+                    if st.form_submit_button("添加推荐", type="primary"):
+                        if rec_ticker and rec_blogger:
+                            add_recommendation(
+                                blogger_id=rec_blogger,
+                                ticker=rec_ticker,
+                                market=rec_market,
+                                rec_date=rec_date.strftime('%Y-%m-%d'),
+                                rec_price=rec_price if rec_price > 0 else None,
+                                rec_type=rec_type,
+                                notes=rec_notes
+                            )
+                            st.success(f"✅ 已添加推荐: {rec_ticker}")
+                            st.rerun()
+                        else:
+                            st.error("请填写必填项")
+    
+    # === Tab 3: 业绩排行 ===
+    with tab_perf:
+        st.subheader("🏆 博主业绩排行")
+        
+        if st.button("🔄 刷新统计"):
+            st.cache_data.clear()
+        
+        perf = get_blogger_performance()
+        
+        if perf:
+            perf_df = pd.DataFrame(perf)
+            
+            # 高亮显示
+            st.dataframe(
+                perf_df[['name', 'platform', 'rec_count', 'win_rate', 'avg_return', 'total_return']],
+                column_config={
+                    'name': '博主',
+                    'platform': '平台',
+                    'rec_count': '推荐数',
+                    'win_rate': st.column_config.NumberColumn('胜率%', format="%.1f%%"),
+                    'avg_return': st.column_config.NumberColumn('平均收益%', format="%.2f%%"),
+                    'total_return': st.column_config.NumberColumn('累计收益%', format="%.2f%%")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+            
+            # 胜率图表
+            if len(perf_df) > 0 and perf_df['rec_count'].sum() > 0:
+                import plotly.express as px
+                fig = px.bar(
+                    perf_df[perf_df['rec_count'] > 0],
+                    x='name', y='avg_return',
+                    title="博主平均收益率排名",
+                    color='win_rate',
+                    color_continuous_scale='RdYlGn'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("暂无数据，请先添加博主和推荐记录")
+
+
 # --- 主导航 ---
 
 st.sidebar.title("Coral Creek 🦅")
@@ -3678,8 +3871,9 @@ page = st.sidebar.radio("功能导航", [
     "📊 每日机会扫描", 
     "🔍 个股查询", 
     "📈 信号追踪",
+    "📢 博主追踪",  # 新增
     "📉 信号验证",
-    "🤖 ML实验室",  # 新增
+    "🤖 ML实验室",
     "🔄 Baseline对比", 
     "🧪 策略回测实验"
 ])
@@ -3690,6 +3884,8 @@ elif page == "🔍 个股查询":
     render_stock_lookup_page()
 elif page == "📈 信号追踪":
     render_signal_tracker_page()
+elif page == "📢 博主追踪":
+    render_blogger_page()
 elif page == "📉 信号验证":
     render_signal_performance_page()
 elif page == "🤖 ML实验室":
@@ -3698,5 +3894,4 @@ elif page == "🔄 Baseline对比":
     render_baseline_comparison_page()
 elif page == "🧪 策略回测实验":
     render_backtest_page()
-
 

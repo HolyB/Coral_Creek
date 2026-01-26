@@ -873,8 +873,193 @@ def delete_from_watchlist(symbol, entry_date, market='US'):
         return cursor.rowcount
 
 
+# ==================== 博主推荐追踪 ====================
+
+def init_blogger_tables():
+    """初始化博主推荐相关表"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # 博主表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS bloggers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                platform TEXT,
+                specialty TEXT,
+                url TEXT,
+                avatar_url TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # 推荐记录表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS recommendations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                blogger_id INTEGER NOT NULL,
+                ticker TEXT NOT NULL,
+                market TEXT DEFAULT 'CN',
+                rec_date DATE NOT NULL,
+                rec_price REAL,
+                rec_type TEXT DEFAULT 'BUY',
+                target_price REAL,
+                stop_loss REAL,
+                notes TEXT,
+                source_url TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (blogger_id) REFERENCES bloggers(id)
+            )
+        """)
+        
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rec_blogger ON recommendations(blogger_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rec_date ON recommendations(rec_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_rec_ticker ON recommendations(ticker)")
+        
+        print("✅ Blogger tables initialized")
+
+
+def add_blogger(name, platform=None, specialty=None, url=None, notes=None):
+    """添加博主"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO bloggers (name, platform, specialty, url, notes)
+            VALUES (?, ?, ?, ?, ?)
+        """, (name, platform, specialty, url, notes))
+        return cursor.lastrowid
+
+
+def get_all_bloggers():
+    """获取所有博主"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM bloggers ORDER BY name")
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def get_blogger(blogger_id):
+    """获取单个博主"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM bloggers WHERE id = ?", (blogger_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+
+def update_blogger(blogger_id, **kwargs):
+    """更新博主信息"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        set_clauses = [f"{k} = ?" for k in kwargs.keys()]
+        params = list(kwargs.values()) + [blogger_id]
+        cursor.execute(f"""
+            UPDATE bloggers SET {', '.join(set_clauses)} WHERE id = ?
+        """, params)
+        return cursor.rowcount
+
+
+def delete_blogger(blogger_id):
+    """删除博主"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM recommendations WHERE blogger_id = ?", (blogger_id,))
+        cursor.execute("DELETE FROM bloggers WHERE id = ?", (blogger_id,))
+        return cursor.rowcount
+
+
+def add_recommendation(blogger_id, ticker, rec_date, market='CN', rec_price=None, 
+                       rec_type='BUY', target_price=None, stop_loss=None, notes=None, source_url=None):
+    """添加推荐记录"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO recommendations (blogger_id, ticker, market, rec_date, rec_price, 
+                                         rec_type, target_price, stop_loss, notes, source_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (blogger_id, ticker.upper(), market, rec_date, rec_price, 
+              rec_type, target_price, stop_loss, notes, source_url))
+        return cursor.lastrowid
+
+
+def get_recommendations(blogger_id=None, ticker=None, market=None, start_date=None, end_date=None, limit=100):
+    """查询推荐记录"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        query = """
+            SELECT r.*, b.name as blogger_name, b.platform
+            FROM recommendations r
+            JOIN bloggers b ON r.blogger_id = b.id
+            WHERE 1=1
+        """
+        params = []
+        
+        if blogger_id:
+            query += " AND r.blogger_id = ?"
+            params.append(blogger_id)
+        if ticker:
+            query += " AND r.ticker = ?"
+            params.append(ticker.upper())
+        if market:
+            query += " AND r.market = ?"
+            params.append(market)
+        if start_date:
+            query += " AND r.rec_date >= ?"
+            params.append(start_date)
+        if end_date:
+            query += " AND r.rec_date <= ?"
+            params.append(end_date)
+        
+        query += " ORDER BY r.rec_date DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+
+def delete_recommendation(rec_id):
+    """删除推荐记录"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM recommendations WHERE id = ?", (rec_id,))
+        return cursor.rowcount
+
+
+def get_blogger_stats(blogger_id=None):
+    """获取博主统计信息 (推荐数量、涵盖日期范围)"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        if blogger_id:
+            cursor.execute("""
+                SELECT b.id, b.name, b.platform,
+                       COUNT(r.id) as rec_count,
+                       MIN(r.rec_date) as first_rec,
+                       MAX(r.rec_date) as last_rec
+                FROM bloggers b
+                LEFT JOIN recommendations r ON b.id = r.blogger_id
+                WHERE b.id = ?
+                GROUP BY b.id
+            """, (blogger_id,))
+        else:
+            cursor.execute("""
+                SELECT b.id, b.name, b.platform,
+                       COUNT(r.id) as rec_count,
+                       MIN(r.rec_date) as first_rec,
+                       MAX(r.rec_date) as last_rec
+                FROM bloggers b
+                LEFT JOIN recommendations r ON b.id = r.blogger_id
+                GROUP BY b.id
+                ORDER BY rec_count DESC
+            """)
+        
+        return [dict(row) for row in cursor.fetchall()]
+
+
 if __name__ == "__main__":
     # 初始化数据库
     init_db()
+    init_blogger_tables()
     print(get_db_stats())
-
