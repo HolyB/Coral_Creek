@@ -1547,8 +1547,8 @@ def render_scan_page():
                                         from data_fetcher import get_cn_sector_hot_stocks
                                         hot_df = get_cn_sector_hot_stocks(selected_sector)
                                     else:
-                                        # 美股暂用 ETF 组成
-                                        hot_df = None
+                                        from data_fetcher import get_us_sector_hot_stocks
+                                        hot_df = get_us_sector_hot_stocks(selected_sector)
                                     st.session_state[hot_stocks_key] = hot_df
                                 except Exception as e:
                                     st.session_state[hot_stocks_key] = None

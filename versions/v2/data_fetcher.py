@@ -717,3 +717,67 @@ def get_cn_sector_hot_stocks(sector_name, top_n=10):
     except Exception as e:
         print(f"Error in get_cn_sector_hot_stocks: {e}")
         return None
+
+
+def get_us_sector_hot_stocks(sector_name, top_n=10):
+    """获取美股指定板块的热门股票
+    
+    Args:
+        sector_name: 板块名称，如 "Technology", "Financials"
+        top_n: 返回前N只股票
+    
+    Returns:
+        DataFrame with columns: symbol, name, pct_chg
+    """
+    # 每个行业的代表性股票
+    sector_stocks = {
+        'Technology': ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'META', 'AVGO', 'ADBE', 'CRM', 'CSCO', 'ORCL', 'AMD', 'INTC', 'QCOM', 'TXN', 'IBM'],
+        'Financials': ['JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'BLK', 'SCHW', 'AXP', 'USB', 'PNC', 'TFC', 'COF', 'BK', 'CME'],
+        'Healthcare': ['UNH', 'JNJ', 'LLY', 'PFE', 'ABBV', 'MRK', 'TMO', 'ABT', 'DHR', 'BMY', 'AMGN', 'CVS', 'MDT', 'ISRG', 'GILD'],
+        'Energy': ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'VLO', 'OXY', 'PXD', 'DVN', 'HAL', 'BKR', 'KMI', 'WMB'],
+        'Industrials': ['CAT', 'RTX', 'UNP', 'HON', 'BA', 'DE', 'LMT', 'UPS', 'GE', 'MMM', 'ETN', 'ITW', 'EMR', 'FDX', 'NSC'],
+        'Consumer Discretionary': ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'SBUX', 'LOW', 'TJX', 'BKNG', 'CMG', 'ORLY', 'MAR', 'YUM', 'DHI', 'GM'],
+        'Consumer Staples': ['PG', 'KO', 'PEP', 'COST', 'WMT', 'PM', 'MO', 'CL', 'MDLZ', 'EL', 'KHC', 'GIS', 'SYY', 'STZ', 'K'],
+        'Utilities': ['NEE', 'DUK', 'SO', 'D', 'AEP', 'SRE', 'EXC', 'XEL', 'PCG', 'WEC', 'ED', 'ES', 'AWK', 'DTE', 'AEE'],
+        'Materials': ['LIN', 'APD', 'SHW', 'ECL', 'FCX', 'NEM', 'NUE', 'CTVA', 'DOW', 'DD', 'PPG', 'VMC', 'MLM', 'ALB', 'CF'],
+        'Real Estate': ['PLD', 'AMT', 'EQIX', 'CCI', 'PSA', 'O', 'WELL', 'SPG', 'DLR', 'AVB', 'EQR', 'VTR', 'ARE', 'MAA', 'UDR'],
+        'Communication Services': ['GOOGL', 'META', 'DIS', 'CMCSA', 'NFLX', 'VZ', 'T', 'TMUS', 'CHTR', 'EA', 'ATVI', 'WBD', 'OMC', 'IPG', 'TTWO']
+    }
+    
+    if sector_name not in sector_stocks:
+        return None
+    
+    tickers = sector_stocks[sector_name][:top_n + 5]  # 获取多几个以防有失败的
+    
+    try:
+        stock_data = []
+        
+        for ticker in tickers:
+            try:
+                df = get_us_stock_data(ticker, days=5)
+                if df is not None and len(df) >= 2:
+                    latest_close = df.iloc[-1]['Close']
+                    prev_close = df.iloc[-2]['Close']
+                    pct_chg = (latest_close - prev_close) / prev_close * 100
+                    
+                    stock_data.append({
+                        'symbol': ticker,
+                        'name': ticker,  # 美股用代码作为名称
+                        'pct_chg': round(pct_chg, 2)
+                    })
+            except:
+                continue
+            
+            if len(stock_data) >= top_n:
+                break
+        
+        if not stock_data:
+            return None
+        
+        result = pd.DataFrame(stock_data)
+        result = result.sort_values('pct_chg', ascending=False)
+        return result.head(top_n)
+        
+    except Exception as e:
+        print(f"Error in get_us_sector_hot_stocks: {e}")
+        return None
