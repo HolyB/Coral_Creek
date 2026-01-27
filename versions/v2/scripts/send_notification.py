@@ -40,7 +40,7 @@ def load_scan_summary():
 
 
 def send_telegram(summary):
-    """发送 Telegram 通知"""
+    """发送 Telegram 通知 - 增强版"""
     bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
     chat_id = os.getenv('TELEGRAM_CHAT_ID')
     
@@ -53,31 +53,72 @@ def send_telegram(summary):
     total = summary.get('total_signals', 0)
     top = summary.get('top_signals', [])[:10]
     
-    market_name = "美股" if market == "US" else "A股"
+    market_name = "🇺🇸 美股" if market == "US" else "🇨🇳 A股"
     
+    # 构建增强版消息
     lines = [
+        '━━━━━━━━━━━━━━━━━━',
         '🦅 *Coral Creek 每日扫描*',
-        f'📅 日期: {date}',
-        f'📊 市场: {market_name}',
-        f'🎯 信号: {total} 个',
+        '━━━━━━━━━━━━━━━━━━',
+        f'📅 *日期:* `{date}`',
+        f'📊 *市场:* {market_name}',
+        f'🎯 *信号:* *{total}* 个',
         '',
-        '📈 *Top 10:*'
+        '━━ 📈 *Top 10 信号* ━━'
     ]
     
-    for i, s in enumerate(top, 1):
-        # 转义 Markdown 特殊字符
+    # 按 BLUE 值分类
+    strong_signals = [s for s in top if s.get('day_blue', 0) > 150]
+    normal_signals = [s for s in top if 100 <= s.get('day_blue', 0) <= 150]
+    weak_signals = [s for s in top if s.get('day_blue', 0) < 100]
+    
+    def format_signal(s, idx):
         name = s.get('name', '')[:8] if s.get('name') else ''
         name = name.replace('*', '').replace('_', '').replace('`', '').replace('[', '').replace(']', '')
         symbol = s.get('symbol', 'N/A')
         price = s.get('price', 0)
         day_blue = s.get('day_blue', 0)
         week_blue = s.get('week_blue', 0)
-        chip = s.get('chip_pattern', '')  # 🔥 or 📍
+        chip = s.get('chip_pattern', '')
+        
+        # 信号强度指示
+        if day_blue > 150:
+            strength = '🔥'  # 强烈
+        elif day_blue > 100:
+            strength = '✅'  # 正常
+        else:
+            strength = '📍'  # 观望
+        
+        # 周线确认
+        weekly_confirm = '⬆️' if week_blue > 80 else ''
+        
+        # 筹码形态
         chip_str = f' {chip}' if chip else ''
-        lines.append(f'{i}. `{symbol}` {name} ${price:.2f}{chip_str} D:{day_blue:.0f} W:{week_blue:.0f}')
+        
+        return f'{strength} `{symbol}` {name} *${price:.2f}*{chip_str} D:{day_blue:.0f}{weekly_confirm}'
+    
+    for i, s in enumerate(top, 1):
+        lines.append(format_signal(s, i))
+    
+    # 市场概览
+    lines.append('')
+    lines.append('━━ 📊 *信号概览* ━━')
+    lines.append(f'🔥 强烈信号 (BLUE>150): *{len(strong_signals)}* 个')
+    lines.append(f'✅ 标准信号 (100-150): *{len(normal_signals)}* 个')
+    lines.append(f'📍 观望信号 (<100): *{len(weak_signals)}* 个')
+    
+    # 操作建议
+    lines.append('')
+    if len(strong_signals) >= 3:
+        lines.append('💡 *建议:* 市场超卖，可择机低吸')
+    elif len(strong_signals) >= 1:
+        lines.append('💡 *建议:* 关注强势信号，等待确认')
+    else:
+        lines.append('💡 *建议:* 信号偏弱，继续观望')
     
     lines.append('')
-    lines.append('[查看详情](https://coral-creek-park-way.onrender.com)')
+    lines.append('[📱 查看详情](https://coral-creek-park-way.onrender.com)')
+    lines.append('━━━━━━━━━━━━━━━━━━')
     
     message = '\n'.join(lines)
     
