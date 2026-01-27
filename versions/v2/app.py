@@ -3079,6 +3079,267 @@ def render_signal_performance_page():
         st.json(params)
 
 
+# ==================== AI 决策仪表盘 ====================
+
+def render_ai_dashboard_page():
+    """AI 决策仪表盘页面 - Gemini 分析"""
+    st.header("🤖 AI 决策仪表盘")
+    st.caption("基于 Gemini 大模型的智能股票分析，生成一句话结论和检查清单")
+    
+    from ml.llm_intelligence import generate_stock_decision, check_llm_available
+    
+    # 检查 LLM 可用性
+    llm_status = check_llm_available()
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        symbol = st.text_input("股票代码", value="NVDA", key="ai_symbol").upper().strip()
+        
+    with col2:
+        provider = st.selectbox("AI 模型", ["gemini", "openai"], index=0)
+        if provider == "gemini" and not llm_status.get('gemini'):
+            st.warning("Gemini 需要设置 GEMINI_API_KEY")
+        elif provider == "openai" and not llm_status.get('openai'):
+            st.warning("OpenAI 需要设置 OPENAI_API_KEY")
+    
+    if st.button("🔮 生成 AI 决策", key="gen_ai_decision"):
+        with st.spinner(f"正在分析 {symbol}..."):
+            try:
+                # 获取股票数据
+                from data_fetcher import get_us_stock_data
+                from indicators import calculate_indicators
+                
+                df = get_us_stock_data(symbol, days=60)
+                if df is None or len(df) < 20:
+                    st.error("无法获取股票数据")
+                    return
+                
+                # 计算指标
+                df = calculate_indicators(df)
+                latest = df.iloc[-1]
+                
+                # 准备数据
+                stock_data = {
+                    'symbol': symbol,
+                    'price': latest['Close'],
+                    'blue_daily': latest.get('BLUE', 0),
+                    'blue_weekly': latest.get('BLUE', 0) * 0.8,  # 模拟
+                    'ma5': latest.get('MA5', latest['Close']),
+                    'ma10': latest.get('MA10', latest['Close']),
+                    'ma20': latest.get('MA20', latest['Close']),
+                    'rsi': latest.get('RSI', 50),
+                    'volume_ratio': latest.get('Volume', 1) / df['Volume'].mean() if df['Volume'].mean() > 0 else 1
+                }
+                
+                # 生成决策
+                from ml.llm_intelligence import LLMAnalyzer
+                analyzer = LLMAnalyzer(provider=provider)
+                result = analyzer.generate_decision_dashboard(stock_data)
+                
+                if 'error' in result:
+                    st.error(f"分析失败: {result['error']}")
+                    return
+                
+                # 显示结果
+                st.success("✅ 分析完成")
+                
+                # 核心结论
+                signal_color = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(result.get('signal', 'HOLD'), "🟡")
+                st.markdown(f"### {signal_color} {result.get('verdict', '暂无结论')}")
+                
+                # 关键指标
+                col_a, col_b, col_c, col_d = st.columns(4)
+                with col_a:
+                    st.metric("信号", result.get('signal', 'N/A'))
+                with col_b:
+                    st.metric("置信度", f"{result.get('confidence', 0)}%")
+                with col_c:
+                    st.metric("入场价", f"${result.get('entry_price', 0):.2f}")
+                with col_d:
+                    st.metric("止损价", f"${result.get('stop_loss', 0):.2f}")
+                
+                # 目标价
+                st.metric("🎯 目标价", f"${result.get('target_price', 0):.2f}")
+                
+                # 检查清单
+                st.markdown("### ✅ 检查清单")
+                checklist = result.get('checklist', [])
+                for item in checklist:
+                    status = item.get('status', '⚠️')
+                    name = item.get('item', '')
+                    detail = item.get('detail', '')
+                    st.markdown(f"{status} **{name}**: {detail}")
+                
+                # 风险提示
+                if result.get('risk_warning'):
+                    st.warning(f"⚠️ {result.get('risk_warning')}")
+                
+            except Exception as e:
+                st.error(f"分析出错: {str(e)}")
+
+
+# ==================== 组合优化器 ====================
+
+def render_portfolio_optimizer_page():
+    """组合优化器页面 - Markowitz"""
+    st.header("📐 组合优化器")
+    st.caption("基于 Markowitz 均值-方差模型的资产配置优化")
+    
+    from research.portfolio_optimizer import optimize_portfolio_from_symbols
+    
+    # 输入股票
+    symbols_input = st.text_input(
+        "输入股票代码 (逗号分隔，最多10只)",
+        value="AAPL, GOOGL, MSFT, NVDA, AMZN",
+        key="portfolio_symbols"
+    )
+    
+    symbols = [s.strip().upper() for s in symbols_input.split(",") if s.strip()]
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        market = st.selectbox("市场", ["US", "CN"], index=0, key="portfolio_market")
+    with col2:
+        days = st.number_input("历史天数", value=252, step=30, key="portfolio_days")
+    
+    if st.button("📊 优化组合", key="optimize_btn"):
+        if len(symbols) < 2:
+            st.error("至少需要2只股票")
+            return
+        
+        with st.spinner("正在计算最优配置..."):
+            try:
+                result = optimize_portfolio_from_symbols(symbols, market=market, days=days)
+                
+                if 'error' in result:
+                    st.error(f"优化失败: {result['error']}")
+                    return
+                
+                st.success("✅ 优化完成")
+                
+                # 三种策略对比
+                tab_sharpe, tab_vol, tab_parity = st.tabs(["📈 最大夏普", "🛡️ 最小波动", "⚖️ 风险平价"])
+                
+                with tab_sharpe:
+                    sharpe = result.get('max_sharpe', {})
+                    st.markdown("### 最大夏普比率组合")
+                    col_a, col_b, col_c = st.columns(3)
+                    with col_a:
+                        st.metric("预期收益", f"{sharpe.get('expected_return', 0):.1f}%")
+                    with col_b:
+                        st.metric("波动率", f"{sharpe.get('volatility', 0):.1f}%")
+                    with col_c:
+                        st.metric("夏普比率", f"{sharpe.get('sharpe_ratio', 0):.2f}")
+                    
+                    st.markdown("**配置权重:**")
+                    weights = sharpe.get('weights', {})
+                    if weights:
+                        import plotly.express as px
+                        fig = px.pie(names=list(weights.keys()), values=list(weights.values()), 
+                                     title="资产配置")
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                with tab_vol:
+                    vol = result.get('min_vol', {})
+                    st.markdown("### 最小波动率组合")
+                    col_a, col_b, col_c = st.columns(3)
+                    with col_a:
+                        st.metric("预期收益", f"{vol.get('expected_return', 0):.1f}%")
+                    with col_b:
+                        st.metric("波动率", f"{vol.get('volatility', 0):.1f}%")
+                    with col_c:
+                        st.metric("夏普比率", f"{vol.get('sharpe_ratio', 0):.2f}")
+                    
+                    weights = vol.get('weights', {})
+                    if weights:
+                        st.dataframe(pd.DataFrame([weights]).T.rename(columns={0: '权重'}))
+                
+                with tab_parity:
+                    parity = result.get('risk_parity', {})
+                    st.markdown("### 风险平价组合")
+                    st.caption("每个资产对总风险的贡献相等")
+                    col_a, col_b, col_c = st.columns(3)
+                    with col_a:
+                        st.metric("预期收益", f"{parity.get('expected_return', 0):.1f}%")
+                    with col_b:
+                        st.metric("波动率", f"{parity.get('volatility', 0):.1f}%")
+                    with col_c:
+                        st.metric("夏普比率", f"{parity.get('sharpe_ratio', 0):.2f}")
+                    
+                    weights = parity.get('weights', {})
+                    if weights:
+                        st.dataframe(pd.DataFrame([weights]).T.rename(columns={0: '权重'}))
+                
+                # 相关性矩阵
+                with st.expander("📊 相关性矩阵"):
+                    corr = result.get('correlation', {})
+                    if corr:
+                        corr_df = pd.DataFrame(corr)
+                        st.dataframe(corr_df.style.background_gradient(cmap='RdYlGn', vmin=-1, vmax=1))
+                
+            except Exception as e:
+                st.error(f"优化出错: {str(e)}")
+
+
+# ==================== 研究工具 ====================
+
+def render_research_page():
+    """研究工具页面 - 因子分析等"""
+    st.header("🔬 研究工具")
+    
+    tab_factor, tab_ml = st.tabs(["📊 因子分析", "🤖 ML实验室"])
+    
+    with tab_factor:
+        st.subheader("📊 BLUE 因子 IC 分析")
+        st.caption("分析 BLUE 信号对未来收益的预测能力")
+        
+        from research.factor_research import analyze_factors_from_scan
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            market = st.selectbox("市场", ["US", "CN"], key="factor_market")
+        
+        if st.button("📈 分析 BLUE 因子", key="analyze_factor"):
+            with st.spinner("正在分析..."):
+                try:
+                    result = analyze_factors_from_scan(market=market)
+                    
+                    if 'error' in result:
+                        st.error(result['error'])
+                        return
+                    
+                    st.success("✅ 分析完成")
+                    
+                    stats = result.get('stats', {})
+                    
+                    col_a, col_b, col_c, col_d = st.columns(4)
+                    with col_a:
+                        st.metric("平均 IC", f"{stats.get('mean_ic', 0):.4f}")
+                    with col_b:
+                        st.metric("IC_IR", f"{stats.get('ic_ir', 0):.4f}")
+                    with col_c:
+                        st.metric("IC 正向率", f"{stats.get('ic_positive_rate', 0):.1f}%")
+                    with col_d:
+                        st.metric("样本数", stats.get('n_periods', 0))
+                    
+                    # 解读
+                    ic_ir = stats.get('ic_ir', 0)
+                    if ic_ir > 0.5:
+                        st.success("📈 BLUE 因子表现优秀 (IC_IR > 0.5)")
+                    elif ic_ir > 0.3:
+                        st.info("📊 BLUE 因子表现中等 (0.3 < IC_IR < 0.5)")
+                    else:
+                        st.warning("⚠️ BLUE 因子预测能力较弱 (IC_IR < 0.3)")
+                    
+                except Exception as e:
+                    st.error(f"分析出错: {str(e)}")
+    
+    with tab_ml:
+        # 保留原来的 ML 实验室内容
+        render_ml_lab_page()
+
+
 def render_backtest_page():
     st.header("🧪 策略回测实验室 (Strategy Lab)")
     
@@ -4015,11 +4276,13 @@ page = st.sidebar.radio("功能导航", [
     "📊 每日机会扫描", 
     "🔍 个股查询", 
     "📈 信号追踪",
-    "📢 博主追踪",  # 新增
+    "📢 博主追踪",
     "📉 信号验证",
-    "🤖 ML实验室",
-    "🔄 Baseline对比", 
-    "🧪 策略回测实验"
+    "🤖 AI决策仪表盘",  # 新增
+    "📐 组合优化器",     # 新增
+    "🔬 研究工具",       # 新增
+    "🧪 策略回测实验",
+    "🔄 Baseline对比"
 ])
 
 if page == "📊 每日机会扫描":
@@ -4032,10 +4295,14 @@ elif page == "📢 博主追踪":
     render_blogger_page()
 elif page == "📉 信号验证":
     render_signal_performance_page()
-elif page == "🤖 ML实验室":
-    render_ml_lab_page()
-elif page == "🔄 Baseline对比":
-    render_baseline_comparison_page()
+elif page == "🤖 AI决策仪表盘":
+    render_ai_dashboard_page()
+elif page == "📐 组合优化器":
+    render_portfolio_optimizer_page()
+elif page == "🔬 研究工具":
+    render_research_page()
 elif page == "🧪 策略回测实验":
     render_backtest_page()
+elif page == "🔄 Baseline对比":
+    render_baseline_comparison_page()
 
