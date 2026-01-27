@@ -23,7 +23,7 @@ from db.database import (
 
 # 设置页面配置
 st.set_page_config(
-    page_title="Coral Creek V2.2 - 智能量化系统",
+    page_title="Coral Creek V3.0 - 智能量化系统",
     page_icon="🦅",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -50,7 +50,7 @@ def check_password():
         st.session_state["user_role"] = None
     
     if st.session_state["user_role"] is None:
-        st.markdown("## 🦅 Coral Creek V2.0")
+        st.markdown("## 🦅 Coral Creek V3.0")
         st.markdown("智能量化扫描系统")
         st.markdown("---")
         
