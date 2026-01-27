@@ -23,7 +23,7 @@ from db.database import (
 
 # 设置页面配置
 st.set_page_config(
-    page_title="Coral Creek V2.1 - 智能量化系统",
+    page_title="Coral Creek V2.2 - 智能量化系统",
     page_icon="🦅",
     layout="wide",
     initial_sidebar_state="expanded"
