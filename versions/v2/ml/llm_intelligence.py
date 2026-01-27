@@ -293,29 +293,76 @@ RSI: {rsi:.1f}
         
         result = self._call_llm(prompt)
         
+        # 尝试解析 LLM 响应
         try:
-            if '{' in result:
+            if result and '{' in result and 'Error' not in result:
                 json_str = result[result.find('{'):result.rfind('}')+1]
-                return json.loads(json_str)
+                parsed = json.loads(json_str)
+                if 'verdict' in parsed:
+                    return parsed
         except Exception as e:
             pass
         
-        # 返回默认结构
+        # LLM 失败时，使用本地算法分析
+        # 计算乖离率
+        bias = (price - ma5) / ma5 * 100 if ma5 > 0 else 0
+        
+        # 判断信号
+        if blue > 100 and ma5 > ma10 > ma20 and abs(bias) < 5:
+            signal = 'BUY'
+            verdict = '✅ 多头排列 + BLUE超卖信号，可低吸'
+            confidence = min(80, int(blue / 2))
+        elif blue > 80 and vol_ratio > 1.2:
+            signal = 'BUY'
+            verdict = '📈 有企稳迹象，关注突破'
+            confidence = 60
+        elif bias > 5:
+            signal = 'SELL'
+            verdict = '⚠️ 乖离率过高，严禁追高'
+            confidence = 70
+        elif ma5 < ma10 < ma20:
+            signal = 'SELL'
+            verdict = '📉 空头排列，建议观望'
+            confidence = 65
+        else:
+            signal = 'HOLD'
+            verdict = '🔄 趋势不明，建议观望等待'
+            confidence = 40
+        
+        # 构建检查清单
+        checklist = [
+            {
+                'item': 'BLUE信号',
+                'status': '✅' if blue > 100 else ('⚠️' if blue > 50 else '❌'),
+                'detail': f'BLUE={blue:.0f}' + (' (超卖区)' if blue > 100 else '')
+            },
+            {
+                'item': '均线排列',
+                'status': '✅' if ma5 > ma10 > ma20 else '❌',
+                'detail': '多头排列' if ma5 > ma10 > ma20 else '空头/缠绕'
+            },
+            {
+                'item': '乖离率',
+                'status': '✅' if abs(bias) < 2 else ('⚠️' if abs(bias) < 5 else '❌'),
+                'detail': f'{bias:+.1f}%' + (' ⚠️追高风险' if bias > 5 else '')
+            },
+            {
+                'item': '量价配合',
+                'status': '✅' if vol_ratio > 1.2 else '⚠️',
+                'detail': f'量比={vol_ratio:.1f}x'
+            }
+        ]
+        
         return {
-            'verdict': '数据不足，无法判断',
-            'signal': 'HOLD',
-            'confidence': 0,
-            'entry_price': price,
-            'stop_loss': price * 0.95,
-            'target_price': price * 1.10,
-            'checklist': [
-                {'item': 'BLUE信号', 'status': '⚠️' if blue > 50 else '❌', 'detail': f'BLUE={blue:.1f}'},
-                {'item': '均线排列', 'status': '✅' if ma5 > ma10 > ma20 else '❌', 'detail': 'MA排列'},
-                {'item': '量价配合', 'status': '✅' if vol_ratio > 1 else '⚠️', 'detail': f'量比={vol_ratio:.1f}'},
-                {'item': '趋势判断', 'status': '⚠️', 'detail': '需要更多数据'}
-            ],
-            'risk_warning': '请结合其他指标综合判断',
-            'raw_response': result
+            'verdict': verdict,
+            'signal': signal,
+            'confidence': confidence,
+            'entry_price': round(ma5, 2),  # 建议在MA5附近买入
+            'stop_loss': round(ma20 * 0.97, 2),  # 止损在MA20下方3%
+            'target_price': round(price * 1.15, 2),  # 目标15%收益
+            'checklist': checklist,
+            'risk_warning': '⚠️ 本地算法分析，建议结合AI和人工判断',
+            'analysis_mode': 'local'  # 标记为本地分析
         }
 
 
