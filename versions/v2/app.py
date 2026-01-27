@@ -1679,6 +1679,59 @@ def render_scan_page():
         st.divider()
         st.subheader(f"🔍 深度透视: {symbol}")
         
+        # === AI 快速分析按钮 ===
+        ai_col1, ai_col2 = st.columns([1, 3])
+        with ai_col1:
+            if st.button("🤖 AI 分析", key=f"ai_analyze_{symbol}", type="secondary"):
+                with st.spinner("AI 正在分析..."):
+                    try:
+                        from ml.llm_intelligence import LLMAnalyzer
+                        
+                        # 准备数据
+                        price = float(selected_row.get('Price', 0))
+                        blue_d = float(selected_row.get('Day BLUE', 0))
+                        blue_w = float(selected_row.get('Week BLUE', 0))
+                        
+                        stock_data = {
+                            'symbol': symbol,
+                            'price': price,
+                            'blue_daily': blue_d,
+                            'blue_weekly': blue_w,
+                            'ma5': price * 0.98,  # 估算
+                            'ma10': price * 0.96,
+                            'ma20': price * 0.94,
+                            'rsi': 50,
+                            'volume_ratio': 1.2
+                        }
+                        
+                        analyzer = LLMAnalyzer(provider='gemini')
+                        result = analyzer.generate_decision_dashboard(stock_data)
+                        
+                        # 显示结果
+                        signal_icon = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(result.get('signal', 'HOLD'), "🟡")
+                        st.markdown(f"### {signal_icon} {result.get('verdict', '分析中...')}")
+                        
+                        col_a, col_b, col_c = st.columns(3)
+                        with col_a:
+                            st.metric("信号", result.get('signal', 'N/A'))
+                        with col_b:
+                            st.metric("置信度", f"{result.get('confidence', 0)}%")
+                        with col_c:
+                            st.metric("止损价", f"${result.get('stop_loss', 0):.2f}")
+                        
+                        # 检查清单
+                        for item in result.get('checklist', []):
+                            st.markdown(f"{item.get('status', '⚠️')} **{item.get('item')}**: {item.get('detail')}")
+                        
+                        if result.get('analysis_mode') == 'local':
+                            st.caption("💡 本地算法分析 (Gemini API 暂不可用)")
+                        
+                    except Exception as e:
+                        st.error(f"AI分析出错: {str(e)}")
+        
+        with ai_col2:
+            st.caption(f"💡 BLUE日线: {selected_row.get('Day BLUE', 0):.0f} | 周线: {selected_row.get('Week BLUE', 0):.0f}")
+        
         chart_col, info_col = st.columns([2, 1])
         
         with chart_col:
