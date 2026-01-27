@@ -91,7 +91,7 @@ def get_gemini_model():
         return None
     
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel('gemini-1.5-flash')
+    return genai.GenerativeModel('gemini-2.0-flash')
 
 
 class LLMAnalyzer:
@@ -115,7 +115,7 @@ class LLMAnalyzer:
             self.model = 'claude-3-haiku-20240307'
         elif provider == 'gemini':
             self.client = get_gemini_model()
-            self.model = 'gemini-1.5-flash'
+            self.model = 'gemini-2.0-flash'
     
     def is_available(self) -> bool:
         """检查客户端是否可用"""
