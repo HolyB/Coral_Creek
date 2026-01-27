@@ -74,7 +74,19 @@ def get_gemini_model():
     if not GEMINI_AVAILABLE:
         return None
     
-    api_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
+    # 优先从 Streamlit secrets 读取 (Streamlit Cloud)
+    api_key = None
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'GEMINI_API_KEY' in st.secrets:
+            api_key = st.secrets['GEMINI_API_KEY']
+    except:
+        pass
+    
+    # 回退到环境变量 (本地开发)
+    if not api_key:
+        api_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
+    
     if not api_key:
         return None
     
