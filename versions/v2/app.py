@@ -1680,10 +1680,16 @@ def render_scan_page():
         st.subheader(f"🔍 深度透视: {symbol}")
         
         # === AI 快速分析按钮 ===
-        ai_col1, ai_col2 = st.columns([1, 3])
+        ai_col1, ai_col2 = st.columns([1, 2])
         with ai_col1:
-            if st.button("🤖 AI 分析", key=f"ai_analyze_{symbol}", type="secondary"):
-                with st.spinner("AI 正在分析..."):
+            do_ai = st.button("🤖 AI 快速分析", key=f"ai_analyze_{symbol}", type="primary")
+        with ai_col2:
+            st.markdown(f"**BLUE日线**: {selected_row.get('Day BLUE', 0):.0f} | **周线**: {selected_row.get('Week BLUE', 0):.0f}")
+        
+        if do_ai:
+            with st.container():
+                st.markdown("---")
+                with st.spinner("🤖 AI 正在分析..."):
                     try:
                         from ml.llm_intelligence import LLMAnalyzer
                         
@@ -1697,7 +1703,7 @@ def render_scan_page():
                             'price': price,
                             'blue_daily': blue_d,
                             'blue_weekly': blue_w,
-                            'ma5': price * 0.98,  # 估算
+                            'ma5': price * 0.98,
                             'ma10': price * 0.96,
                             'ma20': price * 0.94,
                             'rsi': 50,
@@ -1707,30 +1713,41 @@ def render_scan_page():
                         analyzer = LLMAnalyzer(provider='gemini')
                         result = analyzer.generate_decision_dashboard(stock_data)
                         
-                        # 显示结果
-                        signal_icon = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(result.get('signal', 'HOLD'), "🟡")
-                        st.markdown(f"### {signal_icon} {result.get('verdict', '分析中...')}")
+                        # 核心结论 - 突出显示
+                        signal = result.get('signal', 'HOLD')
+                        signal_icon = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(signal, "🟡")
+                        verdict = result.get('verdict', '分析中...')
                         
-                        col_a, col_b, col_c = st.columns(3)
-                        with col_a:
-                            st.metric("信号", result.get('signal', 'N/A'))
-                        with col_b:
-                            st.metric("置信度", f"{result.get('confidence', 0)}%")
-                        with col_c:
-                            st.metric("止损价", f"${result.get('stop_loss', 0):.2f}")
+                        st.markdown(f"## {signal_icon} {verdict}")
                         
-                        # 检查清单
-                        for item in result.get('checklist', []):
-                            st.markdown(f"{item.get('status', '⚠️')} **{item.get('item')}**: {item.get('detail')}")
+                        # 关键指标 - 一行显示
+                        m1, m2, m3, m4 = st.columns(4)
+                        m1.metric("📍 信号", signal)
+                        m2.metric("📊 置信度", f"{result.get('confidence', 0)}%")
+                        m3.metric("🎯 入场", f"${result.get('entry_price', 0):.2f}")
+                        m4.metric("🛑 止损", f"${result.get('stop_loss', 0):.2f}")
                         
+                        # 检查清单 - 横向排列
+                        st.markdown("#### ✅ 检查清单")
+                        checklist = result.get('checklist', [])
+                        if checklist:
+                            cols = st.columns(len(checklist))
+                            for i, item in enumerate(checklist):
+                                with cols[i]:
+                                    status = item.get('status', '⚠️')
+                                    name = item.get('item', '')
+                                    detail = item.get('detail', '')
+                                    st.markdown(f"**{status} {name}**")
+                                    st.caption(detail)
+                        
+                        # 来源标记
                         if result.get('analysis_mode') == 'local':
-                            st.caption("💡 本地算法分析 (Gemini API 暂不可用)")
+                            st.info("💡 本地算法分析 (Gemini API 暂不可用)")
+                        
+                        st.markdown("---")
                         
                     except Exception as e:
                         st.error(f"AI分析出错: {str(e)}")
-        
-        with ai_col2:
-            st.caption(f"💡 BLUE日线: {selected_row.get('Day BLUE', 0):.0f} | 周线: {selected_row.get('Week BLUE', 0):.0f}")
         
         chart_col, info_col = st.columns([2, 1])
         
