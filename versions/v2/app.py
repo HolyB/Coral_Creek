@@ -3108,7 +3108,7 @@ def render_ai_dashboard_page():
             try:
                 # 获取股票数据
                 from data_fetcher import get_us_stock_data
-                from indicators import calculate_indicators
+                from indicator_utils import calculate_indicators
                 
                 df = get_us_stock_data(symbol, days=60)
                 if df is None or len(df) < 20:
