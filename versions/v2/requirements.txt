@@ -8,10 +8,9 @@ tqdm>=4.66.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 tushare>=1.2.89
-
-
-
-
+scipy>=1.11.0
+openai>=1.0.0
+google-generativeai>=0.3.0
 
 
 
