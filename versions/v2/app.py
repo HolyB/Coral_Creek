@@ -3110,35 +3110,74 @@ def render_ai_dashboard_page():
                 from data_fetcher import get_us_stock_data
                 from indicator_utils import calculate_blue_signal_series, MA
                 
-                df = get_us_stock_data(symbol, days=60)
-                if df is None or len(df) < 20:
-                    st.error("无法获取股票数据")
+                df = get_us_stock_data(symbol, days=90)
+                if df is None or len(df) < 30:
+                    st.error("无法获取足够的股票数据")
                     return
                 
-                # 计算指标
-                blue_values = calculate_blue_signal_series(
-                    df['Open'].values, df['High'].values, 
-                    df['Low'].values, df['Close'].values
-                )
-                df['BLUE'] = blue_values
-                df['MA5'] = MA(df['Close'], 5)
-                df['MA10'] = MA(df['Close'], 10)
-                df['MA20'] = MA(df['Close'], 20)
+                # 确保数据列存在
+                df = df.reset_index(drop=True)
+                
+                # 计算均线
+                df['MA5'] = df['Close'].rolling(5).mean()
+                df['MA10'] = df['Close'].rolling(10).mean()
+                df['MA20'] = df['Close'].rolling(20).mean()
+                
+                # 计算 BLUE 信号
+                try:
+                    blue_values = calculate_blue_signal_series(
+                        df['Open'].values, df['High'].values, 
+                        df['Low'].values, df['Close'].values
+                    )
+                    df['BLUE'] = blue_values
+                except:
+                    df['BLUE'] = 50  # 默认值
                 
                 latest = df.iloc[-1]
+                price = float(latest['Close'])
+                ma5 = float(latest['MA5']) if pd.notna(latest['MA5']) else price
+                ma10 = float(latest['MA10']) if pd.notna(latest['MA10']) else price
+                ma20 = float(latest['MA20']) if pd.notna(latest['MA20']) else price
                 
-                # 准备数据
+                # 计算乖离率 (daily_stock_analysis 核心指标)
+                bias_ma5 = (price - ma5) / ma5 * 100 if ma5 > 0 else 0
+                
+                # 判断均线排列
+                ma_aligned = ma5 > ma10 > ma20  # 多头排列
+                
+                # 量比
+                vol_ratio = float(latest['Volume']) / df['Volume'].rolling(5).mean().iloc[-1] if df['Volume'].rolling(5).mean().iloc[-1] > 0 else 1
+                
+                # 获取 BLUE 值
+                blue_val = float(latest['BLUE']) if pd.notna(latest['BLUE']) and latest['BLUE'] != 0 else 50
+                
+                # 准备完整数据
                 stock_data = {
                     'symbol': symbol,
-                    'price': float(latest['Close']),
-                    'blue_daily': float(latest['BLUE']) if pd.notna(latest['BLUE']) else 0,
-                    'blue_weekly': float(latest['BLUE']) * 0.8 if pd.notna(latest['BLUE']) else 0,
-                    'ma5': float(latest['MA5']) if pd.notna(latest['MA5']) else float(latest['Close']),
-                    'ma10': float(latest['MA10']) if pd.notna(latest['MA10']) else float(latest['Close']),
-                    'ma20': float(latest['MA20']) if pd.notna(latest['MA20']) else float(latest['Close']),
-                    'rsi': 50,  # 简化处理
-                    'volume_ratio': float(latest['Volume']) / df['Volume'].mean() if df['Volume'].mean() > 0 else 1
+                    'price': price,
+                    'blue_daily': blue_val,
+                    'blue_weekly': blue_val * 0.8,
+                    'ma5': ma5,
+                    'ma10': ma10,
+                    'ma20': ma20,
+                    'bias_ma5': bias_ma5,  # 乖离率
+                    'ma_aligned': ma_aligned,  # 均线排列
+                    'rsi': 50,
+                    'volume_ratio': vol_ratio
                 }
+                
+                # 显示技术数据预览
+                with st.expander("📊 技术数据"):
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("MA5", f"${ma5:.2f}")
+                        st.metric("乖离率", f"{bias_ma5:+.2f}%", delta="危险" if bias_ma5 > 5 else None)
+                    with col2:
+                        st.metric("MA10", f"${ma10:.2f}")
+                        st.metric("均线排列", "多头 ✅" if ma_aligned else "空头 ❌")
+                    with col3:
+                        st.metric("MA20", f"${ma20:.2f}")
+                        st.metric("量比", f"{vol_ratio:.2f}x")
                 
                 # 生成决策
                 from ml.llm_intelligence import LLMAnalyzer
