@@ -3108,7 +3108,7 @@ def render_ai_dashboard_page():
             try:
                 # 获取股票数据
                 from data_fetcher import get_us_stock_data
-                from indicator_utils import calculate_indicators
+                from indicator_utils import calculate_blue_signal_series, MA
                 
                 df = get_us_stock_data(symbol, days=60)
                 if df is None or len(df) < 20:
@@ -3116,20 +3116,28 @@ def render_ai_dashboard_page():
                     return
                 
                 # 计算指标
-                df = calculate_indicators(df)
+                blue_values = calculate_blue_signal_series(
+                    df['Open'].values, df['High'].values, 
+                    df['Low'].values, df['Close'].values
+                )
+                df['BLUE'] = blue_values
+                df['MA5'] = MA(df['Close'], 5)
+                df['MA10'] = MA(df['Close'], 10)
+                df['MA20'] = MA(df['Close'], 20)
+                
                 latest = df.iloc[-1]
                 
                 # 准备数据
                 stock_data = {
                     'symbol': symbol,
-                    'price': latest['Close'],
-                    'blue_daily': latest.get('BLUE', 0),
-                    'blue_weekly': latest.get('BLUE', 0) * 0.8,  # 模拟
-                    'ma5': latest.get('MA5', latest['Close']),
-                    'ma10': latest.get('MA10', latest['Close']),
-                    'ma20': latest.get('MA20', latest['Close']),
-                    'rsi': latest.get('RSI', 50),
-                    'volume_ratio': latest.get('Volume', 1) / df['Volume'].mean() if df['Volume'].mean() > 0 else 1
+                    'price': float(latest['Close']),
+                    'blue_daily': float(latest['BLUE']) if pd.notna(latest['BLUE']) else 0,
+                    'blue_weekly': float(latest['BLUE']) * 0.8 if pd.notna(latest['BLUE']) else 0,
+                    'ma5': float(latest['MA5']) if pd.notna(latest['MA5']) else float(latest['Close']),
+                    'ma10': float(latest['MA10']) if pd.notna(latest['MA10']) else float(latest['Close']),
+                    'ma20': float(latest['MA20']) if pd.notna(latest['MA20']) else float(latest['Close']),
+                    'rsi': 50,  # 简化处理
+                    'volume_ratio': float(latest['Volume']) / df['Volume'].mean() if df['Volume'].mean() > 0 else 1
                 }
                 
                 # 生成决策
