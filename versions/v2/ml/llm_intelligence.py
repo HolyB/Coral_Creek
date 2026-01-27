@@ -103,7 +103,7 @@ class LLMAnalyzer:
             self.model = 'claude-3-haiku-20240307'
         elif provider == 'gemini':
             self.client = get_gemini_model()
-            self.model = 'gemini-2.0-flash'
+            self.model = 'gemini-1.5-flash'
     
     def is_available(self) -> bool:
         """检查客户端是否可用"""
