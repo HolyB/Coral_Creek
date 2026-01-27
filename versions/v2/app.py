@@ -1692,8 +1692,22 @@ def render_scan_page():
                 with st.spinner("🤖 AI 正在分析..."):
                     try:
                         from ml.llm_intelligence import LLMAnalyzer
+                        from services.search_service import get_search_service
                         
-                        # 准备数据
+                        # 1. 获取实时新闻 (DuckDuckGo)
+                        with st.status("🔍 正在搜索实时情报...", expanded=False) as status:
+                            try:
+                                search_service = get_search_service()
+                                # 获取股票名称 (如果有)
+                                stock_name = selected_row.get('Name', '') if 'Name' in selected_row else ''
+                                news_context = search_service.get_stock_news(symbol, stock_name)
+                                status.update(label="✅ 情报搜索完成", state="complete", expanded=False)
+                                st.text_area("搜索到的情报", news_context, height=100)
+                            except Exception as e:
+                                news_context = ""
+                                status.update(label="⚠️ 搜索失败 (将仅基于技术面分析)", state="error")
+                        
+                        # 2. 准备数据
                         price = float(selected_row.get('Price', 0))
                         blue_d = float(selected_row.get('Day BLUE', 0))
                         blue_w = float(selected_row.get('Week BLUE', 0))
@@ -1710,8 +1724,9 @@ def render_scan_page():
                             'volume_ratio': 1.2
                         }
                         
+                        # 3. AI 综合分析
                         analyzer = LLMAnalyzer(provider='gemini')
-                        result = analyzer.generate_decision_dashboard(stock_data)
+                        result = analyzer.generate_decision_dashboard(stock_data, news_context)
                         
                         # === 核心结论 - 醒目卡片样式 ===
                         signal = result.get('signal', 'HOLD')
@@ -1733,6 +1748,9 @@ def render_scan_page():
                                     padding: 16px; border-radius: 8px; margin-bottom: 16px;">
                             <h2 style="margin: 0; color: {color};">{icon} {label} | {symbol}</h2>
                             <p style="margin: 8px 0 0 0; font-size: 1.1em;">📌 {verdict}</p>
+                            <p style="margin: 4px 0 0 0; font-size: 0.9em; color: #666;">
+                                📰 {result.get('news_summary', '暂无重大舆情')}
+                            </p>
                         </div>
                         """, unsafe_allow_html=True)
                         

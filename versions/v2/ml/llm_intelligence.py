@@ -239,20 +239,13 @@ class LLMAnalyzer:
         
         return self._call_llm(prompt, "你是一位专业的量化分析师，负责撰写每日市场报告。")
     
-    def generate_decision_dashboard(self, stock_data: Dict) -> Dict:
+    def generate_decision_dashboard(self, stock_data: Dict, news_context: str = "") -> Dict:
         """
         生成 AI 决策仪表盘 (类似 daily_stock_analysis)
         
         Args:
-            stock_data: 股票数据，包含:
-                - symbol: 股票代码
-                - price: 当前价格
-                - blue_daily: BLUE日线值
-                - blue_weekly: BLUE周线值 (可选)
-                - ma5, ma10, ma20: 均线
-                - rsi: RSI值 (可选)
-                - volume_ratio: 量比 (可选)
-                - sector: 行业 (可选)
+            stock_data: 股票数据
+            news_context: 新闻上下文 (新增)
         
         Returns:
             决策仪表盘 Dict
@@ -311,6 +304,9 @@ MA20: ${ma20:.2f}
 乖离率(MA5): {bias:.1f}% ({bias_status})
 RSI: {rsi:.1f}
 量比: {vol_ratio:.2f}
+
+========== 近期情报 ==========
+{news_context if news_context else "暂无新闻"}
 ==============================
 
 请生成JSON格式的决策仪表盘:
@@ -321,12 +317,14 @@ RSI: {rsi:.1f}
     "entry_price": 建议买入价（在MA5附近）,
     "stop_loss": 止损价（跌破MA20或X%）,
     "target_price": 目标价,
+    "news_summary": "舆情分析：是否有减持/业绩雷/利好 (1-2句话)",
     "checklist": [
         {{"item": "BLUE信号", "status": "✅" | "⚠️" | "❌", "detail": "BLUE=XX (超卖区/观望区/弱势)"}},
         {{"item": "均线排列", "status": "✅" | "⚠️" | "❌", "detail": "多头排列/空头排列/缠绕"}},
         {{"item": "乖离率", "status": "✅" | "⚠️" | "❌", "detail": "X.X% (安全/警戒/危险)"}},
         {{"item": "量价配合", "status": "✅" | "⚠️" | "❌", "detail": "量比=X.X (放量/缩量/正常)"}},
-        {{"item": "趋势强度", "status": "✅" | "⚠️" | "❌", "detail": "RSI=XX (超买/中性/超卖)"}}
+        {{"item": "趋势强度", "status": "✅" | "⚠️" | "❌", "detail": "RSI=XX (超买/中性/超卖)"}},
+        {{"item": "舆情风控", "status": "✅" | "⚠️" | "❌", "detail": "利好/无风险/减持风险/业绩雷"}}
     ],
     "position_advice": {{
         "no_position": "空仓者建议：具体操作",
