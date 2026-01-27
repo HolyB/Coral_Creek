@@ -255,11 +255,15 @@ class LLMAnalyzer:
         
         symbol = stock_data.get('symbol', 'N/A')
         # Convert to float safely to avoid format errors
-        def safe_float(val, default=0):
+        def safe_float(val, default=0.0):
             try:
-                return float(val) if val is not None else default
+                if val is None or val == '':
+                    return float(default)
+                if isinstance(val, str):
+                    val = val.replace(',', '')  # Handle "1,234.56" format
+                return float(val)
             except (ValueError, TypeError):
-                return default
+                return float(default)
         
         price = safe_float(stock_data.get('price'), 0)
         blue = safe_float(stock_data.get('blue_daily'), 0)
@@ -295,15 +299,15 @@ class LLMAnalyzer:
 
 ========== 股票数据 ==========
 股票代码: {symbol}
-当前价格: ${price:.2f}
-BLUE信号(日): {blue:.1f}
-BLUE信号(周): {blue_w:.1f}
-MA5: ${ma5:.2f}
-MA10: ${ma10:.2f}
-MA20: ${ma20:.2f}
-乖离率(MA5): {bias:.1f}% ({bias_status})
-RSI: {rsi:.1f}
-量比: {vol_ratio:.2f}
+当前价格: ${float(price):.2f}
+BLUE信号(日): {float(blue):.1f}
+BLUE信号(周): {float(blue_w):.1f}
+MA5: ${float(ma5):.2f}
+MA10: ${float(ma10):.2f}
+MA20: ${float(ma20):.2f}
+乖离率(MA5): {float(bias):.1f}% ({bias_status})
+RSI: {float(rsi):.1f}
+量比: {float(vol_ratio):.2f}
 
 ========== 近期情报 ==========
 {news_context if news_context else "暂无新闻"}
@@ -383,7 +387,7 @@ RSI: {rsi:.1f}
             {
                 'item': 'BLUE信号',
                 'status': '✅' if blue > 100 else ('⚠️' if blue > 50 else '❌'),
-                'detail': f'BLUE={blue:.0f}' + (' (超卖区)' if blue > 100 else (' (观望区)' if blue > 50 else ' (弱势)'))
+                'detail': f'BLUE={float(blue):.0f}' + (' (超卖区)' if blue > 100 else (' (观望区)' if blue > 50 else ' (弱势)'))
             },
             {
                 'item': '均线排列',
@@ -393,24 +397,24 @@ RSI: {rsi:.1f}
             {
                 'item': '乖离率',
                 'status': '✅' if abs(bias) < 2 else ('⚠️' if abs(bias) < 5 else '❌'),
-                'detail': f'{bias:+.1f}% ' + ('安全' if abs(bias) < 2 else ('警戒' if abs(bias) < 5 else '❌严禁追高'))
+                'detail': f'{float(bias):+.1f}% ' + ('安全' if abs(bias) < 2 else ('警戒' if abs(bias) < 5 else '❌严禁追高'))
             },
             {
                 'item': '量价配合',
                 'status': '✅' if vol_ratio > 1.5 else ('⚠️' if vol_ratio > 0.8 else '❌'),
-                'detail': f'量比={vol_ratio:.1f}x ' + ('放量' if vol_ratio > 1.5 else ('正常' if vol_ratio > 0.8 else '缩量'))
+                'detail': f'量比={float(vol_ratio):.1f}x ' + ('放量' if vol_ratio > 1.5 else ('正常' if vol_ratio > 0.8 else '缩量'))
             },
             {
                 'item': '趋势强度',
                 'status': '✅' if 30 < rsi < 70 else ('⚠️' if rsi > 70 else '❌'),
-                'detail': f'RSI={rsi:.0f} ' + ('中性' if 30 < rsi < 70 else ('超买' if rsi > 70 else '超卖'))
+                'detail': f'RSI={float(rsi):.0f} ' + ('中性' if 30 < rsi < 70 else ('超买' if rsi > 70 else '超卖'))
             }
         ]
         
         # 生成持仓建议
         if signal == 'BUY':
             position_advice = {
-                'no_position': f'空仓者：可在${ma5:.2f}附近低吸建仓',
+                'no_position': f'空仓者：可在${float(ma5):.2f}附近低吸建仓',
                 'has_position': '持仓者：继续持有，适当加仓'
             }
         elif signal == 'SELL':
