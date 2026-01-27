@@ -1,8 +1,11 @@
 
 import logging
-from typing import List, Dict, Optional
+import requests
+import re
+import html
+from typing import List, Optional
 from dataclasses import dataclass
-import time
+from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
@@ -16,77 +19,87 @@ class SearchResult:
     published_date: Optional[str] = None
     
     def to_text(self) -> str:
-        return f"【{self.source}】{self.title}\n{self.snippet}"
+        date_str = f" ({self.published_date})" if self.published_date else ""
+        return f"【{self.source}】{self.title}{date_str}\n{self.snippet}"
 
-class DuckDuckGoSearchService:
+class GoogleNewsProvider:
+    """Google News RSS (稳定、由于无需Key、多语言支持)"""
+    
+    def search(self, query: str, lang: str = 'zh-CN', gl: str = 'CN') -> List[SearchResult]:
+        results = []
+        try:
+            # 构建 RSS URL
+            encoded_query = quote(query)
+            url = f"https://news.google.com/rss/search?q={encoded_query}&hl={lang}&gl={gl}&ceid={gl}:{lang}"
+            
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            
+            resp = requests.get(url, headers=headers, timeout=10)
+            
+            if resp.status_code == 200:
+                # 简单正则解析 XML，比 xml.etree 更容错
+                content = resp.text
+                items = re.findall(r'<item>(.*?)</item>', content, re.DOTALL)
+                
+                for item_str in items[:5]:
+                    title_match = re.search(r'<title>(.*?)</title>', item_str)
+                    link_match = re.search(r'<link>(.*?)</link>', item_str)
+                    pub_match = re.search(r'<pubDate>(.*?)</pubDate>', item_str)
+                    source_match = re.search(r'<source url=".*?">(.*?)</source>', item_str)
+                    
+                    if title_match:
+                        title = html.unescape(title_match.group(1))
+                        # Google News 标题通常包含来源，如 "Title - Source"
+                        source = source_match.group(1) if source_match else "Google News"
+                        if " - " in title and not source_match:
+                            parts = title.rsplit(" - ", 1)
+                            title = parts[0]
+                            source = parts[1]
+                            
+                        results.append(SearchResult(
+                            title=title,
+                            snippet="点击链接查看详情",  # RSS title 即摘要
+                            url=link_match.group(1) if link_match else "",
+                            source=source,
+                            published_date=pub_match.group(1) if pub_match else ""
+                        ))
+        except Exception as e:
+            logger.error(f"Google News search error: {e}")
+            
+        return results
+
+class SearchService:
     """
-    DuckDuckGo 免费搜索服务
+    搜索服务 (Google News RSS)
     """
     
     def __init__(self):
-        try:
-            from duckduckgo_search import DDGS
-            self.ddgs = DDGS()
-            self.available = True
-        except ImportError:
-            logger.error("duckduckgo_search not installed. Run: pip install duckduckgo-search")
-            self.available = False
-
-    def search_news(self, query: str, max_results: int = 5) -> List[SearchResult]:
-        """搜索新闻"""
-        if not self.available:
-            return []
-            
-        results = []
-        try:
-            # 使用 DDGS news 搜索
-            news_results = self.ddgs.news(keywords=query, max_results=max_results)
-            if news_results:
-                for item in news_results:
-                    results.append(SearchResult(
-                        title=item.get('title', ''),
-                        snippet=item.get('body', ''),
-                        url=item.get('url', ''),
-                        source=item.get('source', 'Unknown'),
-                        published_date=item.get('date', '')
-                    ))
-            
-            # 如果新闻搜索为空，尝试普通搜索
-            if not results:
-                text_results = self.ddgs.text(keywords=query, max_results=max_results)
-                if text_results:
-                    for item in text_results:
-                        results.append(SearchResult(
-                            title=item.get('title', ''),
-                            snippet=item.get('body', ''),
-                            url=item.get('href', ''),
-                            source='DuckDuckGo',
-                            published_date=None
-                        ))
-                        
-            return results
-            
-        except Exception as e:
-            logger.error(f"DuckDuckGo search error: {e}")
-            return []
+        self.provider = GoogleNewsProvider()
 
     def get_stock_news(self, symbol: str, stock_name: str = "") -> str:
-        """获取股票相关新闻并格式化为文本"""
-        query = f"{stock_name} {symbol} 股票 最新消息" if stock_name else f"{symbol} stock news"
+        """获取股票相关新闻"""
         
-        # 增加关键词以获取更有价值的信息
-        # 针对中文股票（如A股）
-        if any('\u4e00' <= char <= '\u9fff' for char in stock_name):
-            query = f"{stock_name} {symbol} 利好 利空 公告"
-            
-        results = self.search_news(query, max_results=5)
+        # 判断是 A股 还是 美股
+        is_cn = symbol.endswith(('.SH', '.SZ')) or (stock_name and any('\u4e00' <= char <= '\u9fff' for char in stock_name))
+        
+        if is_cn:
+            # A股查询策略
+            query = f"{stock_name} {symbol} 股票"
+            results = self.provider.search(query, lang='zh-CN', gl='CN')
+        else:
+            # 美股查询策略
+            query = f"{symbol} stock finance" # 添加 finance 避免歧义
+            results = self.provider.search(query, lang='en-US', gl='US')
         
         if not results:
-            return "未找到相关新闻。"
+            return "暂无相关新闻。"
             
+        # 格式化输出
         formatted_text = f"【{stock_name or symbol} 最新情报】\n"
         for i, res in enumerate(results, 1):
-            formatted_text += f"{i}. {res.title}\n   摘要: {res.snippet[:200]}...\n   来源: {res.source} ({res.published_date or '未知日期'})\n\n"
+            formatted_text += f"{i}. {res.title}\n   来源: {res.source} ({res.published_date})\n\n"
             
         return formatted_text
 
@@ -96,5 +109,5 @@ _search_service = None
 def get_search_service():
     global _search_service
     if _search_service is None:
-        _search_service = DuckDuckGoSearchService()
+        _search_service = SearchService()
     return _search_service
