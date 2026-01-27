@@ -1713,36 +1713,82 @@ def render_scan_page():
                         analyzer = LLMAnalyzer(provider='gemini')
                         result = analyzer.generate_decision_dashboard(stock_data)
                         
-                        # 核心结论 - 突出显示
+                        # === 核心结论 - 醒目卡片样式 ===
                         signal = result.get('signal', 'HOLD')
-                        signal_icon = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(signal, "🟡")
+                        confidence = result.get('confidence', 0)
                         verdict = result.get('verdict', '分析中...')
                         
-                        st.markdown(f"## {signal_icon} {verdict}")
+                        # 信号颜色映射
+                        signal_colors = {
+                            "BUY": ("#00C853", "🟢", "买入"),
+                            "SELL": ("#FF1744", "🔴", "卖出"),
+                            "HOLD": ("#FFD600", "🟡", "观望")
+                        }
+                        color, icon, label = signal_colors.get(signal, ("#FFD600", "🟡", "观望"))
                         
-                        # 关键指标 - 一行显示
-                        m1, m2, m3, m4 = st.columns(4)
-                        m1.metric("📍 信号", signal)
-                        m2.metric("📊 置信度", f"{result.get('confidence', 0)}%")
-                        m3.metric("🎯 入场", f"${result.get('entry_price', 0):.2f}")
-                        m4.metric("🛑 止损", f"${result.get('stop_loss', 0):.2f}")
+                        # 主标题卡片
+                        st.markdown(f"""
+                        <div style="background: linear-gradient(135deg, {color}22, {color}11); 
+                                    border-left: 4px solid {color}; 
+                                    padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                            <h2 style="margin: 0; color: {color};">{icon} {label} | {symbol}</h2>
+                            <p style="margin: 8px 0 0 0; font-size: 1.1em;">📌 {verdict}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                         
-                        # 检查清单 - 横向排列
-                        st.markdown("#### ✅ 检查清单")
+                        # === 狙击价位 - 一行三列 ===
+                        st.markdown("**💰 狙击价位**")
+                        p1, p2, p3 = st.columns(3)
+                        entry = result.get('entry_price', 0)
+                        stop = result.get('stop_loss', 0)
+                        target = result.get('target_price', 0)
+                        
+                        p1.metric("🎯 买入价", f"${entry:.2f}" if entry else "N/A")
+                        p2.metric("🛑 止损价", f"${stop:.2f}" if stop else "N/A", 
+                                  delta=f"{((stop-entry)/entry*100):.1f}%" if entry and stop else None,
+                                  delta_color="inverse")
+                        p3.metric("🚀 目标价", f"${target:.2f}" if target else "N/A",
+                                  delta=f"+{((target-entry)/entry*100):.1f}%" if entry and target else None)
+                        
+                        # === 检查清单 - 醒目横条 ===
+                        st.markdown("**📋 交易检查清单**")
                         checklist = result.get('checklist', [])
                         if checklist:
-                            cols = st.columns(len(checklist))
-                            for i, item in enumerate(checklist):
-                                with cols[i]:
-                                    status = item.get('status', '⚠️')
-                                    name = item.get('item', '')
-                                    detail = item.get('detail', '')
-                                    st.markdown(f"**{status} {name}**")
-                                    st.caption(detail)
+                            checklist_html = "<div style='display: flex; gap: 12px; flex-wrap: wrap;'>"
+                            for item in checklist:
+                                status = item.get('status', '⚠️')
+                                name = item.get('item', '')
+                                detail = item.get('detail', '')
+                                # 根据状态设置背景色
+                                bg_color = "#E8F5E9" if status == "✅" else ("#FFF3E0" if status == "⚠️" else "#FFEBEE")
+                                border_color = "#4CAF50" if status == "✅" else ("#FF9800" if status == "⚠️" else "#F44336")
+                                checklist_html += f"""
+                                <div style="background: {bg_color}; border: 1px solid {border_color}; 
+                                            border-radius: 6px; padding: 8px 12px; min-width: 120px;">
+                                    <div style="font-weight: bold;">{status} {name}</div>
+                                    <div style="font-size: 0.85em; color: #666;">{detail}</div>
+                                </div>
+                                """
+                            checklist_html += "</div>"
+                            st.markdown(checklist_html, unsafe_allow_html=True)
                         
-                        # 来源标记
-                        if result.get('analysis_mode') == 'local':
-                            st.info("💡 本地算法分析 (Gemini API 暂不可用)")
+                        # === 持仓建议 ===
+                        pos_advice = result.get('position_advice', {})
+                        if pos_advice:
+                            st.markdown("**📋 操作建议**")
+                            adv_col1, adv_col2 = st.columns(2)
+                            with adv_col1:
+                                st.info(f"🆕 {pos_advice.get('no_position', '等待信号')}")
+                            with adv_col2:
+                                st.success(f"📈 {pos_advice.get('has_position', '持股观望')}")
+                        
+                        # === 风险提示 ===
+                        risk = result.get('risk_warning', '')
+                        if risk:
+                            st.warning(f"⚠️ {risk}")
+                        
+                        # 置信度和来源
+                        st.caption(f"📊 置信度: {confidence}% | 🤖 {'本地算法' if result.get('analysis_mode') == 'local' else 'Gemini AI'}")
                         
                         st.markdown("---")
                         
