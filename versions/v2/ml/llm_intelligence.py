@@ -220,7 +220,9 @@ class LLMAnalyzer:
         else:
             signal_summary = f"今日共有 {len(signals)} 个 BLUE 信号:\n"
             for s in signals[:10]:
-                signal_summary += f"- {s.get('symbol', 'N/A')}: BLUE={s.get('blue_daily', 0):.1f}, 价格=${s.get('price', 0):.2f}\n"
+                blue_val = float(s.get('blue_daily', 0) or 0)
+                price_val = float(s.get('price', 0) or 0)
+                signal_summary += f"- {s.get('symbol', 'N/A')}: BLUE={blue_val:.1f}, 价格=${price_val:.2f}\n"
         
         prompt = f"""基于以下信号数据，生成一份简洁的每日市场报告。
 
@@ -259,14 +261,21 @@ class LLMAnalyzer:
             return {'error': 'LLM client not available'}
         
         symbol = stock_data.get('symbol', 'N/A')
-        price = stock_data.get('price', 0)
-        blue = stock_data.get('blue_daily', 0)
-        blue_w = stock_data.get('blue_weekly', 0)
-        ma5 = stock_data.get('ma5', 0)
-        ma10 = stock_data.get('ma10', 0)
-        ma20 = stock_data.get('ma20', 0)
-        rsi = stock_data.get('rsi', 50)
-        vol_ratio = stock_data.get('volume_ratio', 1)
+        # Convert to float safely to avoid format errors
+        def safe_float(val, default=0):
+            try:
+                return float(val) if val is not None else default
+            except (ValueError, TypeError):
+                return default
+        
+        price = safe_float(stock_data.get('price'), 0)
+        blue = safe_float(stock_data.get('blue_daily'), 0)
+        blue_w = safe_float(stock_data.get('blue_weekly'), 0)
+        ma5 = safe_float(stock_data.get('ma5'), 0)
+        ma10 = safe_float(stock_data.get('ma10'), 0)
+        ma20 = safe_float(stock_data.get('ma20'), 0)
+        rsi = safe_float(stock_data.get('rsi'), 50)
+        vol_ratio = safe_float(stock_data.get('volume_ratio'), 1)
         
         prompt = f"""你是一位专业的量化交易分析师。基于以下股票数据，生成决策仪表盘。
 
