@@ -3081,14 +3081,77 @@ def render_signal_performance_page():
 
 def render_backtest_page():
     st.header("🧪 策略回测实验室 (Strategy Lab)")
-    st.info("在这里您可以对单只股票进行历史回测，验证策略参数的有效性。")
     
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        symbol_input = st.text_input("股票代码", value="NVDA", help="例如: NVDA, AAPL")
-        symbol = symbol_input.upper().strip() if symbol_input else ""
-    with col2:
-        market = st.selectbox("市场", ["US", "CN"], index=0)
+    tab_single, tab_risk = st.tabs(["📈 单股回测", "🛡️ 风控计算器"])
+    
+    # === 风控计算器 Tab ===
+    with tab_risk:
+        st.subheader("🛡️ 仓位与风控计算器")
+        st.caption("基于凯利公式和ATR计算最优仓位和止损")
+        
+        from backtest.risk_manager import RiskManager
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            total_capital = st.number_input("总资金", value=100000.0, step=10000.0)
+            stock_price = st.number_input("股票价格", value=50.0, step=1.0)
+        with col2:
+            win_rate = st.slider("历史胜率%", 30, 80, 55) / 100
+            avg_win = st.number_input("平均盈利%", value=8.0, step=1.0)
+        with col3:
+            avg_loss = st.number_input("平均亏损%", value=4.0, step=1.0)
+            atr = st.number_input("ATR (可选)", value=2.0, step=0.5)
+        
+        if st.button("📊 计算仓位建议", key="calc_risk"):
+            rm = RiskManager(total_capital=total_capital)
+            
+            # 计算建议
+            rec = rm.recommend_position(
+                symbol="INPUT",
+                price=stock_price,
+                win_rate=win_rate,
+                avg_win=avg_win,
+                avg_loss=avg_loss,
+                atr=atr if atr > 0 else None
+            )
+            
+            st.success("✅ 计算完成")
+            
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                st.metric("建议股数", f"{rec['shares']} 股")
+                st.metric("仓位比例", f"{rec['position_pct']:.1f}%")
+            with col_b:
+                st.metric("入场价", f"${rec['entry_price']:.2f}")
+                st.metric("止损价", f"${rec['stop_loss']:.2f}")
+            with col_c:
+                st.metric("止盈价", f"${rec['take_profit']:.2f}")
+                st.metric("风险回报比", f"1:{rec['risk_reward']}")
+            
+            # Kelly 公式解释
+            with st.expander("📚 凯利公式说明"):
+                kelly_raw = rm.calc_position_size_kelly(stock_price, win_rate, avg_win, avg_loss)
+                st.markdown(f"""
+                **凯利公式**: f* = W - (1-W)/R
+                
+                - 胜率 W = {win_rate*100:.0f}%
+                - 盈亏比 R = {avg_win/avg_loss:.2f}
+                - 原始Kelly仓位 = {kelly_raw.get('kelly_raw', 0):.1f}%
+                - 调整后仓位 (1/4 Kelly) = {kelly_raw.get('kelly_adjusted', 0):.1f}%
+                
+                *使用分数凯利更保守,避免过度下注*
+                """)
+    
+    # === 单股回测 Tab ===
+    with tab_single:
+        st.info("在这里您可以对单只股票进行历史回测，验证策略参数的有效性。")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            symbol_input = st.text_input("股票代码", value="NVDA", help="例如: NVDA, AAPL")
+            symbol = symbol_input.upper().strip() if symbol_input else ""
+        with col2:
+            market = st.selectbox("市场", ["US", "CN"], index=0)
     with col3:
         initial_capital = st.number_input("初始资金", value=100000.0, step=10000.0)
     with col4:
