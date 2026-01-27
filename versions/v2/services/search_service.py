@@ -81,27 +81,38 @@ class SearchService:
     def get_stock_news(self, symbol: str, stock_name: str = "") -> str:
         """获取股票相关新闻"""
         
+        logger.info(f"[SearchService] Starting news search for symbol={symbol}, name={stock_name}")
+        
         # 判断是 A股 还是 美股
         is_cn = symbol.endswith(('.SH', '.SZ')) or (stock_name and any('\u4e00' <= char <= '\u9fff' for char in stock_name))
         
-        if is_cn:
-            # A股查询策略
-            query = f"{stock_name} {symbol} 股票"
-            results = self.provider.search(query, lang='zh-CN', gl='CN')
-        else:
-            # 美股查询策略
-            query = f"{symbol} stock finance" # 添加 finance 避免歧义
-            results = self.provider.search(query, lang='en-US', gl='US')
-        
-        if not results:
-            return "暂无相关新闻。"
+        try:
+            if is_cn:
+                # A股查询策略
+                query = f"{stock_name} {symbol} 股票"
+                logger.info(f"[SearchService] CN stock query: {query}")
+                results = self.provider.search(query, lang='zh-CN', gl='CN')
+            else:
+                # 美股查询策略
+                query = f"{symbol} stock news"
+                logger.info(f"[SearchService] US stock query: {query}")
+                results = self.provider.search(query, lang='en-US', gl='US')
             
-        # 格式化输出
-        formatted_text = f"【{stock_name or symbol} 最新情报】\n"
-        for i, res in enumerate(results, 1):
-            formatted_text += f"{i}. {res.title}\n   来源: {res.source} ({res.published_date})\n\n"
+            logger.info(f"[SearchService] Found {len(results)} results")
             
-        return formatted_text
+            if not results:
+                return f"暂无 {stock_name or symbol} 相关新闻。可能是网络问题，请稍后重试。"
+                
+            # 格式化输出
+            formatted_text = f"【{stock_name or symbol} 最新情报】\n"
+            for i, res in enumerate(results, 1):
+                formatted_text += f"{i}. {res.title}\n   来源: {res.source} ({res.published_date})\n\n"
+                
+            return formatted_text
+            
+        except Exception as e:
+            logger.error(f"[SearchService] Error fetching news: {e}")
+            return f"新闻搜索出错: {str(e)[:100]}。将仅基于技术面分析。"
 
 # 全局单例
 _search_service = None

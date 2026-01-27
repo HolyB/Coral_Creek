@@ -1707,19 +1707,30 @@ def render_scan_page():
                                 news_context = ""
                                 status.update(label="⚠️ 搜索失败 (将仅基于技术面分析)", state="error")
                         
-                        # 2. 准备数据
-                        price = float(selected_row.get('Price', 0))
-                        blue_d = float(selected_row.get('Day BLUE', 0))
-                        blue_w = float(selected_row.get('Week BLUE', 0))
+                        # 2. 准备数据 - 使用安全的浮点数转换
+                        def safe_float(val, default=0.0):
+                            try:
+                                if val is None or val == '':
+                                    return default
+                                # 移除可能的逗号（如 "1,234.56"）
+                                if isinstance(val, str):
+                                    val = val.replace(',', '')
+                                return float(val)
+                            except (ValueError, TypeError):
+                                return default
+                        
+                        price = safe_float(selected_row.get('Price'), 0)
+                        blue_d = safe_float(selected_row.get('Day BLUE'), 0)
+                        blue_w = safe_float(selected_row.get('Week BLUE'), 0)
                         
                         stock_data = {
                             'symbol': symbol,
                             'price': price,
                             'blue_daily': blue_d,
                             'blue_weekly': blue_w,
-                            'ma5': price * 0.98,
-                            'ma10': price * 0.96,
-                            'ma20': price * 0.94,
+                            'ma5': price * 0.98 if price > 0 else 0,
+                            'ma10': price * 0.96 if price > 0 else 0,
+                            'ma20': price * 0.94 if price > 0 else 0,
                             'rsi': 50,
                             'volume_ratio': 1.2
                         }
