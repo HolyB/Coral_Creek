@@ -781,3 +781,193 @@ def get_us_sector_hot_stocks(sector_name, top_n=10):
     except Exception as e:
         print(f"Error in get_us_sector_hot_stocks: {e}")
         return None
+
+
+# ==================== 增强板块分析 ====================
+
+def get_cn_sector_enhanced():
+    """获取A股行业板块增强数据
+    
+    返回:
+        - 涨跌幅
+        - 成交量放大倍数 (vs 5日均量)
+        - 连续上涨天数
+        - 资金流向 (主力净流入)
+        - 综合热度评分
+    """
+    import tushare as ts
+    
+    token = os.getenv('TUSHARE_TOKEN')
+    if not token:
+        return None
+    
+    try:
+        ts.set_token(token)
+        pro = ts.pro_api()
+        
+        # 获取申万行业指数列表
+        index_list = pro.index_classify(level='L2', src='SW2021')
+        if index_list is None or index_list.empty:
+            return None
+        
+        # 获取最近10个交易日数据
+        today = datetime.now()
+        results = []
+        
+        for _, idx in index_list.head(50).iterrows():  # 限制数量避免超限
+            try:
+                ts_code = idx['index_code']
+                name = idx['industry_name']
+                
+                # 获取日线数据
+                daily = pro.sw_daily(ts_code=ts_code, 
+                                     start_date=(today - timedelta(days=30)).strftime('%Y%m%d'),
+                                     end_date=today.strftime('%Y%m%d'))
+                
+                if daily is None or len(daily) < 2:
+                    continue
+                
+                daily = daily.sort_values('trade_date', ascending=True)
+                
+                # 1. 今日涨跌幅
+                change_pct = daily.iloc[-1]['pct_change'] if 'pct_change' in daily.columns else 0
+                
+                # 2. 成交量放大 (vs 5日均量)
+                if 'vol' in daily.columns and len(daily) >= 5:
+                    vol_today = daily.iloc[-1]['vol']
+                    vol_avg5 = daily.iloc[-6:-1]['vol'].mean() if len(daily) >= 6 else daily['vol'].mean()
+                    volume_ratio = vol_today / vol_avg5 if vol_avg5 > 0 else 1
+                else:
+                    volume_ratio = 1
+                
+                # 3. 连续上涨天数
+                consecutive_days = 0
+                if 'pct_change' in daily.columns:
+                    for i in range(len(daily) - 1, -1, -1):
+                        if daily.iloc[i]['pct_change'] > 0:
+                            consecutive_days += 1
+                        else:
+                            break
+                
+                # 4. 资金流向 (用成交额变化估算)
+                if 'amount' in daily.columns and len(daily) >= 2:
+                    amount_today = daily.iloc[-1]['amount']
+                    amount_yesterday = daily.iloc[-2]['amount']
+                    money_flow = amount_today - amount_yesterday
+                else:
+                    money_flow = 0
+                
+                # 5. 综合热度评分 (0-100)
+                heat_score = 0
+                # 涨幅贡献 (最高30分)
+                heat_score += min(30, max(0, change_pct * 5))
+                # 量比贡献 (最高25分)
+                heat_score += min(25, max(0, (volume_ratio - 1) * 15))
+                # 连涨贡献 (最高25分)
+                heat_score += min(25, consecutive_days * 5)
+                # 资金流入贡献 (最高20分)
+                if money_flow > 0:
+                    heat_score += min(20, 10)
+                
+                results.append({
+                    'sector': ts_code,
+                    'name': name,
+                    'change_pct': round(change_pct, 2),
+                    'volume_ratio': round(volume_ratio, 2),
+                    'consecutive_days': consecutive_days,
+                    'money_flow': round(money_flow / 100000000, 2),  # 亿元
+                    'heat_score': round(heat_score, 1)
+                })
+                
+            except Exception as e:
+                continue
+        
+        if not results:
+            return get_cn_sector_data()  # 回退
+        
+        df = pd.DataFrame(results)
+        df = df.sort_values('heat_score', ascending=False)
+        return df
+        
+    except Exception as e:
+        print(f"Error in get_cn_sector_enhanced: {e}")
+        return get_cn_sector_data()
+
+
+def get_us_sector_enhanced():
+    """获取美股行业板块增强数据
+    
+    返回:
+        - 涨跌幅
+        - 成交量放大倍数
+        - 连续上涨天数
+        - 综合热度评分
+    """
+    sector_etfs = {
+        'XLK': 'Technology',
+        'XLF': 'Financials',
+        'XLV': 'Healthcare',
+        'XLE': 'Energy',
+        'XLI': 'Industrials',
+        'XLY': 'Consumer Discretionary',
+        'XLP': 'Consumer Staples',
+        'XLU': 'Utilities',
+        'XLB': 'Materials',
+        'XLRE': 'Real Estate',
+        'XLC': 'Communication Services'
+    }
+    
+    results = []
+    
+    for etf, name in sector_etfs.items():
+        try:
+            df = get_us_stock_data(etf, days=15)
+            if df is None or len(df) < 2:
+                continue
+            
+            # 1. 今日涨跌幅
+            latest_close = df.iloc[-1]['Close']
+            prev_close = df.iloc[-2]['Close']
+            change_pct = (latest_close - prev_close) / prev_close * 100
+            
+            # 2. 成交量放大
+            if 'Volume' in df.columns and len(df) >= 5:
+                vol_today = df.iloc[-1]['Volume']
+                vol_avg5 = df.iloc[-6:-1]['Volume'].mean() if len(df) >= 6 else df['Volume'].mean()
+                volume_ratio = vol_today / vol_avg5 if vol_avg5 > 0 else 1
+            else:
+                volume_ratio = 1
+            
+            # 3. 连续上涨天数
+            consecutive_days = 0
+            for i in range(len(df) - 1, 0, -1):
+                if df.iloc[i]['Close'] > df.iloc[i-1]['Close']:
+                    consecutive_days += 1
+                else:
+                    break
+            
+            # 4. 综合热度评分
+            heat_score = 0
+            heat_score += min(30, max(0, change_pct * 5))
+            heat_score += min(25, max(0, (volume_ratio - 1) * 15))
+            heat_score += min(25, consecutive_days * 5)
+            
+            results.append({
+                'sector': etf,
+                'name': name,
+                'change_pct': round(change_pct, 2),
+                'volume_ratio': round(volume_ratio, 2),
+                'consecutive_days': consecutive_days,
+                'money_flow': 0,  # ETF暂无资金流数据
+                'heat_score': round(heat_score, 1)
+            })
+            
+        except Exception as e:
+            continue
+    
+    if not results:
+        return get_us_sector_data()
+    
+    df = pd.DataFrame(results)
+    df = df.sort_values('heat_score', ascending=False)
+    return df

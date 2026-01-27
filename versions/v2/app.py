@@ -1408,187 +1408,268 @@ def render_scan_page():
         
         from data_fetcher import get_sector_data, get_cn_sector_data_period, get_us_sector_data_period
         
-        # 时间段选择
-        period_options = {
-            "📅 今日": "1d",
-            "📆 本周": "1w", 
-            "📊 本月": "1m",
-            "📈 今年": "ytd"
-        }
-        selected_period_label = st.radio(
-            "时间范围",
-            options=list(period_options.keys()),
+        # 分析模式选择
+        analysis_mode = st.radio(
+            "分析模式",
+            options=["📊 基础模式", "🔥 增强模式"],
             horizontal=True,
-            key="sector_period"
+            key="sector_analysis_mode",
+            help="增强模式显示量比、连涨天数、资金流向、综合热度"
         )
-        selected_period = period_options[selected_period_label]
         
-        # 缓存板块数据 (按时间段)
-        sector_cache_key = f"sector_data_{selected_market}_{selected_period}"
-        
-        col_refresh, col_info = st.columns([1, 3])
-        with col_refresh:
-            if st.button("🔄 刷新", key="refresh_sector"):
-                # 清除所有时间段缓存
-                for p in period_options.values():
-                    key = f"sector_data_{selected_market}_{p}"
-                    if key in st.session_state:
-                        del st.session_state[key]
-        
-        if sector_cache_key not in st.session_state:
-            with st.spinner(f"正在获取{selected_period_label}板块数据..."):
-                try:
-                    if selected_market == 'CN':
-                        sector_df = get_cn_sector_data_period(period=selected_period)
-                    else:
-                        sector_df = get_us_sector_data_period(period=selected_period)
-                    
-                    if sector_df is not None:
-                        st.session_state[sector_cache_key] = sector_df
-                except Exception as e:
-                    st.error(f"获取数据失败: {e}")
-                    sector_df = None
-        
-        if sector_cache_key in st.session_state:
-            sector_df = st.session_state[sector_cache_key]
+        if analysis_mode == "🔥 增强模式":
+            # 增强模式：显示热度评分
+            from data_fetcher import get_cn_sector_enhanced, get_us_sector_enhanced
             
-            if sector_df is not None and len(sector_df) > 0:
-                # 统计信息
-                up_count = len(sector_df[sector_df['change_pct'] > 0])
-                down_count = len(sector_df[sector_df['change_pct'] < 0])
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("板块数量", len(sector_df))
-                with col2:
-                    st.metric("🔴 上涨", up_count)
-                with col3:
-                    st.metric("🟢 下跌", down_count)
-                
-                st.divider()
-                
-                # 分两列显示：涨幅榜和跌幅榜
-                col_up, col_down = st.columns(2)
-                
-                with col_up:
-                    st.markdown(f"### 📈 {selected_period_label} 涨幅榜 Top 15")
-                    top_up = sector_df.head(15).copy()
-                    top_up['change_pct'] = top_up['change_pct'].apply(lambda x: f"+{x:.2f}%" if x > 0 else f"{x:.2f}%")
-                    if 'amount' in top_up.columns:
-                        top_up['amount'] = top_up['amount'].apply(lambda x: f"{x:.1f}亿" if pd.notna(x) else "N/A")
-                    if 'stock_count' in top_up.columns:
-                        display_cols_up = ['name', 'change_pct', 'amount', 'stock_count']
-                    else:
-                        display_cols_up = ['name', 'change_pct']
-                    cols_to_show = [c for c in display_cols_up if c in top_up.columns]
-                    st.dataframe(
-                        top_up[cols_to_show],
-                        column_config={
-                            'name': '板块',
-                            'change_pct': '涨跌幅',
-                            'amount': '成交额',
-                            'stock_count': '股票数'
-                        },
-                        hide_index=True,
-                        use_container_width=True
-                    )
-                
-                with col_down:
-                    st.markdown(f"### 📉 {selected_period_label} 跌幅榜 Top 15")
-                    top_down = sector_df.tail(15).iloc[::-1].copy()
-                    top_down['change_pct'] = top_down['change_pct'].apply(lambda x: f"+{x:.2f}%" if x > 0 else f"{x:.2f}%")
-                    if 'amount' in top_down.columns:
-                        top_down['amount'] = top_down['amount'].apply(lambda x: f"{x:.1f}亿" if pd.notna(x) else "N/A")
-                    if 'stock_count' in top_down.columns:
-                        display_cols_down = ['name', 'change_pct', 'amount', 'stock_count']
-                    else:
-                        display_cols_down = ['name', 'change_pct']
-                    cols_to_show = [c for c in display_cols_down if c in top_down.columns]
-                    st.dataframe(
-                        top_down[cols_to_show],
-                        column_config={
-                            'name': '板块',
-                            'change_pct': '涨跌幅',
-                            'amount': '成交额',
-                            'stock_count': '股票数'
-                        },
-                        hide_index=True,
-                        use_container_width=True
-                    )
-            else:
-                st.info("暂无板块数据")
+            enhanced_key = f"sector_enhanced_{selected_market}"
             
-            # === 板块详情区域 ===
-            st.divider()
-            st.markdown("### 🔍 板块详情")
+            if st.button("🔄 刷新增强数据", key="refresh_enhanced"):
+                if enhanced_key in st.session_state:
+                    del st.session_state[enhanced_key]
             
-            # 板块选择下拉框
-            sector_names = sector_df['name'].tolist()
-            selected_sector = st.selectbox(
-                "选择板块查看详情",
-                options=sector_names,
-                key="sector_detail_select"
-            )
-            
-            if selected_sector:
-                with st.expander(f"📊 {selected_sector} 详情", expanded=True):
-                    detail_col1, detail_col2 = st.columns(2)
-                    
-                    with detail_col1:
-                        st.markdown("#### 🔥 板块热门股")
-                        
-                        # 获取该板块的热门股票
-                        hot_stocks_key = f"hot_stocks_{selected_sector}_{selected_market}"
-                        
-                        if hot_stocks_key not in st.session_state:
-                            with st.spinner("加载热门股..."):
-                                try:
-                                    if selected_market == 'CN':
-                                        from data_fetcher import get_cn_sector_hot_stocks
-                                        hot_df = get_cn_sector_hot_stocks(selected_sector)
-                                    else:
-                                        from data_fetcher import get_us_sector_hot_stocks
-                                        hot_df = get_us_sector_hot_stocks(selected_sector)
-                                    st.session_state[hot_stocks_key] = hot_df
-                                except Exception as e:
-                                    st.session_state[hot_stocks_key] = None
-                        
-                        hot_df = st.session_state.get(hot_stocks_key)
-                        if hot_df is not None and len(hot_df) > 0:
-                            st.dataframe(
-                                hot_df[['name', 'pct_chg']].head(10),
-                                column_config={
-                                    'name': '股票',
-                                    'pct_chg': '涨跌幅%'
-                                },
-                                hide_index=True,
-                                use_container_width=True
-                            )
-                        else:
-                            st.info("暂无热门股数据")
-                    
-                    with detail_col2:
-                        st.markdown("#### 📰 相关新闻")
-                        
-                        # 显示新闻搜索链接
+            if enhanced_key not in st.session_state:
+                with st.spinner("正在计算增强指标..."):
+                    try:
                         if selected_market == 'CN':
-                            search_term = f"{selected_sector}板块 股票 新闻"
-                            baidu_url = f"https://www.baidu.com/s?wd={search_term}"
-                            st.markdown(f"🔗 [百度搜索: {selected_sector}新闻]({baidu_url})")
-                            
-                            eastmoney_url = f"https://so.eastmoney.com/news/s?keyword={selected_sector}"
-                            st.markdown(f"🔗 [东方财富: {selected_sector}]({eastmoney_url})")
+                            enhanced_df = get_cn_sector_enhanced()
                         else:
-                            search_term = f"{selected_sector} sector stocks news"
-                            google_url = f"https://www.google.com/search?q={search_term}&tbm=nws"
-                            st.markdown(f"🔗 [Google News: {selected_sector}]({google_url})")
-                            
-                            yahoo_url = f"https://finance.yahoo.com/quote/{sector_df[sector_df['name']==selected_sector]['sector'].values[0] if len(sector_df[sector_df['name']==selected_sector]) > 0 else 'XLK'}"
-                            st.markdown(f"🔗 [Yahoo Finance]({yahoo_url})")
-                        
-                        st.caption("💡 点击链接查看最新市场资讯")
+                            enhanced_df = get_us_sector_enhanced()
+                        st.session_state[enhanced_key] = enhanced_df
+                    except Exception as e:
+                        st.error(f"获取增强数据失败: {e}")
+                        enhanced_df = None
+            
+            enhanced_df = st.session_state.get(enhanced_key)
+            
+            if enhanced_df is not None and len(enhanced_df) > 0:
+                st.markdown("### 🔥 板块热度排行 (综合评分)")
+                st.caption("评分 = 涨幅(30%) + 量比(25%) + 连涨(25%) + 资金流(20%)")
+                
+                # 格式化显示
+                display_df = enhanced_df.copy()
+                display_df['change_pct'] = display_df['change_pct'].apply(lambda x: f"+{x:.2f}%" if x > 0 else f"{x:.2f}%")
+                display_df['volume_ratio'] = display_df['volume_ratio'].apply(lambda x: f"{x:.2f}x")
+                display_df['consecutive_days'] = display_df['consecutive_days'].apply(lambda x: f"{x}天" if x > 0 else "-")
+                if 'money_flow' in display_df.columns:
+                    display_df['money_flow'] = display_df['money_flow'].apply(lambda x: f"+{x:.1f}亿" if x > 0 else f"{x:.1f}亿")
+                display_df['heat_score'] = display_df['heat_score'].apply(lambda x: f"🔥{x:.0f}" if x >= 50 else f"{x:.0f}")
+                
+                display_cols = ['name', 'change_pct', 'volume_ratio', 'consecutive_days', 'heat_score']
+                if 'money_flow' in display_df.columns:
+                    display_cols.insert(4, 'money_flow')
+                
+                st.dataframe(
+                    display_df[display_cols],
+                    column_config={
+                        'name': '板块',
+                        'change_pct': '涨跌幅',
+                        'volume_ratio': '量比',
+                        'consecutive_days': '连涨',
+                        'money_flow': '资金流',
+                        'heat_score': '热度'
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+                
+                # 可视化热度前10
+                if len(enhanced_df) >= 5:
+                    import plotly.express as px
+                    top10 = enhanced_df.head(10)
+                    fig = px.bar(
+                        top10, x='name', y='heat_score',
+                        title="🔥 热度 Top 10 板块",
+                        color='heat_score',
+                        color_continuous_scale='YlOrRd'
+                    )
+                    fig.update_layout(height=350)
+                    st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("暂无增强数据")
+        
         else:
-            st.info("正在加载板块数据...")
+            # 基础模式：原有逻辑
+            # 时间段选择
+            period_options = {
+                "📅 今日": "1d",
+                "📆 本周": "1w", 
+                "📊 本月": "1m",
+                "📈 今年": "ytd"
+            }
+            selected_period_label = st.radio(
+                "时间范围",
+                options=list(period_options.keys()),
+                horizontal=True,
+                key="sector_period"
+            )
+            selected_period = period_options[selected_period_label]
+            
+            # 缓存板块数据 (按时间段)
+            sector_cache_key = f"sector_data_{selected_market}_{selected_period}"
+            
+            col_refresh, col_info = st.columns([1, 3])
+            with col_refresh:
+                if st.button("🔄 刷新", key="refresh_sector"):
+                    # 清除所有时间段缓存
+                    for p in period_options.values():
+                        key = f"sector_data_{selected_market}_{p}"
+                        if key in st.session_state:
+                            del st.session_state[key]
+            
+            if sector_cache_key not in st.session_state:
+                with st.spinner(f"正在获取{selected_period_label}板块数据..."):
+                    try:
+                        if selected_market == 'CN':
+                            sector_df = get_cn_sector_data_period(period=selected_period)
+                        else:
+                            sector_df = get_us_sector_data_period(period=selected_period)
+                        
+                        if sector_df is not None:
+                            st.session_state[sector_cache_key] = sector_df
+                    except Exception as e:
+                        st.error(f"获取数据失败: {e}")
+                        sector_df = None
+        
+            if sector_cache_key in st.session_state:
+                sector_df = st.session_state[sector_cache_key]
+                
+                if sector_df is not None and len(sector_df) > 0:
+                    # 统计信息
+                    up_count = len(sector_df[sector_df['change_pct'] > 0])
+                    down_count = len(sector_df[sector_df['change_pct'] < 0])
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("板块数量", len(sector_df))
+                    with col2:
+                        st.metric("🔴 上涨", up_count)
+                    with col3:
+                        st.metric("🟢 下跌", down_count)
+                    
+                    st.divider()
+                    
+                    # 分两列显示：涨幅榜和跌幅榜
+                    col_up, col_down = st.columns(2)
+                    
+                    with col_up:
+                        st.markdown(f"### 📈 {selected_period_label} 涨幅榜 Top 15")
+                        top_up = sector_df.head(15).copy()
+                        top_up['change_pct'] = top_up['change_pct'].apply(lambda x: f"+{x:.2f}%" if x > 0 else f"{x:.2f}%")
+                        if 'amount' in top_up.columns:
+                            top_up['amount'] = top_up['amount'].apply(lambda x: f"{x:.1f}亿" if pd.notna(x) else "N/A")
+                        if 'stock_count' in top_up.columns:
+                            display_cols_up = ['name', 'change_pct', 'amount', 'stock_count']
+                        else:
+                            display_cols_up = ['name', 'change_pct']
+                        cols_to_show = [c for c in display_cols_up if c in top_up.columns]
+                        st.dataframe(
+                            top_up[cols_to_show],
+                            column_config={
+                                'name': '板块',
+                                'change_pct': '涨跌幅',
+                                'amount': '成交额',
+                                'stock_count': '股票数'
+                            },
+                            hide_index=True,
+                            use_container_width=True
+                        )
+                    
+                    with col_down:
+                        st.markdown(f"### 📉 {selected_period_label} 跌幅榜 Top 15")
+                        top_down = sector_df.tail(15).iloc[::-1].copy()
+                        top_down['change_pct'] = top_down['change_pct'].apply(lambda x: f"+{x:.2f}%" if x > 0 else f"{x:.2f}%")
+                        if 'amount' in top_down.columns:
+                            top_down['amount'] = top_down['amount'].apply(lambda x: f"{x:.1f}亿" if pd.notna(x) else "N/A")
+                        if 'stock_count' in top_down.columns:
+                            display_cols_down = ['name', 'change_pct', 'amount', 'stock_count']
+                        else:
+                            display_cols_down = ['name', 'change_pct']
+                        cols_to_show = [c for c in display_cols_down if c in top_down.columns]
+                        st.dataframe(
+                            top_down[cols_to_show],
+                            column_config={
+                                'name': '板块',
+                                'change_pct': '涨跌幅',
+                                'amount': '成交额',
+                                'stock_count': '股票数'
+                            },
+                            hide_index=True,
+                            use_container_width=True
+                        )
+                else:
+                    st.info("暂无板块数据")
+                
+                # === 板块详情区域 ===
+                st.divider()
+                st.markdown("### 🔍 板块详情")
+                
+                # 板块选择下拉框
+                sector_names = sector_df['name'].tolist()
+                selected_sector = st.selectbox(
+                    "选择板块查看详情",
+                    options=sector_names,
+                    key="sector_detail_select"
+                )
+                
+                if selected_sector:
+                    with st.expander(f"📊 {selected_sector} 详情", expanded=True):
+                        detail_col1, detail_col2 = st.columns(2)
+                        
+                        with detail_col1:
+                            st.markdown("#### 🔥 板块热门股")
+                            
+                            # 获取该板块的热门股票
+                            hot_stocks_key = f"hot_stocks_{selected_sector}_{selected_market}"
+                            
+                            if hot_stocks_key not in st.session_state:
+                                with st.spinner("加载热门股..."):
+                                    try:
+                                        if selected_market == 'CN':
+                                            from data_fetcher import get_cn_sector_hot_stocks
+                                            hot_df = get_cn_sector_hot_stocks(selected_sector)
+                                        else:
+                                            from data_fetcher import get_us_sector_hot_stocks
+                                            hot_df = get_us_sector_hot_stocks(selected_sector)
+                                        st.session_state[hot_stocks_key] = hot_df
+                                    except Exception as e:
+                                        st.session_state[hot_stocks_key] = None
+                            
+                            hot_df = st.session_state.get(hot_stocks_key)
+                            if hot_df is not None and len(hot_df) > 0:
+                                st.dataframe(
+                                    hot_df[['name', 'pct_chg']].head(10),
+                                    column_config={
+                                        'name': '股票',
+                                        'pct_chg': '涨跌幅%'
+                                    },
+                                    hide_index=True,
+                                    use_container_width=True
+                                )
+                            else:
+                                st.info("暂无热门股数据")
+                        
+                        with detail_col2:
+                            st.markdown("#### 📰 相关新闻")
+                            
+                            # 显示新闻搜索链接
+                            if selected_market == 'CN':
+                                search_term = f"{selected_sector}板块 股票 新闻"
+                                baidu_url = f"https://www.baidu.com/s?wd={search_term}"
+                                st.markdown(f"🔗 [百度搜索: {selected_sector}新闻]({baidu_url})")
+                                
+                                eastmoney_url = f"https://so.eastmoney.com/news/s?keyword={selected_sector}"
+                                st.markdown(f"🔗 [东方财富: {selected_sector}]({eastmoney_url})")
+                            else:
+                                search_term = f"{selected_sector} sector stocks news"
+                                google_url = f"https://www.google.com/search?q={search_term}&tbm=nws"
+                                st.markdown(f"🔗 [Google News: {selected_sector}]({google_url})")
+                                
+                                yahoo_url = f"https://finance.yahoo.com/quote/{sector_df[sector_df['name']==selected_sector]['sector'].values[0] if len(sector_df[sector_df['name']==selected_sector]) > 0 else 'XLK'}"
+                                st.markdown(f"🔗 [Yahoo Finance]({yahoo_url})")
+                            
+                            st.caption("💡 点击链接查看最新市场资讯")
+            else:
+                st.info("正在加载板块数据...")
 
     # 4. 深度透视 (所有标签页都支持选择)
     if selected_ticker is not None and selected_row_data is not None:
