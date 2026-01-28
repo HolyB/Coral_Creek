@@ -1,0 +1,24 @@
+{
+  "market": "US",
+  "train_samples": 2741,
+  "test_samples": 686,
+  "features": [
+    "blue_daily",
+    "blue_weekly",
+    "blue_monthly",
+    "blue_dw_ratio",
+    "blue_dw_resonance",
+    "blue_dwm_resonance",
+    "is_heima",
+    "is_juedi",
+    "log_price",
+    "volatility",
+    "adx",
+    "signal_strength",
+    "day_of_week",
+    "month"
+  ],
+  "classifier_auc": 0.7228020392458638,
+  "regressor_r2": -108.86529392935334,
+  "direction_accuracy": 0.6574344023323615
+}

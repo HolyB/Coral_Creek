@@ -90,15 +90,27 @@ class MLPipeline:
             df: 原始数据
         """
         from db.database import get_connection
-        from db.stock_history import get_stock_history
+        from db.stock_history import get_stock_history, save_stock_history
         from ml.features.feature_calculator import FeatureCalculator, FEATURE_COLUMNS
         
         print(f"\n📊 准备数据集...")
         
         # 1. 获取有信号的股票
         conn = get_connection()
-        end_date = date.today() - timedelta(days=60)  # 留出标签计算时间
+        
+        # 使用数据库中的实际日期范围
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(scan_date) FROM scan_results WHERE market = ?", (self.market,))
+        max_date_row = cursor.fetchone()
+        if max_date_row and max_date_row[0]:
+            db_max_date = datetime.strptime(max_date_row[0], '%Y-%m-%d').date()
+            end_date = db_max_date - timedelta(days=5)  # 留5天给标签计算
+        else:
+            end_date = date.today() - timedelta(days=5)
+        
         start_date = end_date - timedelta(days=self.days_back)
+        
+        print(f"   查询范围: {start_date} ~ {end_date}")
         
         query = """
             SELECT DISTINCT symbol, scan_date, price, blue_daily, blue_weekly, blue_monthly, is_heima
@@ -129,12 +141,36 @@ class MLPipeline:
         symbols = signals_df['symbol'].unique()
         print(f"   股票数: {len(symbols)}")
         
+        # 限制股票数量 (避免 API 超时)
+        max_symbols = 200
+        if len(symbols) > max_symbols:
+            # 选择信号最多的股票
+            symbol_counts = signals_df['symbol'].value_counts()
+            symbols = symbol_counts.head(max_symbols).index.tolist()
+            print(f"   限制为 Top {max_symbols} 股票")
+        
         # 按股票处理
-        for symbol in symbols:
-            # 获取历史数据
-            history = get_stock_history(symbol, self.market, days=365)
+        processed = 0
+        for i, symbol in enumerate(symbols):
+            # 获取历史数据 (优先本地，否则 API)
+            history = get_stock_history(symbol, self.market, days=250)
             
-            if history.empty or len(history) < 120:
+            # 如果本地没有，从 API 获取
+            if history.empty or len(history) < 60:
+                try:
+                    from data_fetcher import get_stock_data
+                    history = get_stock_data(symbol, market=self.market, days=250)
+                    if history is not None and len(history) >= 60:
+                        # 存储到本地
+                        save_stock_history(symbol, self.market, history)
+                except Exception as e:
+                    continue
+                
+                # API 限流
+                if (i + 1) % 5 == 0:
+                    time.sleep(0.5)
+            
+            if history is None or history.empty or len(history) < 60:
                 continue
             
             # 计算特征
