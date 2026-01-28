@@ -1779,27 +1779,24 @@ def render_scan_page():
                         p3.metric("🚀 目标价", f"${target:.2f}" if target else "N/A",
                                   delta=f"+{((target-entry)/entry*100):.1f}%" if entry and target else None)
                         
-                        # === 检查清单 - 醒目横条 ===
+                        # === 检查清单 - 使用原生组件 ===
                         st.markdown("**📋 交易检查清单**")
                         checklist = result.get('checklist', [])
                         if checklist:
-                            checklist_html = "<div style='display: flex; gap: 12px; flex-wrap: wrap;'>"
-                            for item in checklist:
-                                status = item.get('status', '⚠️')
-                                name = item.get('item', '')
-                                detail = item.get('detail', '')
-                                # 根据状态设置背景色
-                                bg_color = "#E8F5E9" if status == "✅" else ("#FFF3E0" if status == "⚠️" else "#FFEBEE")
-                                border_color = "#4CAF50" if status == "✅" else ("#FF9800" if status == "⚠️" else "#F44336")
-                                checklist_html += f"""
-                                <div style="background: {bg_color}; border: 1px solid {border_color}; 
-                                            border-radius: 6px; padding: 8px 12px; min-width: 120px;">
-                                    <div style="font-weight: bold;">{status} {name}</div>
-                                    <div style="font-size: 0.85em; color: #666;">{detail}</div>
-                                </div>
-                                """
-                            checklist_html += "</div>"
-                            st.markdown(checklist_html, unsafe_allow_html=True)
+                            # 使用 columns 展示
+                            check_cols = st.columns(min(len(checklist), 5))
+                            for i, item in enumerate(checklist):
+                                with check_cols[i % len(check_cols)]:
+                                    status = item.get('status', '⚠️')
+                                    name = item.get('item', '')
+                                    detail = item.get('detail', '')
+                                    
+                                    if status == "✅":
+                                        st.success(f"**{status} {name}**\n\n{detail}")
+                                    elif status == "⚠️":
+                                        st.warning(f"**{status} {name}**\n\n{detail}")
+                                    else:
+                                        st.error(f"**{status} {name}**\n\n{detail}")
                         
                         # === 持仓建议 ===
                         pos_advice = result.get('position_advice', {})
