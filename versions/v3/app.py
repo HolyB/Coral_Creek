@@ -5193,26 +5193,53 @@ def render_risk_dashboard():
     st.subheader("🛡️ 风险控制中心")
     
     # === 数据源选择 ===
-    data_source = st.radio(
+    st.markdown("#### 📂 选择分析对象")
+    
+    source_options = {
+        "🎮 模拟持仓": "paper",
+        "💰 实盘持仓": "real",
+        "📊 每日机会 (全部)": "daily_all",
+        "🔵 仅日BLUE信号": "daily_blue",
+        "🔷 日+周BLUE共振": "daily_weekly",
+        "🔶 月BLUE信号": "monthly_blue",
+        "🐴 黑马信号": "heima",
+        "⭐ 全条件共振 (日+周+月+黑马)": "all_resonance"
+    }
+    
+    data_source = st.selectbox(
         "数据来源",
-        ["🎮 模拟持仓", "💰 实盘持仓"],
-        horizontal=True,
-        help="选择要分析的持仓数据"
+        list(source_options.keys()),
+        help="选择要分析的持仓/信号数据"
     )
     
-    # === 获取真实持仓数据 ===
+    source_key = source_options[data_source]
+    
+    # === 信号筛选参数 ===
+    if source_key not in ['paper', 'real']:
+        filter_col1, filter_col2, filter_col3 = st.columns(3)
+        with filter_col1:
+            market_filter = st.selectbox("市场", ["US", "CN"], key="risk_market")
+        with filter_col2:
+            days_back = st.slider("回看天数", 1, 30, 7, key="risk_days")
+        with filter_col3:
+            min_blue = st.slider("最低BLUE", 50, 150, 100, key="risk_blue")
+    
+    # === 获取数据 ===
     holdings = {}
     positions = []
     total_value = 0
     
     try:
-        if data_source == "🎮 模拟持仓":
+        if source_key == "paper":
+            # 模拟持仓
             from services.portfolio_service import get_paper_account
             account = get_paper_account()
             if account and account.get('positions'):
                 positions = account['positions']
                 total_value = account.get('total_equity', 0)
-        else:
+                
+        elif source_key == "real":
+            # 实盘持仓
             from db.database import get_portfolio
             from services.portfolio_service import get_current_price
             portfolio = get_portfolio()
@@ -5226,8 +5253,110 @@ def render_risk_dashboard():
                         p['market_value'] = p.get('cost_basis', 0) * p['shares']
                     total_value += p['market_value']
                 positions = portfolio
+                
+        else:
+            # 从扫描信号获取
+            from db.database import query_scan_results
+            from services.portfolio_service import get_current_price
+            from datetime import date, timedelta
+            
+            # 获取最近 N 天的扫描结果
+            end_date = date.today()
+            start_date = end_date - timedelta(days=days_back)
+            
+            all_signals = []
+            current_date = start_date
+            while current_date <= end_date:
+                date_str = current_date.strftime('%Y-%m-%d')
+                try:
+                    results = query_scan_results(date_str, market=market_filter, min_blue=min_blue)
+                    if results:
+                        for r in results:
+                            r['scan_date'] = date_str
+                        all_signals.extend(results)
+                except:
+                    pass
+                current_date += timedelta(days=1)
+            
+            if all_signals:
+                # 根据策略筛选
+                filtered_signals = []
+                
+                for sig in all_signals:
+                    day_blue = sig.get('Day_BLUE', 0) or 0
+                    week_blue = sig.get('Week_BLUE', 0) or 0
+                    month_blue = sig.get('Month_BLUE', 0) or 0
+                    heima = sig.get('Heima', 0) or sig.get('heima_signal', False)
+                    
+                    if source_key == "daily_all":
+                        # 所有信号
+                        if day_blue >= min_blue:
+                            filtered_signals.append(sig)
+                            
+                    elif source_key == "daily_blue":
+                        # 仅日BLUE
+                        if day_blue >= min_blue and week_blue < min_blue:
+                            filtered_signals.append(sig)
+                            
+                    elif source_key == "daily_weekly":
+                        # 日+周共振
+                        if day_blue >= min_blue and week_blue >= min_blue:
+                            filtered_signals.append(sig)
+                            
+                    elif source_key == "monthly_blue":
+                        # 月BLUE
+                        if month_blue >= min_blue:
+                            filtered_signals.append(sig)
+                            
+                    elif source_key == "heima":
+                        # 黑马信号
+                        if heima:
+                            filtered_signals.append(sig)
+                            
+                    elif source_key == "all_resonance":
+                        # 全条件共振
+                        if day_blue >= min_blue and week_blue >= min_blue and (month_blue >= min_blue or heima):
+                            filtered_signals.append(sig)
+                
+                # 去重 (同一只股票只保留最新)
+                symbol_latest = {}
+                for sig in filtered_signals:
+                    sym = sig.get('Symbol', sig.get('symbol', ''))
+                    if sym:
+                        if sym not in symbol_latest or sig['scan_date'] > symbol_latest[sym]['scan_date']:
+                            symbol_latest[sym] = sig
+                
+                # 转换为持仓格式 (等权重)
+                unique_symbols = list(symbol_latest.keys())
+                if unique_symbols:
+                    equal_value = 100000 / len(unique_symbols)  # 假设 10万等分
+                    
+                    for sym in unique_symbols:
+                        sig = symbol_latest[sym]
+                        price = get_current_price(sym, market_filter)
+                        if price and price > 0:
+                            shares = int(equal_value / price)
+                            market_value = shares * price
+                            
+                            positions.append({
+                                'symbol': sym,
+                                'shares': shares,
+                                'avg_cost': price,
+                                'current_price': price,
+                                'market_value': market_value,
+                                'market': market_filter,
+                                'day_blue': sig.get('Day_BLUE', 0),
+                                'week_blue': sig.get('Week_BLUE', 0),
+                                'unrealized_pnl_pct': 0
+                            })
+                            total_value += market_value
+                
+                st.info(f"📊 筛选结果: {len(all_signals)} 条信号 → {len(filtered_signals)} 条符合条件 → {len(positions)} 只唯一股票")
+                
     except Exception as e:
-        st.warning(f"获取持仓数据失败: {e}")
+        st.warning(f"获取数据失败: {e}")
+        import traceback
+        st.code(traceback.format_exc())
     
     # 检查是否有持仓
     if not positions:
