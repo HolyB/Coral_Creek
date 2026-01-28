@@ -5283,10 +5283,11 @@ def render_risk_dashboard():
                 filtered_signals = []
                 
                 for sig in all_signals:
-                    day_blue = sig.get('Day_BLUE', 0) or 0
-                    week_blue = sig.get('Week_BLUE', 0) or 0
-                    month_blue = sig.get('Month_BLUE', 0) or 0
-                    heima = sig.get('Heima', 0) or sig.get('heima_signal', False)
+                    # 字段名兼容 (数据库用小写，CSV用大写)
+                    day_blue = sig.get('blue_daily', sig.get('Day_BLUE', 0)) or 0
+                    week_blue = sig.get('blue_weekly', sig.get('Week_BLUE', 0)) or 0
+                    month_blue = sig.get('blue_monthly', sig.get('Month_BLUE', 0)) or 0
+                    heima = sig.get('is_heima', sig.get('Heima', False))
                     
                     if source_key == "daily_all":
                         # 所有信号
@@ -5321,16 +5322,16 @@ def render_risk_dashboard():
                 # 去重 (同一只股票只保留最新，按 BLUE 值排序)
                 symbol_latest = {}
                 for sig in filtered_signals:
-                    sym = sig.get('Symbol', sig.get('symbol', ''))
+                    sym = sig.get('symbol', sig.get('Symbol', ''))
                     if sym:
                         if sym not in symbol_latest or sig['scan_date'] > symbol_latest[sym]['scan_date']:
                             symbol_latest[sym] = sig
                 
-                # 按 Day_BLUE 排序，取 Top N
+                # 按 blue_daily 排序，取 Top N
                 MAX_POSITIONS = 20  # 限制最多分析 20 只
                 sorted_symbols = sorted(
                     symbol_latest.items(),
-                    key=lambda x: x[1].get('Day_BLUE', 0) or 0,
+                    key=lambda x: x[1].get('blue_daily', x[1].get('Day_BLUE', 0)) or 0,
                     reverse=True
                 )[:MAX_POSITIONS]
                 
@@ -5345,7 +5346,8 @@ def render_risk_dashboard():
                     for i, (sym, sig) in enumerate(sorted_symbols):
                         progress_bar.progress((i + 1) / len(sorted_symbols), text=f"获取 {sym} 价格...")
                         
-                        price = sig.get('Close', None)  # 先尝试用扫描时的收盘价
+                        # 先尝试用扫描时的价格
+                        price = sig.get('price', sig.get('Close', None))
                         if not price:
                             price = get_current_price(sym, market_filter)
                         
@@ -5360,8 +5362,8 @@ def render_risk_dashboard():
                                 'current_price': price,
                                 'market_value': market_value,
                                 'market': market_filter,
-                                'day_blue': sig.get('Day_BLUE', 0),
-                                'week_blue': sig.get('Week_BLUE', 0),
+                                'day_blue': sig.get('blue_daily', sig.get('Day_BLUE', 0)),
+                                'week_blue': sig.get('blue_weekly', sig.get('Week_BLUE', 0)),
                                 'unrealized_pnl_pct': 0
                             })
                             total_value += market_value
