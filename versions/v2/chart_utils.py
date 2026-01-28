@@ -455,9 +455,9 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
     except Exception as e:
         pass  # 忽略黑马信号计算错误
 
-    # === 优化布局，解决字体重叠 ===
+    # === 优化布局 - 改进鼠标联动 ===
     fig.update_layout(
-        height=750,  # 稍微减小高度
+        height=750,
         title=dict(
             text=f"<b>{symbol}</b> - {name}",
             font=dict(size=16),
@@ -465,7 +465,14 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
             xanchor='left'
         ),
         xaxis_rangeslider_visible=False,
-        hovermode='x unified',
+        # 改用 closest 模式，让每个子图独立响应
+        hovermode='closest',
+        # 添加十字准线
+        hoverlabel=dict(
+            bgcolor="rgba(0,0,0,0.8)",
+            font_size=12,
+            font_family="monospace"
+        ),
         legend=dict(
             orientation="h", 
             yanchor="bottom", 
@@ -474,27 +481,57 @@ def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='d
             x=0.75,
             font=dict(size=10)
         ),
-        margin=dict(l=60, r=20, t=50, b=50),  # 调整边距
-        font=dict(size=11)  # 全局字体大小
+        margin=dict(l=60, r=20, t=50, b=50),
+        font=dict(size=11)
     )
     
-    # === 优化坐标轴 ===
-    # 主图 Y轴 (价格)
+    # === 添加十字准线 (spike lines) ===
+    # 主图 Y轴 - 添加水平准线
     fig.update_yaxes(
         title_text="", 
         tickfont=dict(size=10),
+        showspikes=True,
+        spikemode='across',
+        spikesnap='cursor',
+        spikethickness=1,
+        spikecolor='rgba(128, 128, 128, 0.5)',
+        spikedash='dot',
         row=1, col=1
     )
     
-    # 筹码分布
+    # 主图 X轴 - 添加垂直准线
+    fig.update_xaxes(
+        showspikes=True,
+        spikemode='across',
+        spikesnap='cursor',
+        spikethickness=1,
+        spikecolor='rgba(128, 128, 128, 0.5)',
+        spikedash='dot',
+        tickfont=dict(size=9),
+        row=1, col=1
+    )
+    
+    # 筹码分布 - 匹配 Y 轴范围
     if show_volume_profile:
+        # 获取主图 Y 轴范围
+        y_min = df_full['Low'].min() * 0.98
+        y_max = df_full['High'].max() * 1.02
+        
         fig.update_xaxes(
             title_text="", 
             showticklabels=False, 
             row=1, col=2
         )
         fig.update_yaxes(
-            showticklabels=False, 
+            showticklabels=False,
+            # 关键：匹配主图的 Y 轴范围，实现联动
+            matches='y',
+            showspikes=True,
+            spikemode='across',
+            spikesnap='cursor',
+            spikethickness=1,
+            spikecolor='rgba(128, 128, 128, 0.5)',
+            spikedash='dot',
             row=1, col=2
         )
     
