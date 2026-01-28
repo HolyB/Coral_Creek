@@ -5318,7 +5318,7 @@ def render_risk_dashboard():
                         if day_blue >= min_blue and week_blue >= min_blue and (month_blue >= min_blue or heima):
                             filtered_signals.append(sig)
                 
-                # 去重 (同一只股票只保留最新)
+                # 去重 (同一只股票只保留最新，按 BLUE 值排序)
                 symbol_latest = {}
                 for sig in filtered_signals:
                     sym = sig.get('Symbol', sig.get('symbol', ''))
@@ -5326,14 +5326,29 @@ def render_risk_dashboard():
                         if sym not in symbol_latest or sig['scan_date'] > symbol_latest[sym]['scan_date']:
                             symbol_latest[sym] = sig
                 
+                # 按 Day_BLUE 排序，取 Top N
+                MAX_POSITIONS = 20  # 限制最多分析 20 只
+                sorted_symbols = sorted(
+                    symbol_latest.items(),
+                    key=lambda x: x[1].get('Day_BLUE', 0) or 0,
+                    reverse=True
+                )[:MAX_POSITIONS]
+                
+                st.info(f"📊 筛选: {len(all_signals)} 条信号 → {len(filtered_signals)} 符合 → {len(symbol_latest)} 只股票 → Top {len(sorted_symbols)} (按BLUE排序)")
+                
                 # 转换为持仓格式 (等权重)
-                unique_symbols = list(symbol_latest.keys())
-                if unique_symbols:
-                    equal_value = 100000 / len(unique_symbols)  # 假设 10万等分
+                if sorted_symbols:
+                    equal_value = 100000 / len(sorted_symbols)  # 10万等分
                     
-                    for sym in unique_symbols:
-                        sig = symbol_latest[sym]
-                        price = get_current_price(sym, market_filter)
+                    progress_bar = st.progress(0, text="正在获取价格数据...")
+                    
+                    for i, (sym, sig) in enumerate(sorted_symbols):
+                        progress_bar.progress((i + 1) / len(sorted_symbols), text=f"获取 {sym} 价格...")
+                        
+                        price = sig.get('Close', None)  # 先尝试用扫描时的收盘价
+                        if not price:
+                            price = get_current_price(sym, market_filter)
+                        
                         if price and price > 0:
                             shares = int(equal_value / price)
                             market_value = shares * price
@@ -5350,8 +5365,8 @@ def render_risk_dashboard():
                                 'unrealized_pnl_pct': 0
                             })
                             total_value += market_value
-                
-                st.info(f"📊 筛选结果: {len(all_signals)} 条信号 → {len(filtered_signals)} 条符合条件 → {len(positions)} 只唯一股票")
+                    
+                    progress_bar.empty()
                 
     except Exception as e:
         st.warning(f"获取数据失败: {e}")
