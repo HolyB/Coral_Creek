@@ -2901,119 +2901,281 @@ def render_signal_review_tab():
 
 
 def render_portfolio_tab():
-    """我的持仓 Tab - 手动添加和跟踪持仓"""
+    """我的持仓 Tab - 实盘持仓 + 模拟交易"""
     from db.database import (
         get_portfolio, add_to_watchlist, add_trade, 
         get_trades, update_watchlist_status, delete_from_watchlist
     )
+    from services.portfolio_service import (
+        get_portfolio_summary, calculate_portfolio_pnl,
+        get_paper_account, paper_buy, paper_sell, 
+        get_paper_trades, reset_paper_account
+    )
     
-    # 权限检查
-    if not is_admin():
-        st.warning("⚠️ 持仓管理需要管理员权限，您当前为访客模式（只读）")
-        st.markdown("---")
+    # 选择模式
+    mode = st.radio(
+        "选择模式",
+        ["💼 实盘持仓", "🎮 模拟交易"],
+        horizontal=True,
+        key="portfolio_mode"
+    )
     
-    # 添加股票表单 (仅管理员可见)
-    if is_admin():
-        st.markdown("### ➕ 添加持仓")
+    st.divider()
+    
+    # ==================== 实盘持仓模式 ====================
+    if mode == "💼 实盘持仓":
+        # 权限检查
+        if not is_admin():
+            st.warning("⚠️ 持仓管理需要管理员权限，您当前为访客模式（只读）")
+            st.markdown("---")
         
-        with st.expander("添加新持仓", expanded=False):
-            col1, col2, col3 = st.columns(3)
+        # 获取持仓汇总
+        with st.spinner("正在获取实时数据..."):
+            summary = get_portfolio_summary()
+        
+        # 汇总统计卡片
+        if summary['positions'] > 0:
+            st.subheader("📊 持仓汇总")
             
-            with col1:
-                new_symbol = st.text_input("股票代码", placeholder="NVDA", key="add_symbol")
-            with col2:
-                new_price = st.number_input("买入价格", min_value=0.01, value=100.0, key="add_price")
-            with col3:
-                new_shares = st.number_input("股数", min_value=1, value=100, key="add_shares")
+            m1, m2, m3, m4 = st.columns(4)
             
-            col4, col5 = st.columns(2)
-            with col4:
-                new_market = st.selectbox("市场", ["US", "CN"], key="add_market")
-            with col5:
-                new_date = st.date_input("买入日期", key="add_date")
+            pnl_color = "normal" if summary['total_pnl'] >= 0 else "inverse"
             
-            notes = st.text_input("备注", placeholder="可选", key="add_notes")
-            
-            if st.button("✅ 添加持仓", type="primary"):
-                if new_symbol:
-                    symbol = new_symbol.upper().strip()
-                    entry_date = new_date.strftime('%Y-%m-%d')
-                    
-                    # 添加到持仓列表
-                    add_to_watchlist(symbol, new_price, new_shares, entry_date, new_market, 'holding', notes)
-                    
-                    # 记录买入交易
-                    add_trade(symbol, 'BUY', new_price, new_shares, entry_date, new_market, notes)
-                    
-                    st.success(f"✅ 已添加 {symbol} 到持仓")
-                    st.rerun()
-                else:
-                    st.error("请输入股票代码")
-    
-    # 当前持仓
-    st.markdown("### 💼 当前持仓")
-    
-    portfolio = get_portfolio(status='holding')
-    
-    if not portfolio:
-        st.info("暂无持仓，点击上方添加")
-    else:
-        for item in portfolio:
-            col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 1])
-            
-            with col1:
-                st.write(f"**{item['symbol']}**")
-                st.caption(f"买入: ${item['entry_price']:.2f}")
-            
-            with col2:
-                st.write(f"{item['shares']} 股")
-                st.caption(f"日期: {item['entry_date']}")
-            
-            with col3:
-                st.write(f"持仓中")
-                st.caption(f"市场: {item['market']}")
-            
-            with col4:
-                if item.get('notes'):
-                    st.caption(item['notes'])
-            
-            with col5:
-                if is_admin():
-                    if st.button("卖出", key=f"sell_{item['id']}"):
-                        st.session_state[f"show_sell_{item['id']}"] = True
-            
-            # 卖出对话框
-            if is_admin() and st.session_state.get(f"show_sell_{item['id']}"):
-                with st.container():
-                    sell_price = st.number_input(
-                        f"卖出价格 ({item['symbol']})", 
-                        min_value=0.01, 
-                        value=float(item['entry_price']),
-                        key=f"sell_price_{item['id']}"
-                    )
-                    if st.button(f"确认卖出", key=f"confirm_sell_{item['id']}"):
-                        add_trade(item['symbol'], 'SELL', sell_price, item['shares'], 
-                                 datetime.now().strftime('%Y-%m-%d'), item['market'])
-                        update_watchlist_status(item['symbol'], item['entry_date'], 'sold', item['market'])
-                        st.success(f"✅ 已卖出 {item['symbol']}")
-                        st.session_state[f"show_sell_{item['id']}"] = False
-                        st.rerun()
+            m1.metric("总成本", f"${summary['total_cost']:,.2f}")
+            m2.metric("总市值", f"${summary['total_market_value']:,.2f}")
+            m3.metric("未实现盈亏", f"${summary['total_pnl']:+,.2f}", 
+                     f"{summary['total_pnl_pct']:+.2f}%", delta_color=pnl_color)
+            m4.metric("持仓数", f"{summary['positions']} 只",
+                     f"🟢{summary['winners']} 🔴{summary['losers']}")
             
             st.divider()
+        
+        # 添加持仓表单 (仅管理员可见)
+        if is_admin():
+            with st.expander("➕ 添加新持仓", expanded=False):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    new_symbol = st.text_input("股票代码", placeholder="NVDA", key="add_symbol")
+                with col2:
+                    new_price = st.number_input("买入价格", min_value=0.01, value=100.0, key="add_price")
+                with col3:
+                    new_shares = st.number_input("股数", min_value=1, value=100, key="add_shares")
+                
+                col4, col5 = st.columns(2)
+                with col4:
+                    new_market = st.selectbox("市场", ["US", "CN"], key="add_market")
+                with col5:
+                    new_date = st.date_input("买入日期", key="add_date")
+                
+                notes = st.text_input("备注", placeholder="可选", key="add_notes")
+                
+                if st.button("✅ 添加持仓", type="primary"):
+                    if new_symbol:
+                        symbol = new_symbol.upper().strip()
+                        entry_date = new_date.strftime('%Y-%m-%d')
+                        
+                        add_to_watchlist(symbol, new_price, new_shares, entry_date, new_market, 'holding', notes)
+                        add_trade(symbol, 'BUY', new_price, new_shares, entry_date, new_market, notes)
+                        
+                        st.success(f"✅ 已添加 {symbol} 到持仓")
+                        st.rerun()
+                    else:
+                        st.error("请输入股票代码")
+        
+        # 当前持仓列表 (带实时盈亏)
+        st.subheader("💼 当前持仓")
+        
+        if summary.get('details'):
+            for item in summary['details']:
+                with st.container():
+                    col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 1])
+                    
+                    with col1:
+                        st.markdown(f"**{item['symbol']}**")
+                        st.caption(f"成本: ${item['entry_price']:.2f} × {item['shares']}")
+                    
+                    with col2:
+                        if item.get('current_price'):
+                            st.markdown(f"现价: **${item['current_price']:.2f}**")
+                            st.caption(f"市值: ${item['market_value']:,.2f}")
+                        else:
+                            st.markdown("现价: --")
+                    
+                    with col3:
+                        if item.get('unrealized_pnl') is not None:
+                            pnl = item['unrealized_pnl']
+                            pnl_pct = item['unrealized_pnl_pct']
+                            color = "green" if pnl >= 0 else "red"
+                            st.markdown(f"盈亏: <span style='color:{color}'>${pnl:+,.2f}</span>", 
+                                       unsafe_allow_html=True)
+                            st.markdown(f"<span style='color:{color}'>{pnl_pct:+.2f}%</span>", 
+                                       unsafe_allow_html=True)
+                        else:
+                            st.markdown("盈亏: --")
+                    
+                    with col4:
+                        st.caption(f"买入: {item['entry_date']}")
+                        st.caption(f"市场: {item['market']}")
+                    
+                    with col5:
+                        if is_admin():
+                            if st.button("卖出", key=f"sell_{item['id']}"):
+                                st.session_state[f"show_sell_{item['id']}"] = True
+                    
+                    # 卖出对话框
+                    if is_admin() and st.session_state.get(f"show_sell_{item['id']}"):
+                        sell_price = st.number_input(
+                            f"卖出价格", 
+                            min_value=0.01, 
+                            value=float(item.get('current_price') or item['entry_price']),
+                            key=f"sell_price_{item['id']}"
+                        )
+                        if st.button(f"确认卖出 {item['symbol']}", key=f"confirm_sell_{item['id']}"):
+                            add_trade(item['symbol'], 'SELL', sell_price, item['shares'], 
+                                     datetime.now().strftime('%Y-%m-%d'), item['market'])
+                            update_watchlist_status(item['symbol'], item['entry_date'], 'sold', item['market'])
+                            st.success(f"✅ 已卖出 {item['symbol']}")
+                            st.session_state[f"show_sell_{item['id']}"] = False
+                            st.rerun()
+                
+                st.divider()
+        else:
+            st.info("暂无持仓，点击上方添加")
+        
+        # 交易历史
+        with st.expander("📜 交易历史", expanded=False):
+            trades = get_trades(limit=20)
+            if trades:
+                df = pd.DataFrame(trades)
+                display_df = df[['symbol', 'trade_type', 'price', 'shares', 'trade_date', 'market']].copy()
+                display_df.columns = ['代码', '类型', '价格', '股数', '日期', '市场']
+                display_df['类型'] = display_df['类型'].map({'BUY': '🟢买入', 'SELL': '🔴卖出'})
+                display_df['价格'] = display_df['价格'].apply(lambda x: f"${x:.2f}")
+                st.dataframe(display_df, hide_index=True, use_container_width=True)
+            else:
+                st.info("暂无交易记录")
     
-    # 交易历史
-    st.markdown("### 📜 交易历史")
-    
-    trades = get_trades(limit=20)
-    
-    if trades:
-        df = pd.DataFrame(trades)
-        display_df = df[['symbol', 'trade_type', 'price', 'shares', 'trade_date', 'market']].copy()
-        display_df.columns = ['代码', '类型', '价格', '股数', '日期', '市场']
-        display_df['价格'] = display_df['价格'].apply(lambda x: f"${x:.2f}")
-        st.dataframe(display_df, hide_index=True, use_container_width=True)
+    # ==================== 模拟交易模式 ====================
     else:
-        st.info("暂无交易记录")
+        st.subheader("🎮 模拟交易账户")
+        st.caption("使用虚拟资金测试交易策略，不用真金白银")
+        
+        # 获取模拟账户
+        with st.spinner("加载模拟账户..."):
+            account = get_paper_account()
+        
+        if not account:
+            st.error("模拟账户加载失败")
+            return
+        
+        # 账户汇总
+        m1, m2, m3, m4 = st.columns(4)
+        
+        pnl_color = "normal" if account['total_pnl'] >= 0 else "inverse"
+        
+        m1.metric("初始资金", f"${account['initial_capital']:,.2f}")
+        m2.metric("现金余额", f"${account['cash_balance']:,.2f}")
+        m3.metric("持仓市值", f"${account['position_value']:,.2f}")
+        m4.metric("总权益", f"${account['total_equity']:,.2f}",
+                 f"{account['total_pnl_pct']:+.2f}%", delta_color=pnl_color)
+        
+        st.divider()
+        
+        # 交易面板
+        col_buy, col_sell = st.columns(2)
+        
+        with col_buy:
+            st.markdown("#### 🟢 买入")
+            buy_symbol = st.text_input("股票代码", placeholder="AAPL", key="paper_buy_symbol")
+            buy_shares = st.number_input("买入股数", min_value=1, value=10, key="paper_buy_shares")
+            buy_price = st.number_input("价格 (0=市价)", min_value=0.0, value=0.0, key="paper_buy_price")
+            buy_market = st.selectbox("市场", ["US", "CN"], key="paper_buy_market")
+            
+            if st.button("🛒 买入", type="primary", key="do_paper_buy"):
+                if buy_symbol:
+                    price = buy_price if buy_price > 0 else None
+                    result = paper_buy(buy_symbol.upper(), buy_shares, price, buy_market)
+                    
+                    if result['success']:
+                        st.success(f"✅ 买入成功! {result['symbol']} {result['shares']}股 @ ${result['price']:.2f}")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {result['error']}")
+                else:
+                    st.error("请输入股票代码")
+        
+        with col_sell:
+            st.markdown("#### 🔴 卖出")
+            
+            # 持仓下拉选择
+            position_options = [f"{p['symbol']} ({p['shares']}股)" for p in account['positions']]
+            if position_options:
+                selected_pos = st.selectbox("选择持仓", position_options, key="paper_sell_select")
+                sell_symbol = selected_pos.split(" ")[0] if selected_pos else ""
+                
+                # 找到选中的持仓
+                selected_position = next((p for p in account['positions'] if p['symbol'] == sell_symbol), None)
+                
+                if selected_position:
+                    max_shares = selected_position['shares']
+                    sell_shares = st.number_input("卖出股数", min_value=1, max_value=max_shares, value=max_shares, key="paper_sell_shares")
+                    sell_price = st.number_input("价格 (0=市价)", min_value=0.0, value=0.0, key="paper_sell_price")
+                    
+                    if st.button("💰 卖出", type="secondary", key="do_paper_sell"):
+                        price = sell_price if sell_price > 0 else None
+                        result = paper_sell(sell_symbol, sell_shares, price, selected_position['market'])
+                        
+                        if result['success']:
+                            st.success(f"✅ 卖出成功! 盈亏: ${result['realized_pnl']:+.2f}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {result['error']}")
+            else:
+                st.info("暂无持仓可卖出")
+        
+        st.divider()
+        
+        # 模拟持仓列表
+        st.subheader("📋 模拟持仓")
+        
+        if account['positions']:
+            pos_data = []
+            for p in account['positions']:
+                pos_data.append({
+                    '代码': p['symbol'],
+                    '股数': p['shares'],
+                    '成本': f"${p['avg_cost']:.2f}",
+                    '现价': f"${p['current_price']:.2f}" if p.get('current_price') else '--',
+                    '市值': f"${p['market_value']:,.2f}" if p.get('market_value') else '--',
+                    '盈亏': f"${p['unrealized_pnl']:+,.2f}" if p.get('unrealized_pnl') else '--',
+                    '盈亏%': f"{p['unrealized_pnl_pct']:+.2f}%" if p.get('unrealized_pnl_pct') else '--'
+                })
+            
+            st.dataframe(pd.DataFrame(pos_data), hide_index=True, use_container_width=True)
+        else:
+            st.info("暂无模拟持仓")
+        
+        # 交易记录
+        with st.expander("📜 模拟交易记录", expanded=False):
+            paper_trades = get_paper_trades(limit=30)
+            if paper_trades:
+                trades_df = pd.DataFrame(paper_trades)
+                display_cols = ['symbol', 'trade_type', 'price', 'shares', 'commission', 'trade_date', 'notes']
+                available_cols = [c for c in display_cols if c in trades_df.columns]
+                display_df = trades_df[available_cols].copy()
+                display_df.columns = ['代码', '类型', '价格', '股数', '佣金', '日期', '备注'][:len(available_cols)]
+                display_df['类型'] = display_df['类型'].map({'BUY': '🟢买入', 'SELL': '🔴卖出'})
+                st.dataframe(display_df, hide_index=True, use_container_width=True)
+            else:
+                st.info("暂无交易记录")
+        
+        # 重置账户
+        st.divider()
+        if st.button("🔄 重置模拟账户", help="清空所有模拟持仓和交易记录，重置为初始资金"):
+            reset_paper_account()
+            st.success("✅ 模拟账户已重置")
+            st.rerun()
 
 
 # --- 信号表现验证页面 (新增) ---
