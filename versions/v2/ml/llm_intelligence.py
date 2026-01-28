@@ -352,6 +352,18 @@ RSI: {float(rsi):.1f}
                 json_str = result[result.find('{'):result.rfind('}')+1]
                 parsed = json.loads(json_str)
                 if 'verdict' in parsed:
+                    # 🛡️ 数据清洗：确保数值字段为 float 且非 None
+                    for k in ['entry_price', 'stop_loss', 'target_price', 'confidence']:
+                        val = parsed.get(k)
+                        if val is None or val == 'N/A' or val == '':
+                            parsed[k] = 0.0
+                        else:
+                            try:
+                                if isinstance(val, str):
+                                    val = val.replace(',', '').replace('$', '').replace('%', '')
+                                parsed[k] = float(val)
+                            except:
+                                parsed[k] = 0.0
                     return parsed
         except Exception as e:
             pass
@@ -432,9 +444,9 @@ RSI: {float(rsi):.1f}
             'verdict': verdict,
             'signal': signal,
             'confidence': confidence,
-            'entry_price': round(ma5, 2),  # 建议在MA5附近买入
-            'stop_loss': round(ma20 * 0.97, 2),  # 止损在MA20下方3%
-            'target_price': round(price * 1.15, 2),  # 目标15%收益
+            'entry_price': float(ma5) if ma5 > 0 else 0.0,
+            'stop_loss': float(ma20 * 0.97) if ma20 > 0 else 0.0,
+            'target_price': float(price * 1.15) if price > 0 else 0.0,
             'checklist': checklist,
             'position_advice': position_advice,
             'risk_warning': '⚠️ 本地算法分析，建议结合AI和人工判断',
