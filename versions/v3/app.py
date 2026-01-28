@@ -5184,49 +5184,157 @@ def render_portfolio_management_page():
 
 
 def render_risk_dashboard():
-    """🛡️ 风控仪表盘"""
+    """🛡️ 风控仪表盘 - 基于真实持仓数据"""
     import plotly.graph_objects as go
     import plotly.express as px
     from datetime import datetime, timedelta
+    import numpy as np
     
     st.subheader("🛡️ 风险控制中心")
     
-    # 尝试导入风控模块
+    # === 数据源选择 ===
+    data_source = st.radio(
+        "数据来源",
+        ["🎮 模拟持仓", "💰 实盘持仓"],
+        horizontal=True,
+        help="选择要分析的持仓数据"
+    )
+    
+    # === 获取真实持仓数据 ===
+    holdings = {}
+    positions = []
+    total_value = 0
+    
     try:
-        from risk import RiskMetrics, PortfolioRisk, PositionSizer, PositionLimit
-        risk_module_available = True
-    except ImportError:
-        risk_module_available = False
-        st.warning("风控模块未加载，显示演示数据")
+        if data_source == "🎮 模拟持仓":
+            from services.portfolio_service import get_paper_account
+            account = get_paper_account()
+            if account and account.get('positions'):
+                positions = account['positions']
+                total_value = account.get('total_equity', 0)
+        else:
+            from db.database import get_portfolio
+            from services.portfolio_service import get_current_price
+            portfolio = get_portfolio()
+            if portfolio:
+                for p in portfolio:
+                    price = get_current_price(p['symbol'], p.get('market', 'US'))
+                    if price:
+                        p['market_value'] = price * p['shares']
+                        p['current_price'] = price
+                    else:
+                        p['market_value'] = p.get('cost_basis', 0) * p['shares']
+                    total_value += p['market_value']
+                positions = portfolio
+    except Exception as e:
+        st.warning(f"获取持仓数据失败: {e}")
+    
+    # 检查是否有持仓
+    if not positions:
+        st.info("📭 暂无持仓数据")
+        st.markdown("""
+        请先在以下位置添加持仓:
+        - **模拟交易** Tab: 使用虚拟资金买入股票
+        - **持仓管理** Tab: 手动添加实盘持仓
+        """)
+        
+        # 显示仓位计算器作为替代
+        st.divider()
+        render_position_calculator()
+        return
+    
+    # 计算持仓权重
+    for pos in positions:
+        symbol = pos.get('symbol', 'Unknown')
+        market_value = pos.get('market_value', 0)
+        if total_value > 0:
+            holdings[symbol] = market_value / total_value
+    
+    symbols = list(holdings.keys())
+    
+    st.success(f"✅ 已加载 {len(positions)} 个持仓，总市值 ${total_value:,.0f}")
+    
+    # === 获取历史数据计算风险指标 ===
+    @st.cache_data(ttl=3600)
+    def get_returns_data(symbols_list, days=252):
+        """获取多只股票的收益率数据"""
+        from data_fetcher import get_us_stock_data, get_cn_stock_data
+        
+        returns_dict = {}
+        for sym in symbols_list:
+            try:
+                # 判断市场
+                if sym.endswith('.SH') or sym.endswith('.SZ') or sym.isdigit():
+                    df = get_cn_stock_data(sym, days=days)
+                else:
+                    df = get_us_stock_data(sym, days=days)
+                
+                if df is not None and len(df) > 20:
+                    returns_dict[sym] = df['Close'].pct_change().dropna()
+            except:
+                pass
+        
+        return returns_dict
+    
+    # 获取收益率数据
+    with st.spinner("正在计算风险指标..."):
+        returns_data = get_returns_data(symbols, days=252)
     
     # === 第一行: 核心风险指标 ===
     st.markdown("### 📊 组合风险概览")
     
+    # 计算组合收益率
+    if returns_data and len(returns_data) > 0:
+        # 对齐日期
+        returns_df = pd.DataFrame(returns_data)
+        returns_df = returns_df.dropna()
+        
+        if len(returns_df) > 20:
+            # 计算组合加权收益
+            weight_array = np.array([holdings.get(s, 0) for s in returns_df.columns])
+            weight_array = weight_array / weight_array.sum()  # 归一化
+            
+            portfolio_returns = (returns_df * weight_array).sum(axis=1)
+            
+            # 计算风险指标
+            var_95 = np.percentile(portfolio_returns, 5) * 100
+            
+            cumulative = (1 + portfolio_returns).cumprod()
+            running_max = cumulative.cummax()
+            drawdown = (cumulative - running_max) / running_max
+            max_dd = drawdown.min() * 100
+            
+            volatility = portfolio_returns.std() * np.sqrt(252) * 100
+            
+            excess_returns = portfolio_returns - 0.02/252  # 假设无风险利率 2%
+            sharpe = np.sqrt(252) * excess_returns.mean() / portfolio_returns.std() if portfolio_returns.std() > 0 else 0
+        else:
+            var_95, max_dd, volatility, sharpe = -2.0, -5.0, 20.0, 1.0
+            st.warning("历史数据不足，使用估算值")
+    else:
+        var_95, max_dd, volatility, sharpe = -2.0, -5.0, 20.0, 1.0
+        st.warning("无法获取历史数据，使用估算值")
+    
     col1, col2, col3, col4 = st.columns(4)
     
-    # 演示数据 (实际应从持仓计算)
     with col1:
-        var_95 = -2.3
         st.metric(
             "VaR (95%, 1天)",
             f"{var_95:.2f}%",
             delta="正常" if var_95 > -5 else "警告",
             delta_color="normal" if var_95 > -5 else "inverse"
         )
-        st.caption("在95%置信度下，单日最大损失")
+        st.caption("单日最大损失估计")
     
     with col2:
-        max_dd = -8.5
         st.metric(
             "最大回撤",
             f"{max_dd:.1f}%",
             delta="可控" if max_dd > -15 else "需关注",
             delta_color="normal" if max_dd > -15 else "inverse"
         )
-        st.caption("历史最大峰谷回撤")
     
     with col3:
-        volatility = 18.2
         st.metric(
             "年化波动率",
             f"{volatility:.1f}%",
@@ -5235,84 +5343,61 @@ def render_risk_dashboard():
         )
     
     with col4:
-        sharpe = 1.85
         st.metric(
             "Sharpe 比率",
             f"{sharpe:.2f}",
-            delta="优秀" if sharpe > 1.5 else "一般",
-            delta_color="normal" if sharpe > 1.5 else "inverse"
+            delta="优秀" if sharpe > 1.5 else ("一般" if sharpe > 0.5 else "差"),
+            delta_color="normal" if sharpe > 1.0 else "inverse"
         )
-        st.caption("风险调整后收益")
     
     st.divider()
     
-    # === 第二行: 持仓集中度 + 信号健康度 ===
+    # === 第二行: 持仓集中度 + 持仓明细 ===
     col_left, col_right = st.columns(2)
     
     with col_left:
         st.markdown("### 📈 持仓集中度")
         
-        # 演示持仓数据
-        holdings = {
-            'NVDA': 0.25,
-            'AAPL': 0.18,
-            'TSLA': 0.15,
-            'MSFT': 0.12,
-            'GOOGL': 0.10,
-            'META': 0.08,
-            '其他': 0.12
-        }
-        
-        # 饼图
+        # 饼图 - 使用真实持仓
         fig_pie = go.Figure(data=[go.Pie(
             labels=list(holdings.keys()),
-            values=list(holdings.values()),
+            values=[v * 100 for v in holdings.values()],
             hole=0.4,
             textinfo='label+percent',
             marker_colors=px.colors.qualitative.Set3
         )])
         fig_pie.update_layout(
-            title="持仓分布",
+            title=f"持仓分布 (共 {len(holdings)} 只)",
             height=300,
             margin=dict(t=40, b=20, l=20, r=20)
         )
         st.plotly_chart(fig_pie, use_container_width=True)
         
         # 集中度警告
-        max_position = max(holdings.values())
-        if max_position > 0.20:
-            st.warning(f"⚠️ 单股集中度过高: {list(holdings.keys())[0]} = {max_position:.0%}")
-        
-        # 计算行业集中度 (演示)
-        tech_exposure = sum([holdings.get(s, 0) for s in ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META']])
-        if tech_exposure > 0.40:
-            st.warning(f"⚠️ 科技行业敞口过高: {tech_exposure:.0%}")
+        if holdings:
+            max_symbol = max(holdings, key=holdings.get)
+            max_weight = holdings[max_symbol]
+            
+            if max_weight > 0.25:
+                st.error(f"🔴 单股集中度过高: {max_symbol} = {max_weight:.0%} (建议 < 25%)")
+            elif max_weight > 0.20:
+                st.warning(f"⚠️ 单股集中度偏高: {max_symbol} = {max_weight:.0%}")
+            else:
+                st.success(f"✅ 集中度正常: 最大持仓 {max_symbol} = {max_weight:.0%}")
     
     with col_right:
-        st.markdown("### 🎯 信号健康度")
+        st.markdown("### 📋 持仓明细")
         
-        # BLUE 信号滚动胜率
-        signal_metrics = {
-            '近7天胜率': 0.58,
-            '近30天胜率': 0.55,
-            '历史平均': 0.62
-        }
+        # 持仓表格
+        pos_df = pd.DataFrame([{
+            '代码': p.get('symbol'),
+            '股数': p.get('shares'),
+            '市值': f"${p.get('market_value', 0):,.0f}",
+            '权重': f"{holdings.get(p.get('symbol'), 0):.1%}",
+            '盈亏': f"{p.get('unrealized_pnl_pct', 0):.1f}%"
+        } for p in positions])
         
-        for name, rate in signal_metrics.items():
-            color = "🟢" if rate >= 0.55 else "🟡" if rate >= 0.45 else "🔴"
-            st.metric(name, f"{rate:.0%}", delta=None)
-        
-        # 健康度判断
-        recent_rate = signal_metrics['近30天胜率']
-        historical_rate = signal_metrics['历史平均']
-        
-        if recent_rate < historical_rate * 0.85:
-            st.error("🔴 信号衰减警告: 近期胜率显著低于历史水平")
-            st.caption("建议: 减少仓位或暂停策略")
-        elif recent_rate < historical_rate * 0.95:
-            st.warning("🟡 信号关注: 近期胜率略有下降")
-        else:
-            st.success("🟢 信号健康: 表现正常")
+        st.dataframe(pos_df, use_container_width=True, hide_index=True)
     
     st.divider()
     
@@ -5322,70 +5407,88 @@ def render_risk_dashboard():
     with col_corr:
         st.markdown("### 🔗 持仓相关性")
         
-        # 演示相关性矩阵
-        import numpy as np
-        symbols = ['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL']
-        np.random.seed(42)
-        corr_matrix = np.array([
-            [1.00, 0.65, 0.45, 0.72, 0.68],
-            [0.65, 1.00, 0.38, 0.78, 0.71],
-            [0.45, 0.38, 1.00, 0.42, 0.35],
-            [0.72, 0.78, 0.42, 1.00, 0.82],
-            [0.68, 0.71, 0.35, 0.82, 1.00]
-        ])
-        
-        fig_corr = px.imshow(
-            corr_matrix,
-            x=symbols,
-            y=symbols,
-            color_continuous_scale='RdYlGn',
-            aspect='auto',
-            title="相关性矩阵",
-            zmin=-1, zmax=1
-        )
-        fig_corr.update_layout(height=350)
-        st.plotly_chart(fig_corr, use_container_width=True)
-        
-        # 高相关性警告
-        high_corr_pairs = []
-        for i in range(len(symbols)):
-            for j in range(i+1, len(symbols)):
-                if corr_matrix[i][j] > 0.75:
-                    high_corr_pairs.append((symbols[i], symbols[j], corr_matrix[i][j]))
-        
-        if high_corr_pairs:
-            st.warning(f"⚠️ 高相关性持仓: {', '.join([f'{p[0]}-{p[1]}({p[2]:.2f})' for p in high_corr_pairs])}")
+        if returns_data and len(returns_data) >= 2:
+            returns_df = pd.DataFrame(returns_data).dropna()
+            
+            if len(returns_df) > 20 and len(returns_df.columns) >= 2:
+                corr_matrix = returns_df.corr()
+                
+                fig_corr = px.imshow(
+                    corr_matrix.values,
+                    x=corr_matrix.columns.tolist(),
+                    y=corr_matrix.index.tolist(),
+                    color_continuous_scale='RdYlGn',
+                    aspect='auto',
+                    title="相关性矩阵 (基于历史收益)",
+                    zmin=-1, zmax=1
+                )
+                fig_corr.update_layout(height=350)
+                st.plotly_chart(fig_corr, use_container_width=True)
+                
+                # 高相关性警告
+                high_corr_pairs = []
+                cols = corr_matrix.columns.tolist()
+                for i in range(len(cols)):
+                    for j in range(i+1, len(cols)):
+                        if corr_matrix.iloc[i, j] > 0.75:
+                            high_corr_pairs.append((cols[i], cols[j], corr_matrix.iloc[i, j]))
+                
+                if high_corr_pairs:
+                    st.warning(f"⚠️ 高相关性: {', '.join([f'{p[0]}-{p[1]}({p[2]:.2f})' for p in high_corr_pairs[:3]])}")
+                else:
+                    st.success("✅ 持仓分散度良好")
+            else:
+                st.info("数据不足，无法计算相关性")
+        else:
+            st.info("需要至少 2 个持仓才能计算相关性")
     
     with col_dd:
-        st.markdown("### 📉 回撤曲线")
+        st.markdown("### 📉 组合回撤曲线")
         
-        # 生成演示回撤曲线
-        dates = pd.date_range(end=datetime.now(), periods=252, freq='D')
-        np.random.seed(42)
-        returns = np.random.normal(0.0005, 0.015, len(dates))
-        cumulative = (1 + pd.Series(returns)).cumprod()
-        running_max = cumulative.cummax()
-        drawdown = (cumulative - running_max) / running_max * 100
-        
-        fig_dd = go.Figure()
-        fig_dd.add_trace(go.Scatter(
-            x=dates,
-            y=drawdown,
-            fill='tozeroy',
-            fillcolor='rgba(255, 0, 0, 0.2)',
-            line=dict(color='red', width=1),
-            name='回撤'
-        ))
-        fig_dd.add_hline(y=-10, line_dash="dash", line_color="orange", annotation_text="警戒线 -10%")
-        fig_dd.add_hline(y=-15, line_dash="dash", line_color="red", annotation_text="止损线 -15%")
-        fig_dd.update_layout(
-            title="水下曲线 (Underwater)",
-            xaxis_title="日期",
-            yaxis_title="回撤 %",
-            height=350,
-            yaxis=dict(range=[-20, 2])
-        )
-        st.plotly_chart(fig_dd, use_container_width=True)
+        if returns_data and len(returns_data) > 0:
+            returns_df = pd.DataFrame(returns_data).dropna()
+            
+            if len(returns_df) > 20:
+                weight_array = np.array([holdings.get(s, 0) for s in returns_df.columns])
+                weight_array = weight_array / weight_array.sum()
+                
+                portfolio_returns = (returns_df * weight_array).sum(axis=1)
+                cumulative = (1 + portfolio_returns).cumprod()
+                running_max = cumulative.cummax()
+                drawdown = (cumulative - running_max) / running_max * 100
+                
+                fig_dd = go.Figure()
+                fig_dd.add_trace(go.Scatter(
+                    x=drawdown.index,
+                    y=drawdown.values,
+                    fill='tozeroy',
+                    fillcolor='rgba(255, 0, 0, 0.2)',
+                    line=dict(color='red', width=1),
+                    name='回撤'
+                ))
+                fig_dd.add_hline(y=-10, line_dash="dash", line_color="orange", annotation_text="警戒线 -10%")
+                fig_dd.add_hline(y=-15, line_dash="dash", line_color="red", annotation_text="止损线 -15%")
+                fig_dd.update_layout(
+                    title="水下曲线 (Underwater)",
+                    xaxis_title="日期",
+                    yaxis_title="回撤 %",
+                    height=350
+                )
+                st.plotly_chart(fig_dd, use_container_width=True)
+            else:
+                st.info("历史数据不足")
+        else:
+            st.info("无历史数据")
+    
+    st.divider()
+    
+    # === 仓位计算器 ===
+    render_position_calculator()
+
+
+def render_position_calculator():
+    """仓位计算器组件"""
+    st.markdown("### 🧮 仓位计算器")
     
     st.divider()
     
