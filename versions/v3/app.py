@@ -5654,40 +5654,55 @@ def render_risk_dashboard():
             st.info("需要至少 2 个持仓才能计算相关性")
     
     with col_dd:
-        st.markdown("### 📉 组合回撤曲线")
+        st.markdown("### 📉 个股收益分布")
         
         if returns_data and len(returns_data) > 0:
-            returns_df = pd.DataFrame(returns_data).dropna()
+            # 计算每只股票的总收益和统计
+            stock_stats = []
+            for sym, rets in returns_data.items():
+                if len(rets) > 0:
+                    total_ret = (1 + rets).prod() - 1
+                    avg_ret = rets.mean()
+                    volatility = rets.std()
+                    stock_stats.append({
+                        'symbol': sym,
+                        'total_return': total_ret * 100,
+                        'avg_daily': avg_ret * 100,
+                        'volatility': volatility * 100,
+                        'days': len(rets)
+                    })
             
-            if len(returns_df) > 20:
-                weight_array = np.array([holdings.get(s, 0) for s in returns_df.columns])
-                weight_array = weight_array / weight_array.sum()
+            if stock_stats:
+                stats_df = pd.DataFrame(stock_stats)
                 
-                portfolio_returns = (returns_df * weight_array).sum(axis=1)
-                cumulative = (1 + portfolio_returns).cumprod()
-                running_max = cumulative.cummax()
-                drawdown = (cumulative - running_max) / running_max * 100
-                
-                fig_dd = go.Figure()
-                fig_dd.add_trace(go.Scatter(
-                    x=drawdown.index,
-                    y=drawdown.values,
-                    fill='tozeroy',
-                    fillcolor='rgba(255, 0, 0, 0.2)',
-                    line=dict(color='red', width=1),
-                    name='回撤'
+                # 收益分布柱状图
+                fig_returns = go.Figure()
+                colors = ['green' if r >= 0 else 'red' for r in stats_df['total_return']]
+                fig_returns.add_trace(go.Bar(
+                    x=stats_df['symbol'],
+                    y=stats_df['total_return'],
+                    marker_color=colors,
+                    text=[f"{r:.1f}%" for r in stats_df['total_return']],
+                    textposition='outside'
                 ))
-                fig_dd.add_hline(y=-10, line_dash="dash", line_color="orange", annotation_text="警戒线 -10%")
-                fig_dd.add_hline(y=-15, line_dash="dash", line_color="red", annotation_text="止损线 -15%")
-                fig_dd.update_layout(
-                    title="水下曲线 (Underwater)",
-                    xaxis_title="日期",
-                    yaxis_title="回撤 %",
-                    height=350
+                fig_returns.add_hline(y=0, line_color="gray")
+                fig_returns.update_layout(
+                    title="各股票累计收益 (%)",
+                    xaxis_title="股票",
+                    yaxis_title="收益 %",
+                    height=350,
+                    showlegend=False
                 )
-                st.plotly_chart(fig_dd, use_container_width=True)
+                st.plotly_chart(fig_returns, use_container_width=True)
+                
+                # 统计摘要
+                avg_return = stats_df['total_return'].mean()
+                win_count = (stats_df['total_return'] > 0).sum()
+                win_rate = win_count / len(stats_df) * 100
+                
+                st.caption(f"📊 平均收益: {avg_return:.1f}% | 胜率: {win_rate:.0f}% ({win_count}/{len(stats_df)})")
             else:
-                st.info("历史数据不足")
+                st.info("数据不足")
         else:
             st.info("无历史数据")
     
