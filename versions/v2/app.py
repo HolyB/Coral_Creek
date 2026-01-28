@@ -3539,10 +3539,365 @@ def render_research_page():
         render_ml_lab_page()
 
 
+# ==================== 回测实验室辅助函数 ====================
+
+def render_parameter_lab():
+    """参数实验室 - 批量回测验证不同参数组合"""
+    import plotly.express as px
+    from backtest.backtester import Backtester, backtest_blue_signals
+    from db.database import query_scan_results, get_scanned_dates
+    
+    st.subheader("🔬 参数实验室")
+    st.caption("基于历史扫描信号，批量验证不同参数组合的有效性")
+    
+    # --- 参数配置区 ---
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        market = st.selectbox("选择市场", ["US", "CN"], index=0, key="param_lab_market")
+        min_blue = st.slider("最低 BLUE 阈值", 50, 180, 100, step=10, key="param_lab_blue",
+                            help="只测试 BLUE 值高于此阈值的信号")
+    
+    with col2:
+        holding_days = st.slider("持有天数", 5, 30, 10, step=5, key="param_lab_days",
+                                help="买入后固定持有的天数")
+        signal_limit = st.slider("测试信号数量", 20, 200, 100, step=20, key="param_lab_limit",
+                                help="最多测试多少个历史信号")
+    
+    with col3:
+        # 获取可用日期
+        available_dates = get_scanned_dates(market=market)
+        if available_dates:
+            date_options = ["所有日期"] + available_dates[:30]
+            selected_date = st.selectbox("指定日期 (可选)", date_options, key="param_lab_date")
+        else:
+            selected_date = "所有日期"
+            st.warning("暂无扫描数据")
+    
+    # --- 运行回测 ---
+    if st.button("🚀 开始批量回测", type="primary", key="run_param_lab"):
+        with st.spinner("正在分析历史信号表现..."):
+            try:
+                # 获取历史信号
+                scan_date = None if selected_date == "所有日期" else selected_date
+                signals = query_scan_results(
+                    scan_date=scan_date,
+                    min_blue=min_blue,
+                    market=market,
+                    limit=signal_limit
+                )
+                
+                if not signals:
+                    st.warning("未找到符合条件的信号，请调整筛选条件")
+                    return
+                
+                st.info(f"找到 **{len(signals)}** 个符合条件的信号，开始回测...")
+                
+                # 运行回测
+                bt = Backtester()
+                signals_df = pd.DataFrame(signals)
+                results = bt.run_signal_backtest(signals_df, holding_days=holding_days, market=market)
+                
+                # 获取基准对比
+                benchmark = bt.compare_with_benchmark(
+                    benchmark='SPY' if market == 'US' else '000001.SS',
+                    period_days=30
+                )
+                
+                # --- 显示结果 ---
+                st.success("✅ 回测完成!")
+                
+                # 关键指标卡片
+                m1, m2, m3, m4, m5 = st.columns(5)
+                m1.metric("总交易数", results.get('total_trades', 0))
+                m2.metric("胜率", f"{results.get('win_rate', 0):.1f}%", 
+                         delta="好" if results.get('win_rate', 0) > 50 else "差")
+                m3.metric("平均收益", f"{results.get('avg_return', 0):.2f}%")
+                m4.metric("总收益", f"{results.get('total_return', 0):.2f}%")
+                m5.metric("最大回撤", f"-{results.get('max_drawdown', 0):.2f}%", delta_color="inverse")
+                
+                # 更多指标
+                col_a, col_b, col_c = st.columns(3)
+                with col_a:
+                    st.metric("夏普比率", f"{results.get('sharpe_ratio', 0):.2f}")
+                with col_b:
+                    st.metric("盈亏比", f"{results.get('profit_factor', 0):.2f}")
+                with col_c:
+                    alpha = benchmark.get('alpha', 0)
+                    st.metric("超额收益 (vs SPY)", f"{alpha:+.2f}%",
+                             delta="跑赢大盘" if alpha > 0 else "跑输大盘")
+                
+                # --- 资金曲线图 ---
+                if results.get('trades'):
+                    st.subheader("📈 模拟资金曲线")
+                    
+                    trades_df = pd.DataFrame(results['trades'])
+                    trades_df['cumulative_return'] = (1 + trades_df['pnl_pct'] / 100).cumprod() * 100000
+                    trades_df['trade_num'] = range(1, len(trades_df) + 1)
+                    
+                    fig = go.Figure()
+                    
+                    # 策略曲线
+                    fig.add_trace(go.Scatter(
+                        x=trades_df['trade_num'],
+                        y=trades_df['cumulative_return'],
+                        mode='lines+markers',
+                        name='策略收益',
+                        line=dict(color='#2196F3', width=2),
+                        marker=dict(size=6)
+                    ))
+                    
+                    # 基准线 (初始资金)
+                    fig.add_hline(y=100000, line_dash="dash", line_color="gray", 
+                                 annotation_text="初始资金 $100,000")
+                    
+                    fig.update_layout(
+                        title="累计收益曲线",
+                        xaxis_title="交易序号",
+                        yaxis_title="资金 ($)",
+                        height=400
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # --- 收益分布图 ---
+                    col_dist, col_monthly = st.columns(2)
+                    
+                    with col_dist:
+                        st.subheader("📊 收益分布")
+                        fig_dist = px.histogram(
+                            trades_df, x='pnl_pct', nbins=20,
+                            title="单笔收益分布",
+                            labels={'pnl_pct': '收益率 (%)'},
+                            color_discrete_sequence=['#4CAF50']
+                        )
+                        fig_dist.add_vline(x=0, line_dash="dash", line_color="red")
+                        fig_dist.update_layout(height=300)
+                        st.plotly_chart(fig_dist, use_container_width=True)
+                    
+                    with col_monthly:
+                        st.subheader("🗓️ 按月统计")
+                        # 按月分组统计
+                        trades_df['month'] = pd.to_datetime(trades_df['entry_date']).dt.to_period('M').astype(str)
+                        monthly_stats = trades_df.groupby('month').agg({
+                            'pnl_pct': ['mean', 'sum', 'count']
+                        }).round(2)
+                        monthly_stats.columns = ['平均收益%', '总收益%', '交易数']
+                        monthly_stats = monthly_stats.reset_index()
+                        monthly_stats.columns = ['月份', '平均收益%', '总收益%', '交易数']
+                        
+                        st.dataframe(monthly_stats, use_container_width=True, hide_index=True)
+                    
+                    # --- 交易明细 ---
+                    with st.expander("📋 查看交易明细", expanded=False):
+                        display_df = trades_df[['symbol', 'entry_date', 'entry_price', 
+                                               'exit_price', 'holding_days', 'pnl_pct', 'win']].copy()
+                        display_df.columns = ['股票', '入场日期', '入场价', '出场价', '持有天数', '收益%', '盈利']
+                        display_df['盈利'] = display_df['盈利'].map({True: '✅', False: '❌'})
+                        st.dataframe(display_df, use_container_width=True, hide_index=True)
+                
+            except Exception as e:
+                st.error(f"回测出错: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+    
+    # --- 参数对比实验 ---
+    st.divider()
+    st.subheader("⚗️ 参数对比实验")
+    st.caption("对比不同 BLUE 阈值的回测效果")
+    
+    if st.button("🧪 运行对比实验", key="run_compare"):
+        with st.spinner("正在对比不同参数..."):
+            thresholds = [60, 80, 100, 120, 150]
+            comparison_results = []
+            
+            progress_bar = st.progress(0)
+            
+            for i, threshold in enumerate(thresholds):
+                try:
+                    result = backtest_blue_signals(
+                        min_blue=threshold,
+                        holding_days=10,
+                        market=market,
+                        limit=50
+                    )
+                    
+                    if 'error' not in result:
+                        comparison_results.append({
+                            'BLUE阈值': threshold,
+                            '交易数': result.get('total_trades', 0),
+                            '胜率%': result.get('win_rate', 0),
+                            '平均收益%': result.get('avg_return', 0),
+                            '总收益%': result.get('total_return', 0),
+                            '最大回撤%': result.get('max_drawdown', 0),
+                            '夏普比率': result.get('sharpe_ratio', 0)
+                        })
+                except Exception as e:
+                    st.warning(f"阈值 {threshold} 回测失败: {e}")
+                
+                progress_bar.progress((i + 1) / len(thresholds))
+            
+            if comparison_results:
+                compare_df = pd.DataFrame(comparison_results)
+                
+                # 显示对比表格
+                st.dataframe(
+                    compare_df.style.background_gradient(subset=['胜率%', '平均收益%'], cmap='RdYlGn'),
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # 可视化对比
+                fig_compare = go.Figure()
+                fig_compare.add_trace(go.Bar(
+                    x=compare_df['BLUE阈值'].astype(str),
+                    y=compare_df['胜率%'],
+                    name='胜率%',
+                    marker_color='#4CAF50'
+                ))
+                fig_compare.add_trace(go.Scatter(
+                    x=compare_df['BLUE阈值'].astype(str),
+                    y=compare_df['平均收益%'],
+                    mode='lines+markers',
+                    name='平均收益%',
+                    yaxis='y2',
+                    line=dict(color='#2196F3', width=3)
+                ))
+                
+                fig_compare.update_layout(
+                    title="不同 BLUE 阈值的回测效果对比",
+                    xaxis_title="BLUE 阈值",
+                    yaxis=dict(title="胜率 (%)", side='left'),
+                    yaxis2=dict(title="平均收益 (%)", side='right', overlaying='y'),
+                    height=400
+                )
+                
+                st.plotly_chart(fig_compare, use_container_width=True)
+                
+                # 最佳参数建议
+                best_row = compare_df.loc[compare_df['平均收益%'].idxmax()]
+                st.success(f"📌 **最佳参数建议**: BLUE 阈值 = **{int(best_row['BLUE阈值'])}**，"
+                          f"平均收益 {best_row['平均收益%']:.2f}%，胜率 {best_row['胜率%']:.1f}%")
+
+
+def render_historical_review():
+    """历史复盘 - 查看某天信号的后续表现"""
+    from services.signal_tracker_service import get_signal_performance_summary
+    from db.database import get_scanned_dates
+    
+    st.subheader("📊 历史复盘")
+    st.caption("选择一个历史扫描日期，查看当天信号的后续表现")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        market = st.selectbox("市场", ["US", "CN"], index=0, key="review_market")
+    
+    with col2:
+        dates = get_scanned_dates(market=market)
+        if not dates:
+            st.warning("暂无扫描数据")
+            return
+        selected_date = st.selectbox("选择扫描日期", dates[:30], key="review_date")
+    
+    if st.button("📈 分析信号表现", type="primary", key="run_review"):
+        with st.spinner(f"正在分析 {selected_date} 的信号表现..."):
+            try:
+                summary = get_signal_performance_summary(selected_date, market)
+                
+                if not summary:
+                    st.warning("未找到该日期的信号数据")
+                    return
+                
+                # 显示统计摘要
+                st.success(f"✅ 分析完成！共 {summary.get('total_signals', 0)} 个信号")
+                
+                # 关键指标
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("5日胜率", f"{summary.get('win_rate_5d', 0):.1f}%")
+                m2.metric("10日胜率", f"{summary.get('win_rate_10d', 0):.1f}%")
+                m3.metric("20日胜率", f"{summary.get('win_rate_20d', 0):.1f}%")
+                m4.metric("大赚 (>10%)", f"{summary.get('big_win_20d', 0)} 只")
+                
+                # 平均收益
+                col_a, col_b, col_c = st.columns(3)
+                col_a.metric("5日平均", f"{summary.get('avg_5d', 0):+.2f}%")
+                col_b.metric("10日平均", f"{summary.get('avg_10d', 0):+.2f}%")
+                col_c.metric("20日平均", f"{summary.get('avg_20d', 0):+.2f}%")
+                
+                # 详细表格
+                if summary.get('details'):
+                    st.subheader("📋 信号明细")
+                    
+                    details_df = pd.DataFrame(summary['details'])
+                    
+                    # 选择显示的列
+                    display_cols = ['symbol', 'name', 'entry_price', 'return_5d', 
+                                   'return_10d', 'return_20d', 'max_gain', 'max_drawdown']
+                    available_cols = [c for c in display_cols if c in details_df.columns]
+                    
+                    if available_cols:
+                        display_df = details_df[available_cols].copy()
+                        display_df.columns = ['股票', '名称', '入场价', '5日收益%', 
+                                             '10日收益%', '20日收益%', '最大涨幅%', '最大回撤%'][:len(available_cols)]
+                        
+                        # 颜色编码
+                        def color_returns(val):
+                            if pd.isna(val):
+                                return ''
+                            try:
+                                v = float(val)
+                                if v > 0:
+                                    return 'color: green'
+                                elif v < 0:
+                                    return 'color: red'
+                            except:
+                                pass
+                            return ''
+                        
+                        st.dataframe(
+                            display_df.style.applymap(color_returns, 
+                                                     subset=[c for c in display_df.columns if '收益' in c or '涨幅' in c or '回撤' in c]),
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                        
+                        # 收益分布图
+                        if 'return_20d' in details_df.columns:
+                            import plotly.express as px
+                            fig = px.histogram(
+                                details_df.dropna(subset=['return_20d']),
+                                x='return_20d',
+                                nbins=15,
+                                title=f"{selected_date} 信号的 20 日收益分布",
+                                labels={'return_20d': '20日收益率 (%)'}
+                            )
+                            fig.add_vline(x=0, line_dash="dash", line_color="red")
+                            st.plotly_chart(fig, use_container_width=True)
+                
+            except Exception as e:
+                st.error(f"分析出错: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
+
+
 def render_backtest_page():
     st.header("🧪 策略回测实验室 (Strategy Lab)")
     
-    tab_single, tab_risk = st.tabs(["📈 单股回测", "🛡️ 风控计算器"])
+    tab_param_lab, tab_single, tab_risk, tab_review = st.tabs([
+        "🔬 参数实验室", 
+        "📈 单股回测", 
+        "🛡️ 风控计算器",
+        "📊 历史复盘"
+    ])
+    
+    # === 参数实验室 Tab (新增) ===
+    with tab_param_lab:
+        render_parameter_lab()
+    
+    # === 历史复盘 Tab (新增) ===
+    with tab_review:
+        render_historical_review()
     
     # === 风控计算器 Tab ===
     with tab_risk:
