@@ -5149,40 +5149,516 @@ def render_blogger_page():
             st.info("暂无数据，请先添加博主和推荐记录")
 
 
-# --- 主导航 ---
+# ==================== V3 合并页面 ====================
 
-st.sidebar.title("Coral Creek 🦅")
+def render_signal_center_page():
+    """📈 信号中心 - 合并: 信号追踪 + 信号验证 + Baseline对比"""
+    st.header("📈 信号中心")
+    
+    tab1, tab2, tab3 = st.tabs(["📊 信号追踪", "📉 信号验证", "🔄 Baseline对比"])
+    
+    with tab1:
+        render_signal_tracker_page()
+    
+    with tab2:
+        render_signal_performance_page()
+    
+    with tab3:
+        render_baseline_comparison_page()
+
+
+def render_portfolio_management_page():
+    """💼 组合管理 - 合并: 持仓管理 + 风控仪表盘 + 模拟交易"""
+    st.header("💼 组合管理")
+    
+    tab1, tab2, tab3 = st.tabs(["🛡️ 风控仪表盘", "💰 持仓管理", "🎮 模拟交易"])
+    
+    with tab1:
+        render_risk_dashboard()
+    
+    with tab2:
+        render_portfolio_tab()
+    
+    with tab3:
+        render_paper_trading_tab()
+
+
+def render_risk_dashboard():
+    """🛡️ 风控仪表盘"""
+    import plotly.graph_objects as go
+    import plotly.express as px
+    from datetime import datetime, timedelta
+    
+    st.subheader("🛡️ 风险控制中心")
+    
+    # 尝试导入风控模块
+    try:
+        from risk import RiskMetrics, PortfolioRisk, PositionSizer, PositionLimit
+        risk_module_available = True
+    except ImportError:
+        risk_module_available = False
+        st.warning("风控模块未加载，显示演示数据")
+    
+    # === 第一行: 核心风险指标 ===
+    st.markdown("### 📊 组合风险概览")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    # 演示数据 (实际应从持仓计算)
+    with col1:
+        var_95 = -2.3
+        st.metric(
+            "VaR (95%, 1天)",
+            f"{var_95:.2f}%",
+            delta="正常" if var_95 > -5 else "警告",
+            delta_color="normal" if var_95 > -5 else "inverse"
+        )
+        st.caption("在95%置信度下，单日最大损失")
+    
+    with col2:
+        max_dd = -8.5
+        st.metric(
+            "最大回撤",
+            f"{max_dd:.1f}%",
+            delta="可控" if max_dd > -15 else "需关注",
+            delta_color="normal" if max_dd > -15 else "inverse"
+        )
+        st.caption("历史最大峰谷回撤")
+    
+    with col3:
+        volatility = 18.2
+        st.metric(
+            "年化波动率",
+            f"{volatility:.1f}%",
+            delta="中等" if volatility < 25 else "偏高",
+            delta_color="normal" if volatility < 25 else "inverse"
+        )
+    
+    with col4:
+        sharpe = 1.85
+        st.metric(
+            "Sharpe 比率",
+            f"{sharpe:.2f}",
+            delta="优秀" if sharpe > 1.5 else "一般",
+            delta_color="normal" if sharpe > 1.5 else "inverse"
+        )
+        st.caption("风险调整后收益")
+    
+    st.divider()
+    
+    # === 第二行: 持仓集中度 + 信号健康度 ===
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        st.markdown("### 📈 持仓集中度")
+        
+        # 演示持仓数据
+        holdings = {
+            'NVDA': 0.25,
+            'AAPL': 0.18,
+            'TSLA': 0.15,
+            'MSFT': 0.12,
+            'GOOGL': 0.10,
+            'META': 0.08,
+            '其他': 0.12
+        }
+        
+        # 饼图
+        fig_pie = go.Figure(data=[go.Pie(
+            labels=list(holdings.keys()),
+            values=list(holdings.values()),
+            hole=0.4,
+            textinfo='label+percent',
+            marker_colors=px.colors.qualitative.Set3
+        )])
+        fig_pie.update_layout(
+            title="持仓分布",
+            height=300,
+            margin=dict(t=40, b=20, l=20, r=20)
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
+        # 集中度警告
+        max_position = max(holdings.values())
+        if max_position > 0.20:
+            st.warning(f"⚠️ 单股集中度过高: {list(holdings.keys())[0]} = {max_position:.0%}")
+        
+        # 计算行业集中度 (演示)
+        tech_exposure = sum([holdings.get(s, 0) for s in ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META']])
+        if tech_exposure > 0.40:
+            st.warning(f"⚠️ 科技行业敞口过高: {tech_exposure:.0%}")
+    
+    with col_right:
+        st.markdown("### 🎯 信号健康度")
+        
+        # BLUE 信号滚动胜率
+        signal_metrics = {
+            '近7天胜率': 0.58,
+            '近30天胜率': 0.55,
+            '历史平均': 0.62
+        }
+        
+        for name, rate in signal_metrics.items():
+            color = "🟢" if rate >= 0.55 else "🟡" if rate >= 0.45 else "🔴"
+            st.metric(name, f"{rate:.0%}", delta=None)
+        
+        # 健康度判断
+        recent_rate = signal_metrics['近30天胜率']
+        historical_rate = signal_metrics['历史平均']
+        
+        if recent_rate < historical_rate * 0.85:
+            st.error("🔴 信号衰减警告: 近期胜率显著低于历史水平")
+            st.caption("建议: 减少仓位或暂停策略")
+        elif recent_rate < historical_rate * 0.95:
+            st.warning("🟡 信号关注: 近期胜率略有下降")
+        else:
+            st.success("🟢 信号健康: 表现正常")
+    
+    st.divider()
+    
+    # === 第三行: 相关性矩阵 + 回撤曲线 ===
+    col_corr, col_dd = st.columns(2)
+    
+    with col_corr:
+        st.markdown("### 🔗 持仓相关性")
+        
+        # 演示相关性矩阵
+        import numpy as np
+        symbols = ['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL']
+        np.random.seed(42)
+        corr_matrix = np.array([
+            [1.00, 0.65, 0.45, 0.72, 0.68],
+            [0.65, 1.00, 0.38, 0.78, 0.71],
+            [0.45, 0.38, 1.00, 0.42, 0.35],
+            [0.72, 0.78, 0.42, 1.00, 0.82],
+            [0.68, 0.71, 0.35, 0.82, 1.00]
+        ])
+        
+        fig_corr = px.imshow(
+            corr_matrix,
+            x=symbols,
+            y=symbols,
+            color_continuous_scale='RdYlGn',
+            aspect='auto',
+            title="相关性矩阵",
+            zmin=-1, zmax=1
+        )
+        fig_corr.update_layout(height=350)
+        st.plotly_chart(fig_corr, use_container_width=True)
+        
+        # 高相关性警告
+        high_corr_pairs = []
+        for i in range(len(symbols)):
+            for j in range(i+1, len(symbols)):
+                if corr_matrix[i][j] > 0.75:
+                    high_corr_pairs.append((symbols[i], symbols[j], corr_matrix[i][j]))
+        
+        if high_corr_pairs:
+            st.warning(f"⚠️ 高相关性持仓: {', '.join([f'{p[0]}-{p[1]}({p[2]:.2f})' for p in high_corr_pairs])}")
+    
+    with col_dd:
+        st.markdown("### 📉 回撤曲线")
+        
+        # 生成演示回撤曲线
+        dates = pd.date_range(end=datetime.now(), periods=252, freq='D')
+        np.random.seed(42)
+        returns = np.random.normal(0.0005, 0.015, len(dates))
+        cumulative = (1 + pd.Series(returns)).cumprod()
+        running_max = cumulative.cummax()
+        drawdown = (cumulative - running_max) / running_max * 100
+        
+        fig_dd = go.Figure()
+        fig_dd.add_trace(go.Scatter(
+            x=dates,
+            y=drawdown,
+            fill='tozeroy',
+            fillcolor='rgba(255, 0, 0, 0.2)',
+            line=dict(color='red', width=1),
+            name='回撤'
+        ))
+        fig_dd.add_hline(y=-10, line_dash="dash", line_color="orange", annotation_text="警戒线 -10%")
+        fig_dd.add_hline(y=-15, line_dash="dash", line_color="red", annotation_text="止损线 -15%")
+        fig_dd.update_layout(
+            title="水下曲线 (Underwater)",
+            xaxis_title="日期",
+            yaxis_title="回撤 %",
+            height=350,
+            yaxis=dict(range=[-20, 2])
+        )
+        st.plotly_chart(fig_dd, use_container_width=True)
+    
+    st.divider()
+    
+    # === 第四行: 仓位计算器 ===
+    st.markdown("### 🧮 仓位计算器")
+    
+    calc_col1, calc_col2 = st.columns(2)
+    
+    with calc_col1:
+        st.markdown("#### 固定比例法")
+        with st.form("position_calc"):
+            total_capital = st.number_input("总资金 ($)", value=100000, step=10000)
+            risk_per_trade = st.slider("每笔风险比例 (%)", 1, 5, 2) / 100
+            entry_price = st.number_input("入场价格", value=150.0, step=1.0)
+            stop_loss = st.number_input("止损价格", value=142.0, step=1.0)
+            
+            if st.form_submit_button("计算仓位"):
+                risk_amount = total_capital * risk_per_trade
+                risk_per_share = abs(entry_price - stop_loss)
+                
+                if risk_per_share > 0:
+                    shares = int(risk_amount / risk_per_share)
+                    position_value = shares * entry_price
+                    position_pct = position_value / total_capital
+                    
+                    st.success(f"""
+                    **建议仓位:**
+                    - 股数: **{shares:,}** 股
+                    - 仓位金额: **${position_value:,.0f}**
+                    - 仓位比例: **{position_pct:.1%}**
+                    - 最大亏损: **${risk_amount:,.0f}** ({risk_per_trade:.1%})
+                    """)
+                    
+                    if position_pct > 0.20:
+                        st.warning("⚠️ 仓位超过 20%，建议分批建仓")
+                else:
+                    st.error("止损价格不能等于入场价格")
+    
+    with calc_col2:
+        st.markdown("#### 凯利公式")
+        with st.form("kelly_calc"):
+            win_rate = st.slider("胜率 (%)", 30, 80, 55) / 100
+            avg_win = st.number_input("平均盈利 (%)", value=8.0, step=1.0) / 100
+            avg_loss = st.number_input("平均亏损 (%)", value=4.0, step=1.0) / 100
+            kelly_fraction = st.slider("凯利系数 (保守)", 0.25, 1.0, 0.5, step=0.25)
+            
+            if st.form_submit_button("计算最优仓位"):
+                if avg_loss > 0:
+                    # 凯利公式: f = (bp - q) / b
+                    b = avg_win / avg_loss  # 赔率
+                    p = win_rate
+                    q = 1 - p
+                    
+                    full_kelly = (b * p - q) / b
+                    adjusted_kelly = max(0, full_kelly * kelly_fraction)
+                    
+                    st.success(f"""
+                    **凯利公式结果:**
+                    - 赔率 (盈亏比): **{b:.2f}**
+                    - 完整凯利: **{full_kelly:.1%}**
+                    - {kelly_fraction:.0%} 凯利: **{adjusted_kelly:.1%}**
+                    
+                    建议仓位: **{min(adjusted_kelly, 0.20):.1%}** (上限 20%)
+                    """)
+                    
+                    if full_kelly < 0:
+                        st.error("❌ 期望值为负，不建议交易")
+                else:
+                    st.error("平均亏损必须大于 0")
+
+
+def render_portfolio_tab():
+    """💰 持仓管理 Tab"""
+    st.subheader("💰 持仓管理")
+    
+    # 复用原有的 portfolio 渲染逻辑
+    try:
+        # 获取持仓数据
+        from services.portfolio_service import (
+            get_portfolio_summary, 
+            get_current_price,
+            get_paper_account
+        )
+        from db.database import get_portfolio, get_trades
+        
+        portfolio = get_portfolio()
+        
+        if portfolio:
+            summary = get_portfolio_summary()
+            
+            # 显示汇总
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("总成本", f"${summary['total_cost']:,.0f}")
+            with col2:
+                st.metric("市值", f"${summary['total_value']:,.0f}")
+            with col3:
+                pnl = summary['unrealized_pnl']
+                st.metric("未实现盈亏", f"${pnl:,.0f}", 
+                         delta=f"{summary['unrealized_pnl_pct']:.1f}%",
+                         delta_color="normal" if pnl >= 0 else "inverse")
+            with col4:
+                st.metric("持仓数", f"{summary['position_count']}")
+            
+            # 持仓列表
+            st.dataframe(
+                pd.DataFrame(portfolio),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("暂无持仓记录")
+            
+    except Exception as e:
+        st.warning(f"持仓数据加载失败: {e}")
+        st.info("请先在数据库中添加持仓记录")
+
+
+def render_paper_trading_tab():
+    """🎮 模拟交易 Tab"""
+    st.subheader("🎮 模拟交易")
+    
+    try:
+        from services.portfolio_service import (
+            get_paper_account,
+            paper_buy,
+            paper_sell,
+            get_paper_trades,
+            reset_paper_account,
+            get_paper_equity_curve,
+            get_paper_monthly_returns
+        )
+        
+        # 获取账户信息
+        account = get_paper_account()
+        
+        # 账户概览
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("初始资金", f"${account['initial_capital']:,.0f}")
+        with col2:
+            st.metric("现金余额", f"${account['cash']:,.0f}")
+        with col3:
+            st.metric("持仓市值", f"${account['position_value']:,.0f}")
+        with col4:
+            pnl = account['total_equity'] - account['initial_capital']
+            st.metric("总盈亏", f"${pnl:,.0f}",
+                     delta=f"{pnl/account['initial_capital']*100:.1f}%",
+                     delta_color="normal" if pnl >= 0 else "inverse")
+        
+        st.divider()
+        
+        # 交易面板
+        trade_col1, trade_col2 = st.columns(2)
+        
+        with trade_col1:
+            st.markdown("#### 🟢 买入")
+            with st.form("paper_buy_form"):
+                symbol = st.text_input("股票代码", placeholder="AAPL")
+                shares = st.number_input("股数", min_value=1, value=10)
+                price = st.number_input("价格 (0=市价)", min_value=0.0, value=0.0)
+                market = st.selectbox("市场", ["US", "CN"])
+                
+                if st.form_submit_button("买入", type="primary"):
+                    if symbol:
+                        result = paper_buy(symbol.upper(), shares, price if price > 0 else None, market)
+                        if result.get('success'):
+                            st.success(f"✅ 买入成功: {shares} 股 {symbol}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ 买入失败: {result.get('error')}")
+        
+        with trade_col2:
+            st.markdown("#### 🔴 卖出")
+            positions = account.get('positions', [])
+            if positions:
+                with st.form("paper_sell_form"):
+                    pos_options = [f"{p['symbol']} ({p['shares']}股)" for p in positions]
+                    selected = st.selectbox("选择持仓", pos_options)
+                    sell_shares = st.number_input("卖出股数", min_value=1, value=1)
+                    sell_price = st.number_input("价格 (0=市价)", min_value=0.0, value=0.0)
+                    
+                    if st.form_submit_button("卖出", type="primary"):
+                        symbol = selected.split(" ")[0]
+                        result = paper_sell(symbol, sell_shares, sell_price if sell_price > 0 else None)
+                        if result.get('success'):
+                            st.success(f"✅ 卖出成功: {sell_shares} 股 {symbol}")
+                            st.rerun()
+                        else:
+                            st.error(f"❌ 卖出失败: {result.get('error')}")
+            else:
+                st.info("暂无持仓")
+        
+        # 权益曲线
+        equity_curve = get_paper_equity_curve()
+        if not equity_curve.empty and len(equity_curve) > 1:
+            st.markdown("#### 📈 权益曲线")
+            import plotly.graph_objects as go
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=equity_curve['date'],
+                y=equity_curve['total_equity'],
+                mode='lines+markers',
+                name='总权益'
+            ))
+            fig.add_hline(y=account['initial_capital'], line_dash="dash", 
+                         annotation_text=f"初始资金 ${account['initial_capital']:,.0f}")
+            fig.update_layout(height=300)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # 重置按钮
+        if st.button("🔄 重置模拟账户", type="secondary"):
+            reset_paper_account()
+            st.success("账户已重置")
+            st.rerun()
+            
+    except Exception as e:
+        st.warning(f"模拟交易模块加载失败: {e}")
+
+
+def render_strategy_lab_page():
+    """🧪 策略实验室 - 合并: 回测 + 研究工具"""
+    st.header("🧪 策略实验室")
+    
+    tab1, tab2, tab3 = st.tabs(["📊 策略回测", "🔬 因子研究", "📐 组合优化"])
+    
+    with tab1:
+        render_backtest_page()
+    
+    with tab2:
+        render_research_page()
+    
+    with tab3:
+        render_portfolio_optimizer_page()
+
+
+def render_ai_center_page():
+    """🤖 AI中心 - 合并: AI决策 + 博主追踪"""
+    st.header("🤖 AI 中心")
+    
+    tab1, tab2 = st.tabs(["🧠 AI 决策", "📢 博主追踪"])
+    
+    with tab1:
+        render_ai_dashboard_page()
+    
+    with tab2:
+        render_blogger_page()
+
+
+# --- V3 主导航 (精简版 6 Tabs) ---
+
+st.sidebar.title("Coral Creek V3 🦅")
+st.sidebar.caption("ML量化交易系统")
+
 page = st.sidebar.radio("功能导航", [
-    "📊 每日机会扫描", 
+    "📊 每日扫描", 
     "🔍 个股查询", 
-    "📈 信号追踪",
-    "📢 博主追踪",
-    "📉 信号验证",
-    "🤖 AI决策仪表盘",  # 新增
-    "📐 组合优化器",     # 新增
-    "🔬 研究工具",       # 新增
-    "🧪 策略回测实验",
-    "🔄 Baseline对比"
+    "📈 信号中心",      # 合并: 信号追踪 + 验证 + Baseline对比
+    "💼 组合管理",      # 合并: 持仓 + 风控仪表盘 + 模拟交易
+    "🧪 策略实验室",    # 合并: 回测 + 研究工具
+    "🤖 AI中心"         # 合并: AI决策 + 博主追踪
 ])
 
-if page == "📊 每日机会扫描":
+if page == "📊 每日扫描":
     render_scan_page()
 elif page == "🔍 个股查询":
     render_stock_lookup_page()
-elif page == "📈 信号追踪":
-    render_signal_tracker_page()
-elif page == "📢 博主追踪":
-    render_blogger_page()
-elif page == "📉 信号验证":
-    render_signal_performance_page()
-elif page == "🤖 AI决策仪表盘":
-    render_ai_dashboard_page()
-elif page == "📐 组合优化器":
-    render_portfolio_optimizer_page()
-elif page == "🔬 研究工具":
-    render_research_page()
-elif page == "🧪 策略回测实验":
-    render_backtest_page()
-elif page == "🔄 Baseline对比":
-    render_baseline_comparison_page()
+elif page == "📈 信号中心":
+    render_signal_center_page()
+elif page == "💼 组合管理":
+    render_portfolio_management_page()
+elif page == "🧪 策略实验室":
+    render_strategy_lab_page()
+elif page == "🤖 AI中心":
+    render_ai_center_page()
 
