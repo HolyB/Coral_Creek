@@ -22,9 +22,11 @@ try:
 except ImportError:
     pass
 
+import pandas as pd
+import numpy as np
 from db.database import get_portfolio
-from data_fetcher import get_us_stock_data, get_cn_stock_data
-
+from data_fetcher import get_us_stock_data, get_cn_stock_data, get_stock_data
+from indicator_utils import calculate_blue_signal_series, calculate_heima_signal_series
 
 # ==================== 配置 ====================
 
@@ -33,113 +35,144 @@ ALERT_THRESHOLDS = {
     'take_profit': 0.15,     # 止盈线 +15%
     'daily_surge': 0.05,     # 日涨幅预警 +5%
     'daily_plunge': -0.05,   # 日跌幅预警 -5%
+    'blue_breakout': 100,    # BLUE 突破 100
 }
 
 
 # ==================== 数据获取 ====================
 
-def get_current_price(symbol: str, market: str = 'US') -> dict:
+def get_intraday_data(symbol: str, market: str = 'US', days: int = 65) -> dict:
     """
-    获取股票当前价格和日涨跌幅
+    获取股票数据并计算指标
     
-    Returns:
-        {'price': 现价, 'change_pct': 涨跌幅%}
+    Args:
+        days: 获取65天数据以足量计算指标
     """
     try:
-        if market == 'US':
-            df = get_us_stock_data(symbol, days=5)
-        else:
-            df = get_cn_stock_data(symbol, days=5)
+        # 使用统一函数获取数据
+        df = get_stock_data(symbol, market=market, days=days)
         
-        if df is None or df.empty:
+        if df is None or df.empty or len(df) < 30:
             return None
         
+        # 获取最新价格信息
         current_price = df['Close'].iloc[-1]
         prev_close = df['Close'].iloc[-2] if len(df) > 1 else current_price
         change_pct = (current_price - prev_close) / prev_close
         
+        # 计算 BLUE 信号
+        blue_series = calculate_blue_signal_series(
+            df['Open'].values, df['High'].values, df['Low'].values, df['Close'].values
+        )
+        
+        current_blue = blue_series[-1]
+        prev_blue = blue_series[-2] if len(blue_series) > 1 else 0
+        
         return {
             'price': current_price,
             'prev_close': prev_close,
-            'change_pct': change_pct
+            'change_pct': change_pct,
+            'blue': current_blue,
+            'prev_blue': prev_blue,
+            'market': market,
+            'df': df  # 保留以备后续使用
         }
     except Exception as e:
-        print(f"获取 {symbol} 价格失败: {e}")
+        print(f"获取 {symbol} 数据失败: {e}")
         return None
 
 
 # ==================== 预警逻辑 ====================
 
-def check_alerts(stock: dict, price_data: dict) -> list:
+def check_alerts(stock: dict, data: dict) -> list:
     """
-    检查股票是否触发预警
-    
-    Args:
-        stock: 持仓信息 {'symbol': 'AAPL', 'entry_price': 150, 'market': 'US'}
-        price_data: 价格数据 {'price': 185, 'change_pct': 0.02}
-    
-    Returns:
-        预警列表 [{'type': 'stop_loss', 'message': '...'}]
+    检查股票是否触发预警 (价格 + 技术指标)
     """
     alerts = []
     
     symbol = stock['symbol']
     entry_price = float(stock.get('entry_price', 0))
-    current_price = price_data['price']
-    change_pct = price_data['change_pct']
+    current_price = data['price']
+    change_pct = data['change_pct']
+    current_blue = data['blue']
+    prev_blue = data['prev_blue']
     
-    # 计算相对入场价涨跌幅
+    # --- 1. 价格预警 ---
+    
+    # 计算持仓盈亏
     if entry_price > 0:
         pnl_pct = (current_price - entry_price) / entry_price
-    else:
-        pnl_pct = 0
+        
+        # 止损预警
+        if pnl_pct <= ALERT_THRESHOLDS['stop_loss']:
+            alerts.append({
+                'type': 'stop_loss',
+                'level': '🚨',
+                'symbol': symbol,
+                'message': f"触发止损! 亏损 {pnl_pct*100:.1f}%",
+                'footer': f"入场: ${entry_price:.2f} | 现价: ${current_price:.2f}"
+            })
+        
+        # 止盈预警
+        elif pnl_pct >= ALERT_THRESHOLDS['take_profit']:
+            alerts.append({
+                'type': 'take_profit',
+                'level': '🎉',
+                'symbol': symbol,
+                'message': f"达到止盈! 盈利 +{pnl_pct*100:.1f}%",
+                'footer': f"入场: ${entry_price:.2f} | 现价: ${current_price:.2f}"
+            })
     
-    # 1. 止损预警
-    if pnl_pct <= ALERT_THRESHOLDS['stop_loss']:
-        alerts.append({
-            'type': 'stop_loss',
-            'level': '🚨',
-            'symbol': symbol,
-            'message': f"触发止损! 亏损 {pnl_pct*100:.1f}%",
-            'price': current_price,
-            'entry_price': entry_price,
-            'pnl_pct': pnl_pct
-        })
-    
-    # 2. 止盈预警
-    elif pnl_pct >= ALERT_THRESHOLDS['take_profit']:
-        alerts.append({
-            'type': 'take_profit',
-            'level': '🎉',
-            'symbol': symbol,
-            'message': f"达到止盈! 盈利 +{pnl_pct*100:.1f}%",
-            'price': current_price,
-            'entry_price': entry_price,
-            'pnl_pct': pnl_pct
-        })
-    
-    # 3. 日内大涨预警
+    # 日涨跌幅预警
     if change_pct >= ALERT_THRESHOLDS['daily_surge']:
         alerts.append({
             'type': 'daily_surge',
-            'level': '📈',
+            'level': '🚀',
             'symbol': symbol,
             'message': f"今日大涨 +{change_pct*100:.1f}%",
-            'price': current_price,
-            'change_pct': change_pct
+            'footer': f"现价: ${current_price:.2f} | BLUE: {current_blue:.0f}"
         })
-    
-    # 4. 日内大跌预警
     elif change_pct <= ALERT_THRESHOLDS['daily_plunge']:
         alerts.append({
             'type': 'daily_plunge',
             'level': '📉',
             'symbol': symbol,
             'message': f"今日大跌 {change_pct*100:.1f}%",
-            'price': current_price,
-            'change_pct': change_pct
+            'footer': f"现价: ${current_price:.2f}"
+        })
+        
+    # --- 2. 技术指标预警 (BLUE) ---
+    
+    # 场景 A: BLUE 突破 100 (强势爆发)
+    if prev_blue < 100 and current_blue >= 100:
+        alerts.append({
+            'type': 'blue_breakout',
+            'level': '🔥',
+            'symbol': symbol,
+            'message': f"BLUE 爆发! 突破 100 (现值 {current_blue:.0f})",
+            'footer': "进入强势拉升区，重点关注"
+        })
+        
+    # 场景 B: BLUE 趋势启动 (由负转正)
+    elif prev_blue < 0 and current_blue >= 0:
+        alerts.append({
+            'type': 'blue_start',
+            'level': '✅',
+            'symbol': symbol,
+            'message': f"趋势启动! BLUE 翻红 (现值 {current_blue:.0f})",
+            'footer': "趋势可能反转向上"
         })
     
+    # 场景 C: 高位死叉 (风险提示) - BLUE 从高位(>150)下跌
+    elif prev_blue > 150 and current_blue < 150:
+         alerts.append({
+            'type': 'blue_drop',
+            'level': '⚠️',
+            'symbol': symbol,
+            'message': f"高位回落! BLUE 跌破 150",
+            'footer': "注意回调风险"
+        })
+
     return alerts
 
 
@@ -162,38 +195,29 @@ def send_alert_telegram(alerts: list) -> bool:
     
     lines = [
         '━━━━━━━━━━━━━━━━━━',
-        '🚨 *持仓预警* | Coral Creek',
+        '🚨 *Coral Creek 实时监控*',
+        f'⏰ {now}',
         '━━━━━━━━━━━━━━━━━━',
-        f'⏰ 时间: {now}',
         ''
     ]
+    
+    # 按重要性排序 (止损/止盈/突破 最重要)
+    priority = {'stop_loss': 0, 'take_profit': 1, 'blue_breakout': 2, 'blue_start': 3, 'daily_surge': 4, 'daily_plunge': 5, 'blue_drop': 6}
+    alerts.sort(key=lambda x: priority.get(x['type'], 99))
     
     for alert in alerts:
         level = alert['level']
         symbol = alert['symbol']
         msg = alert['message']
-        price = alert.get('price', 0)
-        entry = alert.get('entry_price', 0)
+        footer = alert.get('footer', '')
         
         lines.append(f'{level} `{symbol}` *{msg}*')
-        if entry > 0:
-            lines.append(f'   💰 现价: ${price:.2f} | 入场: ${entry:.2f}')
-        else:
-            lines.append(f'   💰 现价: ${price:.2f}')
+        if footer:
+            lines.append(f'   _{footer}_')
         lines.append('')
     
-    # 建议
-    stop_loss_alerts = [a for a in alerts if a['type'] == 'stop_loss']
-    take_profit_alerts = [a for a in alerts if a['type'] == 'take_profit']
-    
-    if stop_loss_alerts:
-        lines.append('💡 *建议:* 考虑止损离场')
-    elif take_profit_alerts:
-        lines.append('💡 *建议:* 考虑减仓锁定利润')
-    
     lines.extend([
-        '',
-        '[📱 查看详情](https://coral-creek-park-way.onrender.com)',
+        '[📱 打开监控面板](https://coral-creek-park-way.onrender.com)',
         '━━━━━━━━━━━━━━━━━━'
     ])
     
@@ -243,20 +267,21 @@ def monitor_portfolio():
         
         print(f"\n检查 {symbol} (入场价: ${entry_price:.2f})...")
         
-        # 获取当前价格
-        price_data = get_current_price(symbol, market)
+        # 获取当前数据
+        data = get_intraday_data(symbol, market, days=65)
         
-        if not price_data:
-            print(f"   ⚠️ 无法获取价格")
+        if not data:
+            print(f"   ⚠️ 无法获取数据")
             continue
         
-        current_price = price_data['price']
-        change_pct = price_data['change_pct']
+        current_price = data['price']
+        change_pct = data['change_pct']
+        current_blue = data['blue']
         
-        print(f"   💰 现价: ${current_price:.2f} | 今日: {change_pct*100:+.1f}%")
+        print(f"   💰 现价: ${current_price:.2f} | 今日: {change_pct*100:+.1f}% | BLUE: {current_blue:.0f}")
         
         # 检查预警
-        alerts = check_alerts(stock, price_data)
+        alerts = check_alerts(stock, data)
         
         if alerts:
             for alert in alerts:
