@@ -1711,13 +1711,13 @@ def render_scan_page():
                         def safe_float(val, default=0.0):
                             try:
                                 if val is None or val == '':
-                                    return default
+                                    return float(default)
                                 # 移除可能的逗号（如 "1,234.56"）
                                 if isinstance(val, str):
                                     val = val.replace(',', '')
                                 return float(val)
                             except (ValueError, TypeError):
-                                return default
+                                return float(default)
                         
                         price = safe_float(selected_row.get('Price'), 0)
                         blue_d = safe_float(selected_row.get('Day BLUE'), 0)
