@@ -5467,28 +5467,19 @@ def render_risk_dashboard():
         
         return returns_dict
     
-    # 优先使用扫描历史数据
+    # 获取风险数据
+    current_market = market_filter if source_key not in ['paper', 'real'] else 'US'
+    
+    # 先尝试扫描历史
     with st.spinner("正在计算风险指标..."):
-        returns_data = get_returns_from_scan_history(
-            tuple(symbols), 
-            market_filter if source_key not in ['paper', 'real'] else 'US',
-            days_back=60
-        )
+        returns_data = get_returns_from_scan_history(tuple(symbols), current_market, days_back=60)
     
-    # 如果扫描历史数据不足，尝试 API
+    # 如果扫描历史不足，尝试 API (只取前 5 只)
     if len(returns_data) < 2:
-        st.caption("📊 扫描历史数据不足，尝试从 API 获取...")
-        returns_data = get_returns_from_api(
-            tuple(symbols),
-            market_filter if source_key not in ['paper', 'real'] else 'US',
-            days=60
-        )
+        st.caption("📊 扫描历史稀疏，从 API 获取主要持仓数据...")
+        returns_data = get_returns_from_api(tuple(symbols[:5]), current_market, days=60)
     
-    # 显示数据获取情况
-    if returns_data:
-        st.caption(f"📈 成功获取 {len(returns_data)}/{len(symbols)} 只股票的历史数据")
-    else:
-        st.warning(f"⚠️ 未能获取历史数据")
+    st.caption(f"📈 获取到 {len(returns_data)} 只股票的历史数据")
     
     # === 第一行: 核心风险指标 ===
     st.markdown("### 📊 组合风险概览")
@@ -5618,18 +5609,23 @@ def render_risk_dashboard():
         st.markdown("### 🔗 持仓相关性")
         
         if returns_data and len(returns_data) >= 2:
-            returns_df = pd.DataFrame(returns_data).dropna()
+            # 使用 pairwise 相关性 (允许不同日期)
+            returns_df = pd.DataFrame(returns_data)
             
-            if len(returns_df) > 20 and len(returns_df.columns) >= 2:
-                corr_matrix = returns_df.corr()
-                
+            # 计算 pairwise 相关性 (使用重叠日期)
+            corr_matrix = returns_df.corr(min_periods=2)  # 至少 2 个重叠点
+            
+            # 检查是否有有效的相关性
+            valid_corr = corr_matrix.dropna(how='all').dropna(axis=1, how='all')
+            
+            if len(valid_corr) >= 2:
                 fig_corr = px.imshow(
-                    corr_matrix.values,
-                    x=corr_matrix.columns.tolist(),
-                    y=corr_matrix.index.tolist(),
+                    valid_corr.values,
+                    x=valid_corr.columns.tolist(),
+                    y=valid_corr.index.tolist(),
                     color_continuous_scale='RdYlGn',
                     aspect='auto',
-                    title="相关性矩阵 (基于历史收益)",
+                    title=f"相关性矩阵 ({len(valid_corr)} 只股票)",
                     zmin=-1, zmax=1
                 )
                 fig_corr.update_layout(height=350)
@@ -5637,18 +5633,23 @@ def render_risk_dashboard():
                 
                 # 高相关性警告
                 high_corr_pairs = []
-                cols = corr_matrix.columns.tolist()
+                cols = valid_corr.columns.tolist()
                 for i in range(len(cols)):
                     for j in range(i+1, len(cols)):
-                        if corr_matrix.iloc[i, j] > 0.75:
-                            high_corr_pairs.append((cols[i], cols[j], corr_matrix.iloc[i, j]))
+                        val = valid_corr.iloc[i, j]
+                        if pd.notna(val) and val > 0.75:
+                            high_corr_pairs.append((cols[i], cols[j], val))
                 
                 if high_corr_pairs:
                     st.warning(f"⚠️ 高相关性: {', '.join([f'{p[0]}-{p[1]}({p[2]:.2f})' for p in high_corr_pairs[:3]])}")
                 else:
                     st.success("✅ 持仓分散度良好")
             else:
-                st.info("数据不足，无法计算相关性")
+                st.info("📊 数据重叠不足，显示持仓列表")
+                st.dataframe(pd.DataFrame({
+                    '股票': list(returns_data.keys()),
+                    '数据点': [len(v) for v in returns_data.values()]
+                }), hide_index=True)
         else:
             st.info("需要至少 2 个持仓才能计算相关性")
     
