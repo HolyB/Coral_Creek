@@ -2909,7 +2909,8 @@ def render_portfolio_tab():
     from services.portfolio_service import (
         get_portfolio_summary, calculate_portfolio_pnl,
         get_paper_account, paper_buy, paper_sell, 
-        get_paper_trades, reset_paper_account
+        get_paper_trades, reset_paper_account,
+        get_paper_equity_curve, get_paper_monthly_returns, get_realized_pnl_history
     )
     
     # 选择模式
@@ -3169,6 +3170,108 @@ def render_portfolio_tab():
                 st.dataframe(display_df, hide_index=True, use_container_width=True)
             else:
                 st.info("暂无交易记录")
+        
+        # 权益曲线图
+        st.subheader("📈 权益曲线")
+        
+        equity_curve = get_paper_equity_curve()
+        
+        if not equity_curve.empty and len(equity_curve) > 1:
+            import plotly.graph_objects as go
+            
+            fig_equity = go.Figure()
+            
+            # 总权益曲线
+            fig_equity.add_trace(go.Scatter(
+                x=equity_curve['date'],
+                y=equity_curve['total_equity'],
+                mode='lines+markers',
+                name='总权益',
+                line=dict(color='#2196F3', width=2),
+                fill='tozeroy',
+                fillcolor='rgba(33, 150, 243, 0.1)'
+            ))
+            
+            # 初始资金线
+            initial = account['initial_capital']
+            fig_equity.add_hline(y=initial, line_dash="dash", line_color="gray",
+                                annotation_text=f"初始资金 ${initial:,.0f}")
+            
+            fig_equity.update_layout(
+                title="账户权益变化",
+                xaxis_title="日期",
+                yaxis_title="权益 ($)",
+                height=350,
+                showlegend=True
+            )
+            
+            st.plotly_chart(fig_equity, use_container_width=True)
+            
+            # 收益率曲线
+            col_ret, col_heat = st.columns(2)
+            
+            with col_ret:
+                fig_ret = go.Figure()
+                fig_ret.add_trace(go.Bar(
+                    x=equity_curve['date'],
+                    y=equity_curve['return_pct'],
+                    marker_color=['#4CAF50' if r >= 0 else '#F44336' for r in equity_curve['return_pct']],
+                    name='累计收益率'
+                ))
+                fig_ret.update_layout(
+                    title="累计收益率 (%)",
+                    height=250,
+                    showlegend=False
+                )
+                st.plotly_chart(fig_ret, use_container_width=True)
+            
+            with col_heat:
+                # 月度收益热力图
+                monthly = get_paper_monthly_returns()
+                if not monthly.empty:
+                    import plotly.express as px
+                    
+                    # 创建透视表
+                    pivot = monthly.pivot(index='year', columns='month', values='return_pct')
+                    pivot.columns = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][:len(pivot.columns)]
+                    
+                    fig_heat = px.imshow(
+                        pivot.values,
+                        x=pivot.columns.tolist(),
+                        y=pivot.index.tolist(),
+                        color_continuous_scale='RdYlGn',
+                        color_continuous_midpoint=0,
+                        aspect='auto',
+                        title="月度收益热力图 (%)"
+                    )
+                    fig_heat.update_layout(height=250)
+                    st.plotly_chart(fig_heat, use_container_width=True)
+                else:
+                    st.info("暂无足够数据生成热力图")
+        else:
+            st.info("开始交易后将显示权益曲线")
+        
+        # 已实现盈亏统计
+        with st.expander("💰 已实现盈亏", expanded=False):
+            realized = get_realized_pnl_history()
+            if realized:
+                total_realized = sum(r['realized_pnl'] for r in realized)
+                wins = len([r for r in realized if r['realized_pnl'] > 0])
+                losses = len([r for r in realized if r['realized_pnl'] <= 0])
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("已实现盈亏", f"${total_realized:+,.2f}")
+                c2.metric("盈利笔数", f"{wins} 笔")
+                c3.metric("亏损笔数", f"{losses} 笔")
+                
+                # 明细表
+                realized_df = pd.DataFrame(realized)
+                realized_df['realized_pnl'] = realized_df['realized_pnl'].apply(lambda x: f"${x:+,.2f}")
+                realized_df.columns = ['日期', '代码', '价格', '股数', '盈亏']
+                st.dataframe(realized_df, hide_index=True, use_container_width=True)
+            else:
+                st.info("暂无已实现盈亏")
         
         # 重置账户
         st.divider()

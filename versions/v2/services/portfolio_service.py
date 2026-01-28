@@ -487,7 +487,10 @@ def get_paper_trades(account_name: str = 'default', limit: int = 50) -> List[Dic
 
 def get_paper_equity_curve(account_name: str = 'default') -> pd.DataFrame:
     """
-    计算模拟账户的权益曲线
+    计算模拟账户的权益曲线 (按交易日)
+    
+    Returns:
+        DataFrame with columns: date, cash, position_value, total_equity, return_pct
     """
     init_paper_account()
     
@@ -495,7 +498,7 @@ def get_paper_equity_curve(account_name: str = 'default') -> pd.DataFrame:
     cursor = conn.cursor()
     
     # 获取初始资金
-    cursor.execute("SELECT initial_capital FROM paper_account WHERE account_name = ?", 
+    cursor.execute("SELECT initial_capital, created_at FROM paper_account WHERE account_name = ?", 
                   (account_name,))
     row = cursor.fetchone()
     if not row:
@@ -506,7 +509,7 @@ def get_paper_equity_curve(account_name: str = 'default') -> pd.DataFrame:
     
     # 获取所有交易
     cursor.execute("""
-        SELECT trade_date, trade_type, price, shares, commission
+        SELECT trade_date, trade_type, symbol, market, price, shares, commission
         FROM paper_trades 
         WHERE account_name = ?
         ORDER BY trade_date, created_at
@@ -516,31 +519,138 @@ def get_paper_equity_curve(account_name: str = 'default') -> pd.DataFrame:
     conn.close()
     
     if not trades:
-        return pd.DataFrame()
+        # 返回初始状态
+        return pd.DataFrame([{
+            'date': datetime.now().strftime('%Y-%m-%d'),
+            'cash': initial,
+            'position_value': 0,
+            'total_equity': initial,
+            'return_pct': 0
+        }])
     
     # 计算每日权益
     equity_data = []
     cash = initial
-    positions = {}  # {symbol: {'shares': x, 'avg_cost': y}}
+    positions = {}  # {symbol: {'shares': x, 'avg_cost': y, 'market': m}}
     
     for trade in trades:
         date = trade['trade_date']
+        symbol = trade['symbol']
         
         if trade['trade_type'] == 'BUY':
             cost = trade['price'] * trade['shares'] + trade['commission']
             cash -= cost
-            # 简化：不跟踪具体持仓变化，只记录现金变化
+            
+            # 更新持仓
+            if symbol in positions:
+                old = positions[symbol]
+                new_shares = old['shares'] + trade['shares']
+                new_avg = (old['shares'] * old['avg_cost'] + trade['shares'] * trade['price']) / new_shares
+                positions[symbol] = {'shares': new_shares, 'avg_cost': new_avg, 'market': trade['market']}
+            else:
+                positions[symbol] = {'shares': trade['shares'], 'avg_cost': trade['price'], 'market': trade['market']}
+                
         else:  # SELL
             revenue = trade['price'] * trade['shares'] - trade['commission']
             cash += revenue
+            
+            # 减少持仓
+            if symbol in positions:
+                positions[symbol]['shares'] -= trade['shares']
+                if positions[symbol]['shares'] <= 0:
+                    del positions[symbol]
         
-        # 记录每笔交易后的现金余额
+        # 计算持仓市值 (使用交易价格作为估值)
+        position_value = sum(p['shares'] * p['avg_cost'] for p in positions.values())
+        total_equity = cash + position_value
+        return_pct = (total_equity - initial) / initial * 100
+        
         equity_data.append({
             'date': date,
-            'cash': cash
+            'cash': cash,
+            'position_value': position_value,
+            'total_equity': total_equity,
+            'return_pct': return_pct
         })
     
-    return pd.DataFrame(equity_data)
+    df = pd.DataFrame(equity_data)
+    
+    # 按日期去重，保留最后一条
+    if not df.empty:
+        df = df.groupby('date').last().reset_index()
+    
+    return df
+
+
+def get_paper_monthly_returns(account_name: str = 'default') -> pd.DataFrame:
+    """
+    计算模拟账户的月度收益 (用于热力图)
+    
+    Returns:
+        DataFrame with columns: year, month, return_pct
+    """
+    equity_curve = get_paper_equity_curve(account_name)
+    
+    if equity_curve.empty or len(equity_curve) < 2:
+        return pd.DataFrame()
+    
+    # 转换日期
+    equity_curve['date'] = pd.to_datetime(equity_curve['date'])
+    equity_curve['year'] = equity_curve['date'].dt.year
+    equity_curve['month'] = equity_curve['date'].dt.month
+    
+    # 计算每月的首末权益
+    monthly = equity_curve.groupby(['year', 'month']).agg({
+        'total_equity': ['first', 'last']
+    }).reset_index()
+    monthly.columns = ['year', 'month', 'start_equity', 'end_equity']
+    
+    # 计算月度收益率
+    monthly['return_pct'] = (monthly['end_equity'] - monthly['start_equity']) / monthly['start_equity'] * 100
+    
+    return monthly[['year', 'month', 'return_pct']]
+
+
+def get_realized_pnl_history(account_name: str = 'default') -> List[Dict]:
+    """
+    获取已实现盈亏历史 (每笔卖出的盈亏)
+    """
+    init_paper_account()
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT trade_date, symbol, price, shares, commission, notes
+        FROM paper_trades 
+        WHERE account_name = ? AND trade_type = 'SELL'
+        ORDER BY trade_date DESC
+    """, (account_name,))
+    
+    sells = cursor.fetchall()
+    conn.close()
+    
+    results = []
+    for s in sells:
+        # 从 notes 中解析 P&L
+        notes = s['notes'] or ''
+        pnl = 0
+        if 'P&L:' in notes:
+            try:
+                pnl_str = notes.split('P&L:')[1].strip().replace('$', '').replace(',', '')
+                pnl = float(pnl_str)
+            except:
+                pass
+        
+        results.append({
+            'date': s['trade_date'],
+            'symbol': s['symbol'],
+            'price': s['price'],
+            'shares': s['shares'],
+            'realized_pnl': pnl
+        })
+    
+    return results
 
 
 def reset_paper_account(account_name: str = 'default'):
