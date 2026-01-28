@@ -6118,16 +6118,211 @@ def render_strategy_lab_page():
 
 
 def render_ai_center_page():
-    """🤖 AI中心 - 合并: AI决策 + 博主追踪"""
+    """🤖 AI中心 - 合并: ML预测 + AI决策 + 博主追踪"""
     st.header("🤖 AI 中心")
     
-    tab1, tab2 = st.tabs(["🧠 AI 决策", "📢 博主追踪"])
+    tab1, tab2, tab3 = st.tabs(["🎯 ML 预测", "🧠 AI 决策", "📢 博主追踪"])
     
     with tab1:
-        render_ai_dashboard_page()
+        render_ml_prediction_page()
     
     with tab2:
+        render_ai_dashboard_page()
+    
+    with tab3:
         render_blogger_page()
+
+
+def render_ml_prediction_page():
+    """🎯 ML 模型预测页面"""
+    import plotly.express as px
+    import plotly.graph_objects as go
+    
+    st.subheader("🎯 ML 信号预测")
+    st.caption("使用 XGBoost 模型预测信号盈利概率")
+    
+    # 市场选择
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        market = st.selectbox("市场", ["US", "CN"], key="ml_market")
+    
+    # 加载预测器
+    try:
+        from ml.predictor import get_predictor
+        predictor = get_predictor(market)
+        
+        # 模型信息
+        info = predictor.get_model_info()
+        
+        if info['status'] == 'loaded':
+            st.success(f"✅ 模型已加载 | AUC: {info['metrics']['auc']:.3f} | 训练样本: {info['train_samples']}")
+            
+            # 模型性能指标
+            with st.expander("📊 模型性能详情", expanded=False):
+                cols = st.columns(5)
+                with cols[0]:
+                    st.metric("准确率", f"{info['metrics']['accuracy']:.1%}")
+                with cols[1]:
+                    st.metric("精确率", f"{info['metrics']['precision']:.1%}")
+                with cols[2]:
+                    st.metric("召回率", f"{info['metrics']['recall']:.1%}")
+                with cols[3]:
+                    st.metric("F1", f"{info['metrics']['f1']:.3f}")
+                with cols[4]:
+                    st.metric("AUC", f"{info['metrics']['auc']:.3f}")
+                
+                st.caption(f"训练时间: {info['trained_on']} | 特征数: {info['features']}")
+        else:
+            st.warning("⚠️ 模型未训练")
+            st.info("""
+            **训练步骤:**
+            ```bash
+            cd versions/v3
+            python ml/train_xgb.py --market US --days 180
+            ```
+            或在 Colab 中运行训练笔记本
+            """)
+            
+            # 提供训练按钮
+            if st.button("🚀 开始训练 (本地)", key="train_local"):
+                with st.spinner("训练中... (约1-2分钟)"):
+                    try:
+                        from ml.train_xgb import train_and_save
+                        result = train_and_save(market=market, days_back=180, upload=False)
+                        if result:
+                            st.success("✅ 训练完成! 请刷新页面")
+                            st.rerun()
+                        else:
+                            st.error("训练失败，请检查数据")
+                    except Exception as e:
+                        st.error(f"训练失败: {e}")
+            return
+        
+        st.divider()
+        
+        # === 今日信号预测 ===
+        st.markdown("### 📈 今日信号预测")
+        
+        # 加载今日信号
+        from db.database import get_connection
+        from datetime import date
+        
+        conn = get_connection()
+        today = date.today().strftime('%Y-%m-%d')
+        
+        # 获取最近一天的数据
+        query = """
+            SELECT * FROM scan_results
+            WHERE market = ?
+            ORDER BY scan_date DESC
+            LIMIT 100
+        """
+        signals_df = pd.read_sql_query(query, conn, params=(market,))
+        conn.close()
+        
+        if signals_df.empty:
+            st.info("暂无信号数据")
+            return
+        
+        latest_date = signals_df['scan_date'].iloc[0]
+        signals_df = signals_df[signals_df['scan_date'] == latest_date]
+        
+        st.caption(f"数据日期: {latest_date} | 信号数: {len(signals_df)}")
+        
+        # 预测
+        with st.spinner("预测中..."):
+            result_df = predictor.predict(signals_df)
+        
+        # Top N 选择
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            top_n = st.slider("显示 Top N", 5, 50, 20, key="ml_top_n")
+        
+        top_df = result_df.head(top_n)
+        
+        # 显示结果
+        display_cols = ['symbol', 'ml_prob', 'ml_rank']
+        
+        # 添加可用的信号列
+        for col in ['blue_daily', 'blue_weekly', 'is_heima', 'price', 'star_rating']:
+            if col in top_df.columns:
+                display_cols.append(col)
+        
+        # 格式化
+        display_df = top_df[display_cols].copy()
+        display_df['ml_prob'] = display_df['ml_prob'].apply(lambda x: f"{x:.1%}")
+        display_df.columns = ['代码', '盈利概率', '排名'] + [c for c in display_cols[3:]]
+        
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        
+        # 概率分布图
+        st.markdown("### 📊 概率分布")
+        fig = px.histogram(
+            result_df, 
+            x='ml_prob', 
+            nbins=20,
+            title="信号盈利概率分布",
+            labels={'ml_prob': '盈利概率', 'count': '数量'}
+        )
+        fig.add_vline(x=0.5, line_dash="dash", line_color="red", annotation_text="50%基准")
+        fig.update_layout(height=300)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # 高概率信号统计
+        high_prob = (result_df['ml_prob'] > 0.6).sum()
+        medium_prob = ((result_df['ml_prob'] >= 0.5) & (result_df['ml_prob'] <= 0.6)).sum()
+        low_prob = (result_df['ml_prob'] < 0.5).sum()
+        
+        cols = st.columns(3)
+        with cols[0]:
+            st.metric("🟢 高概率 (>60%)", high_prob)
+        with cols[1]:
+            st.metric("🟡 中等 (50-60%)", medium_prob)
+        with cols[2]:
+            st.metric("🔴 低概率 (<50%)", low_prob)
+        
+        st.divider()
+        
+        # === 模型管理 ===
+        st.markdown("### ⚙️ 模型管理")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🔄 重新训练", key="retrain"):
+                with st.spinner("训练中..."):
+                    try:
+                        from ml.train_xgb import train_and_save
+                        train_and_save(market=market, days_back=180, upload=False)
+                        st.success("✅ 训练完成!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"训练失败: {e}")
+        
+        with col2:
+            if st.button("📤 上传到 Hub", key="upload_hub"):
+                try:
+                    from ml.model_registry import get_registry
+                    registry = get_registry()
+                    url = registry.upload_to_hub(f"xgb_signal_{market.lower()}")
+                    if url:
+                        st.success(f"✅ 已上传: {url}")
+                except Exception as e:
+                    st.error(f"上传失败: {e}")
+        
+        with col3:
+            if st.button("📥 从 Hub 下载", key="download_hub"):
+                try:
+                    predictor.load(from_hub=True)
+                    st.success("✅ 已下载最新模型")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"下载失败: {e}")
+        
+    except Exception as e:
+        st.error(f"加载失败: {e}")
+        import traceback
+        st.code(traceback.format_exc())
 
 
 # --- V3 主导航 (精简版 6 Tabs) ---

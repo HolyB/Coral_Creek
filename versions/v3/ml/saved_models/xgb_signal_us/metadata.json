@@ -1,0 +1,27 @@
+{
+  "market": "US",
+  "days_back": 90,
+  "holding_days": 5,
+  "feature_names": [
+    "blue_daily",
+    "blue_weekly",
+    "blue_monthly",
+    "blue_daily_weekly_ratio",
+    "blue_resonance",
+    "is_heima",
+    "is_juedi",
+    "log_price",
+    "day_of_week",
+    "month"
+  ],
+  "accuracy": 0.8015873015873016,
+  "precision": 0.21176470588235294,
+  "recall": 0.35294117647058826,
+  "f1": 0.2647058823529412,
+  "auc": 0.6231225381985024,
+  "train_samples": 2014,
+  "test_samples": 504,
+  "positive_ratio": 0.10228401191658391,
+  "saved_at": "2026-01-28T10:35:41.391165",
+  "model_name": "xgb_signal_us"
+}
