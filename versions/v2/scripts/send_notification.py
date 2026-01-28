@@ -100,6 +100,45 @@ def send_telegram(summary):
     for i, s in enumerate(top, 1):
         lines.append(format_signal(s, i))
     
+    # === Top 3 详细分析 (参考 daily_stock_analysis 格式) ===
+    if top[:3]:
+        lines.append('')
+        lines.append('━━ 📊 *Top 3 详情* ━━')
+        
+        for s in top[:3]:
+            symbol = s.get('symbol', 'N/A')
+            name = s.get('name', '')[:10].replace('*', '').replace('_', '')
+            price = float(s.get('price', 0))
+            day_blue = s.get('day_blue', 0)
+            chip = s.get('chip_pattern', '')
+            
+            # 信号强度
+            if day_blue > 150:
+                signal_emoji = '🔥'
+                signal_text = '强烈买入'
+            elif day_blue > 100:
+                signal_emoji = '✅'
+                signal_text = '买入'
+            else:
+                signal_emoji = '📍'
+                signal_text = '观望'
+            
+            # 计算狙击点位 (基于 price)
+            entry_price = price * 0.98  # MA5 附近
+            stop_loss = price * 0.93    # -7%
+            target_price = price * 1.15 # +15%
+            
+            lines.append('')
+            lines.append(f'{signal_emoji} *{signal_text}* | `{symbol}` {name}')
+            lines.append(f'📌 BLUE={day_blue:.0f}{" " + chip if chip else ""}')
+            lines.append(f'🎯买点:${entry_price:.2f} | 🛑止损:${stop_loss:.2f} | 🎊目标:${target_price:.2f}')
+            
+            # 简化的操作建议
+            if day_blue > 100:
+                lines.append(f'🆕 空仓: 当前价${price:.2f}可小仓介入')
+            else:
+                lines.append(f'🆕 空仓: 观望等待更佳买点')
+    
     # 市场概览
     lines.append('')
     lines.append('━━ 📊 *信号概览* ━━')
@@ -137,6 +176,116 @@ def send_telegram(summary):
         
     except Exception as e:
         print(f"❌ Telegram error: {e}")
+        return False
+
+
+def send_telegram_detailed(summary):
+    """
+    发送第二份 Telegram 通知 - 详细版决策仪表盘
+    
+    参考 daily_stock_analysis 的格式，为 Top 5 个信号生成详细分析
+    """
+    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+    chat_id = os.getenv('TELEGRAM_CHAT_ID')
+    
+    if not bot_token or not chat_id:
+        return False
+    
+    date = summary.get('date', 'Unknown')
+    market = summary.get('market', 'US')
+    top = summary.get('top_signals', [])[:5]
+    
+    if not top:
+        return False
+    
+    market_name = "🇺🇸 美股" if market == "US" else "🇨🇳 A股"
+    
+    lines = [
+        '━━━━━━━━━━━━━━━━━━',
+        '🎯 *决策仪表盘* | 详细版',
+        '━━━━━━━━━━━━━━━━━━',
+        f'📅 {date} | {market_name}',
+        '',
+    ]
+    
+    for s in top:
+        symbol = s.get('symbol', 'N/A')
+        name = s.get('name', '')[:12].replace('*', '').replace('_', '').replace('`', '')
+        price = float(s.get('price', 0))
+        day_blue = s.get('day_blue', 0)
+        week_blue = s.get('week_blue', 0)
+        chip = s.get('chip_pattern', '')
+        
+        # 信号判定
+        if day_blue > 150:
+            signal_emoji = '🔥'
+            signal_text = '强烈买入'
+            advice_no_pos = f'可在${price*0.98:.2f}附近建仓'
+            advice_has_pos = '继续持有，可适当加仓'
+        elif day_blue > 100:
+            signal_emoji = '✅'
+            signal_text = '买入'
+            advice_no_pos = f'可小仓介入，止损${price*0.93:.2f}'
+            advice_has_pos = '持有观察'
+        elif day_blue > 80:
+            signal_emoji = '📍'
+            signal_text = '观望'
+            advice_no_pos = '等待更佳买点'
+            advice_has_pos = '继续持有'
+        else:
+            signal_emoji = '⚪'
+            signal_text = '弱势'
+            advice_no_pos = '暂不介入'
+            advice_has_pos = '考虑减仓'
+        
+        # 周线确认
+        weekly_status = '✅周线共振' if week_blue > 80 else '⚠️周线未确认'
+        
+        # 狙击点位
+        entry = price * 0.98
+        stop_loss = price * 0.93
+        target = price * 1.15
+        
+        lines.extend([
+            f'━━ {signal_emoji} *{signal_text}* ━━',
+            f'`{symbol}` {name}',
+            f'💰 现价: *${price:.2f}* | BLUE: {day_blue:.0f}',
+            f'📊 {weekly_status}{" " + chip if chip else ""}',
+            '',
+            '*📍 狙击点位*',
+            f'🎯 买点: ${entry:.2f}',
+            f'🛑 止损: ${stop_loss:.2f} (-7%)',
+            f'🎊 目标: ${target:.2f} (+15%)',
+            '',
+            '*💼 操作建议*',
+            f'🆕 空仓者: {advice_no_pos}',
+            f'💰 持仓者: {advice_has_pos}',
+            '',
+        ])
+    
+    lines.extend([
+        '━━━━━━━━━━━━━━━━━━',
+        '⚠️ *本报告仅供参考*',
+        '[📱 查看完整分析](https://coral-creek-park-way.onrender.com)',
+    ])
+    
+    message = '\n'.join(lines)
+    
+    try:
+        url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
+        data = urllib.parse.urlencode({
+            'chat_id': chat_id,
+            'text': message,
+            'parse_mode': 'Markdown',
+            'disable_web_page_preview': 'true'
+        }).encode()
+        
+        urllib.request.urlopen(url, data, timeout=10)
+        print("✅ Telegram detailed notification sent")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Telegram detailed error: {e}")
         return False
 
 
@@ -296,8 +445,13 @@ def main():
     
     print(f"📊 Date: {date}, Market: {market}, Signals: {total}")
     
-    # 发送 Telegram
+    # 发送 Telegram (简报)
     send_telegram(summary)
+    
+    # 发送 Telegram (详细版 - 决策仪表盘)
+    import time
+    time.sleep(1)  # 避免 rate limit
+    send_telegram_detailed(summary)
     
     # 发送 Email
     send_email(summary)
