@@ -5523,17 +5523,26 @@ def render_paper_trading_tab():
         account = get_paper_account()
         
         # 账户概览
+        if account is None:
+            st.warning("模拟账户未初始化")
+            if st.button("初始化模拟账户"):
+                from services.portfolio_service import init_paper_account
+                init_paper_account()
+                st.rerun()
+            return
+        
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("初始资金", f"${account['initial_capital']:,.0f}")
+            st.metric("初始资金", f"${account.get('initial_capital', 100000):,.0f}")
         with col2:
-            st.metric("现金余额", f"${account['cash']:,.0f}")
+            st.metric("现金余额", f"${account.get('cash_balance', 0):,.0f}")
         with col3:
-            st.metric("持仓市值", f"${account['position_value']:,.0f}")
+            st.metric("持仓市值", f"${account.get('position_value', 0):,.0f}")
         with col4:
-            pnl = account['total_equity'] - account['initial_capital']
+            pnl = account.get('total_pnl', 0)
+            initial = account.get('initial_capital', 100000)
             st.metric("总盈亏", f"${pnl:,.0f}",
-                     delta=f"{pnl/account['initial_capital']*100:.1f}%",
+                     delta=f"{pnl/initial*100:.1f}%" if initial > 0 else "0%",
                      delta_color="normal" if pnl >= 0 else "inverse")
         
         st.divider()
@@ -5591,8 +5600,9 @@ def render_paper_trading_tab():
                 mode='lines+markers',
                 name='总权益'
             ))
-            fig.add_hline(y=account['initial_capital'], line_dash="dash", 
-                         annotation_text=f"初始资金 ${account['initial_capital']:,.0f}")
+            initial_cap = account.get('initial_capital', 100000)
+            fig.add_hline(y=initial_cap, line_dash="dash", 
+                         annotation_text=f"初始资金 ${initial_cap:,.0f}")
             fig.update_layout(height=300)
             st.plotly_chart(fig, use_container_width=True)
         
