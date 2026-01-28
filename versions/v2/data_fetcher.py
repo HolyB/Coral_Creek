@@ -1055,58 +1055,61 @@ def get_us_sector_enhanced():
 
 def get_north_money_flow(days: int = 30) -> pd.DataFrame:
     """
-    获取北向资金（沪港通+深港通）流入流出数据
+    获取北向资金（沪港通+深港通）历史流入流出数据
     
     数据来源: AkShare (东方财富)
-    参考: daily_stock_analysis 项目
     
     Args:
         days: 获取天数
     
     Returns:
-        DataFrame with columns: date, north_money (亿), sh_money, sz_money
+        DataFrame with columns: date, sh_money, sz_money, north_money
     """
     try:
         import akshare as ak
         
-        print("📡 获取北向资金数据...")
+        print("📡 获取北向资金历史数据...")
         
-        # 获取沪股通+深股通资金流向
-        df = ak.stock_hsgt_north_net_flow_in_em()
+        # 分别获取沪股通和深股通历史数据
+        df_sh = ak.stock_hsgt_hist_em(symbol='沪股通')
+        df_sz = ak.stock_hsgt_hist_em(symbol='深股通')
         
-        if df is None or df.empty:
+        if df_sh is None or df_sz is None:
             print("⚠️ 北向资金数据为空")
             return pd.DataFrame()
         
-        # 转换列名
-        df = df.rename(columns={
+        # 合并数据
+        df_sh = df_sh[['日期', '当日成交净买额']].rename(columns={
             '日期': 'date',
-            '当日净流入': 'north_money',
-            '当日余额': 'balance'
+            '当日成交净买额': 'sh_money'
+        })
+        df_sz = df_sz[['日期', '当日成交净买额']].rename(columns={
+            '日期': 'date', 
+            '当日成交净买额': 'sz_money'
         })
         
-        # 只保留需要的列
-        if 'date' in df.columns and 'north_money' in df.columns:
-            df['date'] = pd.to_datetime(df['date'])
-            df = df.sort_values('date', ascending=False)
-            df = df.head(days)
-            
-            print(f"✅ 获取北向资金数据成功: {len(df)} 条")
-            return df
+        df = pd.merge(df_sh, df_sz, on='date', how='outer')
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.sort_values('date', ascending=False)
+        df['north_money'] = df['sh_money'].fillna(0) + df['sz_money'].fillna(0)
+        df = df.head(days)
         
-        return pd.DataFrame()
+        print(f"✅ 获取北向资金历史数据成功: {len(df)} 条")
+        return df
         
     except ImportError:
         print("⚠️ AkShare 未安装")
         return pd.DataFrame()
     except Exception as e:
-        print(f"❌ 获取北向资金失败: {e}")
+        print(f"❌ 获取北向资金历史失败: {e}")
         return pd.DataFrame()
 
 
 def get_north_money_today() -> dict:
     """
     获取今日北向资金流入情况
+    
+    数据来源: stock_hsgt_fund_flow_summary_em (东方财富实时)
     
     Returns:
         {
@@ -1119,20 +1122,28 @@ def get_north_money_today() -> dict:
     try:
         import akshare as ak
         
-        # 获取实时北向资金
-        df = ak.stock_hsgt_north_net_flow_in_em()
+        # 获取实时北向资金汇总
+        df = ak.stock_hsgt_fund_flow_summary_em()
         
         if df is None or df.empty:
             return {}
         
-        # 获取最新一天
-        latest = df.iloc[0]
+        # 筛选北向资金 (沪股通 + 深股通)
+        sh_row = df[(df['板块'] == '沪股通') & (df['资金方向'] == '北向')]
+        sz_row = df[(df['板块'] == '深股通') & (df['资金方向'] == '北向')]
+        
+        sh_money = float(sh_row['成交净买额'].values[0]) if len(sh_row) > 0 else 0
+        sz_money = float(sz_row['成交净买额'].values[0]) if len(sz_row) > 0 else 0
+        north_money = sh_money + sz_money
+        
+        # 获取日期
+        date_str = str(df['交易日'].values[0]) if '交易日' in df.columns else ''
         
         return {
-            'date': str(latest.get('日期', '')),
-            'north_money': float(latest.get('当日净流入', 0)),
-            'sh_money': float(latest.get('沪股通净流入', 0)) if '沪股通净流入' in latest else 0,
-            'sz_money': float(latest.get('深股通净流入', 0)) if '深股通净流入' in latest else 0
+            'date': date_str,
+            'north_money': north_money,
+            'sh_money': sh_money,
+            'sz_money': sz_money
         }
         
     except Exception as e:
