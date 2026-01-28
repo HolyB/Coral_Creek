@@ -233,7 +233,26 @@ _tushare_call_limit = 450  # 每450次暂停一下 (Tushare 限制约500次/分�
 _tushare_pause_seconds = 60
 
 def get_cn_stock_data(symbol, days=365):
-    """获取A股历史数据（使用Tushare API）"""
+    """
+    获取A股历史数据
+    
+    数据源优先级:
+    1. Tushare (需要 Token)
+    2. AkShare (免费，无需 Token) - 备选
+    """
+    # 尝试 Tushare
+    df = _get_cn_stock_data_tushare(symbol, days)
+    if df is not None and not df.empty:
+        return df
+    
+    # Tushare 失败，尝试 AkShare
+    print(f"⚠️ Tushare 获取 {symbol} 失败，尝试 AkShare...")
+    df = _get_cn_stock_data_akshare(symbol, days)
+    return df
+
+
+def _get_cn_stock_data_tushare(symbol, days=365):
+    """使用 Tushare 获取 A股数据"""
     global _tushare_call_count
     
     # 限流：每450次调用暂停60秒
@@ -288,7 +307,66 @@ def get_cn_stock_data(symbol, days=365):
             print(f"Error fetching Tushare data for {symbol}: {e}")
             return None
     except Exception as e:
-        print(f"Error in get_cn_stock_data: {e}")
+        print(f"Error in Tushare: {e}")
+        return None
+
+
+def _get_cn_stock_data_akshare(symbol, days=365):
+    """
+    使用 AkShare 获取 A股数据 (免费备选)
+    
+    参考: daily_stock_analysis 项目的 AkshareFetcher
+    数据来源: 东方财富爬虫
+    """
+    try:
+        import akshare as ak
+        import time
+        
+        # 随机休眠防止被封
+        time.sleep(0.5 + np.random.random())
+        
+        end_date = datetime.now().strftime('%Y%m%d')
+        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y%m%d')
+        
+        # 提取纯代码
+        code = symbol.split('.')[0] if '.' in symbol else symbol
+        
+        print(f"📡 AkShare 获取 {code} 历史数据...")
+        
+        df = ak.stock_zh_a_hist(
+            symbol=code,
+            period="daily",
+            start_date=start_date,
+            end_date=end_date,
+            adjust="qfq"  # 前复权
+        )
+        
+        if df is None or df.empty:
+            print(f"⚠️ AkShare 未找到 {code} 数据")
+            return None
+        
+        # 转换列名（中文 -> 英文）
+        df.rename(columns={
+            '日期': 'Date',
+            '开盘': 'Open',
+            '最高': 'High',
+            '最低': 'Low',
+            '收盘': 'Close',
+            '成交量': 'Volume'
+        }, inplace=True)
+        
+        df['Date'] = pd.to_datetime(df['Date'])
+        df.set_index('Date', inplace=True)
+        df.sort_index(inplace=True)
+        
+        print(f"✅ AkShare 获取 {code} 成功: {len(df)} 条记录")
+        return df[['Open', 'High', 'Low', 'Close', 'Volume']]
+        
+    except ImportError:
+        print("⚠️ AkShare 未安装，请运行: pip install akshare")
+        return None
+    except Exception as e:
+        print(f"❌ AkShare 获取 {symbol} 失败: {e}")
         return None
 
 
