@@ -89,20 +89,20 @@
   ],
   "metrics": {
     "short": {
-      "ndcg@10": 0.9399104702875758,
-      "top10_avg_return": 1.8215759454616725,
-      "train_samples": 1584,
+      "ndcg@10": 0.93290320843738,
+      "top10_avg_return": 1.6577362146404206,
+      "train_samples": 1590,
       "n_groups": 23
     },
     "medium": {
-      "ndcg@10": 0.890554486416858,
-      "top10_avg_return": -5.02702535970967,
-      "train_samples": 541,
+      "ndcg@10": 0.8910145151359412,
+      "top10_avg_return": -5.586881195443223,
+      "train_samples": 544,
       "n_groups": 16
     },
     "long": {
-      "ndcg@10": 0.9149408406932479,
-      "top10_avg_return": -8.282164983349091,
+      "ndcg@10": 0.9576036019102295,
+      "top10_avg_return": -8.338477845567084,
       "train_samples": 105,
       "n_groups": 10
     }

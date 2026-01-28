@@ -24,7 +24,7 @@ def main():
         WHERE market = "US"
         GROUP BY symbol
         ORDER BY cnt DESC
-        LIMIT 200
+        LIMIT 500
     ''')
     symbols = [row['symbol'] for row in cursor.fetchall()]
     conn.close()
