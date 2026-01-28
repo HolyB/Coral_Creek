@@ -5402,44 +5402,93 @@ def render_risk_dashboard():
     
     # === 获取历史数据计算风险指标 ===
     @st.cache_data(ttl=3600, show_spinner=False)
-    def get_returns_data(symbols_tuple, days=252):
-        """获取多只股票的收益率数据"""
+    def get_returns_from_scan_history(symbols_tuple, market, days_back=60):
+        """从扫描历史数据计算收益率 (不调用外部 API)"""
+        from db.database import get_connection
+        from datetime import date, timedelta
+        
+        returns_dict = {}
+        symbols_list = list(symbols_tuple)
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # 获取每只股票的历史扫描价格
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days_back)
+        
+        for sym in symbols_list:
+            try:
+                cursor.execute("""
+                    SELECT scan_date, price 
+                    FROM scan_results 
+                    WHERE symbol = ? AND market = ? AND scan_date >= ? 
+                    ORDER BY scan_date
+                """, (sym, market, start_date.strftime('%Y-%m-%d')))
+                
+                rows = cursor.fetchall()
+                if len(rows) >= 2:
+                    prices = pd.Series(
+                        {row['scan_date']: row['price'] for row in rows if row['price']}
+                    )
+                    if len(prices) >= 2:
+                        returns = prices.pct_change().dropna()
+                        if len(returns) >= 1:
+                            returns_dict[sym] = returns
+            except:
+                continue
+        
+        conn.close()
+        return returns_dict
+    
+    @st.cache_data(ttl=3600, show_spinner=False)
+    def get_returns_from_api(symbols_tuple, market, days=60):
+        """从 API 获取收益率数据 (备选)"""
         from data_fetcher import get_us_stock_data, get_cn_stock_data
         import time
         
         returns_dict = {}
         symbols_list = list(symbols_tuple)
         
-        for i, sym in enumerate(symbols_list):
+        for i, sym in enumerate(symbols_list[:10]):  # 最多取 10 只，避免 rate limit
             try:
-                # 判断市场
-                if sym.endswith('.SH') or sym.endswith('.SZ') or (sym.replace('.', '').isdigit() and len(sym) >= 6):
+                if market == 'CN' or sym.endswith('.SH') or sym.endswith('.SZ'):
                     df = get_cn_stock_data(sym, days=days)
                 else:
                     df = get_us_stock_data(sym, days=days)
                 
-                if df is not None and len(df) > 20:
+                if df is not None and len(df) > 10:
                     returns_dict[sym] = df['Close'].pct_change().dropna()
                 
-                # 避免 API rate limit
                 if i < len(symbols_list) - 1:
-                    time.sleep(0.1)
-                    
-            except Exception as e:
-                print(f"获取 {sym} 历史数据失败: {e}")
+                    time.sleep(0.2)
+            except:
                 continue
         
         return returns_dict
     
-    # 获取收益率数据
+    # 优先使用扫描历史数据
     with st.spinner("正在计算风险指标..."):
-        returns_data = get_returns_data(tuple(symbols), days=252)  # tuple for cache
+        returns_data = get_returns_from_scan_history(
+            tuple(symbols), 
+            market_filter if source_key not in ['paper', 'real'] else 'US',
+            days_back=60
+        )
+    
+    # 如果扫描历史数据不足，尝试 API
+    if len(returns_data) < 2:
+        st.caption("📊 扫描历史数据不足，尝试从 API 获取...")
+        returns_data = get_returns_from_api(
+            tuple(symbols),
+            market_filter if source_key not in ['paper', 'real'] else 'US',
+            days=60
+        )
     
     # 显示数据获取情况
     if returns_data:
         st.caption(f"📈 成功获取 {len(returns_data)}/{len(symbols)} 只股票的历史数据")
     else:
-        st.warning(f"⚠️ 未能获取历史数据 (共 {len(symbols)} 只股票)")
+        st.warning(f"⚠️ 未能获取历史数据")
     
     # === 第一行: 核心风险指标 ===
     st.markdown("### 📊 组合风险概览")
