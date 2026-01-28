@@ -16,12 +16,20 @@ class FeatureCalculator:
     def __init__(self):
         self.feature_names = []
     
-    def calculate_all(self, df: pd.DataFrame) -> pd.DataFrame:
+    def calculate_all(self, df: pd.DataFrame, 
+                      blue_signals: Dict = None) -> pd.DataFrame:
         """
         计算所有特征
         
         Args:
             df: DataFrame with Date, Open, High, Low, Close, Volume
+            blue_signals: 可选的 BLUE 信号数据 {
+                'blue_daily': float,
+                'blue_weekly': float, 
+                'blue_monthly': float,
+                'is_heima': bool,
+                'is_juedi': bool
+            }
         
         Returns:
             DataFrame with all features (最后一行是最新特征)
@@ -58,11 +66,155 @@ class FeatureCalculator:
         # 9. 价格形态
         result = self._add_pattern_features(result)
         
+        # 10. BLUE 信号特征 (如果提供)
+        if blue_signals:
+            result = self._add_blue_features(result, blue_signals)
+        
         return result
     
-    def get_latest_features(self, df: pd.DataFrame) -> Dict:
+    def calculate_blue_signal(self, df: pd.DataFrame) -> Dict:
+        """
+        从 K 线数据计算 BLUE 信号
+        
+        这里使用简化版的 BLUE 计算逻辑
+        完整版请参考 chart_utils.py
+        """
+        if df.empty or len(df) < 60:
+            return {}
+        
+        close = df['Close'].values
+        high = df['High'].values
+        low = df['Low'].values
+        volume = df['Volume'].values
+        
+        # 简化的 BLUE 计算 (基于 VAR2 逻辑)
+        # VAR2 = (收盘价 - N日最低价) / (N日最高价 - N日最低价) * 100
+        
+        n = 34  # BLUE 周期
+        
+        if len(close) < n:
+            return {}
+        
+        # 计算日线 BLUE
+        lowest_n = pd.Series(low).rolling(n).min().values
+        highest_n = pd.Series(high).rolling(n).max().values
+        
+        var2 = (close - lowest_n) / (highest_n - lowest_n + 1e-10) * 100
+        blue_daily = var2[-1] if not np.isnan(var2[-1]) else 0
+        
+        # 简化版黑马信号检测
+        # 黑马: 低位放量 + BLUE 突破
+        is_heima = 0
+        if len(close) >= 5:
+            recent_volume = volume[-5:]
+            avg_volume = np.mean(volume[-20:]) if len(volume) >= 20 else np.mean(volume)
+            volume_surge = np.max(recent_volume) > 2 * avg_volume
+            
+            if volume_surge and blue_daily > 50 and blue_daily < 100:
+                is_heima = 1
+        
+        # 简化版绝地信号检测
+        # 绝地: 超跌 + 开始反弹
+        is_juedi = 0
+        if len(close) >= 20:
+            recent_low = np.min(low[-20:])
+            if close[-1] > recent_low * 1.02 and blue_daily < 30:
+                is_juedi = 1
+        
+        return {
+            'blue_daily': blue_daily,
+            'blue_weekly': 0,  # 需要周线数据
+            'blue_monthly': 0,  # 需要月线数据
+            'is_heima': is_heima,
+            'is_juedi': is_juedi
+        }
+    
+    def _add_blue_features(self, df: pd.DataFrame, signals: Dict) -> pd.DataFrame:
+        """
+        添加 BLUE 信号相关特征
+        
+        Args:
+            df: 价格数据
+            signals: BLUE 信号字典
+        """
+        n = len(df)
+        
+        # 基础 BLUE 值
+        df['blue_daily'] = signals.get('blue_daily', 0)
+        df['blue_weekly'] = signals.get('blue_weekly', 0)
+        df['blue_monthly'] = signals.get('blue_monthly', 0)
+        
+        # 信号标志
+        df['is_heima'] = signals.get('is_heima', 0)
+        df['is_juedi'] = signals.get('is_juedi', 0)
+        
+        # === BLUE 衍生特征 ===
+        
+        blue_d = signals.get('blue_daily', 0)
+        blue_w = signals.get('blue_weekly', 0)
+        blue_m = signals.get('blue_monthly', 0)
+        
+        # 1. BLUE 强度分档
+        df['blue_daily_level'] = self._blue_level(blue_d)
+        df['blue_weekly_level'] = self._blue_level(blue_w)
+        
+        # 2. 共振特征
+        df['blue_dw_resonance'] = int(blue_d >= 100 and blue_w >= 100)  # 日周共振
+        df['blue_dwm_resonance'] = int(blue_d >= 100 and blue_w >= 100 and blue_m >= 100)  # 日周月共振
+        
+        # 3. BLUE 比值
+        df['blue_dw_ratio'] = blue_d / (blue_w + 1)  # 日/周比值
+        df['blue_dm_ratio'] = blue_d / (blue_m + 1)  # 日/月比值
+        
+        # 4. BLUE 偏离度 (与 100 的距离)
+        df['blue_daily_deviation'] = blue_d - 100
+        df['blue_weekly_deviation'] = blue_w - 100
+        
+        # 5. BLUE 超买超卖
+        df['blue_overbought'] = int(blue_d > 120)  # 超买
+        df['blue_oversold'] = int(blue_d < 20)     # 超卖
+        df['blue_golden_zone'] = int(80 <= blue_d <= 120)  # 黄金区间
+        
+        # 6. 综合信号强度
+        signal_score = 0
+        if blue_d >= 100: signal_score += 1
+        if blue_w >= 100: signal_score += 1
+        if blue_m >= 100: signal_score += 1
+        if signals.get('is_heima', 0): signal_score += 2
+        if signals.get('is_juedi', 0): signal_score += 1
+        df['signal_strength'] = signal_score
+        
+        # 7. 信号类型编码 (用于分类)
+        signal_type = 0
+        if blue_d >= 100:
+            signal_type = 1  # 日线信号
+        if blue_d >= 100 and blue_w >= 100:
+            signal_type = 2  # 日周共振
+        if blue_d >= 100 and blue_w >= 100 and blue_m >= 100:
+            signal_type = 3  # 全共振
+        if signals.get('is_heima', 0):
+            signal_type = 4  # 黑马
+        df['signal_type'] = signal_type
+        
+        return df
+    
+    def _blue_level(self, blue_value: float) -> int:
+        """BLUE 值分档: 0-4"""
+        if blue_value >= 150:
+            return 4  # 极强
+        elif blue_value >= 120:
+            return 3  # 强
+        elif blue_value >= 100:
+            return 2  # 中等
+        elif blue_value >= 50:
+            return 1  # 弱
+        else:
+            return 0  # 无信号
+    
+    def get_latest_features(self, df: pd.DataFrame, 
+                           blue_signals: Dict = None) -> Dict:
         """获取最新一天的特征字典"""
-        result = self.calculate_all(df)
+        result = self.calculate_all(df, blue_signals)
         if result.empty:
             return {}
         
@@ -393,6 +545,18 @@ FEATURE_COLUMNS = [
     'is_doji', 'is_hammer', 'is_inv_hammer',
     'consecutive_up', 'consecutive_down',
     'near_high_20', 'near_low_20', 'near_high_60', 'near_low_60',
+    
+    # BLUE 信号 (核心特征)
+    'blue_daily', 'blue_weekly', 'blue_monthly',
+    'is_heima', 'is_juedi',
+    
+    # BLUE 衍生特征
+    'blue_daily_level', 'blue_weekly_level',
+    'blue_dw_resonance', 'blue_dwm_resonance',
+    'blue_dw_ratio', 'blue_dm_ratio',
+    'blue_daily_deviation', 'blue_weekly_deviation',
+    'blue_overbought', 'blue_oversold', 'blue_golden_zone',
+    'signal_strength', 'signal_type',
 ]
 
 
