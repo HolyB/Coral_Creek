@@ -6134,195 +6134,225 @@ def render_ai_center_page():
 
 
 def render_ml_prediction_page():
-    """🎯 ML 模型预测页面"""
+    """🎯 ML 模型预测页面 - 完整版"""
     import plotly.express as px
     import plotly.graph_objects as go
+    from pathlib import Path
+    import json
     
-    st.subheader("🎯 ML 信号预测")
-    st.caption("使用 XGBoost 模型预测信号盈利概率")
+    st.subheader("🎯 ML 智能选股")
+    st.caption("基于 86 个特征的收益预测 + 排序模型")
     
     # 市场选择
-    col1, col2 = st.columns([1, 3])
+    col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
         market = st.selectbox("市场", ["US", "CN"], key="ml_market")
+    with col2:
+        horizon = st.selectbox("预测周期", ["5d", "1d", "10d", "30d"], key="ml_horizon")
     
-    # 加载预测器
-    try:
-        from ml.predictor import get_predictor
-        predictor = get_predictor(market)
+    # 检查模型是否存在
+    model_dir = Path(__file__).parent / "ml" / "saved_models" / f"v2_{market.lower()}"
+    meta_path = model_dir / "return_predictor_meta.json"
+    
+    if not meta_path.exists():
+        st.warning("⚠️ 模型未训练")
+        st.info("""
+        **训练步骤:**
+        ```bash
+        cd versions/v3
+        python ml/pipeline.py --market US --days 60
+        ```
+        """)
         
-        # 模型信息
-        info = predictor.get_model_info()
-        
-        if info['status'] == 'loaded':
-            st.success(f"✅ 模型已加载 | AUC: {info['metrics']['auc']:.3f} | 训练样本: {info['train_samples']}")
-            
-            # 模型性能指标
-            with st.expander("📊 模型性能详情", expanded=False):
-                cols = st.columns(5)
-                with cols[0]:
-                    st.metric("准确率", f"{info['metrics']['accuracy']:.1%}")
-                with cols[1]:
-                    st.metric("精确率", f"{info['metrics']['precision']:.1%}")
-                with cols[2]:
-                    st.metric("召回率", f"{info['metrics']['recall']:.1%}")
-                with cols[3]:
-                    st.metric("F1", f"{info['metrics']['f1']:.3f}")
-                with cols[4]:
-                    st.metric("AUC", f"{info['metrics']['auc']:.3f}")
-                
-                st.caption(f"训练时间: {info['trained_on']} | 特征数: {info['features']}")
-        else:
-            st.warning("⚠️ 模型未训练")
-            st.info("""
-            **训练步骤:**
-            ```bash
-            cd versions/v3
-            python ml/train_xgb.py --market US --days 180
-            ```
-            或在 Colab 中运行训练笔记本
-            """)
-            
-            # 提供训练按钮
-            if st.button("🚀 开始训练 (本地)", key="train_local"):
-                with st.spinner("训练中... (约1-2分钟)"):
-                    try:
-                        from ml.train_xgb import train_and_save
-                        result = train_and_save(market=market, days_back=180, upload=False)
-                        if result:
-                            st.success("✅ 训练完成! 请刷新页面")
-                            st.rerun()
-                        else:
-                            st.error("训练失败，请检查数据")
-                    except Exception as e:
-                        st.error(f"训练失败: {e}")
-            return
-        
-        st.divider()
-        
-        # === 今日信号预测 ===
-        st.markdown("### 📈 今日信号预测")
-        
-        # 加载今日信号
-        from db.database import get_connection
-        from datetime import date
-        
-        conn = get_connection()
-        today = date.today().strftime('%Y-%m-%d')
-        
-        # 获取最近一天的数据
-        query = """
-            SELECT * FROM scan_results
-            WHERE market = ?
-            ORDER BY scan_date DESC
-            LIMIT 100
-        """
-        signals_df = pd.read_sql_query(query, conn, params=(market,))
-        conn.close()
-        
-        if signals_df.empty:
-            st.info("暂无信号数据")
-            return
-        
-        latest_date = signals_df['scan_date'].iloc[0]
-        signals_df = signals_df[signals_df['scan_date'] == latest_date]
-        
-        st.caption(f"数据日期: {latest_date} | 信号数: {len(signals_df)}")
-        
-        # 预测
-        with st.spinner("预测中..."):
-            result_df = predictor.predict(signals_df)
-        
-        # Top N 选择
-        col1, col2 = st.columns([1, 3])
+        if st.button("🚀 开始训练", key="train_full"):
+            with st.spinner("训练中... (约 30 秒)"):
+                try:
+                    from ml.pipeline import train_pipeline
+                    result = train_pipeline(market=market, days_back=60)
+                    if result and result.get('status') == 'success':
+                        st.success("✅ 训练完成!")
+                        st.rerun()
+                    else:
+                        st.error("训练失败")
+                except Exception as e:
+                    st.error(f"训练失败: {e}")
+        return
+    
+    # 加载模型元数据
+    with open(meta_path) as f:
+        meta = json.load(f)
+    
+    # 模型状态
+    horizon_meta = meta.get(horizon, {})
+    if horizon_meta:
+        col1, col2, col3, col4 = st.columns(4)
         with col1:
-            top_n = st.slider("显示 Top N", 5, 50, 20, key="ml_top_n")
+            st.metric("R²", f"{horizon_meta.get('r2', 0):.2f}")
+        with col2:
+            st.metric("方向准确率", f"{horizon_meta.get('direction_accuracy', 0):.0%}")
+        with col3:
+            st.metric("RMSE", f"{horizon_meta.get('rmse', 0):.1f}%")
+        with col4:
+            st.metric("样本数", horizon_meta.get('train_samples', 0))
+    
+    st.divider()
+    
+    # === 加载今日信号 ===
+    from db.database import get_connection
+    from db.stock_history import get_stock_history
+    from ml.features.feature_calculator import FeatureCalculator
+    
+    conn = get_connection()
+    
+    # 获取最新信号
+    query = """
+        SELECT DISTINCT symbol, scan_date, price, 
+               COALESCE(blue_daily, 0) as blue_daily,
+               COALESCE(blue_weekly, 0) as blue_weekly,
+               COALESCE(blue_monthly, 0) as blue_monthly,
+               COALESCE(is_heima, 0) as is_heima
+        FROM scan_results
+        WHERE market = ?
+        ORDER BY scan_date DESC
+        LIMIT 200
+    """
+    signals_df = pd.read_sql_query(query, conn, params=(market,))
+    conn.close()
+    
+    if signals_df.empty:
+        st.info("暂无信号数据")
+        return
+    
+    latest_date = signals_df['scan_date'].iloc[0]
+    today_signals = signals_df[signals_df['scan_date'] == latest_date]
+    
+    st.markdown(f"### 📈 {latest_date} 信号预测 ({len(today_signals)} 只)")
+    
+    # 加载模型
+    try:
+        import joblib
+        return_model = joblib.load(model_dir / f"return_{horizon}.joblib")
+        feature_names = json.load(open(model_dir / "feature_names.json"))
         
-        top_df = result_df.head(top_n)
+        # 为每个信号计算特征并预测
+        calc = FeatureCalculator()
+        predictions = []
         
-        # 显示结果
-        display_cols = ['symbol', 'ml_prob', 'ml_rank']
+        progress = st.progress(0)
+        status = st.empty()
         
-        # 添加可用的信号列
-        for col in ['blue_daily', 'blue_weekly', 'is_heima', 'price', 'star_rating']:
-            if col in top_df.columns:
-                display_cols.append(col)
+        for i, (_, signal) in enumerate(today_signals.iterrows()):
+            symbol = signal['symbol']
+            
+            # 获取历史数据
+            history = get_stock_history(symbol, market, days=100)
+            
+            if history.empty or len(history) < 60:
+                continue
+            
+            # 计算特征
+            blue_signals = {
+                'blue_daily': signal['blue_daily'],
+                'blue_weekly': signal['blue_weekly'],
+                'blue_monthly': signal['blue_monthly'],
+                'is_heima': signal['is_heima'],
+                'is_juedi': 0
+            }
+            
+            features = calc.get_latest_features(history, blue_signals)
+            
+            if not features:
+                continue
+            
+            # 准备特征向量
+            X = np.array([[features.get(f, 0) for f in feature_names]])
+            X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+            X = np.clip(X, -1e6, 1e6)
+            
+            # 预测
+            pred_return = return_model.predict(X)[0]
+            
+            predictions.append({
+                'symbol': symbol,
+                'price': signal['price'],
+                'blue_daily': signal['blue_daily'],
+                'blue_weekly': signal['blue_weekly'],
+                'is_heima': signal['is_heima'],
+                f'pred_{horizon}': pred_return,
+                'direction': '📈' if pred_return > 0 else '📉'
+            })
+            
+            progress.progress((i + 1) / len(today_signals))
+            status.text(f"处理: {symbol} ({i+1}/{len(today_signals)})")
         
-        # 格式化
-        display_df = top_df[display_cols].copy()
-        display_df['ml_prob'] = display_df['ml_prob'].apply(lambda x: f"{x:.1%}")
-        display_df.columns = ['代码', '盈利概率', '排名'] + [c for c in display_cols[3:]]
+        progress.empty()
+        status.empty()
+        
+        if not predictions:
+            st.warning("无法计算预测 (缺少历史数据)")
+            return
+        
+        # 结果 DataFrame
+        result_df = pd.DataFrame(predictions)
+        result_df = result_df.sort_values(f'pred_{horizon}', ascending=False)
+        result_df['rank'] = range(1, len(result_df) + 1)
+        
+        # === 显示 Top 10 ===
+        st.markdown("### 🏆 Top 10 推荐")
+        
+        top10 = result_df.head(10).copy()
+        
+        # 格式化显示
+        display_df = top10[['rank', 'symbol', f'pred_{horizon}', 'direction', 'blue_daily', 'blue_weekly', 'price']].copy()
+        display_df.columns = ['排名', '代码', f'预测收益({horizon})', '方向', '日BLUE', '周BLUE', '价格']
+        display_df[f'预测收益({horizon})'] = display_df[f'预测收益({horizon})'].apply(lambda x: f"{x:+.1f}%")
         
         st.dataframe(display_df, use_container_width=True, hide_index=True)
         
-        # 概率分布图
-        st.markdown("### 📊 概率分布")
-        fig = px.histogram(
-            result_df, 
-            x='ml_prob', 
-            nbins=20,
-            title="信号盈利概率分布",
-            labels={'ml_prob': '盈利概率', 'count': '数量'}
-        )
-        fig.add_vline(x=0.5, line_dash="dash", line_color="red", annotation_text="50%基准")
-        fig.update_layout(height=300)
-        st.plotly_chart(fig, use_container_width=True)
+        # === 预测分布 ===
+        st.markdown("### 📊 预测分布")
         
-        # 高概率信号统计
-        high_prob = (result_df['ml_prob'] > 0.6).sum()
-        medium_prob = ((result_df['ml_prob'] >= 0.5) & (result_df['ml_prob'] <= 0.6)).sum()
-        low_prob = (result_df['ml_prob'] < 0.5).sum()
-        
-        cols = st.columns(3)
-        with cols[0]:
-            st.metric("🟢 高概率 (>60%)", high_prob)
-        with cols[1]:
-            st.metric("🟡 中等 (50-60%)", medium_prob)
-        with cols[2]:
-            st.metric("🔴 低概率 (<50%)", low_prob)
-        
-        st.divider()
-        
-        # === 模型管理 ===
-        st.markdown("### ⚙️ 模型管理")
-        
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("🔄 重新训练", key="retrain"):
-                with st.spinner("训练中..."):
-                    try:
-                        from ml.train_xgb import train_and_save
-                        train_and_save(market=market, days_back=180, upload=False)
-                        st.success("✅ 训练完成!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"训练失败: {e}")
+            # 收益分布图
+            fig = px.histogram(
+                result_df, 
+                x=f'pred_{horizon}',
+                nbins=20,
+                title=f"{horizon} 预测收益分布",
+                labels={f'pred_{horizon}': '预测收益 (%)', 'count': '数量'}
+            )
+            fig.add_vline(x=0, line_dash="dash", line_color="red")
+            fig.update_layout(height=300)
+            st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            if st.button("📤 上传到 Hub", key="upload_hub"):
-                try:
-                    from ml.model_registry import get_registry
-                    registry = get_registry()
-                    url = registry.upload_to_hub(f"xgb_signal_{market.lower()}")
-                    if url:
-                        st.success(f"✅ 已上传: {url}")
-                except Exception as e:
-                    st.error(f"上传失败: {e}")
+            # 统计
+            positive = (result_df[f'pred_{horizon}'] > 0).sum()
+            negative = (result_df[f'pred_{horizon}'] <= 0).sum()
+            avg_return = result_df[f'pred_{horizon}'].mean()
+            
+            st.metric("📈 预测上涨", f"{positive} 只")
+            st.metric("📉 预测下跌", f"{negative} 只")
+            st.metric("平均预测收益", f"{avg_return:+.1f}%")
         
-        with col3:
-            if st.button("📥 从 Hub 下载", key="download_hub"):
-                try:
-                    predictor.load(from_hub=True)
-                    st.success("✅ 已下载最新模型")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"下载失败: {e}")
+        # === Bottom 10 ===
+        with st.expander("📉 Bottom 10 (预测下跌最多)", expanded=False):
+            bottom10 = result_df.tail(10).copy()
+            bottom10 = bottom10.iloc[::-1]  # 反转顺序
+            
+            display_df2 = bottom10[['rank', 'symbol', f'pred_{horizon}', 'direction', 'blue_daily', 'price']].copy()
+            display_df2.columns = ['排名', '代码', f'预测收益({horizon})', '方向', '日BLUE', '价格']
+            display_df2[f'预测收益({horizon})'] = display_df2[f'预测收益({horizon})'].apply(lambda x: f"{x:+.1f}%")
+            
+            st.dataframe(display_df2, use_container_width=True, hide_index=True)
         
     except Exception as e:
-        st.error(f"加载失败: {e}")
+        st.error(f"预测失败: {e}")
         import traceback
         st.code(traceback.format_exc())
+    
 
 
 # --- V3 主导航 (精简版 6 Tabs) ---
