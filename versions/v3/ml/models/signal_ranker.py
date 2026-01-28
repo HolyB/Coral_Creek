@@ -93,6 +93,10 @@ class SignalRanker:
         """
         n = len(returns)
         
+        # 处理 NaN
+        returns = np.nan_to_num(returns, nan=0.0)
+        max_drawdowns = np.nan_to_num(max_drawdowns, nan=0.0)
+        
         # 收益分数 (0-100, 越高越好)
         return_rank = pd.Series(returns).rank(pct=True) * 100
         
@@ -102,10 +106,17 @@ class SignalRanker:
         # 综合分数
         score = config.weight_return * return_rank + config.weight_risk * risk_rank
         
-        # 转为整数标签 (0-4 五档)
-        labels = pd.qcut(score, q=5, labels=[0, 1, 2, 3, 4], duplicates='drop')
+        # 处理 NaN
+        score = score.fillna(score.median())
         
-        return labels.values.astype(int)
+        # 转为整数标签 (0-4 五档)
+        try:
+            labels = pd.qcut(score, q=5, labels=[0, 1, 2, 3, 4], duplicates='drop')
+            return labels.values.astype(int)
+        except:
+            # 如果分位数失败，使用简单分档
+            labels = pd.cut(score, bins=5, labels=[0, 1, 2, 3, 4])
+            return labels.fillna(2).values.astype(int)
     
     def train(self,
               X: np.ndarray,

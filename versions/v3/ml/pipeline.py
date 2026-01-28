@@ -161,6 +161,12 @@ class MLPipeline:
                     from data_fetcher import get_stock_data
                     history = get_stock_data(symbol, market=self.market, days=250)
                     if history is not None and len(history) >= 60:
+                        # 确保 Date 是列而不是 index
+                        if history.index.name == 'Date':
+                            history = history.reset_index()
+                        if 'Date' not in history.columns and history.index.name:
+                            history = history.reset_index()
+                            history = history.rename(columns={history.columns[0]: 'Date'})
                         # 存储到本地
                         save_stock_history(symbol, self.market, history)
                 except Exception as e:
@@ -251,7 +257,10 @@ class MLPipeline:
         feature_names = [c for c in numeric_cols if c not in ['Date']]
         
         X = features_df[feature_names].values
-        X = np.nan_to_num(X, nan=0.0)
+        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+        
+        # 限制极端值
+        X = np.clip(X, -1e6, 1e6)
         
         returns_dict = {k: np.array(v) for k, v in all_returns.items()}
         drawdowns_dict = {k: np.array(v) for k, v in all_drawdowns.items()}
