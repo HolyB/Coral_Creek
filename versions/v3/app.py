@@ -5619,11 +5619,6 @@ def render_position_calculator():
     """仓位计算器组件"""
     st.markdown("### 🧮 仓位计算器")
     
-    st.divider()
-    
-    # === 第四行: 仓位计算器 ===
-    st.markdown("### 🧮 仓位计算器")
-    
     calc_col1, calc_col2 = st.columns(2)
     
     with calc_col1:
