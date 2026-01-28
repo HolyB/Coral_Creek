@@ -1,8 +1,15 @@
 {
   "date": "2026-01-27",
   "market": "CN",
-  "total_signals": 172,
+  "total_signals": 220,
   "top_signals": [
+    {
+      "symbol": "002231.SZ",
+      "name": "*ST奥维",
+      "price": 0.66,
+      "day_blue": 200.0,
+      "week_blue": 98.1
+    },
     {
       "symbol": "600941.SH",
       "name": "中国移动",
@@ -25,6 +32,20 @@
       "week_blue": 83.9
     },
     {
+      "symbol": "601328.SH",
+      "name": "交通银行",
+      "price": 6.61,
+      "day_blue": 186.2,
+      "week_blue": 168.1
+    },
+    {
+      "symbol": "002889.SZ",
+      "name": "东方嘉盛",
+      "price": 15.12,
+      "day_blue": 181.7,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "920651.BJ",
       "name": "天罡股份",
       "price": 39.25,
@@ -36,6 +57,13 @@
       "name": "开特股份",
       "price": 31.99,
       "day_blue": 178.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300635.SZ",
+      "name": "中达安",
+      "price": 13.85,
+      "day_blue": 175.8,
       "week_blue": 0.0
     },
     {
@@ -74,39 +102,11 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "688656.SH",
-      "name": "浩欧博",
-      "price": 146.51,
-      "day_blue": 155.7,
+      "symbol": "002653.SZ",
+      "name": "海思科",
+      "price": 50.15,
+      "day_blue": 156.9,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "300750.SZ",
-      "name": "宁德时代",
-      "price": 339.4,
-      "day_blue": 154.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688266.SH",
-      "name": "泽璟制药-U",
-      "price": 87.3,
-      "day_blue": 153.1,
-      "week_blue": 145.8
-    },
-    {
-      "symbol": "000596.SZ",
-      "name": "古井贡酒",
-      "price": 123.3,
-      "day_blue": 152.0,
-      "week_blue": 96.5
-    },
-    {
-      "symbol": "000858.SZ",
-      "name": "五粮液",
-      "price": 101.02,
-      "day_blue": 151.7,
-      "week_blue": 173.0
     }
   ]
 }
