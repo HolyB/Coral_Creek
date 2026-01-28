@@ -1049,3 +1049,285 @@ def get_us_sector_enhanced():
     df = pd.DataFrame(results)
     df = df.sort_values('heat_score', ascending=False)
     return df
+
+
+# ==================== 北向资金数据 ====================
+
+def get_north_money_flow(days: int = 30) -> pd.DataFrame:
+    """
+    获取北向资金（沪港通+深港通）流入流出数据
+    
+    数据来源: AkShare (东方财富)
+    参考: daily_stock_analysis 项目
+    
+    Args:
+        days: 获取天数
+    
+    Returns:
+        DataFrame with columns: date, north_money (亿), sh_money, sz_money
+    """
+    try:
+        import akshare as ak
+        
+        print("📡 获取北向资金数据...")
+        
+        # 获取沪股通+深股通资金流向
+        df = ak.stock_hsgt_north_net_flow_in_em()
+        
+        if df is None or df.empty:
+            print("⚠️ 北向资金数据为空")
+            return pd.DataFrame()
+        
+        # 转换列名
+        df = df.rename(columns={
+            '日期': 'date',
+            '当日净流入': 'north_money',
+            '当日余额': 'balance'
+        })
+        
+        # 只保留需要的列
+        if 'date' in df.columns and 'north_money' in df.columns:
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.sort_values('date', ascending=False)
+            df = df.head(days)
+            
+            print(f"✅ 获取北向资金数据成功: {len(df)} 条")
+            return df
+        
+        return pd.DataFrame()
+        
+    except ImportError:
+        print("⚠️ AkShare 未安装")
+        return pd.DataFrame()
+    except Exception as e:
+        print(f"❌ 获取北向资金失败: {e}")
+        return pd.DataFrame()
+
+
+def get_north_money_today() -> dict:
+    """
+    获取今日北向资金流入情况
+    
+    Returns:
+        {
+            'north_money': 净流入(亿),
+            'sh_money': 沪股通(亿),
+            'sz_money': 深股通(亿),
+            'date': 日期
+        }
+    """
+    try:
+        import akshare as ak
+        
+        # 获取实时北向资金
+        df = ak.stock_hsgt_north_net_flow_in_em()
+        
+        if df is None or df.empty:
+            return {}
+        
+        # 获取最新一天
+        latest = df.iloc[0]
+        
+        return {
+            'date': str(latest.get('日期', '')),
+            'north_money': float(latest.get('当日净流入', 0)),
+            'sh_money': float(latest.get('沪股通净流入', 0)) if '沪股通净流入' in latest else 0,
+            'sz_money': float(latest.get('深股通净流入', 0)) if '深股通净流入' in latest else 0
+        }
+        
+    except Exception as e:
+        print(f"❌ 获取今日北向资金失败: {e}")
+        return {}
+
+
+def get_north_holding_stocks(limit: int = 50) -> pd.DataFrame:
+    """
+    获取北向资金持股排行
+    
+    Returns:
+        DataFrame with columns: code, name, hold_shares, hold_value, hold_ratio
+    """
+    try:
+        import akshare as ak
+        
+        print("📡 获取北向资金持股排行...")
+        
+        df = ak.stock_hsgt_hold_stock_em()
+        
+        if df is None or df.empty:
+            return pd.DataFrame()
+        
+        # 重命名列
+        col_map = {
+            '代码': 'code',
+            '名称': 'name',
+            '持股数量': 'hold_shares',
+            '持股市值': 'hold_value',
+            '持股占比': 'hold_ratio',
+            '今日增持股数': 'today_change'
+        }
+        
+        df = df.rename(columns={k: v for k, v in col_map.items() if k in df.columns})
+        
+        # 按持股市值排序
+        if 'hold_value' in df.columns:
+            df = df.sort_values('hold_value', ascending=False)
+        
+        print(f"✅ 获取北向持股排行成功: {len(df)} 只")
+        return df.head(limit)
+        
+    except Exception as e:
+        print(f"❌ 获取北向持股排行失败: {e}")
+        return pd.DataFrame()
+
+
+# ==================== 港股数据 ====================
+
+def get_hk_stock_data(symbol: str, days: int = 365) -> pd.DataFrame:
+    """
+    获取港股历史数据
+    
+    数据来源: YFinance (免费)
+    
+    Args:
+        symbol: 港股代码，如 "00700" 或 "hk00700"
+        days: 获取天数
+    
+    Returns:
+        DataFrame with columns: Open, High, Low, Close, Volume
+    """
+    try:
+        import yfinance as yf
+        
+        # 标准化代码格式
+        code = symbol.upper().replace('HK', '').replace('.HK', '')
+        code = code.zfill(4)  # 补齐4位
+        yf_symbol = f"{code}.HK"
+        
+        print(f"📡 YFinance 获取港股 {yf_symbol} 数据...")
+        
+        # 计算日期范围
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        # 获取数据
+        ticker = yf.Ticker(yf_symbol)
+        df = ticker.history(start=start_date, end=end_date)
+        
+        if df is None or df.empty:
+            print(f"⚠️ 未找到 {yf_symbol} 数据")
+            return None
+        
+        # 确保列名一致
+        df = df.reset_index()
+        df = df.rename(columns={'Date': 'Date'})
+        
+        if 'Datetime' in df.columns:
+            df = df.rename(columns={'Datetime': 'Date'})
+        
+        df.set_index('Date', inplace=True)
+        df.index = pd.to_datetime(df.index).tz_localize(None)
+        
+        # 只保留需要的列
+        cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+        available_cols = [c for c in cols if c in df.columns]
+        df = df[available_cols]
+        
+        print(f"✅ YFinance 获取 {yf_symbol} 成功: {len(df)} 条记录")
+        return df
+        
+    except ImportError:
+        print("⚠️ yfinance 未安装，请运行: pip install yfinance")
+        return None
+    except Exception as e:
+        print(f"❌ 获取港股 {symbol} 失败: {e}")
+        return None
+
+
+def get_hk_stock_info(symbol: str) -> dict:
+    """
+    获取港股基本信息
+    
+    Args:
+        symbol: 港股代码
+    
+    Returns:
+        {'name': 公司名, 'market_cap': 市值, 'industry': 行业}
+    """
+    try:
+        import yfinance as yf
+        
+        code = symbol.upper().replace('HK', '').replace('.HK', '').zfill(4)
+        yf_symbol = f"{code}.HK"
+        
+        ticker = yf.Ticker(yf_symbol)
+        info = ticker.info
+        
+        return {
+            'name': info.get('shortName', info.get('longName', '')),
+            'market_cap': info.get('marketCap', 0),
+            'industry': info.get('industry', ''),
+            'sector': info.get('sector', ''),
+            'currency': 'HKD'
+        }
+        
+    except Exception as e:
+        print(f"❌ 获取港股 {symbol} 信息失败: {e}")
+        return {}
+
+
+def get_stock_data(symbol: str, market: str = None, days: int = 365) -> pd.DataFrame:
+    """
+    统一的股票数据获取接口 - 支持美股/A股/港股
+    
+    Args:
+        symbol: 股票代码
+        market: 市场 ('US', 'CN', 'HK')，None 则自动识别
+        days: 获取天数
+    
+    Returns:
+        DataFrame with OHLCV data
+    """
+    # 自动识别市场
+    if market is None:
+        market = detect_market(symbol)
+    
+    market = market.upper()
+    
+    if market == 'US':
+        return get_us_stock_data(symbol, days)
+    elif market == 'CN':
+        return get_cn_stock_data(symbol, days)
+    elif market == 'HK':
+        return get_hk_stock_data(symbol, days)
+    else:
+        print(f"⚠️ 未知市场: {market}")
+        return None
+
+
+def detect_market(symbol: str) -> str:
+    """
+    自动检测股票所属市场
+    
+    Rules:
+    - 以 HK 开头或包含 .HK: 港股
+    - 以数字开头且6位: A股
+    - 其他: 美股
+    """
+    symbol = symbol.upper().strip()
+    
+    # 港股
+    if symbol.startswith('HK') or '.HK' in symbol:
+        return 'HK'
+    
+    # A股 (6位数字，或 .SH/.SZ 后缀)
+    if symbol.endswith('.SH') or symbol.endswith('.SZ') or symbol.endswith('.BJ'):
+        return 'CN'
+    
+    # 纯数字且6位
+    code = symbol.replace('.SH', '').replace('.SZ', '').replace('.BJ', '')
+    if code.isdigit() and len(code) == 6:
+        return 'CN'
+    
+    # 默认美股
+    return 'US'

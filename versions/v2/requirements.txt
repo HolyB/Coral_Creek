@@ -12,6 +12,7 @@ akshare>=1.14.0
 scipy>=1.11.0
 openai>=1.0.0
 google-generativeai>=0.3.0
+yfinance>=0.2.36
 
 
 

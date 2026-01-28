@@ -46,15 +46,63 @@ def check_llm_available() -> Dict[str, bool]:
 
 
 def get_openai_client() -> Optional['OpenAI']:
-    """获取 OpenAI 客户端"""
+    """
+    获取 OpenAI 兼容客户端
+    
+    支持:
+    - OpenAI 官方 API
+    - DeepSeek (base_url: https://api.deepseek.com/v1)
+    - 通义千问 (base_url: https://dashscope.aliyuncs.com/compatible-mode/v1)
+    - Moonshot (base_url: https://api.moonshot.cn/v1)
+    
+    环境变量:
+    - OPENAI_API_KEY: API Key
+    - OPENAI_BASE_URL: 自定义 API 地址 (可选)
+    - OPENAI_MODEL: 模型名称 (可选，默认 gpt-4o-mini)
+    """
     if not OPENAI_AVAILABLE:
         return None
     
-    api_key = os.environ.get('OPENAI_API_KEY')
+    # 优先从 Streamlit secrets 读取
+    api_key = None
+    base_url = None
+    
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets'):
+            api_key = st.secrets.get('OPENAI_API_KEY')
+            base_url = st.secrets.get('OPENAI_BASE_URL')
+    except:
+        pass
+    
+    # 回退到环境变量
+    if not api_key:
+        api_key = os.environ.get('OPENAI_API_KEY')
+    if not base_url:
+        base_url = os.environ.get('OPENAI_BASE_URL')
+    
     if not api_key:
         return None
     
-    return OpenAI(api_key=api_key)
+    # 创建客户端
+    if base_url:
+        return OpenAI(api_key=api_key, base_url=base_url)
+    else:
+        return OpenAI(api_key=api_key)
+
+
+def get_openai_model() -> str:
+    """获取 OpenAI 模型名称"""
+    # 优先从 Streamlit secrets 读取
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'OPENAI_MODEL' in st.secrets:
+            return st.secrets['OPENAI_MODEL']
+    except:
+        pass
+    
+    # 回退到环境变量
+    return os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')
 
 
 def get_anthropic_client() -> Optional['anthropic.Anthropic']:
@@ -95,21 +143,58 @@ def get_gemini_model():
 
 
 class LLMAnalyzer:
-    """LLM 分析器"""
+    """
+    LLM 分析器 - 支持多种 AI 模型
+    
+    支持的 provider:
+    - 'gemini': Google Gemini (免费额度)
+    - 'openai': OpenAI 官方 API (GPT-4o/GPT-4o-mini)
+    - 'deepseek': DeepSeek API (国产，便宜)
+    - 'qwen': 通义千问 API
+    - 'moonshot': Moonshot API
+    - 'anthropic': Anthropic Claude
+    """
     
     def __init__(self, provider: str = 'gemini'):
         """
         初始化分析器
         
         Args:
-            provider: 'openai', 'anthropic', 或 'gemini'
+            provider: 'gemini', 'openai', 'deepseek', 'qwen', 'moonshot', 或 'anthropic'
         """
         self.provider = provider
         self.client = None
         
+        # OpenAI 兼容 API 的配置
+        OPENAI_COMPATIBLE_PROVIDERS = {
+            'deepseek': {
+                'base_url': 'https://api.deepseek.com/v1',
+                'model': 'deepseek-chat',
+                'env_key': 'DEEPSEEK_API_KEY'
+            },
+            'qwen': {
+                'base_url': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+                'model': 'qwen-turbo',
+                'env_key': 'QWEN_API_KEY'
+            },
+            'moonshot': {
+                'base_url': 'https://api.moonshot.cn/v1',
+                'model': 'moonshot-v1-8k',
+                'env_key': 'MOONSHOT_API_KEY'
+            }
+        }
+        
         if provider == 'openai':
             self.client = get_openai_client()
-            self.model = 'gpt-4o-mini'
+            self.model = get_openai_model()
+        elif provider in OPENAI_COMPATIBLE_PROVIDERS:
+            # 使用 OpenAI 兼容 API
+            config = OPENAI_COMPATIBLE_PROVIDERS[provider]
+            api_key = os.environ.get(config['env_key']) or os.environ.get('OPENAI_API_KEY')
+            
+            if api_key and OPENAI_AVAILABLE:
+                self.client = OpenAI(api_key=api_key, base_url=config['base_url'])
+                self.model = os.environ.get('OPENAI_MODEL', config['model'])
         elif provider == 'anthropic':
             self.client = get_anthropic_client()
             self.model = 'claude-3-haiku-20240307'
