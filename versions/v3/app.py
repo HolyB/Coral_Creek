@@ -5401,30 +5401,45 @@ def render_risk_dashboard():
     st.success(f"✅ 已加载 {len(positions)} 个持仓，总市值 ${total_value:,.0f}")
     
     # === 获取历史数据计算风险指标 ===
-    @st.cache_data(ttl=3600)
-    def get_returns_data(symbols_list, days=252):
+    @st.cache_data(ttl=3600, show_spinner=False)
+    def get_returns_data(symbols_tuple, days=252):
         """获取多只股票的收益率数据"""
         from data_fetcher import get_us_stock_data, get_cn_stock_data
+        import time
         
         returns_dict = {}
-        for sym in symbols_list:
+        symbols_list = list(symbols_tuple)
+        
+        for i, sym in enumerate(symbols_list):
             try:
                 # 判断市场
-                if sym.endswith('.SH') or sym.endswith('.SZ') or sym.isdigit():
+                if sym.endswith('.SH') or sym.endswith('.SZ') or (sym.replace('.', '').isdigit() and len(sym) >= 6):
                     df = get_cn_stock_data(sym, days=days)
                 else:
                     df = get_us_stock_data(sym, days=days)
                 
                 if df is not None and len(df) > 20:
                     returns_dict[sym] = df['Close'].pct_change().dropna()
-            except:
-                pass
+                
+                # 避免 API rate limit
+                if i < len(symbols_list) - 1:
+                    time.sleep(0.1)
+                    
+            except Exception as e:
+                print(f"获取 {sym} 历史数据失败: {e}")
+                continue
         
         return returns_dict
     
     # 获取收益率数据
     with st.spinner("正在计算风险指标..."):
-        returns_data = get_returns_data(symbols, days=252)
+        returns_data = get_returns_data(tuple(symbols), days=252)  # tuple for cache
+    
+    # 显示数据获取情况
+    if returns_data:
+        st.caption(f"📈 成功获取 {len(returns_data)}/{len(symbols)} 只股票的历史数据")
+    else:
+        st.warning(f"⚠️ 未能获取历史数据 (共 {len(symbols)} 只股票)")
     
     # === 第一行: 核心风险指标 ===
     st.markdown("### 📊 组合风险概览")
