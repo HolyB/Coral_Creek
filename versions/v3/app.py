@@ -5152,19 +5152,180 @@ def render_blogger_page():
 # ==================== V3 合并页面 ====================
 
 def render_signal_center_page():
-    """📈 信号中心 - 合并: 信号追踪 + 信号验证 + Baseline对比"""
+    """📈 信号中心 - 合并: 信号追踪 + 信号验证 + 健康监控"""
     st.header("📈 信号中心")
     
-    tab1, tab2, tab3 = st.tabs(["📊 信号追踪", "📉 信号验证", "🔄 Baseline对比"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🩺 信号健康", "📊 信号追踪", "📉 信号验证", "🔄 Baseline对比"])
     
     with tab1:
-        render_signal_tracker_page()
+        render_signal_health_monitor()
     
     with tab2:
-        render_signal_performance_page()
+        render_signal_tracker_page()
     
     with tab3:
+        render_signal_performance_page()
+    
+    with tab4:
         render_baseline_comparison_page()
+
+
+def render_signal_health_monitor():
+    """🩺 信号健康度监控"""
+    import plotly.graph_objects as go
+    import plotly.express as px
+    
+    st.subheader("🩺 信号衰减监控")
+    st.caption("实时追踪各类信号的胜率变化，及时发现信号失效")
+    
+    # 参数设置
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        market = st.selectbox("市场", ["US", "CN"], key="health_market")
+    with col2:
+        min_blue = st.slider("BLUE 阈值", 50, 150, 100, key="health_blue")
+    with col3:
+        holding_days = st.selectbox("持有天数", [3, 5, 10, 20], index=1, key="health_days")
+    
+    # 获取健康度数据
+    try:
+        from services.signal_monitor import SignalMonitor, SignalType, HealthStatus
+        
+        with st.spinner("正在分析信号健康度..."):
+            monitor = SignalMonitor(market=market, holding_days=holding_days)
+            all_health = monitor.get_all_signals_health(min_blue=min_blue)
+        
+        # === 整体状态卡片 ===
+        st.markdown("### 📊 整体状态")
+        
+        status_counts = {'healthy': 0, 'warning': 0, 'critical': 0, 'unknown': 0}
+        for health in all_health.values():
+            status_counts[health.status.value] += 1
+        
+        cols = st.columns(4)
+        with cols[0]:
+            st.metric("🟢 健康", status_counts['healthy'])
+        with cols[1]:
+            st.metric("🟡 关注", status_counts['warning'])
+        with cols[2]:
+            st.metric("🔴 衰减", status_counts['critical'])
+        with cols[3]:
+            st.metric("⚪ 未知", status_counts['unknown'])
+        
+        st.divider()
+        
+        # === 各信号详情 ===
+        st.markdown("### 📋 各信号健康度")
+        
+        signal_names = {
+            SignalType.DAILY_BLUE: "日 BLUE",
+            SignalType.WEEKLY_BLUE: "周 BLUE",
+            SignalType.MONTHLY_BLUE: "月 BLUE",
+            SignalType.DAILY_WEEKLY: "日+周共振",
+            SignalType.HEIMA: "黑马信号",
+            SignalType.ALL_RESONANCE: "全共振"
+        }
+        
+        status_icons = {
+            HealthStatus.HEALTHY: "🟢",
+            HealthStatus.WARNING: "🟡",
+            HealthStatus.CRITICAL: "🔴",
+            HealthStatus.UNKNOWN: "⚪"
+        }
+        
+        for signal_type, health in all_health.items():
+            with st.expander(f"{status_icons[health.status]} {signal_names[signal_type]} - {health.status.value.upper()}", expanded=health.status != HealthStatus.UNKNOWN):
+                
+                if health.status == HealthStatus.UNKNOWN:
+                    st.info("数据不足，无法评估")
+                    continue
+                
+                # 胜率指标
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("7天胜率", f"{health.win_rate_7d:.0%}", 
+                             delta=f"{(health.win_rate_7d - health.win_rate_90d)*100:+.0f}pp" if health.win_rate_90d > 0 else None)
+                with col2:
+                    st.metric("30天胜率", f"{health.win_rate_30d:.0%}",
+                             delta=f"{(health.win_rate_30d - health.win_rate_90d)*100:+.0f}pp" if health.win_rate_90d > 0 else None)
+                with col3:
+                    st.metric("90天胜率", f"{health.win_rate_90d:.0%}")
+                with col4:
+                    decay_color = "normal" if health.decay_ratio >= 0.9 else "inverse"
+                    st.metric("衰减比率", f"{health.decay_ratio:.0%}", delta_color=decay_color)
+                
+                # 收益指标
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("7天平均收益", f"{health.avg_return_7d:.1f}%")
+                with col2:
+                    st.metric("30天平均收益", f"{health.avg_return_30d:.1f}%")
+                with col3:
+                    st.metric("总平均收益", f"{health.avg_return_all:.1f}%")
+                with col4:
+                    st.metric("样本量(30天)", f"{health.sample_30d}")
+                
+                # 趋势图标
+                trend_icons = {"improving": "📈 改善", "stable": "➡️ 稳定", "declining": "📉 下降"}
+                st.caption(f"趋势: {trend_icons.get(health.trend, health.trend)}")
+                
+                # 建议
+                if health.status == HealthStatus.CRITICAL:
+                    st.error(f"💡 建议: {health.recommendation}")
+                elif health.status == HealthStatus.WARNING:
+                    st.warning(f"💡 建议: {health.recommendation}")
+                else:
+                    st.success(f"💡 建议: {health.recommendation}")
+        
+        st.divider()
+        
+        # === 胜率对比图 ===
+        st.markdown("### 📈 胜率对比")
+        
+        # 准备数据
+        chart_data = []
+        for signal_type, health in all_health.items():
+            if health.status != HealthStatus.UNKNOWN:
+                chart_data.append({
+                    '信号类型': signal_names[signal_type],
+                    '7天': health.win_rate_7d * 100,
+                    '30天': health.win_rate_30d * 100,
+                    '90天': health.win_rate_90d * 100
+                })
+        
+        if chart_data:
+            chart_df = pd.DataFrame(chart_data)
+            
+            fig = go.Figure()
+            fig.add_trace(go.Bar(name='7天', x=chart_df['信号类型'], y=chart_df['7天'], marker_color='#636EFA'))
+            fig.add_trace(go.Bar(name='30天', x=chart_df['信号类型'], y=chart_df['30天'], marker_color='#EF553B'))
+            fig.add_trace(go.Bar(name='90天', x=chart_df['信号类型'], y=chart_df['90天'], marker_color='#00CC96'))
+            
+            fig.add_hline(y=50, line_dash="dash", line_color="gray", annotation_text="50% 基准线")
+            
+            fig.update_layout(
+                title="各信号胜率对比 (%)",
+                barmode='group',
+                yaxis_title="胜率 %",
+                height=400,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # === 告警汇总 ===
+        alerts = monitor.get_decay_alerts(min_blue)
+        if alerts:
+            st.markdown("### ⚠️ 告警")
+            for alert in alerts:
+                if alert.status == HealthStatus.CRITICAL:
+                    st.error(f"🔴 **{signal_names[alert.signal_type]}**: {alert.recommendation}")
+                else:
+                    st.warning(f"🟡 **{signal_names[alert.signal_type]}**: {alert.recommendation}")
+        
+    except Exception as e:
+        st.error(f"加载失败: {e}")
+        import traceback
+        st.code(traceback.format_exc())
 
 
 def render_portfolio_management_page():
