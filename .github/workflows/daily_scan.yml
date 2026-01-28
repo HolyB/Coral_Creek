@@ -118,11 +118,16 @@ jobs:
       
       # 可选: 发送 Telegram 通知
       - name: Send Telegram notification
-        if: ${{ env.TELEGRAM_BOT_TOKEN != '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
+          # 检查是否有 Token，如果没有则跳过
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "⚠️ Telegram token or chat ID not set. Skipping notification."
+            exit 0
+          fi
+          
           cd versions/v2
           if [ -f scan_summary.json ]; then
             SUMMARY=$(cat scan_summary.json)
