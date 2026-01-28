@@ -34,7 +34,10 @@ def calculate_blue_signal(open_p, high, low, close):
     CLOSE = close
     
     VAR1 = REF((LOW + OPEN + CLOSE + HIGH) / 4, 1)
-    VAR2 = SMA(np.abs(LOW - VAR1), 13, 1) / SMA(np.maximum(LOW - VAR1, 0), 10, 1)
+    # 添加小值避免除以零
+    denominator = SMA(np.maximum(LOW - VAR1, 0), 10, 1)
+    denominator = np.where(denominator == 0, 1e-10, denominator)
+    VAR2 = SMA(np.abs(LOW - VAR1), 13, 1) / denominator
     VAR3 = EMA(VAR2, 10)
     VAR4 = LLV(LOW, 33)
     VAR5 = EMA(IF(LOW <= VAR4, VAR3, 0), 3)
