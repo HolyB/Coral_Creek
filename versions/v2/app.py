@@ -12,7 +12,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
 from chart_utils import create_candlestick_chart, create_candlestick_chart_dynamic, analyze_chip_flow, create_chip_flow_chart, create_chip_change_chart, quick_chip_analysis
-from data_fetcher import get_us_stock_data as fetch_data_from_polygon, get_ticker_details
+from data_fetcher import get_us_stock_data as fetch_data_from_polygon, get_ticker_details, get_stock_data, get_cn_stock_data
 from indicator_utils import calculate_blue_signal_series, calculate_heima_signal_series, calculate_adx_series
 from backtester import SimpleBacktester
 from db.database import (
@@ -1840,7 +1840,8 @@ def render_scan_page():
             with st.spinner(f"正在加载 {symbol} {selected_period_label} 图表..."):
                 try:
                     # 5年数据以支持周线/月线分析
-                    hist_data = fetch_data_from_polygon(symbol, days=3650)
+                    # 根据市场选择数据源
+                    hist_data = get_stock_data(symbol, market=selected_market, days=3650)
                     if hist_data is not None and not hist_data.empty:
                         # 根据选择的周期重采样数据
                         if selected_period == 'weekly':
@@ -2238,25 +2239,34 @@ def render_stock_lookup_page():
     st.info("输入任意股票代码，系统将自动获取数据并生成完整的技术分析报告。")
     
     # 输入区域
-    col1, col2 = st.columns([1, 3])
+    col1, col2, col3 = st.columns([1, 0.5, 2.5])
     with col1:
-        symbol_input = st.text_input("股票代码", value="", placeholder="例如: AAPL, NVDA, TSLA")
+        symbol_input = st.text_input("股票代码", value="", placeholder="例如: AAPL, 600519")
         symbol = symbol_input.upper().strip() if symbol_input else ""
         
         search_btn = st.button("🔍 查询", type="primary", use_container_width=True)
     
     with col2:
+        # 市场选择（自动检测）
+        market_options = {"🇺🇸 美股": "US", "🇨🇳 A股": "CN"}
+        # 自动检测：6位数字 = A股
+        default_market = "🇨🇳 A股" if (symbol and symbol.isdigit() and len(symbol) == 6) else "🇺🇸 美股"
+        lookup_market = st.radio("市场", options=list(market_options.keys()), index=0 if default_market == "🇺🇸 美股" else 1)
+        selected_lookup_market = market_options[lookup_market]
+    
+    with col3:
         st.markdown("""
         **支持的股票类型:**
         - 美股 (NYSE, NASDAQ): AAPL, NVDA, TSLA, GOOGL...
-        - ETF: SPY, QQQ, IWM...
+        - A股 (沪深): 600519, 000001, 300750...
+        - ETF: SPY, QQQ, 510300...
         """)
     
     if search_btn and symbol:
         with st.spinner(f"正在获取 {symbol} 的数据，请稍候..."):
             try:
-                # 获取历史数据 (10年)
-                hist_data = fetch_data_from_polygon(symbol, days=3650)
+                # 获取历史数据 (10年) - 根据市场选择数据源
+                hist_data = get_stock_data(symbol, market=selected_lookup_market, days=3650)
                 
                 if hist_data is None or hist_data.empty:
                     st.error(f"❌ 无法获取 {symbol} 的数据，请检查股票代码是否正确。")
