@@ -149,6 +149,25 @@ def is_admin():
 
 check_password()
 
+# --- 侧边栏: 系统状态与测试 ---
+with st.sidebar:
+    st.markdown("---")
+    st.caption("🔧 系统工具")
+    if st.button("🔔 发送测试通知", help="点击此按钮测试 Telegram 连接"):
+        from scripts.intraday_monitor import send_alert_telegram
+        with st.spinner("正在发送测试消息..."):
+            success = send_alert_telegram([{
+                'type': 'test',
+                'level': '🔔',
+                'symbol': '从网站发出',
+                'message': '这是一条测试消息',
+                'footer': '如果您收到此消息，说明网站监控功能正常。'
+            }])
+            if success:
+                st.toast("✅ 测试消息发送成功!", icon="✅")
+            else:
+                st.error("❌ 发送失败，请检查 Logs")
+
 # --- 工具函数 ---
 
 def format_large_number(num):
