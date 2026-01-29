@@ -17,7 +17,9 @@ sys.path.insert(0, parent_dir)
 from db.database import (
     query_scan_results, 
     get_scanned_dates,
-    get_connection
+    get_connection,
+    upsert_signal_performance,
+    query_signal_performance
 )
 from data_fetcher import get_us_stock_data, get_cn_stock_data
 
@@ -167,21 +169,62 @@ def get_signal_performance_summary(scan_date: str, market: str = 'US') -> dict:
         'name': r.get('name', '')
     } for r in results]
     
-    # 批量计算收益
-    returns = batch_calculate_returns(signals, market, max_workers=15)
+    # 获取缓存的性能数据
+    cached_perf = query_signal_performance(start_date=scan_date, end_date=scan_date, market=market)
+    cached_map = {r['symbol']: r for r in cached_perf}
     
-    if not returns:
+    # 分离出未计算的信号
+    to_calculate = []
+    final_results = []
+    
+    for sig in signals:
+        symbol = sig['symbol']
+        if symbol in cached_map:
+            # 使用缓存数据
+            perf = cached_map[symbol]
+            # 补全基础信息
+            perf.update({
+                'day_blue': sig['day_blue'],
+                'week_blue': sig['week_blue'],
+                'name': sig['name']
+            })
+            final_results.append(perf)
+        else:
+            to_calculate.append(sig)
+            
+    # 计算缺失的信号
+    if to_calculate:
+        print(f"Computing {len(to_calculate)} missing signals for {scan_date}...")
+        new_returns = batch_calculate_returns(to_calculate, market, max_workers=15)
+        
+        # 保存新计算的结果到数据库
+        for res in new_returns:
+            upsert_signal_performance(
+                symbol=res['symbol'],
+                scan_date=res['signal_date'],
+                market=market,
+                return_5d=res.get('return_5d'),
+                return_10d=res.get('return_10d'),
+                return_20d=res.get('return_20d'),
+                max_gain=res.get('max_gain'),
+                max_drawdown=res.get('max_drawdown')
+            )
+            final_results.append(res)
+    
+    if not final_results:
         return None
-    
+        
     # 转换为 DataFrame 便于统计
-    df = pd.DataFrame(returns)
+    df = pd.DataFrame(final_results)
     
     # 计算统计指标
     summary = {
         'scan_date': scan_date,
         'market': market,
         'total_signals': len(signals),
-        'calculated_signals': len(returns),
+        'calculated_signals': len(final_results),
+        'cached_count': len(cached_perf),
+        'newly_calculated': len(to_calculate)
     }
     
     # 各时间点统计
@@ -204,7 +247,7 @@ def get_signal_performance_summary(scan_date: str, market: str = 'US') -> dict:
         summary['poor'] = len(df_valid[df_valid['return_20d'] <= 0])  # <0%
     
     # 返回详细结果用于展示
-    summary['details'] = returns
+    summary['details'] = final_results
     
     return summary
 

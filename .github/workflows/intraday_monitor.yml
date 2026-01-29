@@ -3,33 +3,8 @@ name: Intraday Portfolio Monitor
 on:
   # 定时触发 - 美东时间盘中每30分钟
   schedule:
-    # A股时间 (UTC+8 9:30-11:30, 13:00-15:00) => UTC 1:30-3:30, 5:00-7:00
-    - cron: '30 1 * * 1-5'      # 9:30 AM CN
-    - cron: '0 2 * * 1-5'       # 10:00 AM CN
-    - cron: '30 2 * * 1-5'      # 10:30 AM CN
-    - cron: '0 3 * * 1-5'       # 11:00 AM CN
-    - cron: '30 3 * * 1-5'      # 11:30 AM CN
-    - cron: '0 5 * * 1-5'       # 1:00 PM CN
-    - cron: '30 5 * * 1-5'      # 1:30 PM CN
-    - cron: '0 6 * * 1-5'       # 2:00 PM CN
-    - cron: '30 6 * * 1-5'      # 2:30 PM CN
-    - cron: '0 7 * * 1-5'       # 3:00 PM CN (收盘)
-    
-    # 美东 9:30 AM - 4:00 PM = UTC 14:30 - 21:00
-    - cron: '30 14 * * 1-5'     # 9:30 AM ET (开盘)
-    - cron: '0 15 * * 1-5'      # 10:00 AM ET
-    - cron: '30 15 * * 1-5'     # 10:30 AM ET
-    - cron: '0 16 * * 1-5'      # 11:00 AM ET
-    - cron: '30 16 * * 1-5'     # 11:30 AM ET
-    - cron: '0 17 * * 1-5'      # 12:00 PM ET
-    - cron: '30 17 * * 1-5'     # 12:30 PM ET
-    - cron: '0 18 * * 1-5'      # 1:00 PM ET
-    - cron: '30 18 * * 1-5'     # 1:30 PM ET
-    - cron: '0 19 * * 1-5'      # 2:00 PM ET
-    - cron: '30 19 * * 1-5'     # 2:30 PM ET
-    - cron: '0 20 * * 1-5'      # 3:00 PM ET
-    - cron: '30 20 * * 1-5'     # 3:30 PM ET
-    - cron: '0 21 * * 1-5'      # 4:00 PM ET (收盘)
+    # 每4小时运行一次 (周一至周五)
+    - cron: '0 */4 * * 1-5'
   
   # 手动触发
   workflow_dispatch:

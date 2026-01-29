@@ -243,14 +243,25 @@ def send_alert_telegram(alerts: list) -> bool:
 
 # ==================== 主流程 ====================
 
-def monitor_portfolio():
-    """监控持仓组合"""
+def monitor_portfolio(market=None, run_once=True):
+    """
+    监控持仓组合
+    Args:
+        market: 市场过滤 (US/CN), None则扫描所有
+        run_once: 是否只运行一次 (兼容旧代码语义, 本函数本身非死循环)
+    """
     print(f"\n{'='*50}")
     print(f"📱 盘中监控 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if market:
+        print(f"   市场: {market}")
     print(f"{'='*50}\n")
     
     # 获取持仓
     portfolio = get_portfolio(status='holding')
+    
+    # 市场过滤
+    if market:
+        portfolio = [s for s in portfolio if s.get('market', 'US') == market]
     
     if not portfolio:
         print("📋 当前无持仓，跳过监控")

@@ -6,6 +6,7 @@ import sys
 import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import threading
 
 # 添加当前目录到路径，以便导入其他模块
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -40,6 +41,68 @@ def load_custom_css():
 
 # 应用自定义样式
 load_custom_css()
+
+
+# --- 后台调度器 (In-App Scheduler) ---
+# 替代 GitHub Actions，直接在应用内运行监控
+# 避免支付问题和数据同步问题
+
+@st.cache_resource
+def init_scheduler():
+    """初始化并启动后台调度器 (单例模式)"""
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.interval import IntervalTrigger
+        from scripts.intraday_monitor import monitor_portfolio
+        import atexit
+        
+        # 创建调度器
+        scheduler = BackgroundScheduler()
+        
+        # 定义任务: 每4小时运行一次监控
+        # 注意: 这里的 monitor_portfolio 默认行为是跑一遍循环就退出，还是死循环？
+        # 如果是死循环，需要修改 monitor_portfolio。
+        # 假设我们调用它的单次扫描逻辑。
+        # 查看 monitor_portfolio 源码发现它是 while True 循环。
+        # 所以我们需要引入其中的 scan_once 逻辑，或者修改它。
+        # 暂时只打印日志证明它启动了。
+        
+        def job_function():
+            print(f"⏰ [Scheduler] Running periodic monitor scan at {datetime.now()}")
+            try:
+                # 运行美股扫描 (如果是在交易时段)
+                monitor_portfolio(market='US', run_once=True)
+                # 运行A股扫描 (如果是在交易时段)
+                monitor_portfolio(market='CN', run_once=True)
+            except Exception as e:
+                print(f"⚠️ [Scheduler] Job failed: {e}")
+        
+        # 添加任务 (每1小时)
+        scheduler.add_job(
+            job_function,
+            IntervalTrigger(hours=1),
+            id='intraday_monitor_job',
+            replace_existing=True,
+            name='Intraday Monitor (Every 1h)'
+        )
+        
+        # 启动
+        scheduler.start()
+        print("✅ [Scheduler] Background scheduler started (Interval: 1h)")
+        
+        # 退出时关闭
+        atexit.register(lambda: scheduler.shutdown())
+        
+        return scheduler
+    except ImportError:
+        print("⚠️ [Scheduler] APScheduler not installed. Skipping.")
+        return None
+    except Exception as e:
+        print(f"⚠️ [Scheduler] Failed to start: {e}")
+        return None
+
+# 启动调度器
+init_scheduler()
 
 
 # --- 登录验证 ---
@@ -2661,7 +2724,7 @@ def render_signal_tracker_page():
 
 def render_signal_performance_tab():
     """信号表现 Tab (原有功能)"""
-    from services.signal_tracker_service import batch_calculate_returns
+    from services.signal_tracker_service import batch_calculate_returns, get_signal_performance_summary
 
     # 侧边栏设置
     with st.sidebar:
@@ -2728,34 +2791,26 @@ def render_signal_performance_tab():
         return
     
     # 执行计算
-    with st.spinner(f"正在计算 {selected_date} 的信号表现..."):
-        # 获取该天的扫描结果
-        scan_results = query_scan_results(scan_date=selected_date, market=market_code, limit=100)
+    with st.spinner(f"正在获取 {selected_date} 的信号表现 (优先从缓存读取)..."):
+        # 使用新的汇总函数 (支持缓存)
+        summary = get_signal_performance_summary(selected_date, market=market_code)
         
-        if not scan_results:
-            st.error("该日期没有扫描结果")
+        if not summary or 'details' not in summary:
+            st.warning("无法获取数据或该日期无信号")
             return
+            
+        returns = summary['details']
         
-        st.success(f"找到 {len(scan_results)} 个信号，正在计算后续表现...")
-        
-        # 准备信号列表
-        signals = [{
-            'symbol': r['symbol'],
-            'signal_date': selected_date,
-            'day_blue': r.get('blue_daily', 0),
-            'week_blue': r.get('blue_weekly', 0),
-            'name': r.get('name', ''),
-            'entry_price': r.get('price', 0)
-        } for r in scan_results]
-        
-        # 批量计算收益
-        progress_bar = st.progress(0, text="计算中...")
-        returns = batch_calculate_returns(signals, market_code, max_workers=15)
-        progress_bar.progress(100, text="计算完成!")
-        
-        if not returns:
-            st.warning("无法获取足够的历史数据来计算收益")
-            return
+        # 显示缓存状态
+        cached = summary.get('cached_count', 0)
+        new_calc = summary.get('newly_calculated', 0)
+        msg = f"✅ 分析完成! 共 {len(returns)} 个信号."
+        if cached > 0:
+            msg += f" (📚 缓存命中: {cached})"
+        if new_calc > 0:
+            msg += f" (⚡️ 新计算: {new_calc})"
+            
+        st.success(msg)
     
     # 转换为 DataFrame
     df = pd.DataFrame(returns)

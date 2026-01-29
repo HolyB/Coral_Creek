@@ -32,11 +32,52 @@ class ReturnPredictor:
         '60d': 60,  # 长线
     }
     
-    def __init__(self):
+    # 默认参数
+    DEFAULT_PARAMS = {
+        'n_estimators': 200,
+        'max_depth': 5,
+        'learning_rate': 0.05,
+        'subsample': 0.8,
+        'colsample_bytree': 0.8,
+        'random_state': 42
+    }
+    
+    def __init__(self, custom_params: Dict[str, Dict] = None):
+        """
+        Args:
+            custom_params: 自定义参数 {'1d': {...}, '5d': {...}}
+        """
         self.models: Dict[str, xgb.XGBRegressor] = {}
         self.feature_names: List[str] = []
         self.metrics: Dict[str, Dict] = {}
         self.is_trained = False
+        self.custom_params = custom_params or {}
+    
+    def _get_params(self, horizon: str) -> Dict:
+        """获取指定周期的模型参数"""
+        # 优先使用自定义参数
+        if horizon in self.custom_params:
+            params = self.DEFAULT_PARAMS.copy()
+            params.update(self.custom_params[horizon])
+            return params
+        
+        # 尝试从调优结果加载
+        tuning_path = Path(__file__).parent.parent / 'tuning_results'
+        for market in ['us', 'cn']:
+            params_file = tuning_path / market / 'best_params.json'
+            if params_file.exists():
+                try:
+                    with open(params_file) as f:
+                        best_params = json.load(f)
+                    key = f'regressor_{horizon}'
+                    if key in best_params:
+                        params = self.DEFAULT_PARAMS.copy()
+                        params.update(best_params[key])
+                        return params
+                except:
+                    pass
+        
+        return self.DEFAULT_PARAMS.copy()
     
     def train(self, 
               X: np.ndarray, 
@@ -87,18 +128,15 @@ class ReturnPredictor:
                 X_valid, y_valid, test_size=test_size, random_state=42
             )
             
+            # 获取参数 (优先用调优后的)
+            params = self._get_params(horizon_name)
+            
             print(f"📈 训练 {horizon_name} 模型...")
             print(f"   训练集: {len(X_train)}, 测试集: {len(X_test)}")
+            print(f"   参数: max_depth={params.get('max_depth')}, lr={params.get('learning_rate')}")
             
             # 训练模型
-            model = xgb.XGBRegressor(
-                n_estimators=200,
-                max_depth=5,
-                learning_rate=0.05,
-                subsample=0.8,
-                colsample_bytree=0.8,
-                random_state=42
-            )
+            model = xgb.XGBRegressor(**params)
             
             model.fit(
                 X_train, y_train,

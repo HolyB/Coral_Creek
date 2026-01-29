@@ -6141,7 +6141,6 @@ def render_ml_prediction_page():
     import json
     
     st.subheader("🎯 ML 智能选股")
-    st.caption("基于 86 个特征的收益预测 + 排序模型")
     
     # 市场选择
     col1, col2, col3 = st.columns([1, 1, 2])
@@ -6153,6 +6152,7 @@ def render_ml_prediction_page():
     # 检查模型是否存在
     model_dir = Path(__file__).parent / "ml" / "saved_models" / f"v2_{market.lower()}"
     meta_path = model_dir / "return_predictor_meta.json"
+    ranker_meta_path = model_dir / "ranker_meta.json"
     
     if not meta_path.exists():
         st.warning("⚠️ 模型未训练")
@@ -6182,18 +6182,334 @@ def render_ml_prediction_page():
     with open(meta_path) as f:
         meta = json.load(f)
     
-    # 模型状态
-    horizon_meta = meta.get(horizon, {})
+    # 加载排序模型元数据
+    ranker_meta = {}
+    if ranker_meta_path.exists():
+        with open(ranker_meta_path) as f:
+            ranker_meta = json.load(f)
+    
+    # ==================================
+    # 📊 模型概览 - 详细指标
+    # ==================================
+    st.markdown("### 📊 模型概览")
+    
+    model_tab1, model_tab2, model_tab3, model_tab4, model_tab5 = st.tabs([
+        "📈 收益预测模型", "🏆 排序模型", "🔧 特征重要性", "⚙️ 超参数调优", "🔗 模型对比"
+    ])
+    
+    with model_tab1:
+        st.markdown("**Return Predictor** - 预测 1/5/10/30 天收益率")
+        
+        # 所有周期指标对比表
+        metrics_data = []
+        for h, m in meta.get('metrics', {}).items():
+            metrics_data.append({
+                '周期': h,
+                'R²': f"{m.get('r2', 0):.3f}",
+                '方向准确率': f"{m.get('direction_accuracy', 0):.1%}",
+                'RMSE': f"{m.get('rmse', 0):.2f}%",
+                'MAE': f"{m.get('mae', 0):.2f}%",
+                '训练样本': m.get('train_samples', 0),
+                '测试样本': m.get('test_samples', 0)
+            })
+        
+        if metrics_data:
+            metrics_df = pd.DataFrame(metrics_data)
+            # 缩短列名
+            metrics_df.columns = ['周期', 'R²', '方向准确率', 'RMSE', 'MAE', '训练', '测试']
+            st.dataframe(metrics_df, hide_index=True, use_container_width=True)
+            
+            # 方向准确率图
+            fig_acc = go.Figure()
+            horizons = [m['周期'] for m in metrics_data]
+            accuracies = [float(m['方向准确率'].replace('%', '')) for m in metrics_data]
+            
+            fig_acc.add_trace(go.Bar(
+                x=horizons, y=accuracies,
+                marker_color=['#2ecc71' if a > 60 else '#f39c12' if a > 50 else '#e74c3c' for a in accuracies],
+                text=[f"{a:.1f}%" for a in accuracies],
+                textposition='outside'
+            ))
+            fig_acc.add_hline(y=50, line_dash="dash", line_color="gray", annotation_text="随机基准 50%")
+            fig_acc.update_layout(
+                title="各周期方向准确率",
+                xaxis_title="预测周期", yaxis_title="准确率 (%)",
+                height=300, yaxis_range=[0, 100]
+            )
+            st.plotly_chart(fig_acc, use_container_width=True)
+        
+        # 模型解读
+        horizon_meta = meta.get('metrics', {}).get(horizon, {})
+        if horizon_meta:
+            r2 = horizon_meta.get('r2', 0)
+            dir_acc = horizon_meta.get('direction_accuracy', 0)
+            
+            st.markdown(f"""
+            **当前选择: {horizon}**
+            - R² = {r2:.3f}: {"优秀" if r2 > 0.5 else "良好" if r2 > 0.3 else "一般" if r2 > 0.1 else "较弱"} (解释了 {r2*100:.1f}% 的收益变化)
+            - 方向准确率 = {dir_acc:.1%}: {"优秀" if dir_acc > 0.7 else "良好" if dir_acc > 0.6 else "一般" if dir_acc > 0.55 else "较弱"}
+            """)
+    
+    with model_tab2:
+        st.markdown("**Signal Ranker** - 排序最可能赚钱的股票 (短/中/长线)")
+        
+        if ranker_meta.get('metrics'):
+            ranker_data = []
+            horizon_labels = {'short': '短线 (1-5天)', 'medium': '中线 (10-30天)', 'long': '长线 (60+天)'}
+            
+            for h, m in ranker_meta.get('metrics', {}).items():
+                ranker_data.append({
+                    '周期': horizon_labels.get(h, h),
+                    'NDCG@10': f"{m.get('ndcg@10', 0):.3f}",
+                    'Top10平均收益': f"{m.get('top10_avg_return', 0):+.2f}%",
+                    '训练样本': m.get('train_samples', 0),
+                    '分组数': m.get('n_groups', 0)
+                })
+            
+            ranker_df = pd.DataFrame(ranker_data)
+            ranker_df.columns = ['周期', 'NDCG', 'Top10收益', '样本', '分组']
+            st.dataframe(ranker_df, hide_index=True, use_container_width=True)
+            
+            st.markdown("""
+            **指标说明:**
+            - **NDCG@10**: 归一化折损累积增益，越接近 1 排序质量越好
+            - **Top10平均收益**: 排名前 10 的股票平均实际收益
+            """)
+        else:
+            st.info("排序模型未训练")
+    
+    with model_tab3:
+        st.markdown("**特征重要性** - 哪些特征对预测最重要")
+        
+        try:
+            import joblib
+            model_path = model_dir / f"return_{horizon}.joblib"
+            if model_path.exists():
+                model = joblib.load(model_path)
+                feature_names = meta.get('feature_names', [])
+                
+                if hasattr(model, 'feature_importances_') and feature_names:
+                    importance = dict(zip(feature_names, model.feature_importances_))
+                    sorted_imp = sorted(importance.items(), key=lambda x: x[1], reverse=True)
+                    
+                    # Top 20 特征
+                    top20 = sorted_imp[:20]
+                    
+                    fig_imp = go.Figure()
+                    fig_imp.add_trace(go.Bar(
+                        y=[f[0] for f in top20][::-1],
+                        x=[f[1] for f in top20][::-1],
+                        orientation='h',
+                        marker_color='steelblue'
+                    ))
+                    fig_imp.update_layout(
+                        title=f"Top 20 重要特征 ({horizon})",
+                        xaxis_title="重要性得分",
+                        height=500,
+                        margin=dict(l=150)
+                    )
+                    st.plotly_chart(fig_imp, use_container_width=True)
+                    
+                    # 特征分类统计
+                    categories = {
+                        '均线特征': [f for f in feature_names if 'ma_' in f or 'ema_' in f],
+                        '动量特征': [f for f in feature_names if 'momentum' in f or 'roc' in f or 'return' in f],
+                        '波动率特征': [f for f in feature_names if 'volatility' in f or 'atr' in f],
+                        'RSI特征': [f for f in feature_names if 'rsi' in f],
+                        'MACD特征': [f for f in feature_names if 'macd' in f],
+                        'KDJ特征': [f for f in feature_names if 'kdj' in f],
+                        '布林带特征': [f for f in feature_names if 'bb_' in f],
+                        '成交量特征': [f for f in feature_names if 'volume' in f or 'obv' in f],
+                        'K线形态': [f for f in feature_names if 'body' in f or 'shadow' in f or 'doji' in f or 'hammer' in f],
+                        'BLUE信号': [f for f in feature_names if 'blue' in f],
+                    }
+                    
+                    cat_importance = []
+                    for cat, feats in categories.items():
+                        total_imp = sum(importance.get(f, 0) for f in feats)
+                        cat_importance.append({'类别': cat, '总重要性': total_imp, '特征数': len(feats)})
+                    
+                    cat_df = pd.DataFrame(cat_importance).sort_values('总重要性', ascending=False)
+                    cat_df['总重要性'] = cat_df['总重要性'].apply(lambda x: f"{x:.4f}")
+                    cat_df.columns = ['类别', '重要性', '特征数']
+                    
+                    st.markdown("**特征类别重要性汇总:**")
+                    st.dataframe(cat_df, hide_index=True, use_container_width=True)
+        except Exception as e:
+            st.warning(f"无法加载特征重要性: {e}")
+    
+    with model_tab4:
+        st.markdown("**Hyperparameter Tuning** - GridSearch 找最优参数")
+        
+        # 检查是否有调优结果
+        tuning_path = model_dir.parent.parent / 'tuning_results' / market.lower() / 'best_params.json'
+        
+        if tuning_path.exists():
+            with open(tuning_path) as f:
+                best_params = json.load(f)
+            
+            st.success("✅ 已有调优结果")
+            
+            # 显示最优参数
+            for model_key, params in best_params.items():
+                with st.expander(f"📊 {model_key}", expanded=True):
+                    params_df = pd.DataFrame([
+                        {'参数': k, '最优值': v} for k, v in params.items()
+                    ])
+                    st.dataframe(params_df, hide_index=True, use_container_width=True)
+            
+            # 加载调优历史
+            history_path = tuning_path.parent / 'tuning_history.json'
+            if history_path.exists():
+                with open(history_path) as f:
+                    history = json.load(f)
+                
+                if history:
+                    st.markdown("**调优效果对比:**")
+                    history_df = pd.DataFrame(history)
+                    history_df['提升'] = history_df['improvement'].apply(lambda x: f"{x:+.1f}%")
+                    history_df['最优分数'] = history_df['best_score'].apply(lambda x: f"{x:.3f}")
+                    history_df['默认分数'] = history_df['default_score'].apply(lambda x: f"{x:.3f}")
+                    
+                    st.dataframe(
+                        history_df[['horizon', '默认分数', '最优分数', '提升']].rename(
+                            columns={'horizon': '周期'}
+                        ),
+                        hide_index=True, use_container_width=True
+                    )
+        else:
+            st.info("暂无调优结果")
+        
+        st.markdown("---")
+        
+        # 调优按钮
+        col1, col2 = st.columns(2)
+        with col1:
+            fast_mode = st.checkbox("快速模式", value=True, help="使用较小的搜索空间")
+        with col2:
+            n_iter = st.slider("搜索次数", 10, 100, 30, help="RandomizedSearch 迭代次数")
+        
+        if st.button("🔧 开始调优", key="start_tuning", type="primary"):
+            with st.spinner("调优中... (可能需要几分钟)"):
+                try:
+                    from ml.hyperparameter_tuning import run_tuning
+                    results = run_tuning(market=market, fast=fast_mode)
+                    
+                    if results:
+                        st.success("✅ 调优完成!")
+                        st.rerun()
+                    else:
+                        st.error("调优失败")
+                except Exception as e:
+                    st.error(f"调优出错: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+        
+        st.markdown("""
+        **说明:**
+        - 快速模式: 约 2-5 分钟
+        - 完整模式: 约 10-30 分钟
+        - 调优使用 5 折交叉验证
+        - 优化目标: 方向准确率
+        """)
+    
+    with model_tab5:
+        st.markdown("**Model Comparison** - 独立模型 vs 串联模型")
+        
+        st.markdown("""
+        **两种架构:**
+        
+        | 模式 | 架构 | 特点 |
+        |------|------|------|
+        | 独立模型 | ReturnPredictor + SignalRanker 各自独立 | 简单，训练快 |
+        | 串联模型 | ReturnPredictor → 预测特征 → SignalRanker | Ranker可学习"哪些预测更可信" |
+        """)
+        
+        # 检查是否有对比结果
+        comparison_path = model_dir / 'model_comparison.json'
+        
+        if comparison_path.exists():
+            with open(comparison_path) as f:
+                comparison = json.load(f)
+            
+            st.success("✅ 已有对比结果")
+            
+            # 显示对比表
+            if 'comparison' in comparison:
+                comp_df = pd.DataFrame(comparison['comparison'])
+                comp_df['independent_ndcg'] = comp_df['independent_ndcg'].apply(lambda x: f"{x:.3f}")
+                comp_df['ensemble_ndcg'] = comp_df['ensemble_ndcg'].apply(lambda x: f"{x:.3f}")
+                comp_df['improvement'] = comp_df['improvement'].apply(lambda x: f"{x:+.1f}%")
+                comp_df.columns = ['周期', '独立模型 NDCG', '串联模型 NDCG', '提升']
+                
+                st.markdown("**排序模型 NDCG@10 对比:**")
+                st.dataframe(comp_df, hide_index=True, use_container_width=True)
+                
+                # 添加特征信息
+                if 'ensemble' in comparison:
+                    added = comparison['ensemble'].get('added_features', [])
+                    if added:
+                        st.markdown(f"**串联模型新增特征:** `{', '.join(added)}`")
+        else:
+            st.info("暂无对比结果")
+        
+        st.markdown("---")
+        
+        if st.button("🔗 运行模型对比", key="run_comparison", type="primary"):
+            with st.spinner("训练并对比中... (约 1-2 分钟)"):
+                try:
+                    from ml.pipeline import MLPipeline
+                    from ml.models.ensemble_predictor import compare_models
+                    
+                    # 准备数据
+                    pipeline = MLPipeline(market=market)
+                    X, returns_dict, drawdowns_dict, groups, feature_names, _ = pipeline.prepare_dataset()
+                    
+                    if X is not None and len(X) > 0:
+                        # 运行对比
+                        results = compare_models(X, returns_dict, drawdowns_dict, groups, feature_names)
+                        
+                        # 保存结果
+                        with open(comparison_path, 'w') as f:
+                            json.dump(results, f, indent=2)
+                        
+                        st.success("✅ 对比完成!")
+                        st.rerun()
+                    else:
+                        st.error("无法准备数据")
+                except Exception as e:
+                    st.error(f"对比出错: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+        
+        st.markdown("""
+        **串联模型新增特征:**
+        - `pred_return_1d/5d/10d/30d`: 预测收益
+        - `pred_return_mean`: 预测收益均值
+        - `pred_return_std`: 预测不确定性
+        - `pred_momentum`: 长短期预测差异
+        - `pred_direction_consistency`: 方向一致性
+        """)
+    
+    st.divider()
+    
+    # ==================================
+    # 当前周期的核心指标卡片
+    # ==================================
+    horizon_meta = meta.get('metrics', {}).get(horizon, {})
     if horizon_meta:
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.metric("R²", f"{horizon_meta.get('r2', 0):.2f}")
+            r2 = horizon_meta.get('r2', 0)
+            st.metric("R²", f"{r2:.3f}", help="决定系数，越高模型解释力越强")
         with col2:
-            st.metric("方向准确率", f"{horizon_meta.get('direction_accuracy', 0):.0%}")
+            dir_acc = horizon_meta.get('direction_accuracy', 0)
+            delta = f"+{(dir_acc-0.5)*100:.0f}%" if dir_acc > 0.5 else f"{(dir_acc-0.5)*100:.0f}%"
+            st.metric("方向准确率", f"{dir_acc:.1%}", delta=delta, help="预测涨跌方向的准确率")
         with col3:
-            st.metric("RMSE", f"{horizon_meta.get('rmse', 0):.1f}%")
+            st.metric("RMSE", f"{horizon_meta.get('rmse', 0):.2f}%", help="均方根误差，越低越好")
         with col4:
-            st.metric("样本数", horizon_meta.get('train_samples', 0))
+            st.metric("样本数", f"{horizon_meta.get('train_samples', 0):,}", help="训练样本数量")
     
     st.divider()
     
@@ -6301,13 +6617,24 @@ def render_ml_prediction_page():
         st.markdown("### 🏆 Top 10 推荐")
         
         top10 = result_df.head(10).copy()
+        top10['heima'] = top10['is_heima'].apply(lambda x: '⭐' if x else '')
         
-        # 格式化显示
-        display_df = top10[['rank', 'symbol', f'pred_{horizon}', 'direction', 'blue_daily', 'blue_weekly', 'price']].copy()
-        display_df.columns = ['排名', '代码', f'预测收益({horizon})', '方向', '日BLUE', '周BLUE', '价格']
-        display_df[f'预测收益({horizon})'] = display_df[f'预测收益({horizon})'].apply(lambda x: f"{x:+.1f}%")
+        # 直接用 dataframe，列名简短
+        show_cols = {
+            'rank': '#',
+            'symbol': '代码', 
+            f'pred_{horizon}': '预测%',
+            'direction': '↑↓',
+            'blue_daily': '日B',
+            'blue_weekly': '周B', 
+            'heima': '🐴',
+            'price': '$'
+        }
+        show_df = top10[list(show_cols.keys())].rename(columns=show_cols)
+        show_df['预测%'] = show_df['预测%'].apply(lambda x: f"{x:+.1f}")
+        show_df['$'] = show_df['$'].apply(lambda x: f"{x:.2f}")
         
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        st.dataframe(show_df, hide_index=True, use_container_width=True)
         
         # === 预测分布 ===
         st.markdown("### 📊 预测分布")
@@ -6340,19 +6667,97 @@ def render_ml_prediction_page():
         # === Bottom 10 ===
         with st.expander("📉 Bottom 10 (预测下跌最多)", expanded=False):
             bottom10 = result_df.tail(10).copy()
-            bottom10 = bottom10.iloc[::-1]  # 反转顺序
+            bottom10 = bottom10.iloc[::-1]
+            bottom10['heima'] = bottom10['is_heima'].apply(lambda x: '⭐' if x else '')
             
-            display_df2 = bottom10[['rank', 'symbol', f'pred_{horizon}', 'direction', 'blue_daily', 'price']].copy()
-            display_df2.columns = ['排名', '代码', f'预测收益({horizon})', '方向', '日BLUE', '价格']
-            display_df2[f'预测收益({horizon})'] = display_df2[f'预测收益({horizon})'].apply(lambda x: f"{x:+.1f}%")
+            show_cols = {
+                'rank': '#',
+                'symbol': '代码', 
+                f'pred_{horizon}': '预测%',
+                'direction': '↑↓',
+                'blue_daily': '日B',
+                'blue_weekly': '周B', 
+                'heima': '🐴',
+                'price': '$'
+            }
+            show_df2 = bottom10[list(show_cols.keys())].rename(columns=show_cols)
+            show_df2['预测%'] = show_df2['预测%'].apply(lambda x: f"{x:+.1f}")
+            show_df2['$'] = show_df2['$'].apply(lambda x: f"{x:.2f}")
             
-            st.dataframe(display_df2, use_container_width=True, hide_index=True)
+            st.dataframe(show_df2, hide_index=True, use_container_width=True)
         
     except Exception as e:
         st.error(f"预测失败: {e}")
         import traceback
         st.code(traceback.format_exc())
     
+    # ==================================
+    # 📦 数据管理
+    # ==================================
+    st.divider()
+    
+    with st.expander("📦 数据管理", expanded=False):
+        st.markdown("**历史K线数据** - 用于训练ML模型")
+        
+        # 数据统计
+        try:
+            from db.stock_history import get_history_stats
+            from db.database import get_connection
+            
+            stats = get_history_stats()
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("K线股票数", stats.get('total_symbols', 0))
+            with col2:
+                st.metric("K线记录数", f"{stats.get('total_records', 0):,}")
+            with col3:
+                # 获取信号股票数
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute('SELECT COUNT(DISTINCT symbol) FROM scan_results WHERE market = ?', (market,))
+                signal_count = cursor.fetchone()[0]
+                conn.close()
+                coverage = stats.get('total_symbols', 0) / signal_count * 100 if signal_count > 0 else 0
+                st.metric("数据覆盖率", f"{coverage:.1f}%")
+            
+            # 缺失数据提示
+            missing = signal_count - stats.get('total_symbols', 0)
+            if missing > 0:
+                st.warning(f"⚠️ 有 {missing} 只信号股票缺少历史数据")
+        except Exception as e:
+            st.warning(f"获取统计失败: {e}")
+        
+        st.markdown("---")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            max_fetch = st.slider("获取数量", 50, 1000, 200, 50, help="一次获取多少只股票")
+        with col2:
+            fetch_days = st.slider("历史天数", 90, 730, 365, 30, help="获取多少天历史")
+        
+        if st.button("📥 获取更多数据", key="fetch_more_data"):
+            with st.spinner(f"获取中... (约 {max_fetch * 0.5 / 60:.1f} 分钟)"):
+                try:
+                    from ml.batch_fetch_data import run_fetch
+                    result = run_fetch(
+                        market=market,
+                        max_symbols=max_fetch,
+                        days=fetch_days,
+                        delay=0.3
+                    )
+                    
+                    if result['success'] > 0:
+                        st.success(f"✅ 获取完成! 成功: {result['success']}, 失败: {result['failed']}")
+                        st.rerun()
+                    else:
+                        st.info("没有新数据需要获取")
+                except Exception as e:
+                    st.error(f"获取失败: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+        
+        st.caption("💡 数据来源: Polygon API (优先) / yfinance (备用)")
 
 
 # --- V3 主导航 (精简版 6 Tabs) ---

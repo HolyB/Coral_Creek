@@ -1,0 +1,154 @@
+{
+  "independent": {
+    "predictor": {
+      "1d": {
+        "mse": 85.67627650664019,
+        "rmse": 9.256148038284618,
+        "mae": 3.698551448078692,
+        "r2": 0.04260884226765582,
+        "direction_accuracy": 0.6163522012578616,
+        "train_samples": 1272,
+        "test_samples": 318
+      },
+      "5d": {
+        "mse": 102.46449201924999,
+        "rmse": 10.12247459958532,
+        "mae": 6.406063366180723,
+        "r2": 0.5932476477973929,
+        "direction_accuracy": 0.6867924528301886,
+        "train_samples": 1060,
+        "test_samples": 265
+      },
+      "10d": {
+        "mse": 202.76762832195314,
+        "rmse": 14.239649866550552,
+        "mae": 8.839532337742313,
+        "r2": 0.4953274313211873,
+        "direction_accuracy": 0.7592592592592593,
+        "train_samples": 432,
+        "test_samples": 108
+      },
+      "30d": {
+        "mse": 241.36594416057582,
+        "rmse": 15.535956493263484,
+        "mae": 7.9037685519176515,
+        "r2": 0.6984418136851925,
+        "direction_accuracy": 0.7142857142857143,
+        "train_samples": 84,
+        "test_samples": 21
+      }
+    },
+    "ranker": {
+      "short": {
+        "ndcg@10": 0.940750562247577,
+        "top10_avg_return": 2.108462210097526,
+        "train_samples": 1590,
+        "n_groups": 23
+      },
+      "medium": {
+        "ndcg@10": 0.8745983662979817,
+        "top10_avg_return": -4.366849191449794,
+        "train_samples": 540,
+        "n_groups": 16
+      },
+      "long": {
+        "ndcg@10": 0.9701524730484378,
+        "top10_avg_return": -7.508437375342006,
+        "train_samples": 105,
+        "n_groups": 10
+      }
+    }
+  },
+  "ensemble": {
+    "stage1": {
+      "1d": {
+        "mse": 85.67627650664019,
+        "rmse": 9.256148038284618,
+        "mae": 3.698551448078692,
+        "r2": 0.04260884226765582,
+        "direction_accuracy": 0.6163522012578616,
+        "train_samples": 1272,
+        "test_samples": 318
+      },
+      "5d": {
+        "mse": 102.46449201924999,
+        "rmse": 10.12247459958532,
+        "mae": 6.406063366180723,
+        "r2": 0.5932476477973929,
+        "direction_accuracy": 0.6867924528301886,
+        "train_samples": 1060,
+        "test_samples": 265
+      },
+      "10d": {
+        "mse": 202.76762832195314,
+        "rmse": 14.239649866550552,
+        "mae": 8.839532337742313,
+        "r2": 0.4953274313211873,
+        "direction_accuracy": 0.7592592592592593,
+        "train_samples": 432,
+        "test_samples": 108
+      },
+      "30d": {
+        "mse": 241.36594416057582,
+        "rmse": 15.535956493263484,
+        "mae": 7.9037685519176515,
+        "r2": 0.6984418136851925,
+        "direction_accuracy": 0.7142857142857143,
+        "train_samples": 84,
+        "test_samples": 21
+      }
+    },
+    "stage2": {
+      "short": {
+        "ndcg@10": 0.9599260407385649,
+        "top10_avg_return": 3.3274580515662313,
+        "train_samples": 1590,
+        "n_groups": 23
+      },
+      "medium": {
+        "ndcg@10": 0.8928121575951383,
+        "top10_avg_return": -4.288317352533176,
+        "train_samples": 540,
+        "n_groups": 16
+      },
+      "long": {
+        "ndcg@10": 0.9519763197882921,
+        "top10_avg_return": -6.6361531654931465,
+        "train_samples": 105,
+        "n_groups": 10
+      }
+    },
+    "n_original_features": 86,
+    "n_enhanced_features": 94,
+    "added_features": [
+      "pred_return_1d",
+      "pred_return_5d",
+      "pred_return_10d",
+      "pred_return_30d",
+      "pred_return_mean",
+      "pred_return_std",
+      "pred_momentum",
+      "pred_direction_consistency"
+    ]
+  },
+  "comparison": [
+    {
+      "horizon": "short",
+      "independent_ndcg": 0.940750562247577,
+      "ensemble_ndcg": 0.9599260407385649,
+      "improvement": 1.9175478490987885
+    },
+    {
+      "horizon": "medium",
+      "independent_ndcg": 0.8745983662979817,
+      "ensemble_ndcg": 0.8928121575951383,
+      "improvement": 1.8213791297156612
+    },
+    {
+      "horizon": "long",
+      "independent_ndcg": 0.9701524730484378,
+      "ensemble_ndcg": 0.9519763197882921,
+      "improvement": -1.8176153260145655
+    }
+  ]
+}
