@@ -1,8 +1,15 @@
 {
   "date": "2026-01-28",
   "market": "CN",
-  "total_signals": 138,
+  "total_signals": 187,
   "top_signals": [
+    {
+      "symbol": "002231.SZ",
+      "name": "*ST奥维",
+      "price": 0.63,
+      "day_blue": 200.0,
+      "week_blue": 98.2
+    },
     {
       "symbol": "600941.SH",
       "name": "中国移动",
@@ -53,11 +60,25 @@
       "week_blue": 168.4
     },
     {
+      "symbol": "600690.SH",
+      "name": "海尔智家",
+      "price": 25.13,
+      "day_blue": 191.7,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "002936.SZ",
       "name": "郑州银行",
       "price": 1.9,
       "day_blue": 180.7,
       "week_blue": 127.2
+    },
+    {
+      "symbol": "002653.SZ",
+      "name": "海思科",
+      "price": 50.48,
+      "day_blue": 177.2,
+      "week_blue": 0.0
     },
     {
       "symbol": "300750.SZ",
@@ -81,32 +102,11 @@
       "week_blue": 101.8
     },
     {
-      "symbol": "000858.SZ",
-      "name": "五粮液",
-      "price": 100.7,
-      "day_blue": 160.4,
-      "week_blue": 173.1
-    },
-    {
-      "symbol": "601066.SH",
-      "name": "中信建投",
-      "price": 24.13,
-      "day_blue": 150.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300989.SZ",
-      "name": "蕾奥规划",
-      "price": 15.66,
-      "day_blue": 148.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002668.SZ",
-      "name": "TCL智家",
-      "price": 9.95,
-      "day_blue": 148.1,
-      "week_blue": 0.0
+      "symbol": "300498.SZ",
+      "name": "温氏股份",
+      "price": 15.25,
+      "day_blue": 164.1,
+      "week_blue": 160.4
     }
   ]
 }
