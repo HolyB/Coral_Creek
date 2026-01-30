@@ -229,6 +229,216 @@ class Backtester:
             'alpha': round(strategy_return - benchmark_return, 2),
             'outperformed': strategy_return > benchmark_return
         }
+    
+    def run_portfolio_backtest(self, 
+                                signals_df: pd.DataFrame,
+                                holding_days: int = 10,
+                                max_positions: int = 10,
+                                position_size_pct: float = 0.1,
+                                market: str = 'US') -> Dict:
+        """
+        组合回测 - 模拟真实多头组合
+
+        Args:
+            signals_df: 信号数据 (symbol, scan_date, price, blue_daily)
+            holding_days: 持有天数
+            max_positions: 最大持仓数
+            position_size_pct: 单仓位比例
+            market: 市场
+
+        Returns:
+            组合回测结果
+        """
+        from data_fetcher import get_us_stock_data, get_cn_stock_data
+        
+        portfolio_value = self.initial_capital
+        cash = self.initial_capital
+        positions = {}  # {symbol: {shares, entry_price, entry_date}}
+        equity_curve = []
+        all_trades = []
+        
+        # 按日期排序信号
+        signals_df = signals_df.copy()
+        signals_df['scan_date'] = pd.to_datetime(signals_df.get('scan_date') or signals_df.get('Date'))
+        signals_df = signals_df.sort_values('scan_date')
+        
+        for _, signal in signals_df.iterrows():
+            symbol = signal.get('symbol') or signal.get('Symbol')
+            entry_date = signal['scan_date']
+            entry_price = float(signal.get('price') or signal.get('Price') or 0)
+            
+            if not symbol or entry_price <= 0:
+                continue
+            
+            # 检查是否有空位
+            if len(positions) >= max_positions:
+                continue
+            
+            # 检查是否已持有
+            if symbol in positions:
+                continue
+            
+            # 计算买入股数
+            position_value = portfolio_value * position_size_pct
+            shares = int(position_value / entry_price)
+            
+            if shares > 0 and cash >= shares * entry_price:
+                positions[symbol] = {
+                    'shares': shares,
+                    'entry_price': entry_price,
+                    'entry_date': entry_date
+                }
+                cash -= shares * entry_price * (1 + self.commission)
+        
+        # 计算所有持仓的结果
+        for symbol, pos in positions.items():
+            try:
+                if market == 'CN':
+                    df = get_cn_stock_data(symbol, days=holding_days + 20)
+                else:
+                    df = get_us_stock_data(symbol, days=holding_days + 20)
+                
+                if df is not None and len(df) > holding_days:
+                    exit_price = df.iloc[-1]['Close']
+                    pnl = (exit_price - pos['entry_price']) / pos['entry_price'] * 100
+                    
+                    all_trades.append({
+                        'symbol': symbol,
+                        'entry_date': pos['entry_date'],
+                        'entry_price': pos['entry_price'],
+                        'exit_price': exit_price,
+                        'shares': pos['shares'],
+                        'pnl_pct': round(pnl, 2),
+                        'pnl_value': round((exit_price - pos['entry_price']) * pos['shares'], 2),
+                        'win': pnl > 0
+                    })
+            except:
+                continue
+        
+        self.trades = all_trades
+        stats = self._calculate_enhanced_stats()
+        stats['num_positions'] = len(positions)
+        stats['capital_used'] = round(self.initial_capital - cash, 2)
+        
+        return stats
+    
+    def _calculate_enhanced_stats(self) -> Dict:
+        """计算增强版统计指标 (包含 Sortino, Calmar, Information Ratio)"""
+        base_stats = self._calculate_stats()
+        
+        if not self.trades:
+            return base_stats
+        
+        trades_df = pd.DataFrame(self.trades)
+        returns = trades_df['pnl_pct'].values / 100  # 转为小数
+        
+        # Sortino Ratio (只惩罚下行波动)
+        downside_returns = returns[returns < 0]
+        downside_std = np.std(downside_returns) if len(downside_returns) > 0 else 0
+        avg_return = np.mean(returns)
+        sortino = (avg_return / downside_std * np.sqrt(252)) if downside_std > 0 else 0
+        
+        # Calmar Ratio (年化收益 / 最大回撤)
+        annual_return = avg_return * 252 / 10  # 假设10天持有期
+        max_dd = base_stats.get('max_drawdown', 1) / 100
+        calmar = annual_return / max_dd if max_dd > 0 else 0
+        
+        # Information Ratio (相对于基准的超额收益稳定性)
+        # 简化版：使用 alpha / tracking error
+        benchmark_return = 0.001  # 假设基准日收益0.1%
+        excess_returns = returns - benchmark_return
+        tracking_error = np.std(excess_returns) if len(excess_returns) > 1 else 0
+        ir = (np.mean(excess_returns) / tracking_error * np.sqrt(252)) if tracking_error > 0 else 0
+        
+        base_stats.update({
+            'sortino_ratio': round(sortino, 2),
+            'calmar_ratio': round(calmar, 2),
+            'information_ratio': round(ir, 2)
+        })
+        
+        return base_stats
+    
+    def walk_forward_backtest(self,
+                               signals_df: pd.DataFrame,
+                               train_days: int = 60,
+                               test_days: int = 20,
+                               holding_days: int = 10,
+                               market: str = 'US') -> Dict:
+        """
+        Walk-Forward 验证 - 滚动训练/测试防止过拟合
+
+        Args:
+            signals_df: 完整信号数据
+            train_days: 训练窗口天数
+            test_days: 测试窗口天数
+            holding_days: 持有天数
+            market: 市场
+
+        Returns:
+            Walk-Forward 结果 (按窗口划分)
+        """
+        signals_df = signals_df.copy()
+        signals_df['scan_date'] = pd.to_datetime(signals_df.get('scan_date') or signals_df.get('Date'))
+        signals_df = signals_df.sort_values('scan_date')
+        
+        if len(signals_df) < train_days + test_days:
+            return {'error': 'Insufficient data for walk-forward'}
+        
+        min_date = signals_df['scan_date'].min()
+        max_date = signals_df['scan_date'].max()
+        
+        windows = []
+        current_start = min_date
+        
+        while current_start + pd.Timedelta(days=train_days + test_days) <= max_date:
+            train_end = current_start + pd.Timedelta(days=train_days)
+            test_end = train_end + pd.Timedelta(days=test_days)
+            
+            # 训练期信号
+            train_signals = signals_df[
+                (signals_df['scan_date'] >= current_start) & 
+                (signals_df['scan_date'] < train_end)
+            ]
+            
+            # 测试期信号
+            test_signals = signals_df[
+                (signals_df['scan_date'] >= train_end) & 
+                (signals_df['scan_date'] < test_end)
+            ]
+            
+            # 在测试期运行回测
+            if len(test_signals) > 0:
+                test_result = self.run_signal_backtest(test_signals, holding_days, market)
+                
+                windows.append({
+                    'train_start': current_start.strftime('%Y-%m-%d'),
+                    'train_end': train_end.strftime('%Y-%m-%d'),
+                    'test_start': train_end.strftime('%Y-%m-%d'),
+                    'test_end': test_end.strftime('%Y-%m-%d'),
+                    'train_signals': len(train_signals),
+                    'test_signals': len(test_signals),
+                    'test_win_rate': test_result.get('win_rate', 0),
+                    'test_avg_return': test_result.get('avg_return', 0),
+                    'test_sharpe': test_result.get('sharpe_ratio', 0)
+                })
+            
+            current_start += pd.Timedelta(days=test_days)
+        
+        # 汇总统计
+        if windows:
+            avg_win_rate = np.mean([w['test_win_rate'] for w in windows])
+            avg_return = np.mean([w['test_avg_return'] for w in windows])
+            avg_sharpe = np.mean([w['test_sharpe'] for w in windows])
+            
+            return {
+                'num_windows': len(windows),
+                'avg_win_rate': round(avg_win_rate, 2),
+                'avg_return': round(avg_return, 2),
+                'avg_sharpe': round(avg_sharpe, 2),
+                'windows': windows
+            }
+        
+        return {'error': 'No valid windows generated'}
 
 
 def backtest_blue_signals(min_blue: float = 0.6, 
