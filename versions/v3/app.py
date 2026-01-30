@@ -3977,8 +3977,18 @@ def render_parameter_lab():
                                 help="买入后固定持有的天数")
         signal_limit = st.slider("测试信号数量", 20, 200, 100, step=20, key="param_lab_limit",
                                 help="最多测试多少个历史信号")
+        backtest_mode = st.radio("回测模式", ["单信号回测", "组合回测"], horizontal=True, key="bt_mode",
+                                help="组合回测模拟真实多仓操作")
     
     with col3:
+        # 组合回测专用参数
+        if backtest_mode == "组合回测":
+            max_positions = st.slider("最大持仓数", 3, 15, 10, key="max_pos")
+            position_pct = st.slider("单仓比例%", 5, 20, 10, key="pos_pct") / 100
+        else:
+            max_positions = 10
+            position_pct = 0.1
+        
         # 获取可用日期
         available_dates = get_scanned_dates(market=market)
         if available_dates:
@@ -4010,7 +4020,17 @@ def render_parameter_lab():
                 # 运行回测
                 bt = Backtester()
                 signals_df = pd.DataFrame(signals)
-                results = bt.run_signal_backtest(signals_df, holding_days=holding_days, market=market)
+                
+                if backtest_mode == "组合回测":
+                    results = bt.run_portfolio_backtest(
+                        signals_df, 
+                        holding_days=holding_days, 
+                        max_positions=max_positions,
+                        position_size_pct=position_pct,
+                        market=market
+                    )
+                else:
+                    results = bt.run_signal_backtest(signals_df, holding_days=holding_days, market=market)
                 
                 # 获取基准对比
                 benchmark = bt.compare_with_benchmark(
@@ -4030,15 +4050,22 @@ def render_parameter_lab():
                 m4.metric("总收益", f"{results.get('total_return', 0):.2f}%")
                 m5.metric("最大回撤", f"-{results.get('max_drawdown', 0):.2f}%", delta_color="inverse")
                 
-                # 更多指标
-                col_a, col_b, col_c = st.columns(3)
+                # 增强指标
+                col_a, col_b, col_c, col_d, col_e = st.columns(5)
                 with col_a:
                     st.metric("夏普比率", f"{results.get('sharpe_ratio', 0):.2f}")
                 with col_b:
-                    st.metric("盈亏比", f"{results.get('profit_factor', 0):.2f}")
+                    st.metric("Sortino", f"{results.get('sortino_ratio', 0):.2f}",
+                             help="只惩罚下行波动")
                 with col_c:
+                    st.metric("Calmar", f"{results.get('calmar_ratio', 0):.2f}",
+                             help="年化收益/最大回撤")
+                with col_d:
+                    st.metric("信息比率", f"{results.get('information_ratio', 0):.2f}",
+                             help="超额收益稳定性")
+                with col_e:
                     alpha = benchmark.get('alpha', 0)
-                    st.metric("超额收益 (vs SPY)", f"{alpha:+.2f}%",
+                    st.metric("Alpha", f"{alpha:+.2f}%",
                              delta="跑赢大盘" if alpha > 0 else "跑输大盘")
                 
                 # --- 资金曲线图 ---
@@ -4192,6 +4219,91 @@ def render_parameter_lab():
                 best_row = compare_df.loc[compare_df['平均收益%'].idxmax()]
                 st.success(f"📌 **最佳参数建议**: BLUE 阈值 = **{int(best_row['BLUE阈值'])}**，"
                           f"平均收益 {best_row['平均收益%']:.2f}%，胜率 {best_row['胜率%']:.1f}%")
+    
+    # --- Walk-Forward 验证 ---
+    st.divider()
+    st.subheader("🔄 Walk-Forward 验证")
+    st.caption("滚动训练/测试窗口，验证策略稳健性，防止过拟合")
+    
+    wf_col1, wf_col2 = st.columns(2)
+    with wf_col1:
+        train_days = st.slider("训练窗口 (天)", 30, 120, 60, step=15, key="wf_train")
+    with wf_col2:
+        test_days = st.slider("测试窗口 (天)", 10, 60, 20, step=10, key="wf_test")
+    
+    if st.button("🧪 运行 Walk-Forward 验证", key="run_wf"):
+        with st.spinner("正在进行滚动验证..."):
+            try:
+                # 获取全部历史信号
+                all_signals = query_scan_results(market=market, limit=500)
+                
+                if not all_signals or len(all_signals) < 50:
+                    st.warning("历史数据不足，至少需要50条信号")
+                else:
+                    signals_df = pd.DataFrame(all_signals)
+                    bt = Backtester()
+                    wf_results = bt.walk_forward_backtest(
+                        signals_df,
+                        train_days=train_days,
+                        test_days=test_days,
+                        holding_days=10,
+                        market=market
+                    )
+                    
+                    if 'error' in wf_results:
+                        st.warning(wf_results['error'])
+                    else:
+                        st.success(f"✅ 完成 **{wf_results['num_windows']}** 个滚动窗口验证!")
+                        
+                        # 汇总指标
+                        wf_m1, wf_m2, wf_m3 = st.columns(3)
+                        wf_m1.metric("平均胜率", f"{wf_results['avg_win_rate']:.1f}%")
+                        wf_m2.metric("平均收益", f"{wf_results['avg_return']:.2f}%")
+                        wf_m3.metric("平均夏普", f"{wf_results['avg_sharpe']:.2f}")
+                        
+                        # 窗口明细表
+                        if wf_results.get('windows'):
+                            windows_df = pd.DataFrame(wf_results['windows'])
+                            display_cols = ['test_start', 'test_end', 'test_signals', 
+                                          'test_win_rate', 'test_avg_return', 'test_sharpe']
+                            windows_df = windows_df[display_cols]
+                            windows_df.columns = ['测试开始', '测试结束', '信号数', '胜率%', '平均收益%', '夏普']
+                            
+                            st.dataframe(
+                                windows_df.style.background_gradient(subset=['胜率%', '平均收益%'], cmap='RdYlGn'),
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                            
+                            # 可视化各窗口表现
+                            fig_wf = go.Figure()
+                            fig_wf.add_trace(go.Bar(
+                                x=[f"W{i+1}" for i in range(len(windows_df))],
+                                y=windows_df['胜率%'],
+                                name='胜率%',
+                                marker_color='#4CAF50'
+                            ))
+                            fig_wf.add_trace(go.Scatter(
+                                x=[f"W{i+1}" for i in range(len(windows_df))],
+                                y=windows_df['平均收益%'],
+                                mode='lines+markers',
+                                name='平均收益%',
+                                yaxis='y2',
+                                line=dict(color='#2196F3', width=2)
+                            ))
+                            fig_wf.update_layout(
+                                title="各窗口测试表现",
+                                xaxis_title="窗口",
+                                yaxis=dict(title="胜率%", side='left'),
+                                yaxis2=dict(title="平均收益%", side='right', overlaying='y'),
+                                height=350
+                            )
+                            st.plotly_chart(fig_wf, use_container_width=True)
+                            
+            except Exception as e:
+                st.error(f"Walk-Forward 验证出错: {e}")
+                import traceback
+                st.code(traceback.format_exc())
 
 
 def render_historical_review():
