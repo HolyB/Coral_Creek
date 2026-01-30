@@ -41,6 +41,75 @@ def load_custom_css():
 # 应用自定义样式
 load_custom_css()
 
+# --- 环境变量适配 ---
+# 将 Streamlit Secrets 注入环境变量, 供 scripts/intraday_monitor.py 使用
+try:
+    if hasattr(st, "secrets"):
+        for key, value in st.secrets.items():
+            if isinstance(value, str) and key not in os.environ:
+                os.environ[key] = value
+except Exception as e:
+    print(f"⚠️ Secrets injection skipped: {e}")
+
+
+# --- 后台调度器 (In-App Scheduler) ---
+# 替代 GitHub Actions，直接在应用内运行监控
+# 避免支付问题和数据同步问题
+
+@st.cache_resource
+def init_scheduler():
+    """初始化并启动后台调度器 (单例模式)"""
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.interval import IntervalTrigger
+        from scripts.intraday_monitor import monitor_portfolio
+        import atexit
+        
+        # 创建调度器
+        scheduler = BackgroundScheduler()
+        
+        # 防止重复添加
+        if scheduler.get_job('intraday_monitor_job'):
+            return scheduler
+        
+        # 定义任务
+        def job_function():
+            from datetime import datetime
+            print(f"📱 盘中监控 - {datetime.now()}")
+            try:
+                # 运行美股扫描
+                monitor_portfolio(market='US', run_once=True)
+                # 运行A股扫描 (如果是在交易时段)
+                monitor_portfolio(market='CN', run_once=True)
+            except Exception as e:
+                print(f"⚠️ [Scheduler] Job failed: {e}")
+        
+        # 添加任务 (每30分钟)
+        scheduler.add_job(
+            job_function,
+            IntervalTrigger(minutes=30),
+            id='intraday_monitor_job',
+            replace_existing=True,
+            name='Intraday Monitor (Every 30min)'
+        )
+        
+        # 启动
+        scheduler.start()
+        print("✅ [Scheduler] Background scheduler started (Interval: 30min)")
+        
+        # 退出时关闭
+        atexit.register(lambda: scheduler.shutdown())
+        
+        return scheduler
+    except ImportError:
+        print("⚠️ [Scheduler] APScheduler not installed. Skipping.")
+        return None
+    except Exception as e:
+        print(f"⚠️ [Scheduler] Failed to start: {e}")
+        return None
+
+# 启动调度器
+init_scheduler()
 
 # --- 登录验证 ---
 
@@ -85,6 +154,25 @@ def is_admin():
     return st.session_state.get("user_role") == "admin"
 
 check_password()
+
+# --- 侧边栏: 系统状态与测试 ---
+with st.sidebar:
+    st.markdown("---")
+    st.caption("🔧 系统工具")
+    if st.button("🔔 发送测试通知", help="点击此按钮测试 Telegram 连接"):
+        from scripts.intraday_monitor import send_alert_telegram
+        with st.spinner("正在发送测试消息..."):
+            success = send_alert_telegram([{
+                'type': 'test',
+                'level': '🔔',
+                'symbol': '从网站发出',
+                'message': '这是一条测试消息',
+                'footer': '如果您收到此消息，说明网站监控功能正常。'
+            }])
+            if success:
+                st.toast("✅ 测试消息发送成功!", icon="✅")
+            else:
+                st.error("❌ 发送失败，请检查 Logs")
 
 # --- 工具函数 ---
 
