@@ -88,18 +88,18 @@ def init_scheduler():
             except Exception as e:
                 print(f"⚠️ [Scheduler] Job failed: {e}")
         
-        # 添加任务 (每1小时)
+        # 添加任务 (每30分钟)
         scheduler.add_job(
             job_function,
-            IntervalTrigger(hours=1),
+            IntervalTrigger(minutes=30),
             id='intraday_monitor_job',
             replace_existing=True,
-            name='Intraday Monitor (Every 1h)'
+            name='Intraday Monitor (Every 30min)'
         )
         
         # 启动
         scheduler.start()
-        print("✅ [Scheduler] Background scheduler started (Interval: 1h)")
+        print("✅ [Scheduler] Background scheduler started (Interval: 30min)")
         
         # 退出时关闭
         atexit.register(lambda: scheduler.shutdown())
