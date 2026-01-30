@@ -1,0 +1,97 @@
+name: ML Model Training
+
+on:
+  schedule:
+    # 每周一凌晨3点 (UTC) 训练一次
+    - cron: '0 3 * * 1'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: versions/v3
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install xgboost scikit-learn pandas numpy huggingface_hub supabase
+      
+      - name: Train US Model
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          from ml.train_xgb import train_and_save
+          train_and_save(market='US', days_back=90, holding_days=10, upload=False)
+          print('✅ US Model trained')
+          "
+      
+      - name: Train CN Model
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          from ml.train_xgb import train_and_save
+          train_and_save(market='CN', days_back=90, holding_days=10, upload=False)
+          print('✅ CN Model trained')
+          "
+      
+      - name: Upload to HuggingFace Hub
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python -c "
+          from huggingface_hub import HfApi, login
+          import os
+          
+          login(token=os.environ['HF_TOKEN'])
+          api = HfApi()
+          
+          # Upload model files
+          repo_id = 'HolyB/coral-creek-models'  # 替换为你的repo
+          
+          for market in ['US', 'CN']:
+              model_path = f'ml/saved_models/xgb_signal_{market.lower()}.json'
+              meta_path = f'ml/saved_models/xgb_signal_{market.lower()}_meta.json'
+              
+              if os.path.exists(model_path):
+                  api.upload_file(
+                      path_or_fileobj=model_path,
+                      path_in_repo=f'xgb_signal_{market.lower()}.json',
+                      repo_id=repo_id,
+                      repo_type='model'
+                  )
+                  print(f'✅ Uploaded {market} model')
+              
+              if os.path.exists(meta_path):
+                  api.upload_file(
+                      path_or_fileobj=meta_path,
+                      path_in_repo=f'xgb_signal_{market.lower()}_meta.json',
+                      repo_id=repo_id,
+                      repo_type='model'
+                  )
+                  print(f'✅ Uploaded {market} metadata')
+          "
+      
+      - name: Summary
+        run: |
+          echo "🎉 ML Training Complete!"
+          echo "Models uploaded to HuggingFace Hub"
