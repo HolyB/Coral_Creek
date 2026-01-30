@@ -66,7 +66,7 @@ jobs:
           api = HfApi()
           
           # Upload model files
-          repo_id = 'HolyB/coral-creek-models'  # 替换为你的repo
+          repo_id = 'HolyBert/coral-creek-models'  # 您的HuggingFace repo
           
           for market in ['US', 'CN']:
               model_path = f'ml/saved_models/xgb_signal_{market.lower()}.json'
