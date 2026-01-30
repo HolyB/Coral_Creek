@@ -4304,8 +4304,86 @@ def render_parameter_lab():
                 st.error(f"Walk-Forward 验证出错: {e}")
                 import traceback
                 st.code(traceback.format_exc())
-
-
+    
+    # --- 蒙特卡洛模拟 ---
+    st.divider()
+    st.subheader("🎲 蒙特卡洛模拟")
+    st.caption("通过随机抽样评估策略风险，计算盈利/破产概率")
+    
+    mc_col1, mc_col2, mc_col3 = st.columns(3)
+    with mc_col1:
+        num_sims = st.slider("模拟次数", 100, 2000, 500, step=100, key="mc_sims")
+    with mc_col2:
+        trades_per_sim = st.slider("每次模拟交易数", 20, 100, 50, step=10, key="mc_trades")
+    with mc_col3:
+        bankruptcy_pct = st.slider("破产阈值 (%)", 30, 70, 50, step=10, key="mc_bankrupt")
+    
+    if st.button("🎰 运行蒙特卡洛模拟", key="run_mc"):
+        with st.spinner("正在进行蒙特卡洛模拟..."):
+            try:
+                from backtest.monte_carlo import monte_carlo_simulation, create_monte_carlo_charts
+                
+                # 获取历史交易数据
+                all_signals = query_scan_results(market=market, limit=300)
+                
+                if not all_signals or len(all_signals) < 20:
+                    st.warning("历史数据不足，至少需要20条信号")
+                else:
+                    # 先运行一次回测获取交易记录
+                    signals_df = pd.DataFrame(all_signals)
+                    bt = Backtester()
+                    bt_result = bt.run_signal_backtest(signals_df, holding_days=10, market=market)
+                    trades = bt_result.get('trades', [])
+                    
+                    if len(trades) < 10:
+                        st.warning("有效交易数不足，无法进行模拟")
+                    else:
+                        # 运行蒙特卡洛
+                        mc_result = monte_carlo_simulation(
+                            trades,
+                            num_simulations=num_sims,
+                            trades_per_sim=trades_per_sim,
+                            bankruptcy_threshold=bankruptcy_pct / 100
+                        )
+                        
+                        if 'error' in mc_result:
+                            st.warning(mc_result['error'])
+                        else:
+                            st.success(f"✅ 完成 **{num_sims}** 次模拟!")
+                            
+                            # 关键指标
+                            mc_m1, mc_m2, mc_m3, mc_m4 = st.columns(4)
+                            mc_m1.metric("盈利概率", f"{mc_result['profit_probability']:.1f}%",
+                                        delta="好" if mc_result['profit_probability'] > 60 else "差")
+                            mc_m2.metric("破产概率", f"{mc_result['bankruptcy_probability']:.1f}%",
+                                        delta="低风险" if mc_result['bankruptcy_probability'] < 10 else "高风险",
+                                        delta_color="inverse")
+                            mc_m3.metric("平均收益", f"{mc_result['mean_return_pct']:.1f}%")
+                            mc_m4.metric("平均最大回撤", f"-{mc_result['mean_max_drawdown']:.1f}%")
+                            
+                            # 置信区间
+                            st.markdown(f"""
+                            **90% 置信区间**: 终值在 **${mc_result['ci_5']:,.0f}** ~ **${mc_result['ci_95']:,.0f}** 之间
+                            
+                            (初始资金 $100,000)
+                            """)
+                            
+                            # 图表
+                            charts = create_monte_carlo_charts(mc_result)
+                            
+                            if 'distribution' in charts:
+                                st.plotly_chart(charts['distribution'], use_container_width=True)
+                            
+                            if 'curves' in charts:
+                                st.plotly_chart(charts['curves'], use_container_width=True)
+                            
+                            if 'gauges' in charts:
+                                st.plotly_chart(charts['gauges'], use_container_width=True)
+                            
+            except Exception as e:
+                st.error(f"蒙特卡洛模拟出错: {e}")
+                import traceback
+                st.code(traceback.format_exc())
 def render_historical_review():
     """历史复盘 - 查看某天信号的后续表现"""
     from services.signal_tracker_service import get_signal_performance_summary
