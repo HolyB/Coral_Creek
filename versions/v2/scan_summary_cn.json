@@ -1,111 +1,111 @@
 {
-  "date": "2026-01-29",
+  "date": "2026-01-30",
   "market": "CN",
-  "total_signals": 273,
+  "total_signals": 212,
   "top_signals": [
     {
       "symbol": "920978.BJ",
       "name": "开特股份",
-      "price": 30.04,
+      "price": 31.05,
       "day_blue": 200.0,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "920305.BJ",
-      "name": "*ST云创",
-      "price": 9.9,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "601916.SH",
-      "name": "浙商银行",
-      "price": 2.93,
-      "day_blue": 200.0,
-      "week_blue": 84.1
-    },
-    {
-      "symbol": "002231.SZ",
-      "name": "*ST奥维",
-      "price": 0.6,
-      "day_blue": 200.0,
-      "week_blue": 98.2
-    },
-    {
-      "symbol": "002024.SZ",
-      "name": "ST易购",
-      "price": 1.56,
-      "day_blue": 200.0,
-      "week_blue": 128.0
-    },
-    {
-      "symbol": "600690.SH",
-      "name": "海尔智家",
-      "price": 25.46,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600015.SH",
-      "name": "华夏银行",
-      "price": 6.45,
-      "day_blue": 200.0,
-      "week_blue": 95.8
-    },
-    {
-      "symbol": "601328.SH",
-      "name": "交通银行",
-      "price": 6.6,
-      "day_blue": 199.7,
-      "week_blue": 168.6
-    },
-    {
-      "symbol": "002936.SZ",
-      "name": "郑州银行",
-      "price": 1.92,
-      "day_blue": 186.0,
-      "week_blue": 127.2
     },
     {
       "symbol": "920436.BJ",
       "name": "大地电气",
-      "price": 17.26,
-      "day_blue": 183.9,
+      "price": 17.04,
+      "day_blue": 200.0,
       "week_blue": 122.8
     },
     {
-      "symbol": "920002.BJ",
-      "name": "万达轴承",
-      "price": 102.9,
-      "day_blue": 180.3,
+      "symbol": "920305.BJ",
+      "name": "*ST云创",
+      "price": 7.1,
+      "day_blue": 200.0,
+      "week_blue": 121.0
+    },
+    {
+      "symbol": "001965.SZ",
+      "name": "招商公路",
+      "price": 9.38,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "002024.SZ",
+      "name": "ST易购",
+      "price": 1.55,
+      "day_blue": 200.0,
+      "week_blue": 128.0
+    },
+    {
+      "symbol": "920651.BJ",
+      "name": "天罡股份",
+      "price": 39.13,
+      "day_blue": 198.0,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "600900.SH",
-      "name": "长江电力",
-      "price": 26.03,
-      "day_blue": 179.2,
-      "week_blue": 173.1
-    },
-    {
-      "symbol": "600887.SH",
-      "name": "伊利股份",
-      "price": 26.83,
-      "day_blue": 177.8,
-      "week_blue": 101.9
-    },
-    {
-      "symbol": "000858.SZ",
-      "name": "五粮液",
-      "price": 110.77,
-      "day_blue": 167.1,
-      "week_blue": 173.1
     },
     {
       "symbol": "920392.BJ",
       "name": "佳合科技",
-      "price": 26.12,
-      "day_blue": 162.6,
+      "price": 25.96,
+      "day_blue": 185.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301227.SZ",
+      "name": "森鹰窗业",
+      "price": 34.68,
+      "day_blue": 177.5,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688656.SH",
+      "name": "浩欧博",
+      "price": 143.8,
+      "day_blue": 172.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688609.SH",
+      "name": "九联科技",
+      "price": 9.1,
+      "day_blue": 165.4,
+      "week_blue": 83.5
+    },
+    {
+      "symbol": "600483.SH",
+      "name": "福能股份",
+      "price": 9.12,
+      "day_blue": 164.2,
+      "week_blue": 76.7
+    },
+    {
+      "symbol": "301557.SZ",
+      "name": "常友科技",
+      "price": 106.42,
+      "day_blue": 157.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301391.SZ",
+      "name": "卡莱特",
+      "price": 73.38,
+      "day_blue": 155.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301209.SZ",
+      "name": "联合化学",
+      "price": 99.7,
+      "day_blue": 140.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000006.SZ",
+      "name": "深振业Ａ",
+      "price": 8.96,
+      "day_blue": 139.4,
       "week_blue": 0.0
     }
   ]
