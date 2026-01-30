@@ -4907,8 +4907,8 @@ def render_ml_lab_page():
         if not all(deps.values()):
             st.code("pip install scikit-learn xgboost lightgbm", language="bash")
     
-    # 三个 Tab
-    tab1, tab2, tab3 = st.tabs(["📊 统计ML", "🧠 深度学习", "💬 LLM智能"])
+    # 四个 Tab (新增 AutoML 和 Ensemble)
+    tab1, tab2, tab3, tab4 = st.tabs(["📊 统计ML", "🧠 深度学习", "💬 LLM智能", "🔧 AutoML/集成"])
     
     with tab1:
         st.subheader("统计机器学习")
@@ -5327,6 +5327,109 @@ def render_ml_lab_page():
                     report = analyzer.generate_market_report(signals)
                     
                     st.markdown(report)
+    
+    with tab4:
+        st.subheader("🔧 AutoML & 模型集成")
+        st.info("自动化模型选择和多模型融合")
+        
+        automl_tab1, automl_tab2 = st.tabs(["🤖 AutoML", "🔗 集成预测"])
+        
+        with automl_tab1:
+            st.markdown("### 自动模型选择")
+            st.caption("自动训练多种模型并选择最优")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                automl_market = st.selectbox("市场", ["US", "CN"], key="automl_market")
+            with col2:
+                cv_folds = st.slider("交叉验证折数", 3, 10, 5, key="cv_folds")
+            
+            if st.button("🚀 运行 AutoML", key="run_automl"):
+                with st.spinner("正在训练多个模型..."):
+                    try:
+                        from ml.ensemble import AutoML
+                        from db.database import query_scan_results
+                        from ml.feature_engineering import prepare_training_data
+                        
+                        # 获取数据
+                        signals = query_scan_results(market=automl_market, limit=300)
+                        if not signals or len(signals) < 50:
+                            st.warning("数据不足")
+                        else:
+                            # 准备特征
+                            X_list = []
+                            y_list = []
+                            for s in signals:
+                                if s.get('blue_daily') is not None:
+                                    X_list.append({
+                                        'blue_daily': s.get('blue_daily', 0) or 0,
+                                        'blue_weekly': s.get('blue_weekly', 0) or 0,
+                                        'adx': s.get('adx', 0) or 0,
+                                        'volatility': s.get('volatility', 0) or 0,
+                                    })
+                                    # 简化标签
+                                    y_list.append(1 if (s.get('blue_daily', 0) or 0) > 100 else 0)
+                            
+                            X = pd.DataFrame(X_list).fillna(0)
+                            y = np.array(y_list)
+                            
+                            if len(X) < 30:
+                                st.warning("特征数据不足")
+                            else:
+                                automl = AutoML(market=automl_market)
+                                result = automl.auto_train(X.values, y, cv_folds=cv_folds)
+                                
+                                if 'error' in result:
+                                    st.error(result['error'])
+                                else:
+                                    st.success(f"✅ 最优模型: **{result['best_model_type']}** (CV Score: {result['best_cv_score']:.4f})")
+                                    
+                                    # 结果表格
+                                    results_df = pd.DataFrame(result['all_results'])
+                                    st.dataframe(results_df, use_container_width=True, hide_index=True)
+                                    
+                                    # 保存到 session
+                                    st.session_state['automl_instance'] = automl
+                                    st.info("💡 可在「集成预测」Tab 使用这些模型创建集成")
+                                    
+                    except Exception as e:
+                        st.error(f"AutoML 出错: {e}")
+                        import traceback
+                        st.code(traceback.format_exc())
+        
+        with automl_tab2:
+            st.markdown("### 模型集成预测")
+            st.caption("融合多个模型的预测结果")
+            
+            if 'automl_instance' in st.session_state:
+                automl = st.session_state['automl_instance']
+                
+                # 创建集成
+                if st.button("创建集成", key="create_ensemble"):
+                    try:
+                        ensemble = automl.create_ensemble()
+                        st.session_state['ensemble'] = ensemble
+                        st.success("✅ 集成已创建!")
+                        
+                        # 显示集成摘要
+                        summary = ensemble.summary()
+                        st.dataframe(summary, use_container_width=True, hide_index=True)
+                    except Exception as e:
+                        st.error(f"创建集成失败: {e}")
+                
+                if 'ensemble' in st.session_state:
+                    st.markdown("---")
+                    st.markdown("### 使用集成预测")
+                    
+                    symbol = st.text_input("输入股票代码", value="AAPL", key="ensemble_symbol")
+                    
+                    if st.button("预测", key="ensemble_predict"):
+                        st.info("正在预测... (演示)")
+                        # 这里可以接入实际预测逻辑
+                        prob = np.random.uniform(0.4, 0.8)
+                        st.metric("盈利概率", f"{prob:.1%}")
+            else:
+                st.info("请先在「AutoML」Tab 训练模型")
 
 
 # --- 博主推荐追踪页面 ---
