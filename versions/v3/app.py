@@ -3901,7 +3901,7 @@ def render_research_page():
     """研究工具页面 - 因子分析等"""
     st.header("🔬 研究工具")
     
-    tab_factor, tab_ml = st.tabs(["📊 因子分析", "🤖 ML实验室"])
+    tab_factor, tab_ml, tab_charts = st.tabs(["📊 因子分析", "🤖 ML实验室", "📈 高级图表"])
     
     with tab_factor:
         st.subheader("📊 BLUE 因子 IC 分析")
@@ -3951,7 +3951,102 @@ def render_research_page():
     with tab_ml:
         # 保留原来的 ML 实验室内容
         render_ml_lab_page()
-
+    
+    with tab_charts:
+        st.subheader("📈 高级图表工具")
+        st.caption("专业级可视化分析工具")
+        
+        from advanced_charts import (
+            create_multi_timeframe_heatmap,
+            create_signal_radar_chart,
+            create_drawdown_chart,
+            create_volume_price_divergence_chart
+        )
+        from db.database import query_scan_results, get_scanned_dates
+        
+        chart_type = st.selectbox("选择图表类型", [
+            "🔥 多周期共振热力图",
+            "🎯 信号强度雷达图",
+            "📉 回撤分析图",
+            "📊 量价背离分析"
+        ], key="chart_type_select")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            market = st.selectbox("市场", ["US", "CN"], key="adv_chart_market")
+        
+        if chart_type == "🔥 多周期共振热力图":
+            if st.button("生成热力图", key="gen_heatmap"):
+                with st.spinner("加载数据..."):
+                    signals = query_scan_results(market=market, limit=30)
+                    if signals:
+                        data = {}
+                        for s in signals:
+                            symbol = s.get('symbol')
+                            if symbol:
+                                data[symbol] = {
+                                    'day_blue': s.get('blue_daily', 0) or 0,
+                                    'week_blue': s.get('blue_weekly', 0) or 0,
+                                    'month_blue': s.get('blue_monthly', 0) or 0,
+                                    'adx': s.get('adx', 0) or 0
+                                }
+                        fig = create_multi_timeframe_heatmap(data)
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("无数据")
+        
+        elif chart_type == "🎯 信号强度雷达图":
+            symbol = st.text_input("输入股票代码", value="AAPL", key="radar_symbol")
+            if st.button("生成雷达图", key="gen_radar"):
+                # 模拟获取信号数据
+                signal_data = {
+                    'blue_strength': np.random.randint(50, 100),
+                    'trend_strength': np.random.randint(40, 90),
+                    'volume_strength': np.random.randint(30, 80),
+                    'chip_strength': np.random.randint(40, 85),
+                    'momentum_strength': np.random.randint(45, 95)
+                }
+                fig = create_signal_radar_chart(signal_data)
+                st.plotly_chart(fig, use_container_width=True)
+                st.caption("注: 数据为演示用途")
+        
+        elif chart_type == "📉 回撤分析图":
+            if st.button("生成回撤图", key="gen_drawdown"):
+                with st.spinner("计算..."):
+                    from backtest.backtester import Backtester
+                    signals = query_scan_results(market=market, limit=100)
+                    if signals:
+                        signals_df = pd.DataFrame(signals)
+                        bt = Backtester()
+                        result = bt.run_signal_backtest(signals_df, holding_days=10, market=market)
+                        trades = result.get('trades', [])
+                        if trades:
+                            equity = [100000]
+                            for t in trades:
+                                equity.append(equity[-1] * (1 + t.get('pnl_pct', 0) / 100))
+                            fig = create_drawdown_chart(equity)
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.warning("无交易数据")
+                    else:
+                        st.warning("无信号数据")
+        
+        elif chart_type == "📊 量价背离分析":
+            symbol = st.text_input("输入股票代码", value="AAPL", key="divergence_symbol")
+            if st.button("分析量价背离", key="gen_divergence"):
+                with st.spinner("加载数据..."):
+                    from data_fetcher import get_us_stock_data, get_cn_stock_data
+                    if market == "CN":
+                        df = get_cn_stock_data(symbol, days=100)
+                    else:
+                        df = get_us_stock_data(symbol, days=100)
+                    if df is not None and len(df) > 20:
+                        fig = create_volume_price_divergence_chart(df, symbol)
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.warning("无法获取数据")
 
 # ==================== 回测实验室辅助函数 ====================
 
