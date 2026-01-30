@@ -43,6 +43,17 @@ def load_custom_css():
 load_custom_css()
 
 
+# --- 环境变量适配 ---
+# 将 Streamlit Secrets 注入环境变量, 供 scripts/intraday_monitor.py 使用
+try:
+    if hasattr(st, "secrets"):
+        for key, value in st.secrets.items():
+            if isinstance(value, str) and key not in os.environ:
+                os.environ[key] = value
+except Exception as e:
+    print(f"⚠️ Secrets injection skipped: {e}")
+
+
 # --- 后台调度器 (In-App Scheduler) ---
 # 替代 GitHub Actions，直接在应用内运行监控
 # 避免支付问题和数据同步问题
