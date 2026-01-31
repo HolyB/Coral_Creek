@@ -14,10 +14,21 @@ from strategies.decision_system import BaseStrategy, StrategyPick
 class BloggerInfo:
     """博主信息"""
     name: str
-    platform: str  # 雪球/Twitter/公众号
-    style: str     # 短线/波段/价值
+    name_cn: str       # 中文名
+    platform: str      # 雪球/Twitter/公众号
+    style: str         # 短线/波段/价值
     description: str
+    language: str = "en"  # en/cn
     url: str = ""
+    twitter: str = ""
+    weibo: str = ""
+    xueqiu: str = ""   # 雪球
+    youtube: str = ""
+    books: List[str] = None  # 著作
+
+    def __post_init__(self):
+        if self.books is None:
+            self.books = []
 
 
 class MarkMinerviniStrategy(BaseStrategy):
@@ -41,10 +52,15 @@ class MarkMinerviniStrategy(BaseStrategy):
         )
         self.blogger = BloggerInfo(
             name="Mark Minervini",
-            platform="Twitter",
+            name_cn="马克·米纳维尼",
+            platform="Twitter/Website",
             style="趋势突破",
-            description="美股交易冠军，VCP模式创始人",
-            url="https://twitter.com/markminervini"
+            description="美股交易冠军，VCP模式创始人，连续多年USIC冠军",
+            language="en",
+            url="https://www.minervini.com/",
+            twitter="https://twitter.com/markminervini",
+            youtube="https://www.youtube.com/@MarkMinervini",
+            books=["Trade Like a Stock Market Wizard", "Think & Trade Like a Champion"]
         )
     
     def select(self, df: pd.DataFrame, top_n: int = 5) -> List[StrategyPick]:
@@ -129,10 +145,15 @@ class WilliamONeilStrategy(BaseStrategy):
         )
         self.blogger = BloggerInfo(
             name="William O'Neil",
-            platform="IBD",
+            name_cn="威廉·欧奈尔",
+            platform="IBD (Investor's Business Daily)",
             style="成长投资",
-            description="CANSLIM系统创始人",
-            url="https://www.investors.com/"
+            description="CANSLIM系统创始人，IBD创始人",
+            language="en",
+            url="https://www.investors.com/",
+            twitter="https://twitter.com/IBDinvestors",
+            youtube="https://www.youtube.com/@investorsbusinessdaily",
+            books=["How to Make Money in Stocks", "笑傲股市"]
         )
     
     def select(self, df: pd.DataFrame, top_n: int = 5) -> List[StrategyPick]:
@@ -214,9 +235,13 @@ class JesseLivermoreStrategy(BaseStrategy):
         )
         self.blogger = BloggerInfo(
             name="Jesse Livermore",
-            platform="历史",
+            name_cn="杰西·利弗莫尔",
+            platform="历史传奇",
             style="趋势跟踪",
-            description="华尔街传奇交易员"
+            description="华尔街传奇交易员，曾多次做空市场获利",
+            language="en",
+            url="https://en.wikipedia.org/wiki/Jesse_Livermore",
+            books=["Reminerta of a Stock Operator (股票大作手回忆录)", "How to Trade in Stocks"]
         )
     
     def select(self, df: pd.DataFrame, top_n: int = 5) -> List[StrategyPick]:
@@ -296,10 +321,15 @@ class TaoBoStrategy(BaseStrategy):
             icon="🐉"
         )
         self.blogger = BloggerInfo(
-            name="淘股吧龙头派",
+            name="Longtou School",
+            name_cn="龙头战法派",
             platform="淘股吧/雪球",
             style="短线游资",
-            description="A股龙头战法"
+            description="A股龙头战法，专注涨停板和强势股",
+            language="cn",
+            url="https://www.taoguba.com.cn/",
+            xueqiu="https://xueqiu.com/",
+            books=["龙头战法", "涨停板战法"]
         )
     
     def select(self, df: pd.DataFrame, top_n: int = 5) -> List[StrategyPick]:
@@ -375,9 +405,14 @@ class BuffettValueStrategy(BaseStrategy):
         )
         self.blogger = BloggerInfo(
             name="Warren Buffett",
-            platform="Berkshire",
+            name_cn="沃伦·巴菲特",
+            platform="Berkshire Hathaway",
             style="价值投资",
-            description="价值投资之父"
+            description="价值投资之父，伯克希尔·哈撒韦CEO",
+            language="en",
+            url="https://www.berkshirehathaway.com/",
+            twitter="https://twitter.com/WarrenBuffett",
+            books=["巴菲特致股东的信", "滚雪球"]
         )
     
     def select(self, df: pd.DataFrame, top_n: int = 5) -> List[StrategyPick]:
@@ -446,6 +481,172 @@ BLOGGER_STRATEGIES = {
     'buffett': BuffettValueStrategy,
 }
 
+# 知名博主/交易员链接库 (不提供策略，仅供学习)
+FAMOUS_TRADERS = [
+    # === 英文博主 ===
+    {
+        "name": "Mark Minervini",
+        "name_cn": "马克·米纳维尼",
+        "platform": "Twitter/Website",
+        "language": "en",
+        "style": "趋势突破/VCP",
+        "links": {
+            "twitter": "https://twitter.com/markminervini",
+            "website": "https://www.minervini.com/",
+            "youtube": "https://www.youtube.com/@MarkMinervini"
+        },
+        "books": ["Trade Like a Stock Market Wizard", "Think & Trade Like a Champion"]
+    },
+    {
+        "name": "William O'Neil",
+        "name_cn": "威廉·欧奈尔",
+        "platform": "IBD",
+        "language": "en",
+        "style": "CANSLIM成长股",
+        "links": {
+            "website": "https://www.investors.com/",
+            "twitter": "https://twitter.com/IBDinvestors"
+        },
+        "books": ["How to Make Money in Stocks (笑傲股市)"]
+    },
+    {
+        "name": "Dan Zanger",
+        "name_cn": "丹·赞格",
+        "platform": "Twitter/Website",
+        "language": "en",
+        "style": "图表形态",
+        "links": {
+            "twitter": "https://twitter.com/DanZanger",
+            "website": "https://www.chartpattern.com/"
+        },
+        "books": []
+    },
+    {
+        "name": "Qullamaggie (Kristjan Kullamägi)",
+        "name_cn": "库拉玛吉",
+        "platform": "Twitter/YouTube",
+        "language": "en",
+        "style": "动量交易",
+        "links": {
+            "twitter": "https://twitter.com/qaboratory",
+            "youtube": "https://www.youtube.com/@Qullamaggie"
+        },
+        "books": []
+    },
+    {
+        "name": "Oliver Kell",
+        "name_cn": "奥利弗·凯尔",
+        "platform": "Twitter",
+        "language": "en",
+        "style": "USIC冠军/趋势",
+        "links": {
+            "twitter": "https://twitter.com/Oliver_Kell"
+        },
+        "books": []
+    },
+    {
+        "name": "Richard Moglen",
+        "name_cn": "理查德·莫格伦",
+        "platform": "Twitter",
+        "language": "en",
+        "style": "成长股/动量",
+        "links": {
+            "twitter": "https://twitter.com/RichardMoglen"
+        },
+        "books": []
+    },
+    
+    # === 中文博主 ===
+    {
+        "name": "缠中说禅",
+        "name_cn": "缠中说禅",
+        "platform": "博客/雪球",
+        "language": "cn",
+        "style": "缠论",
+        "links": {
+            "blog": "http://blog.sina.com.cn/chzhshch"
+        },
+        "books": ["缠论108课"]
+    },
+    {
+        "name": "淘股吧养家心法",
+        "name_cn": "养家心法",
+        "platform": "淘股吧",
+        "language": "cn",
+        "style": "短线游资",
+        "links": {
+            "taoguba": "https://www.taoguba.com.cn/"
+        },
+        "books": ["养家心法"]
+    },
+    {
+        "name": "职业炒手",
+        "name_cn": "职业炒手",
+        "platform": "淘股吧",
+        "language": "cn",
+        "style": "短线接力",
+        "links": {
+            "taoguba": "https://www.taoguba.com.cn/"
+        },
+        "books": []
+    },
+    {
+        "name": "雪球-不明真相的群众",
+        "name_cn": "方三文",
+        "platform": "雪球",
+        "language": "cn",
+        "style": "价值投资",
+        "links": {
+            "xueqiu": "https://xueqiu.com/u/4471316972"
+        },
+        "books": ["老二非死不可"]
+    },
+    {
+        "name": "雪球-释老毛",
+        "name_cn": "释老毛",
+        "platform": "雪球",
+        "language": "cn",
+        "style": "价值投资",
+        "links": {
+            "xueqiu": "https://xueqiu.com/u/1460392750"
+        },
+        "books": []
+    },
+    {
+        "name": "雪球-DAVID自由之路",
+        "name_cn": "DAVID自由之路",
+        "platform": "雪球",
+        "language": "cn",
+        "style": "可转债/套利",
+        "links": {
+            "xueqiu": "https://xueqiu.com/u/5819606767"
+        },
+        "books": ["可转债投资魔法书"]
+    },
+    {
+        "name": "雪球-持有封基",
+        "name_cn": "持有封基",
+        "platform": "雪球",
+        "language": "cn",
+        "style": "封基/套利",
+        "links": {
+            "xueqiu": "https://xueqiu.com/u/2552425919"
+        },
+        "books": []
+    },
+    {
+        "name": "微博-天地侠影",
+        "name_cn": "天地侠影",
+        "platform": "微博/公众号",
+        "language": "cn",
+        "style": "周期股",
+        "links": {
+            "weibo": "https://weibo.com/"
+        },
+        "books": []
+    },
+]
+
 
 def get_blogger_strategy(name: str) -> Optional[BaseStrategy]:
     """获取博主策略实例"""
@@ -460,11 +661,39 @@ def list_blogger_strategies() -> List[Dict]:
     result = []
     for key, cls in BLOGGER_STRATEGIES.items():
         instance = cls()
+        blogger_dict = {}
+        if hasattr(instance, 'blogger'):
+            b = instance.blogger
+            blogger_dict = {
+                'name': b.name,
+                'name_cn': b.name_cn,
+                'platform': b.platform,
+                'style': b.style,
+                'description': b.description,
+                'language': b.language,
+                'url': b.url,
+                'twitter': b.twitter,
+                'youtube': b.youtube,
+                'xueqiu': b.xueqiu,
+                'books': b.books
+            }
         result.append({
             'key': key,
             'name': instance.name,
             'icon': instance.icon,
             'description': instance.description,
-            'blogger': instance.blogger.__dict__ if hasattr(instance, 'blogger') else {}
+            'blogger': blogger_dict
         })
     return result
+
+
+def get_famous_traders(language: str = None) -> List[Dict]:
+    """获取知名交易员列表
+    
+    Args:
+        language: 'en' for English, 'cn' for Chinese, None for all
+    """
+    if language:
+        return [t for t in FAMOUS_TRADERS if t['language'] == language]
+    return FAMOUS_TRADERS
+
