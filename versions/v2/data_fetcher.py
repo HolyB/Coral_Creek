@@ -42,7 +42,14 @@ def _get_polygon_api_key():
     return api_key
 
 def get_all_us_tickers():
-    """从Polygon API获取所有活跃美股代码"""
+    """从Polygon API获取所有活跃美股代码
+    
+    排除:
+    - ETF、ETN (type != 'CS')
+    - Warrant, Unit, Rights
+    - 代码太长的 (通常是权证)
+    - SPAC (特殊字符结尾)
+    """
     try:
         from polygon import RESTClient
         api_key = _get_polygon_api_key()
@@ -51,17 +58,29 @@ def get_all_us_tickers():
         print("Fetching all active US tickers from Polygon...")
         tickers = []
         
-        # 只获取主要交易所的股票 (CS=Common Stock, ADR, ETF)
-        # 排除 Warrant, Unit, Rights 等
-        # Market = stocks
-        
-        # Polygon API 分页获取
-        for t in client.list_tickers(market="stocks", active=True, limit=1000):
-            # 简单过滤: 排除名字太长的(通常是权证)和带特殊符号的
-            if len(t.ticker) <= 5: 
-                tickers.append(t.ticker)
+        # 只获取普通股 (CS = Common Stock)
+        for t in client.list_tickers(market="stocks", type="CS", active=True, limit=1000):
+            ticker = t.ticker
+            
+            # 过滤规则
+            if len(ticker) > 5:
+                continue  # 代码太长，可能是权证
+            
+            # 排除特殊后缀 (Warrants, Units, Rights)
+            if any(suffix in ticker for suffix in ['.W', '.U', '.R', '/W', '/U', '/R']):
+                continue
+            
+            # 排除纯字母+数字结尾的SPAC (如 ABCD1, ABCDU, ABCDW)
+            if len(ticker) >= 4 and ticker[-1] in ['W', 'U', 'R'] and ticker[:-1].isalpha():
+                continue
+            
+            # 排除带有特殊字符的代码
+            if not ticker.replace('.', '').isalnum():
+                continue
+            
+            tickers.append(ticker)
                 
-        print(f"Fetched {len(tickers)} tickers.")
+        print(f"Fetched {len(tickers)} tickers (filtered common stocks only).")
         return tickers
     except Exception as e:
         print(f"Error fetching tickers: {e}")
