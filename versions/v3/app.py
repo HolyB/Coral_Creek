@@ -909,17 +909,18 @@ def render_todays_picks_page():
     # 侧边栏: 设置
     with st.sidebar:
         st.divider()
-        st.subheader("⚙️ 设置")
+        st.subheader("⚙️ 今日精选设置")
         
-        market_choice = st.radio("市场", ["🇺🇸 美股", "🇨🇳 A股"], horizontal=True)
+        market_choice = st.radio("市场", ["🇺🇸 美股", "🇨🇳 A股"], horizontal=True, key="picks_market")
         market = "US" if "美股" in market_choice else "CN"
         
-        top_n = st.slider("每策略选股数", 3, 10, 5)
+        top_n = st.slider("每策略选股数", 3, 10, 5, key="picks_topn")
         
-        show_performance = st.checkbox("显示策略历史表现", value=True)
+        show_performance = st.checkbox("显示策略历史表现", value=True, key="picks_perf")
+        show_backtest = st.checkbox("显示回测追踪", value=False, key="picks_backtest")
     
     # 加载今日数据
-    from db.database import query_scan_results, get_scanned_dates
+    from db.database import query_scan_results, get_scanned_dates, get_stock_info_batch
     
     dates = get_scanned_dates(market=market)
     if not dates:
@@ -936,6 +937,15 @@ def render_todays_picks_page():
     
     df = pd.DataFrame(results)
     
+    # 获取股票名称 (用于显示)
+    symbols = df['symbol'].tolist() if 'symbol' in df.columns else []
+    stock_info = {}
+    if symbols:
+        try:
+            stock_info = get_stock_info_batch(symbols) or {}
+        except:
+            stock_info = {}
+    
     # 获取策略选股
     manager = get_strategy_manager()
     all_picks = manager.get_all_picks(df, top_n=top_n)
@@ -950,11 +960,17 @@ def render_todays_picks_page():
         for i, (symbol, votes, avg_score) in enumerate(consensus[:5]):
             with cols[i]:
                 stars = "⭐" * votes
+                # 获取股票名称
+                info = stock_info.get(symbol, {})
+                name = info.get('name', '')[:10] if info else ''
+                
                 st.metric(
-                    label=symbol,
+                    label=f"{symbol}",
                     value=f"{avg_score:.0f}分",
                     delta=f"{votes}个策略认可"
                 )
+                if name:
+                    st.caption(f"📌 {name}")
                 st.caption(stars)
         st.divider()
     
@@ -966,8 +982,9 @@ def render_todays_picks_page():
             try:
                 performances = get_all_strategy_performance(days_back=30, market=market)
                 
-                perf_cols = st.columns(len(performances))
-                for i, perf in enumerate(performances):
+                # 只显示前4个策略
+                perf_cols = st.columns(min(len(performances), 4))
+                for i, perf in enumerate(performances[:4]):
                     with perf_cols[i]:
                         icon = perf.get('icon', '📊')
                         name = perf.get('strategy_name', perf.get('strategy', 'Unknown'))
@@ -1002,16 +1019,14 @@ def render_todays_picks_page():
     # === 各策略详细选股 ===
     st.subheader("🎯 策略选股详情")
     
+    # 动态获取所有策略
+    all_strategy_keys = list(manager.strategies.keys())
     strategy_tabs = st.tabs([
-        f"{manager.strategies['momentum'].icon} 动量突破",
-        f"{manager.strategies['value'].icon} 价值洼地",
-        f"{manager.strategies['conservative'].icon} 稳健保守",
-        f"{manager.strategies['aggressive'].icon} 激进突破"
+        f"{manager.strategies[k].icon} {manager.strategies[k].name}" 
+        for k in all_strategy_keys
     ])
     
-    strategy_keys = ['momentum', 'value', 'conservative', 'aggressive']
-    
-    for tab, key in zip(strategy_tabs, strategy_keys):
+    for tab, key in zip(strategy_tabs, all_strategy_keys):
         with tab:
             strategy = manager.strategies[key]
             picks = all_picks[key]
@@ -1022,16 +1037,23 @@ def render_todays_picks_page():
                 st.info("暂无符合条件的股票")
                 continue
             
-            # 表格展示
+            # 表格展示 (包含股票名称)
             pick_data = []
             for p in picks:
+                info = stock_info.get(p.symbol, {})
+                name = info.get('name', '') if info else ''
+                
+                # A股价格用人民币符号
+                price_symbol = "¥" if market == "CN" else "$"
+                
                 pick_data.append({
-                    "股票": p.symbol,
+                    "代码": p.symbol,
+                    "名称": name[:12] if name else "-",
                     "评分": f"{p.score:.0f}",
                     "信心": p.confidence,
-                    "买入价": f"${p.entry_price:.2f}",
-                    "止损": f"${p.stop_loss:.2f}",
-                    "止盈": f"${p.take_profit:.2f}",
+                    "买入价": f"{price_symbol}{p.entry_price:.2f}",
+                    "止损": f"{price_symbol}{p.stop_loss:.2f}",
+                    "止盈": f"{price_symbol}{p.take_profit:.2f}",
                     "理由": p.reason
                 })
             
@@ -1043,7 +1065,8 @@ def render_todays_picks_page():
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "股票": st.column_config.TextColumn("股票", width="small"),
+                    "代码": st.column_config.TextColumn("代码", width="small"),
+                    "名称": st.column_config.TextColumn("名称", width="medium"),
                     "评分": st.column_config.TextColumn("评分", width="small"),
                     "信心": st.column_config.TextColumn("信心", width="small"),
                     "买入价": st.column_config.TextColumn("买入价", width="small"),
@@ -1052,11 +1075,180 @@ def render_todays_picks_page():
                     "理由": st.column_config.TextColumn("理由", width="medium"),
                 }
             )
+            
+            # === 回测追踪 ===
+            if show_backtest and len(dates) > 1:
+                st.markdown("---")
+                st.markdown(f"#### 📈 历史选股回测 ({key})")
+                
+                with st.spinner("加载回测数据..."):
+                    try:
+                        from strategies.backtest_tracker import backtest_strategy_picks, get_historical_picks
+                        
+                        # 获取历史选股
+                        historical_picks = get_historical_picks(key, days_back=min(10, len(dates)), market=market)
+                        
+                        if historical_picks:
+                            # 回测
+                            backtest_result = backtest_strategy_picks(historical_picks, days=5, market=market)
+                            summary = backtest_result.get('summary', {})
+                            
+                            # 显示汇总
+                            sum_cols = st.columns(4)
+                            with sum_cols[0]:
+                                st.metric("总选股", f"{summary.get('total', 0)}次")
+                            with sum_cols[1]:
+                                wr = summary.get('win_rate', 0)
+                                st.metric("胜率", f"{wr:.0f}%", 
+                                         delta="达标" if wr >= 50 else "待改进",
+                                         delta_color="normal" if wr >= 50 else "inverse")
+                            with sum_cols[2]:
+                                avg_r = summary.get('avg_return', 0)
+                                st.metric("平均收益", f"{avg_r:+.2f}%",
+                                         delta_color="normal" if avg_r >= 0 else "inverse")
+                            with sum_cols[3]:
+                                st.metric("最大盈利", f"{summary.get('max_gain', 0):+.2f}%")
+                            
+                            # 详细每笔交易
+                            with st.expander("📋 查看详细交易记录"):
+                                for pick_result in backtest_result.get('picks', [])[:5]:
+                                    if pick_result['status'] == 'no_data':
+                                        continue
+                                    
+                                    sym = pick_result['symbol']
+                                    pdate = pick_result['pick_date']
+                                    final_ret = pick_result.get('final_return', 0)
+                                    
+                                    # 颜色
+                                    color = "🟢" if final_ret > 0 else "🔴"
+                                    
+                                    st.markdown(f"**{color} {sym}** (入场: {pdate})")
+                                    
+                                    # 每日收益
+                                    cumulative = pick_result.get('cumulative_returns', [])
+                                    if cumulative:
+                                        day_labels = [f"D{i}" for i in range(len(cumulative))]
+                                        chart_data = pd.DataFrame({
+                                            '天数': day_labels,
+                                            '累计收益%': cumulative
+                                        })
+                                        st.bar_chart(chart_data.set_index('天数'), height=150)
+                                    
+                                    st.caption(f"最终收益: {final_ret:+.2f}% | 持仓{pick_result.get('holding_days', 0)}天")
+                                    st.markdown("---")
+                        else:
+                            st.info("暂无历史选股数据")
+                    except Exception as e:
+                        st.warning(f"回测加载失败: {e}")
+    
+    # === 趋势图查看器 ===
+    st.divider()
+    st.subheader("📈 个股趋势图")
+    
+    # 收集所有被选中的股票
+    all_picked_symbols = set()
+    for picks in all_picks.values():
+        for p in picks:
+            all_picked_symbols.add(p.symbol)
+    
+    if all_picked_symbols:
+        selected_symbol = st.selectbox(
+            "选择股票查看趋势",
+            options=sorted(list(all_picked_symbols)),
+            key="trend_symbol"
+        )
+        
+        if selected_symbol:
+            with st.spinner(f"加载 {selected_symbol} 趋势图..."):
+                try:
+                    # 获取价格数据
+                    if market == 'US':
+                        from data_fetcher import get_us_stock_data
+                        price_df = get_us_stock_data(selected_symbol, days=60)
+                    else:
+                        from data_fetcher import get_cn_stock_data
+                        price_df = get_cn_stock_data(selected_symbol, days=60)
+                    
+                    if price_df is not None and not price_df.empty:
+                        import plotly.graph_objects as go
+                        
+                        # 获取当前选股信息
+                        current_pick = None
+                        for picks in all_picks.values():
+                            for p in picks:
+                                if p.symbol == selected_symbol:
+                                    current_pick = p
+                                    break
+                        
+                        # 创建图表
+                        fig = go.Figure()
+                        
+                        # K线或收盘价
+                        close_col = 'Close' if 'Close' in price_df.columns else 'close'
+                        date_col = 'Date' if 'Date' in price_df.columns else price_df.index
+                        
+                        fig.add_trace(go.Scatter(
+                            x=price_df[date_col] if isinstance(date_col, str) else date_col,
+                            y=price_df[close_col],
+                            mode='lines',
+                            name='收盘价',
+                            line=dict(color='#58a6ff', width=2)
+                        ))
+                        
+                        # 标注买入点
+                        if current_pick:
+                            fig.add_hline(
+                                y=current_pick.entry_price,
+                                line_dash="solid",
+                                line_color="#3fb950",
+                                annotation_text=f"买入: {current_pick.entry_price:.2f}"
+                            )
+                            fig.add_hline(
+                                y=current_pick.stop_loss,
+                                line_dash="dash",
+                                line_color="#f85149",
+                                annotation_text=f"止损: {current_pick.stop_loss:.2f}"
+                            )
+                            fig.add_hline(
+                                y=current_pick.take_profit,
+                                line_dash="dash",
+                                line_color="#3fb950",
+                                annotation_text=f"止盈: {current_pick.take_profit:.2f}"
+                            )
+                        
+                        fig.update_layout(
+                            title=f"{selected_symbol} 趋势图",
+                            xaxis_title="日期",
+                            yaxis_title="价格",
+                            template="plotly_dark",
+                            height=400,
+                            showlegend=False
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # 显示选股信息
+                        if current_pick:
+                            info = stock_info.get(selected_symbol, {})
+                            name = info.get('name', '') if info else ''
+                            price_sym = "¥" if market == "CN" else "$"
+                            
+                            st.markdown(f"""
+                            **{selected_symbol}** {name}
+                            - 📈 买入价: {price_sym}{current_pick.entry_price:.2f}
+                            - 🛑 止损: {price_sym}{current_pick.stop_loss:.2f} ({(1 - current_pick.stop_loss/current_pick.entry_price)*100:.1f}%)
+                            - 🎯 止盈: {price_sym}{current_pick.take_profit:.2f} ({(current_pick.take_profit/current_pick.entry_price - 1)*100:.1f}%)
+                            - 💡 选股理由: {current_pick.reason}
+                            """)
+                    else:
+                        st.warning(f"无法获取 {selected_symbol} 的价格数据")
+                except Exception as e:
+                    st.error(f"加载趋势图失败: {e}")
     
     # === 底部: 使用说明 ===
     with st.expander("📖 策略说明"):
         st.markdown("""
-        ### 四大策略说明
+        ### 策略说明
         
         | 策略 | 适合人群 | 风险等级 | 持仓周期 |
         |------|----------|----------|----------|
@@ -1064,13 +1256,18 @@ def render_todays_picks_page():
         | 💎 **价值洼地** | 价值投资者 | ⭐⭐ | 5-10天 |
         | 🛡️ **稳健保守** | 风险厌恶者 | ⭐ | 5-15天 |
         | ⚡ **激进突破** | 短线高手 | ⭐⭐⭐⭐ | 1-3天 |
+        | 🔄 **多周期共振** | 趋势交易者 | ⭐⭐ | 5-10天 |
+        | 🔃 **超跌反弹** | 抄底玩家 | ⭐⭐⭐ | 3-5天 |
+        | 📊 **放量突破** | 量价派 | ⭐⭐⭐ | 3-5天 |
+        | 🐴 **黑马形态** | 寻宝猎人 | ⭐⭐⭐⭐ | 5-15天 |
         
         ### 如何使用
         
         1. **查看共识区**: 被多个策略同时看好的股票值得重点关注
         2. **参考策略表现**: 选择历史胜率高的策略
-        3. **严格止损**: 每笔交易必须设置止损
-        4. **分散持仓**: 不要把所有资金投入单一股票
+        3. **看趋势图**: 确认买点位置和止损止盈
+        4. **严格止损**: 每笔交易必须设置止损
+        5. **分散持仓**: 不要把所有资金投入单一股票
         """)
 
 
