@@ -564,7 +564,7 @@ td:has(.chip-normal) {
 }
 
 /* ==========================================================================
-   MOBILE RESPONSIVE STYLES
+   MOBILE RESPONSIVE STYLES - ENHANCED
    ========================================================================== */
 
 /* Tablet breakpoint */
@@ -595,30 +595,44 @@ td:has(.chip-normal) {
 /* Mobile breakpoint */
 @media (max-width: 768px) {
 
-    /* Stack metric cards vertically */
-    [data-testid="column"] {
-        flex: 0 0 100% !important;
+    /* Main container padding */
+    .main .block-container {
+        padding: 1rem 0.5rem !important;
         max-width: 100% !important;
     }
 
-    /* Full-width metrics */
+    /* Stack columns vertically */
+    [data-testid="column"] {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        padding: 0.25rem 0 !important;
+    }
+
+    /* Full-width metrics with better spacing */
     div[data-testid="metric-container"] {
-        margin-bottom: 10px;
-        padding: 10px !important;
+        margin-bottom: 8px !important;
+        padding: 12px !important;
+        border-radius: 8px !important;
     }
 
     div[data-testid="metric-container"]>div>div>div {
-        font-size: 1.3rem !important;
+        font-size: 1.4rem !important;
+    }
+
+    /* Metric label smaller */
+    div[data-testid="metric-container"] label {
+        font-size: 0.85rem !important;
     }
 
     /* Scroll table horizontally */
     .stDataFrame {
         overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
     }
 
     .stDataFrame thead th,
     .stDataFrame tbody td {
-        padding: 6px 8px !important;
+        padding: 8px 10px !important;
         font-size: 0.8rem !important;
         white-space: nowrap;
     }
@@ -629,55 +643,201 @@ td:has(.chip-normal) {
         height: 24px !important;
     }
 
-    /* Bigger buttons */
+    /* Bigger buttons for touch */
     .stButton button {
         min-height: 48px !important;
         font-size: 1rem !important;
+        width: 100% !important;
     }
 
-    /* Collapsible sidebar */
+    /* Sidebar collapsed by default on mobile */
     section[data-testid="stSidebar"] {
         z-index: 100;
     }
 
-    /* Tab labels */
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        min-width: 0 !important;
+        width: 0 !important;
+    }
+
+    /* Tab labels smaller */
     button[data-baseweb="tab"] {
-        font-size: 0.85rem !important;
-        padding: 8px 12px !important;
+        font-size: 0.75rem !important;
+        padding: 6px 10px !important;
+    }
+
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        padding: 4px;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    /* Headers responsive */
+    h1 {
+        font-size: 1.5rem !important;
+        line-height: 1.3 !important;
+    }
+
+    h2 {
+        font-size: 1.25rem !important;
+    }
+
+    h3 {
+        font-size: 1.1rem !important;
+    }
+
+    /* Expander touch friendly */
+    .streamlit-expanderHeader {
+        min-height: 48px;
+        padding: 12px !important;
+    }
+
+    /* Selectbox touch friendly */
+    .stSelectbox>div>div {
+        min-height: 44px !important;
+    }
+
+    /* Radio buttons touch friendly */
+    section[data-testid="stSidebar"] .stRadio>label {
+        min-height: 44px !important;
+        padding: 12px 15px !important;
+    }
+
+    /* Charts responsive */
+    .js-plotly-plot {
+        max-width: 100% !important;
+    }
+
+    .js-plotly-plot .plotly {
+        width: 100% !important;
+    }
+
+    /* Info boxes compact */
+    .stAlert {
+        padding: 10px !important;
+        font-size: 0.9rem !important;
+    }
+
+    /* Slider touch friendly */
+    .stSlider {
+        padding: 10px 0 !important;
+    }
+
+    .stSlider [data-baseweb="slider"] {
+        height: 40px !important;
     }
 }
 
 /* Small phone breakpoint */
 @media (max-width: 480px) {
 
-    /* Ultra-compact mode */
+    /* Ultra-compact main area */
+    .main .block-container {
+        padding: 0.5rem 0.25rem !important;
+    }
+
+    /* Ultra-compact metrics */
+    div[data-testid="metric-container"] {
+        padding: 10px !important;
+    }
+
     div[data-testid="metric-container"]>div>div>div {
-        font-size: 1.1rem !important;
-    }
-
-    .stDataFrame thead th,
-    .stDataFrame tbody td {
-        padding: 4px 6px !important;
-        font-size: 0.75rem !important;
-    }
-
-    /* Hide less important columns */
-    .stDataFrame th:nth-child(n+7),
-    .stDataFrame td:nth-child(n+7) {
-        display: none;
-    }
-
-    /* Single column layout */
-    h1 {
-        font-size: 1.4rem !important;
-    }
-
-    h2 {
         font-size: 1.2rem !important;
     }
 
+    /* Compact table */
+    .stDataFrame thead th,
+    .stDataFrame tbody td {
+        padding: 4px 6px !important;
+        font-size: 0.7rem !important;
+    }
+
+    /* Headers compact */
+    h1 {
+        font-size: 1.3rem !important;
+    }
+
+    h2 {
+        font-size: 1.1rem !important;
+    }
+
     h3 {
-        font-size: 1rem !important;
+        font-size: 0.95rem !important;
+    }
+
+    /* Full width buttons */
+    .stButton button {
+        width: 100% !important;
+        margin-bottom: 8px;
+    }
+
+    /* Stacked tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        flex-wrap: wrap;
+    }
+
+    button[data-baseweb="tab"] {
+        flex: 1 1 45%;
+        text-align: center;
+        margin: 2px;
+    }
+
+    /* Hide overflow in captions */
+    .caption,
+    figcaption,
+    .stCaption {
+        font-size: 0.75rem !important;
+        line-height: 1.3 !important;
+    }
+}
+
+/* ==========================================================================
+   TOUCH-SPECIFIC ENHANCEMENTS
+   ========================================================================== */
+@media (pointer: coarse) {
+    /* Touch devices need bigger tap targets */
+
+    button,
+    a,
+    input,
+    select,
+    .stRadio label,
+    .stCheckbox label {
+        min-height: 44px;
+    }
+
+    /* Increase tap area for metric cards */
+    div[data-testid="metric-container"] {
+        cursor: pointer;
+    }
+
+    /* Remove hover effects on touch */
+    div[data-testid="metric-container"]:hover {
+        transform: none;
+    }
+
+    /* Add active state instead */
+    div[data-testid="metric-container"]:active {
+        transform: scale(0.98);
+        opacity: 0.9;
+    }
+}
+
+/* ==========================================================================
+   LANDSCAPE MOBILE
+   ========================================================================== */
+@media (max-width: 896px) and (orientation: landscape) {
+
+    /* Two column layout in landscape */
+    [data-testid="column"] {
+        flex: 0 0 50% !important;
+        max-width: 50% !important;
+    }
+
+    /* Smaller sidebar */
+    section[data-testid="stSidebar"] {
+        width: 220px !important;
     }
 }
 
@@ -706,4 +866,72 @@ td:has(.chip-normal) {
     background: rgba(88, 166, 255, 0.15) !important;
     border-left: 4px solid var(--cc-accent-blue);
     border-radius: 8px;
+}
+
+/* ==========================================================================
+   MOBILE BOTTOM NAVIGATION BAR (Optional Enhancement)
+   ========================================================================== */
+.mobile-nav-bar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--cc-bg-secondary);
+    border-top: 1px solid var(--cc-border);
+    padding: 8px 0;
+    z-index: 1000;
+}
+
+@media (max-width: 768px) {
+    .mobile-nav-bar {
+        display: flex;
+        justify-content: space-around;
+    }
+
+    /* Add bottom padding to avoid overlap */
+    .main .block-container {
+        padding-bottom: 80px !important;
+    }
+}
+
+/* ==========================================================================
+   PULL TO REFRESH INDICATOR (Visual Only)
+   ========================================================================== */
+.pull-refresh-indicator {
+    text-align: center;
+    padding: 10px;
+    color: var(--cc-text-secondary);
+    font-size: 0.85rem;
+}
+
+/* ==========================================================================
+   FLOATING ACTION BUTTON (Optional)
+   ========================================================================== */
+.fab {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--cc-gradient-1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    z-index: 999;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.fab:active {
+    transform: scale(0.95);
+}
+
+@media (min-width: 769px) {
+    .fab {
+        display: none;
+    }
 }
