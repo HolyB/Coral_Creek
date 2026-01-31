@@ -188,6 +188,28 @@ with st.sidebar:
                 st.toast("✅ 测试消息发送成功!", icon="✅")
             else:
                 st.error("❌ 发送失败，请检查 Logs")
+    
+    # Supabase 调试
+    if st.button("🔍 检查数据库", help="检查 Supabase 连接和数据"):
+        st.write("**环境变量检查:**")
+        supabase_url = os.environ.get('SUPABASE_URL', 'NOT SET')
+        supabase_key = os.environ.get('SUPABASE_KEY', 'NOT SET')
+        st.write(f"- SUPABASE_URL: `{supabase_url[:40] if supabase_url else 'None'}...`")
+        st.write(f"- SUPABASE_KEY: `{'SET' if supabase_key and len(supabase_key) > 10 else 'NOT SET'}`")
+        
+        # 测试连接
+        try:
+            from db.supabase_db import get_supabase, is_supabase_available
+            if is_supabase_available():
+                supabase = get_supabase()
+                result = supabase.table('scan_results').select('*').limit(5).execute()
+                st.success(f"✅ Supabase 连接成功! 获取到 {len(result.data)} 条记录")
+                if result.data:
+                    st.json(result.data[0])
+            else:
+                st.error("❌ Supabase 不可用")
+        except Exception as e:
+            st.error(f"❌ 连接错误: {e}")
 
 # --- 工具函数 ---
 
