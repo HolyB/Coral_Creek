@@ -359,6 +359,295 @@ class AggressiveStrategy(BaseStrategy):
         return picks
 
 
+class MultiTimeframeStrategy(BaseStrategy):
+    """策略E: 多周期共振策略
+    日线+周线同时 BLUE 的股票
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="多周期共振",
+            description="日线周线同向，趋势更可靠",
+            icon="🔄"
+        )
+    
+    def select(self, df: pd.DataFrame, top_n: int = 5) -> List[StrategyPick]:
+        picks = []
+        
+        if df.empty:
+            return picks
+        
+        filtered = df.copy()
+        
+        blue_col = 'blue_daily' if 'blue_daily' in df.columns else 'Blue_Daily'
+        blue_weekly_col = 'blue_weekly' if 'blue_weekly' in df.columns else 'Blue_Weekly'
+        blue_monthly_col = 'blue_monthly' if 'blue_monthly' in df.columns else 'Blue_Monthly'
+        price_col = 'price' if 'price' in df.columns else 'Price'
+        symbol_col = 'symbol' if 'symbol' in df.columns else 'Symbol'
+        vol_col = 'volatility' if 'volatility' in df.columns else 'Volatility'
+        turnover_col = 'turnover_m' if 'turnover_m' in df.columns else 'Turnover_M'
+        
+        # 筛选: 日线和周线同时 BLUE >= 60
+        if blue_col in filtered.columns:
+            filtered = filtered[filtered[blue_col] >= 60]
+        if blue_weekly_col in filtered.columns:
+            filtered = filtered[filtered[blue_weekly_col] >= 50]
+        if turnover_col in filtered.columns:
+            filtered = filtered[filtered[turnover_col] >= 2]
+        
+        if filtered.empty:
+            return picks
+        
+        # 评分: 日线 + 周线 + 月线加分
+        filtered['score'] = 0
+        if blue_col in filtered.columns:
+            filtered['score'] += filtered[blue_col].fillna(0) * 0.4
+        if blue_weekly_col in filtered.columns:
+            filtered['score'] += filtered[blue_weekly_col].fillna(0) * 0.4
+        if blue_monthly_col in filtered.columns:
+            filtered['score'] += (filtered[blue_monthly_col].fillna(0) > 50).astype(int) * 20
+        
+        filtered['score'] = filtered['score'].clip(0, 100)
+        filtered = filtered.nlargest(top_n, 'score')
+        
+        for _, row in filtered.iterrows():
+            price = row.get(price_col, 0)
+            vol = row.get(vol_col, 0.02)
+            stop_loss = self.calculate_stop_loss(price, vol)
+            take_profit = self.calculate_take_profit(price, 2.5, stop_loss)
+            
+            d = row.get(blue_col, 0)
+            w = row.get(blue_weekly_col, 0)
+            m = row.get(blue_monthly_col, 0)
+            
+            picks.append(StrategyPick(
+                symbol=row[symbol_col],
+                score=round(row['score'], 1),
+                entry_price=round(price, 2),
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                reason=f"日={d:.0f} 周={w:.0f} 月={m:.0f}",
+                confidence="高" if w > 60 and m > 50 else "中"
+            ))
+        
+        return picks
+
+
+class ReversalStrategy(BaseStrategy):
+    """策略F: 超跌反弹策略
+    寻找绝地反击信号
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="超跌反弹",
+            description="绝地反击，抄底机会",
+            icon="🔃"
+        )
+    
+    def select(self, df: pd.DataFrame, top_n: int = 5) -> List[StrategyPick]:
+        picks = []
+        
+        if df.empty:
+            return picks
+        
+        filtered = df.copy()
+        
+        blue_col = 'blue_daily' if 'blue_daily' in df.columns else 'Blue_Daily'
+        is_juedi_col = 'is_juedi' if 'is_juedi' in df.columns else 'Is_Juedi'
+        price_col = 'price' if 'price' in df.columns else 'Price'
+        symbol_col = 'symbol' if 'symbol' in df.columns else 'Symbol'
+        vol_col = 'volatility' if 'volatility' in df.columns else 'Volatility'
+        turnover_col = 'turnover_m' if 'turnover_m' in df.columns else 'Turnover_M'
+        
+        # 筛选: 绝地反击信号
+        if is_juedi_col in filtered.columns:
+            filtered = filtered[filtered[is_juedi_col] == True]
+        if blue_col in filtered.columns:
+            filtered = filtered[filtered[blue_col] >= 50]  # BLUE 也要起来
+        if turnover_col in filtered.columns:
+            filtered = filtered[filtered[turnover_col] >= 1]
+        
+        if filtered.empty:
+            return picks
+        
+        # 评分: BLUE 越高越好
+        if blue_col in filtered.columns:
+            filtered['score'] = filtered[blue_col].fillna(0)
+        else:
+            filtered['score'] = 50
+        
+        filtered['score'] = filtered['score'].clip(0, 100)
+        filtered = filtered.nlargest(top_n, 'score')
+        
+        for _, row in filtered.iterrows():
+            price = row.get(price_col, 0)
+            vol = row.get(vol_col, 0.03)
+            stop_loss = self.calculate_stop_loss(price, vol * 1.2)  # 更宽的止损
+            take_profit = self.calculate_take_profit(price, 3.0, stop_loss)  # 高目标
+            
+            blue_val = row.get(blue_col, 0)
+            
+            picks.append(StrategyPick(
+                symbol=row[symbol_col],
+                score=round(row['score'], 1),
+                entry_price=round(price, 2),
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                reason=f"绝地反击 BLUE={blue_val:.0f}",
+                confidence="中"  # 反弹策略风险较高
+            ))
+        
+        return picks
+
+
+class VolumeBreakoutStrategy(BaseStrategy):
+    """策略G: 放量突破策略
+    成交额突然放大 + BLUE 信号
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="放量突破",
+            description="量价齐升，主力入场",
+            icon="📊"
+        )
+    
+    def select(self, df: pd.DataFrame, top_n: int = 5) -> List[StrategyPick]:
+        picks = []
+        
+        if df.empty:
+            return picks
+        
+        filtered = df.copy()
+        
+        blue_col = 'blue_daily' if 'blue_daily' in df.columns else 'Blue_Daily'
+        turnover_col = 'turnover_m' if 'turnover_m' in df.columns else 'Turnover_M'
+        adx_col = 'adx' if 'adx' in df.columns else 'ADX'
+        price_col = 'price' if 'price' in df.columns else 'Price'
+        symbol_col = 'symbol' if 'symbol' in df.columns else 'Symbol'
+        vol_col = 'volatility' if 'volatility' in df.columns else 'Volatility'
+        
+        # 筛选: 高成交额 + BLUE 信号
+        if turnover_col in filtered.columns:
+            # 成交额排名前 20%
+            threshold = filtered[turnover_col].quantile(0.8)
+            filtered = filtered[filtered[turnover_col] >= threshold]
+        if blue_col in filtered.columns:
+            filtered = filtered[filtered[blue_col] >= 70]
+        
+        if filtered.empty:
+            return picks
+        
+        # 评分: 成交额 + BLUE
+        if turnover_col in filtered.columns and blue_col in filtered.columns:
+            max_turnover = filtered[turnover_col].max()
+            if max_turnover > 0:
+                filtered['score'] = (
+                    filtered[turnover_col] / max_turnover * 50 +
+                    filtered[blue_col] / 100 * 50
+                ).clip(0, 100)
+            else:
+                filtered['score'] = filtered[blue_col].fillna(0)
+        else:
+            filtered['score'] = 50
+        
+        filtered = filtered.nlargest(top_n, 'score')
+        
+        for _, row in filtered.iterrows():
+            price = row.get(price_col, 0)
+            vol = row.get(vol_col, 0.025)
+            stop_loss = self.calculate_stop_loss(price, vol)
+            take_profit = self.calculate_take_profit(price, 2.0, stop_loss)
+            
+            turnover = row.get(turnover_col, 0)
+            blue_val = row.get(blue_col, 0)
+            
+            picks.append(StrategyPick(
+                symbol=row[symbol_col],
+                score=round(row['score'], 1),
+                entry_price=round(price, 2),
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                reason=f"成交={turnover:.1f}M BLUE={blue_val:.0f}",
+                confidence="高" if turnover > 50 else "中"
+            ))
+        
+        return picks
+
+
+class HeimaPatternStrategy(BaseStrategy):
+    """策略H: 黑马形态策略
+    识别黑马底部形态
+    """
+    
+    def __init__(self):
+        super().__init__(
+            name="黑马形态",
+            description="识别潜在黑马股",
+            icon="🐴"
+        )
+    
+    def select(self, df: pd.DataFrame, top_n: int = 5) -> List[StrategyPick]:
+        picks = []
+        
+        if df.empty:
+            return picks
+        
+        filtered = df.copy()
+        
+        blue_col = 'blue_daily' if 'blue_daily' in df.columns else 'Blue_Daily'
+        is_heima_col = 'is_heima' if 'is_heima' in df.columns else 'Is_Heima'
+        adx_col = 'adx' if 'adx' in df.columns else 'ADX'
+        price_col = 'price' if 'price' in df.columns else 'Price'
+        symbol_col = 'symbol' if 'symbol' in df.columns else 'Symbol'
+        vol_col = 'volatility' if 'volatility' in df.columns else 'Volatility'
+        turnover_col = 'turnover_m' if 'turnover_m' in df.columns else 'Turnover_M'
+        
+        # 筛选: 黑马信号
+        if is_heima_col in filtered.columns:
+            filtered = filtered[filtered[is_heima_col] == True]
+        if blue_col in filtered.columns:
+            filtered = filtered[filtered[blue_col] >= 60]
+        if turnover_col in filtered.columns:
+            filtered = filtered[filtered[turnover_col] >= 1]
+        
+        if filtered.empty:
+            return picks
+        
+        # 评分: BLUE + ADX
+        if blue_col in filtered.columns:
+            filtered['score'] = filtered[blue_col].fillna(0) * 0.7
+            if adx_col in filtered.columns:
+                filtered['score'] += filtered[adx_col].fillna(0) * 0.3
+        else:
+            filtered['score'] = 50
+        
+        filtered['score'] = filtered['score'].clip(0, 100)
+        filtered = filtered.nlargest(top_n, 'score')
+        
+        for _, row in filtered.iterrows():
+            price = row.get(price_col, 0)
+            vol = row.get(vol_col, 0.03)
+            stop_loss = self.calculate_stop_loss(price, vol)
+            take_profit = self.calculate_take_profit(price, 3.0, stop_loss)  # 黑马目标高
+            
+            blue_val = row.get(blue_col, 0)
+            adx_val = row.get(adx_col, 0)
+            
+            picks.append(StrategyPick(
+                symbol=row[symbol_col],
+                score=round(row['score'], 1),
+                entry_price=round(price, 2),
+                stop_loss=stop_loss,
+                take_profit=take_profit,
+                reason=f"黑马 BLUE={blue_val:.0f} ADX={adx_val:.0f}",
+                confidence="中"
+            ))
+        
+        return picks
+
+
 class StrategyManager:
     """策略管理器"""
     
@@ -368,6 +657,10 @@ class StrategyManager:
             'value': ValueStrategy(),
             'conservative': ConservativeStrategy(),
             'aggressive': AggressiveStrategy(),
+            'multi_timeframe': MultiTimeframeStrategy(),
+            'reversal': ReversalStrategy(),
+            'volume_breakout': VolumeBreakoutStrategy(),
+            'heima': HeimaPatternStrategy(),
         }
     
     def get_all_picks(self, df: pd.DataFrame, top_n: int = 5) -> Dict[str, List[StrategyPick]]:

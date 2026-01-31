@@ -175,6 +175,28 @@ jobs:
         run: |
           python scripts/send_notification.py
       
+      # 同步到 Supabase 云数据库
+      - name: Sync to Supabase
+        working-directory: versions/v2
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          pip install supabase
+          python scripts/sync_to_supabase.py --days 3
+      
+      # 发送今日精选到 Telegram (使用 V3 策略系统)
+      - name: Send daily picks
+        working-directory: versions/v3
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          pip install supabase pandas numpy
+          python scripts/send_daily_picks.py --market US
+      
       # 提交数据库到仓库 - 用于 Streamlit Cloud
       - name: Commit database to repo
         run: |
