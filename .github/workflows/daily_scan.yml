@@ -197,6 +197,17 @@ jobs:
           pip install supabase pandas numpy
           python scripts/send_daily_picks.py --market US
       
+      # 发送买卖信号到 Telegram
+      - name: Send trading signals
+        working-directory: versions/v3
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python scripts/send_trading_signals.py --market US
+      
       # 提交数据库到仓库 - 用于 Streamlit Cloud
       - name: Commit database to repo
         run: |

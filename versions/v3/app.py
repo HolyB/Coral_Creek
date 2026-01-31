@@ -3143,8 +3143,13 @@ def render_signal_tracker_page():
         add_trade, get_trades, update_watchlist_status, delete_from_watchlist
     )
     
-    # Tab 结构
-    tab1, tab2, tab3 = st.tabs(["📊 信号表现", "🔍 信号复盘", "💼 我的持仓"])
+    # Tab 结构 - 新增"今日信号"
+    tab0, tab1, tab2, tab3 = st.tabs(["🎯 今日信号", "📊 信号表现", "🔍 信号复盘", "💼 我的持仓"])
+    
+    # ==================== Tab 0: 今日买卖信号 (新增) ====================
+    with tab0:
+        st.info("🔔 每日买入/卖出信号推荐")
+        render_todays_signals_tab()
     
     # ==================== Tab 1: 信号表现 (原有功能) ====================
     with tab1:
@@ -3160,6 +3165,150 @@ def render_signal_tracker_page():
     with tab3:
         st.info("添加并跟踪你的实际持仓，记录交易")
         render_portfolio_tab()
+
+
+def render_todays_signals_tab():
+    """今日买卖信号 Tab"""
+    # 侧边栏设置
+    with st.sidebar:
+        st.subheader("🎯 信号设置")
+        
+        market = st.radio(
+            "选择市场",
+            ["🇺🇸 美股", "🇨🇳 A股"],
+            horizontal=True,
+            key="signal_market"
+        )
+        market_code = "US" if "美股" in market else "CN"
+        
+        min_confidence = st.slider("最低信心度", 30, 90, 50, key="signal_conf")
+        
+        generate_btn = st.button("🔄 生成今日信号", type="primary", use_container_width=True)
+    
+    # 尝试导入信号系统
+    try:
+        from strategies.signal_system import get_signal_manager, SignalType
+        manager = get_signal_manager()
+    except Exception as e:
+        st.error(f"信号系统加载失败: {e}")
+        return
+    
+    # 生成信号
+    if generate_btn:
+        with st.spinner("正在生成交易信号..."):
+            result = manager.generate_daily_signals(market=market_code)
+            
+            if 'error' in result:
+                st.error(f"生成失败: {result['error']}")
+            else:
+                st.success(f"✅ 生成 {result.get('buy_signals', 0)} 个买入信号, {result.get('sell_signals', 0)} 个卖出信号")
+                st.rerun()
+    
+    # 显示今日信号
+    todays_signals = manager.get_todays_signals(market=market_code)
+    
+    if not todays_signals:
+        st.warning("暂无今日信号，点击「生成今日信号」按钮")
+        
+        # 显示说明
+        st.markdown("""
+        ### 📋 信号类型说明
+        
+        | 信号 | 说明 | 操作建议 |
+        |------|------|----------|
+        | 🟢 **买入** | 满足买入条件 | 考虑建仓 |
+        | 🔴 **卖出** | 获利回吐或趋势转弱 | 减仓或清仓 |
+        | 🛑 **止损** | 跌破止损位 | 立即止损 |
+        | 🎯 **止盈** | 达到目标价 | 落袋为安 |
+        | 👀 **观察** | 待确认信号 | 继续观察 |
+        
+        ### 💡 信号强度
+        
+        - 🔥 **强烈**: 多条件共振，信心 > 70%
+        - ⚡ **中等**: 主要条件满足，信心 50-70%
+        - 💧 **弱**: 单一条件触发，信心 < 50%
+        """)
+        return
+    
+    # 过滤低信心度信号
+    todays_signals = [s for s in todays_signals if s.get('confidence', 0) >= min_confidence]
+    
+    # 分类显示
+    buy_signals = [s for s in todays_signals if s['signal_type'] == '买入']
+    sell_signals = [s for s in todays_signals if s['signal_type'] in ['卖出', '止损', '止盈']]
+    
+    # 买入信号
+    st.subheader("🟢 买入信号")
+    if buy_signals:
+        buy_df = pd.DataFrame([{
+            '代码': s['symbol'],
+            '强度': s['strength'],
+            '价格': f"${s['price']:.2f}" if market_code == 'US' else f"¥{s['price']:.2f}",
+            '目标': f"${s['target_price']:.2f}" if market_code == 'US' else f"¥{s['target_price']:.2f}",
+            '止损': f"${s['stop_loss']:.2f}" if market_code == 'US' else f"¥{s['stop_loss']:.2f}",
+            '策略': s['strategy'],
+            '信心': f"{s['confidence']:.0f}%",
+            '理由': s['reason']
+        } for s in buy_signals])
+        
+        st.dataframe(buy_df, hide_index=True, use_container_width=True)
+        
+        # 可视化
+        if len(buy_signals) > 0:
+            st.markdown("#### 📊 信心度分布")
+            chart_data = pd.DataFrame({
+                '股票': [s['symbol'] for s in buy_signals[:10]],
+                '信心度': [s['confidence'] for s in buy_signals[:10]]
+            })
+            st.bar_chart(chart_data.set_index('股票'), height=200)
+    else:
+        st.info("暂无买入信号")
+    
+    st.divider()
+    
+    # 卖出信号
+    st.subheader("🔴 卖出/止损信号")
+    if sell_signals:
+        sell_df = pd.DataFrame([{
+            '代码': s['symbol'],
+            '类型': s['signal_type'],
+            '强度': s['strength'],
+            '价格': f"${s['price']:.2f}" if market_code == 'US' else f"¥{s['price']:.2f}",
+            '策略': s['strategy'],
+            '信心': f"{s['confidence']:.0f}%",
+            '理由': s['reason']
+        } for s in sell_signals])
+        
+        st.dataframe(sell_df, hide_index=True, use_container_width=True)
+    else:
+        st.info("暂无卖出信号")
+    
+    st.divider()
+    
+    # 历史信号统计
+    st.subheader("📈 近7日信号统计")
+    
+    historical = manager.get_historical_signals(days=7, market=market_code)
+    if historical:
+        # 按日期统计
+        date_counts = {}
+        for s in historical:
+            date = s.get('generated_at', 'Unknown')
+            if date not in date_counts:
+                date_counts[date] = {'买入': 0, '卖出': 0}
+            if s['signal_type'] == '买入':
+                date_counts[date]['买入'] += 1
+            else:
+                date_counts[date]['卖出'] += 1
+        
+        if date_counts:
+            stats_df = pd.DataFrame([
+                {'日期': date, '买入信号': counts['买入'], '卖出信号': counts['卖出']}
+                for date, counts in date_counts.items()
+            ])
+            st.dataframe(stats_df, hide_index=True, use_container_width=True)
+    else:
+        st.info("暂无历史信号数据")
 
 
 def render_signal_performance_tab():

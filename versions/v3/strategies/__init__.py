@@ -24,6 +24,16 @@ from strategies.blogger_strategies import (
     JesseLivermoreStrategy,
     TaoBoStrategy,
     BuffettValueStrategy,
+    get_famous_traders,
+)
+
+from strategies.signal_system import (
+    SignalManager,
+    SignalGenerator,
+    get_signal_manager,
+    TradingSignal,
+    SignalType,
+    SignalStrength,
 )
 
 __all__ = [
@@ -40,4 +50,11 @@ __all__ = [
     'BLOGGER_STRATEGIES',
     'get_blogger_strategy',
     'list_blogger_strategies',
+    'get_famous_traders',
+    'SignalManager',
+    'SignalGenerator',
+    'get_signal_manager',
+    'TradingSignal',
+    'SignalType',
+    'SignalStrength',
 ]
