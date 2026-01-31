@@ -2,13 +2,30 @@
 # -*- coding: utf-8 -*-
 """
 数据库连接和会话管理
+支持 SQLite (本地) 和 Supabase (云端)
 """
 import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, date
 
-# 数据库文件路径
+# 导入 Supabase 层
+try:
+    from db.supabase_db import (
+        is_supabase_available, 
+        query_scan_results_supabase,
+        get_scanned_dates_supabase,
+        get_db_stats_supabase,
+        insert_scan_result_supabase
+    )
+    SUPABASE_LAYER_AVAILABLE = True
+except ImportError:
+    SUPABASE_LAYER_AVAILABLE = False
+
+# 检查是否使用 Supabase
+USE_SUPABASE = os.environ.get('SUPABASE_URL') is not None
+
+# 数据库文件路径 (SQLite 备用)
 DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(DB_DIR, "coral_creek.db")
 
@@ -210,7 +227,17 @@ def init_db():
 
 
 def get_scanned_dates(start_date=None, end_date=None, market=None):
-    """获取已扫描的日期列表，可按市场过滤"""
+    """获取已扫描的日期列表 - 优先使用 Supabase"""
+    # 优先使用 Supabase
+    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+        try:
+            dates = get_scanned_dates_supabase(start_date, end_date, market)
+            if dates:
+                return dates
+        except Exception as e:
+            print(f"⚠️ Supabase 日期查询失败: {e}")
+    
+    # SQLite 备用
     with get_db() as conn:
         cursor = conn.cursor()
         
@@ -340,7 +367,24 @@ def bulk_insert_scan_results(results_list):
 
 def query_scan_results(scan_date=None, start_date=None, end_date=None, 
                        min_blue=None, symbols=None, market=None, limit=None):
-    """查询扫描结果"""
+    """查询扫描结果 - 优先使用 Supabase"""
+    # 优先使用 Supabase
+    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+        try:
+            results = query_scan_results_supabase(
+                scan_date=scan_date,
+                start_date=start_date,
+                end_date=end_date,
+                min_blue=min_blue,
+                market=market,
+                limit=limit
+            )
+            if results:
+                return results
+        except Exception as e:
+            print(f"⚠️ Supabase 查询失败，回退到 SQLite: {e}")
+    
+    # SQLite 备用
     with get_db() as conn:
         cursor = conn.cursor()
         
