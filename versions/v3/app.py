@@ -42,14 +42,29 @@ def load_custom_css():
 load_custom_css()
 
 # --- 环境变量适配 ---
-# 将 Streamlit Secrets 注入环境变量, 供 scripts/intraday_monitor.py 使用
-try:
-    if hasattr(st, "secrets"):
-        for key, value in st.secrets.items():
-            if isinstance(value, str) and key not in os.environ:
-                os.environ[key] = value
-except Exception as e:
-    print(f"⚠️ Secrets injection skipped: {e}")
+# 将 Streamlit Secrets 注入环境变量
+def inject_secrets():
+    """将 Streamlit Secrets 注入到环境变量"""
+    try:
+        if hasattr(st, "secrets"):
+            # 遍历所有 secrets
+            for key in st.secrets:
+                value = st.secrets[key]
+                # 只注入字符串值
+                if isinstance(value, str):
+                    if key not in os.environ or not os.environ[key]:
+                        os.environ[key] = value
+                        print(f"✅ Injected secret: {key}")
+            
+            # 特别检查 Supabase
+            if 'SUPABASE_URL' in os.environ:
+                print(f"✅ SUPABASE_URL: {os.environ['SUPABASE_URL'][:30]}...")
+            else:
+                print("⚠️ SUPABASE_URL not found in secrets")
+    except Exception as e:
+        print(f"⚠️ Secrets injection error: {e}")
+
+inject_secrets()
 
 
 # --- 后台调度器 (In-App Scheduler) ---
