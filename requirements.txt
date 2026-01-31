@@ -1,0 +1,26 @@
+# Coral Creek V3 Dependencies
+pandas>=2.0.0
+numpy>=1.24.0
+plotly>=5.18.0
+streamlit>=1.29.0
+polygon-api-client>=1.12.0
+tqdm>=4.66.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+tushare>=1.2.89
+akshare>=1.14.0
+scipy>=1.11.0
+openai>=1.0.0
+google-generativeai>=0.3.0
+yfinance>=0.2.36
+APScheduler>=3.10.0
+
+# ML Dependencies
+scikit-learn>=1.3.0
+xgboost>=2.0.0
+joblib>=1.3.0
+huggingface_hub>=0.20.0
+pyarrow>=14.0.0
+
+
+
