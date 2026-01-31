@@ -893,6 +893,187 @@ def get_market_mood(df):
 
 # --- 页面逻辑 ---
 
+def render_todays_picks_page():
+    """🎯 今日精选 - 多策略选股仪表板"""
+    st.header("🎯 今日精选 (Multi-Strategy Dashboard)")
+    st.caption("综合多个策略，智能推荐今日最佳交易机会")
+    
+    # 导入策略模块
+    try:
+        from strategies.decision_system import get_strategy_manager
+        from strategies.performance_tracker import get_all_strategy_performance
+    except ImportError as e:
+        st.error(f"策略模块导入失败: {e}")
+        return
+    
+    # 侧边栏: 设置
+    with st.sidebar:
+        st.divider()
+        st.subheader("⚙️ 设置")
+        
+        market_choice = st.radio("市场", ["🇺🇸 美股", "🇨🇳 A股"], horizontal=True)
+        market = "US" if "美股" in market_choice else "CN"
+        
+        top_n = st.slider("每策略选股数", 3, 10, 5)
+        
+        show_performance = st.checkbox("显示策略历史表现", value=True)
+    
+    # 加载今日数据
+    from db.database import query_scan_results, get_scanned_dates
+    
+    dates = get_scanned_dates(market=market)
+    if not dates:
+        st.warning(f"暂无 {market} 市场数据")
+        return
+    
+    latest_date = dates[0]
+    st.info(f"📅 数据日期: **{latest_date}** ({market})")
+    
+    results = query_scan_results(scan_date=latest_date, market=market, limit=500)
+    if not results:
+        st.warning("未找到扫描结果")
+        return
+    
+    df = pd.DataFrame(results)
+    
+    # 获取策略选股
+    manager = get_strategy_manager()
+    all_picks = manager.get_all_picks(df, top_n=top_n)
+    consensus = manager.get_consensus_picks(df, min_votes=2)
+    
+    # === 顶部: 共识精选 ===
+    if consensus:
+        st.subheader("🔥 多策略共识 (Consensus Picks)")
+        st.caption("被多个策略同时看好的股票")
+        
+        cols = st.columns(min(len(consensus), 5))
+        for i, (symbol, votes, avg_score) in enumerate(consensus[:5]):
+            with cols[i]:
+                stars = "⭐" * votes
+                st.metric(
+                    label=symbol,
+                    value=f"{avg_score:.0f}分",
+                    delta=f"{votes}个策略认可"
+                )
+                st.caption(stars)
+        st.divider()
+    
+    # === 策略表现概览 ===
+    if show_performance:
+        st.subheader("📊 策略表现追踪 (30日)")
+        
+        with st.spinner("计算策略历史表现..."):
+            try:
+                performances = get_all_strategy_performance(days_back=30, market=market)
+                
+                perf_cols = st.columns(len(performances))
+                for i, perf in enumerate(performances):
+                    with perf_cols[i]:
+                        icon = perf.get('icon', '📊')
+                        name = perf.get('strategy_name', perf.get('strategy', 'Unknown'))
+                        
+                        if 'error' in perf:
+                            st.warning(f"{icon} {name}")
+                            st.caption(f"❌ {perf['error'][:30]}")
+                        else:
+                            win_rate = perf.get('win_rate', 0)
+                            avg_ret = perf.get('avg_return', 0)
+                            
+                            # 颜色编码
+                            if win_rate >= 60:
+                                color = "🟢"
+                            elif win_rate >= 50:
+                                color = "🟡"
+                            else:
+                                color = "🔴"
+                            
+                            st.metric(
+                                label=f"{icon} {name}",
+                                value=f"{win_rate:.0f}%",
+                                delta=f"平均 {avg_ret:+.1f}%",
+                                delta_color="normal" if avg_ret >= 0 else "inverse"
+                            )
+                            st.caption(f"{color} {perf.get('total_picks', 0)}次选股")
+            except Exception as e:
+                st.warning(f"表现计算暂时不可用: {e}")
+        
+        st.divider()
+    
+    # === 各策略详细选股 ===
+    st.subheader("🎯 策略选股详情")
+    
+    strategy_tabs = st.tabs([
+        f"{manager.strategies['momentum'].icon} 动量突破",
+        f"{manager.strategies['value'].icon} 价值洼地",
+        f"{manager.strategies['conservative'].icon} 稳健保守",
+        f"{manager.strategies['aggressive'].icon} 激进突破"
+    ])
+    
+    strategy_keys = ['momentum', 'value', 'conservative', 'aggressive']
+    
+    for tab, key in zip(strategy_tabs, strategy_keys):
+        with tab:
+            strategy = manager.strategies[key]
+            picks = all_picks[key]
+            
+            st.caption(f"💡 {strategy.description}")
+            
+            if not picks:
+                st.info("暂无符合条件的股票")
+                continue
+            
+            # 表格展示
+            pick_data = []
+            for p in picks:
+                pick_data.append({
+                    "股票": p.symbol,
+                    "评分": f"{p.score:.0f}",
+                    "信心": p.confidence,
+                    "买入价": f"${p.entry_price:.2f}",
+                    "止损": f"${p.stop_loss:.2f}",
+                    "止盈": f"${p.take_profit:.2f}",
+                    "理由": p.reason
+                })
+            
+            pick_df = pd.DataFrame(pick_data)
+            
+            # 使用 st.dataframe 展示
+            st.dataframe(
+                pick_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "股票": st.column_config.TextColumn("股票", width="small"),
+                    "评分": st.column_config.TextColumn("评分", width="small"),
+                    "信心": st.column_config.TextColumn("信心", width="small"),
+                    "买入价": st.column_config.TextColumn("买入价", width="small"),
+                    "止损": st.column_config.TextColumn("止损", width="small"),
+                    "止盈": st.column_config.TextColumn("止盈", width="small"),
+                    "理由": st.column_config.TextColumn("理由", width="medium"),
+                }
+            )
+    
+    # === 底部: 使用说明 ===
+    with st.expander("📖 策略说明"):
+        st.markdown("""
+        ### 四大策略说明
+        
+        | 策略 | 适合人群 | 风险等级 | 持仓周期 |
+        |------|----------|----------|----------|
+        | 🚀 **动量突破** | 追涨型交易者 | ⭐⭐⭐ | 3-5天 |
+        | 💎 **价值洼地** | 价值投资者 | ⭐⭐ | 5-10天 |
+        | 🛡️ **稳健保守** | 风险厌恶者 | ⭐ | 5-15天 |
+        | ⚡ **激进突破** | 短线高手 | ⭐⭐⭐⭐ | 1-3天 |
+        
+        ### 如何使用
+        
+        1. **查看共识区**: 被多个策略同时看好的股票值得重点关注
+        2. **参考策略表现**: 选择历史胜率高的策略
+        3. **严格止损**: 每笔交易必须设置止损
+        4. **分散持仓**: 不要把所有资金投入单一股票
+        """)
+
+
 def render_scan_page():
     st.header("🦅 每日机会扫描 (Opportunity Scanner)")
     
@@ -7273,12 +7454,13 @@ def render_ml_prediction_page():
         st.caption("💡 数据来源: Polygon API (优先) / yfinance (备用)")
 
 
-# --- V3 主导航 (精简版 6 Tabs) ---
+# --- V3 主导航 (精简版 7 Tabs) ---
 
 st.sidebar.title("Coral Creek V3 🦅")
 st.sidebar.caption("ML量化交易系统")
 
 page = st.sidebar.radio("功能导航", [
+    "🎯 今日精选",       # 新增: 多策略选股仪表板
     "📊 每日扫描", 
     "🔍 个股查询", 
     "📈 信号中心",      # 合并: 信号追踪 + 验证 + Baseline对比
@@ -7287,7 +7469,9 @@ page = st.sidebar.radio("功能导航", [
     "🤖 AI中心"         # 合并: AI决策 + 博主追踪
 ])
 
-if page == "📊 每日扫描":
+if page == "🎯 今日精选":
+    render_todays_picks_page()
+elif page == "📊 每日扫描":
     render_scan_page()
 elif page == "🔍 个股查询":
     render_stock_lookup_page()
