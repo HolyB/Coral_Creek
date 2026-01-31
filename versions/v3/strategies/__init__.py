@@ -15,6 +15,17 @@ from strategies.performance_tracker import (
     get_all_strategy_performance
 )
 
+from strategies.blogger_strategies import (
+    BLOGGER_STRATEGIES,
+    get_blogger_strategy,
+    list_blogger_strategies,
+    MarkMinerviniStrategy,
+    WilliamONeilStrategy,
+    JesseLivermoreStrategy,
+    TaoBoStrategy,
+    BuffettValueStrategy,
+)
+
 __all__ = [
     'StrategyManager',
     'get_strategy_manager',
@@ -25,5 +36,8 @@ __all__ = [
     'AggressiveStrategy',
     'StrategyPick',
     'calculate_strategy_performance',
-    'get_all_strategy_performance'
+    'get_all_strategy_performance',
+    'BLOGGER_STRATEGIES',
+    'get_blogger_strategy',
+    'list_blogger_strategies',
 ]
