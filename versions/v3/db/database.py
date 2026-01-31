@@ -507,7 +507,17 @@ def update_scan_job(scan_date, **kwargs):
 
 
 def get_db_stats():
-    """获取数据库统计信息"""
+    """获取数据库统计信息 - 优先使用 Supabase"""
+    # 优先使用 Supabase
+    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+        try:
+            stats = get_db_stats_supabase()
+            if stats and stats.get('total_records', 0) > 0:
+                return stats
+        except Exception as e:
+            print(f"⚠️ Supabase stats 失败: {e}")
+    
+    # SQLite 备用
     with get_db() as conn:
         cursor = conn.cursor()
         
