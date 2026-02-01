@@ -406,6 +406,97 @@ def send_email(html_content: str, subject: str, to_email: str):
         return False
 
 
+def generate_telegram_message(stats: Dict, results: List[Dict], market: str) -> str:
+    """生成 Telegram 消息 (精简版)"""
+    import requests
+    
+    market_name = "🇺🇸 美股" if market == 'US' else "🇨🇳 A股"
+    price_sym = "$" if market == 'US' else "¥"
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    msg = f"📊 *{market_name} 信号追踪日报*\n"
+    msg += f"📅 {today}\n"
+    msg += "━" * 20 + "\n\n"
+    
+    # 统计摘要
+    msg += "📈 *【统计摘要】*\n"
+    msg += f"总信号数: {stats.get('total_signals', 0)}\n"
+    
+    win_rate = stats.get('win_rate', 0)
+    win_emoji = "🟢" if win_rate >= 50 else "🔴"
+    msg += f"胜率: {win_emoji} {win_rate:.1f}%\n"
+    
+    avg = stats.get('avg_return', 0)
+    avg_emoji = "📈" if avg >= 0 else "📉"
+    msg += f"平均收益: {avg_emoji} {avg:+.2f}%\n\n"
+    
+    # 各周期收益
+    msg += "📊 *【各周期表现】*\n"
+    d1 = stats.get('d1_avg', 0)
+    d3 = stats.get('d3_avg', 0)
+    d5 = stats.get('d5_avg', 0)
+    d10 = stats.get('d10_avg', 0)
+    
+    msg += f"D+1: {d1:+.2f}% | D+3: {d3:+.2f}%\n"
+    msg += f"D+5: {d5:+.2f}% | D+10: {d10:+.2f}%\n\n"
+    
+    # 最佳/最差
+    if stats.get('best_signal') and stats.get('worst_signal'):
+        best = stats['best_signal']
+        worst = stats['worst_signal']
+        
+        msg += "🏆 *【最佳 vs 最差】*\n"
+        msg += f"🥇 {best.get('symbol', '')} +{best.get('current_return', 0):.1f}%\n"
+        msg += f"❌ {worst.get('symbol', '')} {worst.get('current_return', 0):.1f}%\n\n"
+    
+    # Top 5 信号
+    if results:
+        msg += "🔥 *【近期热门信号】*\n"
+        sorted_results = sorted(results, key=lambda x: x.get('current_return', 0), reverse=True)
+        for r in sorted_results[:5]:
+            ret = r.get('current_return', 0)
+            emoji = "🟢" if ret >= 0 else "🔴"
+            msg += f"{emoji} {r['symbol']}: {ret:+.1f}%\n"
+    
+    msg += "\n━" * 20 + "\n"
+    msg += f"🔗 [查看详情](https://coral-creek.streamlit.app)\n"
+    msg += "⚠️ 仅供参考，不构成投资建议"
+    
+    return msg
+
+
+def send_telegram(message: str) -> bool:
+    """发送 Telegram 消息"""
+    import requests
+    
+    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+    chat_id = os.getenv('TELEGRAM_CHAT_ID')
+    
+    if not bot_token or not chat_id:
+        print("❌ TELEGRAM_BOT_TOKEN 或 TELEGRAM_CHAT_ID 未设置")
+        return False
+    
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    
+    try:
+        response = requests.post(url, json={
+            'chat_id': chat_id,
+            'text': message,
+            'parse_mode': 'Markdown',
+            'disable_web_page_preview': True
+        }, timeout=10)
+        
+        if response.status_code == 200:
+            print("✅ Telegram 消息发送成功")
+            return True
+        else:
+            print(f"❌ Telegram 发送失败: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Telegram 发送异常: {e}")
+        return False
+
+
 def generate_and_send_report(market: str = 'US', days: int = 30):
     """生成并发送报告"""
     print(f"\n📊 生成 {market} 市场信号追踪报告...")
@@ -452,6 +543,11 @@ def generate_and_send_report(market: str = 'US', days: int = 30):
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(html)
         print(f"💾 报告已保存到: {output_file}")
+    
+    # 6. 发送 Telegram
+    print("📱 发送 Telegram 消息...")
+    telegram_msg = generate_telegram_message(stats, results, market)
+    send_telegram(telegram_msg)
     
     # 打印摘要
     print("\n" + "=" * 50)
