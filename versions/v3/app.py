@@ -6195,7 +6195,13 @@ def render_signal_center_page():
     """📈 信号中心 - 合并: 信号追踪 + 信号验证 + 健康监控"""
     st.header("📈 信号中心")
     
-    tab1, tab2, tab3, tab4 = st.tabs(["🩺 信号健康", "📊 信号追踪", "📉 信号验证", "🔄 Baseline对比"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🩺 信号健康", 
+        "📊 信号追踪", 
+        "📉 信号验证", 
+        "📧 历史追踪",
+        "🔄 Baseline对比"
+    ])
     
     with tab1:
         render_signal_health_monitor()
@@ -6207,7 +6213,245 @@ def render_signal_center_page():
         render_signal_performance_page()
     
     with tab4:
+        render_historical_tracking_tab()
+    
+    with tab5:
         render_baseline_comparison_page()
+
+
+def render_historical_tracking_tab():
+    """📧 历史信号追踪 - 类似邮件报告的内容"""
+    import plotly.express as px
+    import plotly.graph_objects as go
+    
+    st.subheader("📧 历史信号追踪报告")
+    st.caption("追踪过去30天每个信号的后续表现")
+    
+    # 侧边栏设置
+    with st.sidebar:
+        st.subheader("📧 追踪设置")
+        
+        market_choice = st.radio(
+            "市场", 
+            ["🇺🇸 美股", "🇨🇳 A股"], 
+            horizontal=True, 
+            key="hist_track_market"
+        )
+        market = "US" if "美股" in market_choice else "CN"
+        
+        days = st.slider("追踪天数", 7, 60, 30, key="hist_track_days")
+        min_blue = st.slider("最低 BLUE 阈值", 100, 180, 130, key="hist_track_blue")
+        
+        generate_btn = st.button("📊 生成报告", type="primary", use_container_width=True)
+    
+    if not generate_btn:
+        st.info("👈 设置参数后点击「生成报告」查看历史信号表现")
+        
+        st.markdown("""
+        ### 📋 报告内容
+        
+        - **信号统计**: 总数、胜率、平均收益
+        - **各周期表现**: D+1, D+3, D+5, D+10 收益
+        - **最佳/最差信号**: 表现最好和最差的股票
+        - **详细列表**: 每个信号的完整表现
+        
+        ### 💡 说明
+        
+        - BLUE ≥ 130 被视为有效信号
+        - 胜率 = 当前盈利的信号占比
+        - 各周期收益 = 信号后第N个交易日的累计收益
+        """)
+        return
+    
+    # 获取数据
+    from db.database import query_scan_results, get_scanned_dates
+    from data_fetcher import get_stock_data
+    
+    with st.spinner("获取历史信号..."):
+        dates = get_scanned_dates(market=market)
+        if not dates:
+            st.error("没有找到扫描数据")
+            return
+        
+        all_signals = []
+        for date in dates[:days]:
+            results = query_scan_results(scan_date=date, market=market, limit=100)
+            for r in results:
+                blue = r.get('blue_daily', 0) or 0
+                if blue >= min_blue:
+                    all_signals.append({
+                        'symbol': r['symbol'],
+                        'signal_date': date,
+                        'signal_price': r.get('price', 0),
+                        'blue': blue,
+                        'adx': r.get('adx', 0) or 0,
+                        'is_heima': r.get('is_heima', False),
+                        'is_juedi': r.get('is_juedi', False),
+                        'company_name': r.get('company_name', '') or ''
+                    })
+        
+        st.success(f"找到 {len(all_signals)} 个信号")
+    
+    if not all_signals:
+        st.warning("没有找到符合条件的信号")
+        return
+    
+    # 计算收益
+    with st.spinner("计算信号收益 (可能需要几分钟)..."):
+        results = []
+        symbol_cache = {}
+        progress = st.progress(0)
+        
+        for i, sig in enumerate(all_signals[:100]):  # 限制100个避免太慢
+            symbol = sig['symbol']
+            signal_price = sig['signal_price']
+            
+            if not signal_price or signal_price <= 0:
+                continue
+            
+            # 获取价格
+            if symbol not in symbol_cache:
+                try:
+                    df = get_stock_data(symbol, market=market, days=60)
+                    symbol_cache[symbol] = df
+                except:
+                    symbol_cache[symbol] = None
+            
+            df = symbol_cache[symbol]
+            if df is None or len(df) < 5:
+                continue
+            
+            try:
+                sig_dt = pd.to_datetime(sig['signal_date'])
+                future_df = df[df.index > sig_dt]
+                
+                d1 = (future_df.iloc[0]['Close'] / signal_price - 1) * 100 if len(future_df) >= 1 else None
+                d3 = (future_df.iloc[2]['Close'] / signal_price - 1) * 100 if len(future_df) >= 3 else None
+                d5 = (future_df.iloc[4]['Close'] / signal_price - 1) * 100 if len(future_df) >= 5 else None
+                d10 = (future_df.iloc[9]['Close'] / signal_price - 1) * 100 if len(future_df) >= 10 else None
+                
+                current_price = df.iloc[-1]['Close']
+                current_return = (current_price / signal_price - 1) * 100
+                
+                results.append({
+                    **sig,
+                    'current_price': current_price,
+                    'current_return': current_return,
+                    'D1': d1, 'D3': d3, 'D5': d5, 'D10': d10,
+                    'is_winner': current_return > 0
+                })
+            except:
+                pass
+            
+            progress.progress((i + 1) / min(len(all_signals), 100))
+        
+        progress.empty()
+    
+    if not results:
+        st.error("无法计算信号收益")
+        return
+    
+    df = pd.DataFrame(results)
+    
+    # === 统计卡片 ===
+    st.markdown("### 📊 整体统计")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("总信号数", len(df))
+    
+    with col2:
+        winners = len(df[df['is_winner'] == True])
+        win_rate = winners / len(df) * 100
+        st.metric("胜率", f"{win_rate:.1f}%", delta="盈利多" if win_rate > 50 else "亏损多")
+    
+    with col3:
+        avg_return = df['current_return'].mean()
+        st.metric("平均收益", f"{avg_return:+.2f}%")
+    
+    with col4:
+        st.metric("盈/亏", f"{winners}/{len(df) - winners}")
+    
+    st.divider()
+    
+    # === 各周期收益 ===
+    st.markdown("### 📈 各周期平均收益")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    d1_avg = df['D1'].dropna().mean() if len(df['D1'].dropna()) > 0 else 0
+    d3_avg = df['D3'].dropna().mean() if len(df['D3'].dropna()) > 0 else 0
+    d5_avg = df['D5'].dropna().mean() if len(df['D5'].dropna()) > 0 else 0
+    d10_avg = df['D10'].dropna().mean() if len(df['D10'].dropna()) > 0 else 0
+    
+    with col1:
+        st.metric("D+1", f"{d1_avg:+.2f}%")
+    with col2:
+        st.metric("D+3", f"{d3_avg:+.2f}%")
+    with col3:
+        st.metric("D+5", f"{d5_avg:+.2f}%")
+    with col4:
+        st.metric("D+10", f"{d10_avg:+.2f}%")
+    
+    # 收益曲线图
+    returns_data = pd.DataFrame({
+        '周期': ['D+1', 'D+3', 'D+5', 'D+10'],
+        '平均收益': [d1_avg, d3_avg, d5_avg, d10_avg]
+    })
+    
+    fig = px.bar(returns_data, x='周期', y='平均收益', 
+                 color='平均收益',
+                 color_continuous_scale=['red', 'gray', 'green'],
+                 title="各周期平均收益")
+    fig.add_hline(y=0, line_dash="dash", line_color="gray")
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    
+    # === 最佳/最差 ===
+    st.markdown("### 🏆 最佳 vs 最差")
+    
+    best = df.loc[df['current_return'].idxmax()]
+    worst = df.loc[df['current_return'].idxmin()]
+    price_sym = "$" if market == "US" else "¥"
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.success(f"🥇 **{best['symbol']}** {best.get('company_name', '')[:15]}")
+        st.write(f"信号日期: {best['signal_date']}")
+        st.write(f"信号价: {price_sym}{best['signal_price']:.2f}")
+        st.write(f"当前价: {price_sym}{best['current_price']:.2f}")
+        st.write(f"**收益: +{best['current_return']:.1f}%**")
+    
+    with col2:
+        st.error(f"❌ **{worst['symbol']}** {worst.get('company_name', '')[:15]}")
+        st.write(f"信号日期: {worst['signal_date']}")
+        st.write(f"信号价: {price_sym}{worst['signal_price']:.2f}")
+        st.write(f"当前价: {price_sym}{worst['current_price']:.2f}")
+        st.write(f"**收益: {worst['current_return']:.1f}%**")
+    
+    st.divider()
+    
+    # === 详细列表 ===
+    st.markdown("### 📋 信号详情")
+    
+    display_df = df[['signal_date', 'symbol', 'company_name', 'blue', 'signal_price', 
+                     'D1', 'D3', 'D5', 'D10', 'current_return']].copy()
+    display_df.columns = ['日期', '代码', '名称', 'BLUE', '信号价', 'D+1', 'D+3', 'D+5', 'D+10', '当前收益']
+    
+    # 格式化
+    for col in ['D+1', 'D+3', 'D+5', 'D+10', '当前收益']:
+        display_df[col] = display_df[col].apply(lambda x: f"{x:+.1f}%" if pd.notna(x) else "-")
+    
+    display_df['信号价'] = display_df['信号价'].apply(lambda x: f"{price_sym}{x:.2f}")
+    display_df['名称'] = display_df['名称'].apply(lambda x: x[:12] if x else '')
+    
+    st.dataframe(display_df.sort_values('日期', ascending=False), 
+                 hide_index=True, 
+                 use_container_width=True,
+                 height=400)
 
 
 def render_signal_health_monitor():
