@@ -1,0 +1,112 @@
+name: Daily Signal Tracking Report
+
+on:
+  # 每日发送 (美股收盘后, A股收盘后)
+  schedule:
+    # 美股收盘后: 17:00 ET = 22:00 UTC
+    - cron: '0 22 * * 1-5'
+    # A股收盘后: 16:00 CST = 08:00 UTC
+    - cron: '0 8 * * 1-5'
+    
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      market:
+        description: 'Market to report'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - US
+          - CN
+          - both
+      days:
+        description: 'Days to track'
+        required: false
+        default: '30'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy requests polygon-api-client supabase
+      
+      # 定时任务 - 根据 UTC 时间判断市场
+      - name: Generate Report (Scheduled)
+        if: ${{ github.event_name == 'schedule' }}
+        working-directory: versions/v3
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+        run: |
+          pip install akshare tushare || true
+          
+          # 获取当前 UTC 小时
+          HOUR=$(date -u +%H)
+          
+          # 22:00 UTC = 美股收盘后
+          if [ "$HOUR" == "22" ]; then
+            echo "📊 Generating US market report..."
+            python scripts/daily_signal_report.py --market US --days 30
+          fi
+          
+          # 08:00 UTC = A股收盘后
+          if [ "$HOUR" == "08" ]; then
+            echo "📊 Generating CN market report..."
+            python scripts/daily_signal_report.py --market CN --days 30
+          fi
+      
+      # 手动触发
+      - name: Generate Report (Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        working-directory: versions/v3
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+        run: |
+          pip install akshare tushare || true
+          
+          DAYS=${{ github.event.inputs.days }}
+          [ -z "$DAYS" ] && DAYS=30
+          
+          if [ "${{ github.event.inputs.market }}" == "both" ]; then
+            python scripts/daily_signal_report.py --both --days $DAYS
+          else
+            python scripts/daily_signal_report.py --market ${{ github.event.inputs.market }} --days $DAYS
+          fi
+      
+      # 上传报告作为 artifact
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: signal-reports
+          path: versions/v3/signal_report_*.html
+          retention-days: 7
