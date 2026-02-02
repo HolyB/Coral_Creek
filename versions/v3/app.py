@@ -1481,70 +1481,16 @@ def render_scan_page():
         return
             
     # === 🏆 智能排序 & Alpha Picks ===
-    # 在筛选之前先计算全量分数，以便展示 Top Picks
+    # 在筛选之前先计算全量分数 (仅基础技术面分)
     try:
         from ml.ranking_system import get_ranking_system
         ranker = get_ranking_system()
-        
-        # 获取缓存的大师/舆情结果
-        master_cache_key = f"master_analysis_{selected_date}_{selected_market}"
-        master_res = st.session_state.get(master_cache_key, {})
-        sentiment_res = st.session_state.get(f"sentiment_{selected_date}_{selected_market}", {}) # 暂留接口
-        
-        # 计算综合得分
-        df = ranker.calculate_integrated_score(df, master_results=master_res, sentiment_results=sentiment_res)
-        
-        # === 👑 展示 Daily Alpha Picks (Top 3) ===
-        # 筛选逻辑: 分数 > 60, 且如果有大师意见不能是看空
-        valid_picks = df[df['Rank_Score'] > 60].copy()
-        
-        # 简单过滤风险股 (如果大师明确看空)
-        if master_res:
-            def is_safe(ticker):
-                res = master_res.get(ticker)
-                if isinstance(res, str) and ("卖出" in res or "回避" in res): return False
-                if isinstance(res, dict) and res.get('overall_action') == 'SELL': return False
-                return True
-            valid_picks = valid_picks[valid_picks['Ticker'].apply(is_safe)]
-            
-        top_picks = valid_picks.head(3)
-        
-        if len(top_picks) > 0:
-            st.markdown("### 👑 今日 Alpha Picks")
-            # st.caption("模型精选技术面与基本面共振的顶级标的")
-            
-            p_cols = st.columns(3)
-            for i, (_, row) in enumerate(top_picks.iterrows()):
-                with p_cols[i]:
-                    score = row['Rank_Score']
-                    ticker = row['Ticker']
-                    name = row.get('Name', '')
-                    price = row.get('Price', 0)
-                    
-                    # 动态标签
-                    tags = []
-                    if score >= 80: tags.append("🔥 强力推荐")
-                    if row.get('Day BLUE', 0) > 50: tags.append("🟦 底部确认")
-                    if row.get('ADX', 0) > 30: tags.append("📈 趋势向上")
-                    if master_res.get(ticker): tags.append("🤖 大师看好")
-                    
-                    with st.container(border=True):
-                        st.markdown(f"#### {ticker} {name[:6]}")
-                        st.markdown(f"**${price:.2f}**")
-                        st.progress(score/100, text=f"ML评分: {score:.0f}")
-                        
-                        # 标签展示
-                        st.markdown(" ".join([f"`{t}`" for t in tags[:3]]))
-                        
-                        # 简短理由
-                        strategy = row.get('Strategy', 'N/A')
-                        st.caption(f"💡 {strategy}")
-            st.divider()
-            
+        # 仅计算基础分，不自动加载耗时的大师/舆情数据
+        df = ranker.calculate_integrated_score(df)
     except ImportError:
         pass
     except Exception as e:
-        print(f"Ranking/Alpha Picks error: {e}")
+        print(f"Ranking error: {e}")
 
     # 侧边栏：继续筛选器
     with st.sidebar:
@@ -2129,7 +2075,7 @@ def render_scan_page():
                 column_config=column_config,
                 use_container_width=True,
                 hide_index=True,
-                selection_mode="single-row",
+                selection_mode="multi-row",
                 on_select="rerun",
                 key="df_day_only"
             )
@@ -2150,7 +2096,7 @@ def render_scan_page():
                 column_config=column_config,
                 use_container_width=True,
                 hide_index=True,
-                selection_mode="single-row",
+                selection_mode="multi-row",
                 on_select="rerun",
                 key="df_day_week"
             )
@@ -2171,7 +2117,7 @@ def render_scan_page():
                 column_config=column_config,
                 use_container_width=True,
                 hide_index=True,
-                selection_mode="single-row",
+                selection_mode="multi-row",
                 on_select="rerun",
                 key="df_month"
             )
@@ -2611,6 +2557,167 @@ def render_scan_page():
                             st.caption("💡 点击链接查看最新市场资讯")
             else:
                 st.info("正在加载板块数据...")
+
+
+    # === 收集所有选中的股票 (用于批量分析) ===
+    selected_tickers_set = set()
+    
+    # 辅助函数: 安全获取 event
+    def collect_from_event(evt, source_df):
+        if evt and hasattr(evt, 'selection') and evt.selection.rows:
+            return [source_df.iloc[i]['Ticker'] for i in evt.selection.rows if i < len(source_df)]
+        return []
+
+    if 'event1' in locals(): selected_tickers_set.update(collect_from_event(event1, df_day_only))
+    if 'event2' in locals(): selected_tickers_set.update(collect_from_event(event2, df_day_week))
+    if 'event3' in locals(): selected_tickers_set.update(collect_from_event(event3, df_month))
+    
+    # === 🚀 批量深度分析工作台 ===
+    if len(selected_tickers_set) > 0:
+        st.divider()
+        st.subheader(f"🚀 深度分析工作台 (已选 {len(selected_tickers_set)} 只)")
+        
+        selected_list = list(selected_tickers_set)
+        
+        # 批量分析按钮
+        col_act, col_info = st.columns([1, 4])
+        with col_act:
+            do_batch_analyze = st.button("✨ 分析选中股票", type="primary", use_container_width=True)
+            
+        with col_info:
+            st.caption(f"选中: {', '.join(selected_list[:10])} {'...' if len(selected_list)>10 else ''}")
+
+        if do_batch_analyze:
+            with st.status("正在进行全方位深度扫描...", expanded=True) as status:
+                try:
+                    from strategies.master_strategies import analyze_stock_for_master, get_master_summary_for_stock
+                    if selected_market == 'US':
+                        from data_fetcher import get_us_stock_data as get_data
+                    else:
+                        from data_fetcher import get_cn_stock_data as get_data
+
+                    # 获取缓存
+                    master_cache_key = f"master_analysis_{selected_date}_{selected_market}"
+                    master_details_key = f"{master_cache_key}_details"
+                    
+                    if master_cache_key not in st.session_state: st.session_state[master_cache_key] = {}
+                    if master_details_key not in st.session_state: st.session_state[master_details_key] = {}
+                    
+                    master_res = st.session_state[master_cache_key]
+                    master_details = st.session_state[master_details_key]
+                    
+                    prog_bar = st.progress(0)
+                    for i, ticker in enumerate(selected_list):
+                        status.write(f"正在分析 {ticker}...")
+                        try:
+                            # 1. 获取近期历史数据
+                            hist_df = get_data(ticker, days=40)
+                            
+                            if hist_df is not None and not hist_df.empty:
+                                # 准备参数
+                                current_row = df[df['Ticker'] == ticker].iloc[0]
+                                price = float(current_row.get('Price', 0))
+                                sma5 = hist_df['Close'].rolling(5).mean().iloc[-1]
+                                sma20 = hist_df['Close'].rolling(20).mean().iloc[-1]
+                                vol = hist_df['Volume'].iloc[-1]
+                                vol_ma5 = hist_df['Volume'].rolling(5).mean().iloc[-1]
+                                vol_ratio = vol / vol_ma5 if vol_ma5 > 0 else 1.0
+                                
+                                # 简易 TD
+                                c = hist_df['Close'].values
+                                td_count = 0
+                                if len(c) > 13:
+                                    if c[-1] > c[-5]: # 上涨
+                                        count = 0
+                                        for k in range(1, 10):
+                                            if c[-k] > c[-k-4]: count += 1
+                                            else: break
+                                        td_count = count
+                                
+                                # 调用大师分析
+                                analyses = analyze_stock_for_master(
+                                    symbol=ticker,
+                                    blue_daily=float(current_row.get('Day BLUE', 0)),
+                                    blue_weekly=float(current_row.get('Week BLUE', 0)),
+                                    blue_monthly=float(current_row.get('Month BLUE', 0)),
+                                    adx=float(current_row.get('ADX', 0)),
+                                    vol_ratio=vol_ratio,
+                                    change_pct=float(hist_df['Close'].pct_change().iloc[-1] * 100),
+                                    price=price,
+                                    sma5=sma5,
+                                    sma20=sma20,
+                                    td_count=td_count,
+                                    is_heima=True if '黑马' in str(current_row.get('Strategy', '')) else False
+                                )
+                                
+                                # 汇总
+                                summary = get_master_summary_for_stock(analyses)
+                                master_res[ticker] = summary
+                                master_details[ticker] = analyses
+                                
+                        except Exception as e:
+                            print(f"Error analyzing {ticker}: {e}")
+                        
+                        prog_bar.progress((i + 1) / len(selected_list))
+                    
+                    # 更新缓存
+                    st.session_state[master_cache_key] = master_res
+                    st.session_state[master_details_key] = master_details
+                    
+                    # 重新计算 Rank
+                    from ml.ranking_system import get_ranking_system
+                    ranker = get_ranking_system()
+                    # 这里不需要重新计算整个 df，只需要展示部分
+                    
+                    st.success("✅ 分析完成！请查看下方 Alpha Picks 报告")
+                    st.session_state['show_batch_results'] = True
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"批量分析失败: {e}")
+                    import traceback
+                    st.code(traceback.format_exc())
+
+        # === 展示批量分析结果 (Alpha Picks 风格) ===
+        if st.session_state.get('show_batch_results', False):
+            st.markdown("### 👑 选中股票优选报告 (Alpha Picks)")
+            
+            # 临时计算这些股票的 Rank Score
+            try:
+                from ml.ranking_system import get_ranking_system
+                ranker = get_ranking_system()
+                master_res = st.session_state.get(f"master_analysis_{selected_date}_{selected_market}", {})
+                
+                # 只对选中的股票计算
+                subset_df = df[df['Ticker'].isin(selected_list)].copy()
+                scored_df = ranker.calculate_integrated_score(subset_df, master_results=master_res)
+                
+                # 展示前 5 名
+                top_picks = scored_df.head(5)
+                
+                cols = st.columns(len(top_picks))
+                for i, (_, row) in enumerate(top_picks.iterrows()):
+                    with cols[i]:
+                        score = row['Rank_Score']
+                        ticker = row['Ticker']
+                        
+                        tags = []
+                        if score >= 80: tags.append("🔥 强推")
+                        if master_res.get(ticker): tags.append("🤖 大师")
+                        
+                        with st.container(border=True):
+                            st.metric(f"{ticker}", f"{score:.0f}分", row.get('Name', '')[:6])
+                            st.progress(score/100)
+                            st.caption(" ".join(tags))
+                            
+                            if st.button(f"详情", key=f"btn_detail_{ticker}"):
+                                selected_ticker = ticker
+                                selected_row_data = row
+                                st.rerun() # 触发下方深度透视
+                                
+            except Exception as e:
+                st.error(f"结果展示出错: {e}")
+            st.divider()
 
     # 4. 深度透视 (所有标签页都支持选择)
     if selected_ticker is not None and selected_row_data is not None:
