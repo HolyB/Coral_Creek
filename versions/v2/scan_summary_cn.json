@@ -1,7 +1,7 @@
 {
   "date": "2026-01-30",
   "market": "CN",
-  "total_signals": 250,
+  "total_signals": 263,
   "top_signals": [
     {
       "symbol": "920978.BJ",
@@ -81,6 +81,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "603633.SH",
+      "name": "徕木股份",
+      "price": 9.08,
+      "day_blue": 174.0,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "688656.SH",
       "name": "浩欧博",
       "price": 143.8,
@@ -100,13 +107,6 @@
       "price": 9.12,
       "day_blue": 164.2,
       "week_blue": 76.7
-    },
-    {
-      "symbol": "301557.SZ",
-      "name": "常友科技",
-      "price": 106.42,
-      "day_blue": 157.4,
-      "week_blue": 0.0
     }
   ]
 }
