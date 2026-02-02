@@ -1240,34 +1240,155 @@ def render_todays_picks_page():
                             - 🎯 止盈: {price_sym}{current_pick.take_profit:.2f} ({(current_pick.take_profit/current_pick.entry_price - 1)*100:.1f}%)
                             - 💡 选股理由: {current_pick.reason}
                             """)
+                        
+                        # === 大师操作指南 ===
+                        st.divider()
+                        st.markdown("### 🎓 大师操作指南")
+                        
+                        try:
+                            from strategies.master_strategies import (
+                                generate_trading_guide, get_all_master_strategies
+                            )
+                            
+                            # 获取该股票在df中的数据
+                            symbol_data = df[df['symbol'] == selected_symbol].iloc[0] if 'symbol' in df.columns else None
+                            
+                            # 获取BLUE数据
+                            blue_daily = None
+                            blue_weekly = None
+                            if symbol_data is not None:
+                                blue_daily = symbol_data.get('blue_daily', symbol_data.get('Day BLUE', None))
+                                blue_weekly = symbol_data.get('blue_weekly', symbol_data.get('Week BLUE', None))
+                            
+                            # 生成操作指南
+                            guide = generate_trading_guide(
+                                selected_symbol, 
+                                price_df, 
+                                blue_daily=blue_daily,
+                                blue_weekly=blue_weekly
+                            )
+                            
+                            # 显示信号
+                            signals = guide['signals']
+                            if signals:
+                                st.markdown("#### 📊 检测到的信号")
+                                for sig in signals[:5]:
+                                    icon = "🟢" if sig.signal_type.value in ['buy', 't_buy'] else "🔴" if sig.signal_type.value in ['sell', 't_sell'] else "🟡"
+                                    st.markdown(f"{icon} **{sig.reason}**")
+                                    st.caption(f"   ➡️ {sig.action_desc}")
+                            
+                            # 操作建议
+                            col_rec, col_risk = st.columns(2)
+                            
+                            with col_rec:
+                                st.markdown("#### ✅ 操作建议")
+                                for rec in guide['recommendations']:
+                                    st.markdown(f"- {rec}")
+                                if not guide['recommendations']:
+                                    st.info("暂无明确建议，观望为主")
+                            
+                            with col_risk:
+                                st.markdown("#### ⚠️ 风险提示")
+                                for warn in guide['risk_warnings']:
+                                    st.markdown(f"- {warn}")
+                                if not guide['risk_warnings']:
+                                    st.success("暂无明显风险信号")
+                            
+                            # 做T机会
+                            if guide['t_opportunities']:
+                                st.markdown("#### 🔄 做T机会")
+                                for t_opp in guide['t_opportunities']:
+                                    st.markdown(f"- {t_opp}")
+                                    
+                        except Exception as e:
+                            st.warning(f"操作指南生成失败: {e}")
+                            
                     else:
                         st.warning(f"无法获取 {selected_symbol} 的价格数据")
                 except Exception as e:
                     st.error(f"加载趋势图失败: {e}")
     
-    # === 底部: 使用说明 ===
-    with st.expander("📖 策略说明"):
+    # === 底部: 大师策略详解 ===
+    st.divider()
+    st.subheader("📚 大师策略详解")
+    st.caption("点击查看各大师的完整交易方法论")
+    
+    try:
+        from strategies.master_strategies import get_all_master_strategies, format_strategy_for_display
+        
+        master_strategies = get_all_master_strategies()
+        
+        # 策略Tab
+        master_tabs = st.tabs([
+            f"{s.icon} {s.name}" for s in master_strategies.values()
+        ])
+        
+        for tab, (key, strategy) in zip(master_tabs, master_strategies.items()):
+            with tab:
+                col_info, col_rules = st.columns([1, 2])
+                
+                with col_info:
+                    st.markdown(f"### {strategy.icon} {strategy.name}")
+                    st.markdown(f"**创始人**: {strategy.master}")
+                    st.markdown(f"**核心理念**: _{strategy.philosophy}_")
+                    st.markdown(strategy.description)
+                
+                with col_rules:
+                    # 买入规则
+                    st.markdown("#### ✅ 买入规则")
+                    for rule in strategy.buy_rules:
+                        st.markdown(f"- {rule}")
+                    
+                    # 卖出规则
+                    st.markdown("#### ❌ 卖出规则")
+                    for rule in strategy.sell_rules:
+                        st.markdown(f"- {rule}")
+                    
+                    # 做T技巧
+                    with st.expander("🔄 做T技巧"):
+                        for rule in strategy.t_rules:
+                            st.markdown(f"- {rule}")
+                    
+                    # 风控规则
+                    with st.expander("⚠️ 风控规则"):
+                        for rule in strategy.risk_rules:
+                            st.markdown(f"- {rule}")
+    
+    except Exception as e:
+        st.warning(f"加载大师策略失败: {e}")
+    
+    # === 策略使用说明 ===
+    with st.expander("📖 策略说明与风险提示"):
         st.markdown("""
-        ### 策略说明
+        ### 策略对比
         
-        | 策略 | 适合人群 | 风险等级 | 持仓周期 |
-        |------|----------|----------|----------|
-        | 🚀 **动量突破** | 追涨型交易者 | ⭐⭐⭐ | 3-5天 |
-        | 💎 **价值洼地** | 价值投资者 | ⭐⭐ | 5-10天 |
-        | 🛡️ **稳健保守** | 风险厌恶者 | ⭐ | 5-15天 |
-        | ⚡ **激进突破** | 短线高手 | ⭐⭐⭐⭐ | 1-3天 |
-        | 🔄 **多周期共振** | 趋势交易者 | ⭐⭐ | 5-10天 |
-        | 🔃 **超跌反弹** | 抄底玩家 | ⭐⭐⭐ | 3-5天 |
-        | 📊 **放量突破** | 量价派 | ⭐⭐⭐ | 3-5天 |
-        | 🐴 **黑马形态** | 寻宝猎人 | ⭐⭐⭐⭐ | 5-15天 |
+        | 策略 | 来源 | 适合人群 | 风险等级 | 持仓周期 |
+        |------|------|----------|----------|----------|
+        | 🚀 **动量突破** | BLUE指标 | 追涨型交易者 | ⭐⭐⭐ | 3-5天 |
+        | 📊 **蔡森量价** | 蔡森 | 量价派 | ⭐⭐⭐ | 3-10天 |
+        | 🔢 **神奇九转** | Tom DeMark | 周期交易者 | ⭐⭐ | 3-5天 |
+        | 📐 **萧明道结构** | 萧明道 | 结构派 | ⭐⭐⭐ | 5-15天 |
+        | 🐴 **黑马王子量学** | 黑马王子 | 涨停猎手 | ⭐⭐⭐⭐ | 1-5天 |
         
-        ### 如何使用
+        ### 如何选择策略
         
-        1. **查看共识区**: 被多个策略同时看好的股票值得重点关注
-        2. **参考策略表现**: 选择历史胜率高的策略
-        3. **看趋势图**: 确认买点位置和止损止盈
-        4. **严格止损**: 每笔交易必须设置止损
-        5. **分散持仓**: 不要把所有资金投入单一股票
+        1. **保守型投资者**: 选择神奇九转、萧明道结构，胜率高但收益相对稳健
+        2. **激进型投资者**: 选择黑马王子、动量突破，潜在收益大但风险也大
+        3. **量价派**: 选择蔡森量价法，通过量能判断主力意图
+        4. **技术派**: 结合多个策略信号，寻找共振点
+        
+        ### 做T要点
+        
+        - **T+0原理**: 利用日内波动，低吸高抛降低持仓成本
+        - **适用条件**: 个股波动较大、趋势明确、有支撑阻力位
+        - **风险控制**: 做T仓位控制在总仓位30%以内
+        
+        ### ⚠️ 风险提示
+        
+        - 以上策略仅供参考，不构成投资建议
+        - 历史表现不代表未来收益
+        - 请根据自身风险承受能力谨慎投资
+        - 严格止损是保护本金的关键
         """)
 
 
