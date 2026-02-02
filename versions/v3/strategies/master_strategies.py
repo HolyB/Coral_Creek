@@ -587,6 +587,530 @@ def format_strategy_for_display(strategy: MasterStrategy) -> str:
     return text
 
 
+# ==================================
+# 个股大师分析
+# ==================================
+
+@dataclass
+class MasterAnalysis:
+    """单个大师的分析结果"""
+    master: str
+    icon: str
+    action: str              # 买入/卖出/做T/观望/持有
+    action_emoji: str        # 🟢/🔴/🟡/⚪
+    confidence: int          # 1-5
+    reason: str              # 判断理由
+    operation: str           # 具体操作说明
+    stop_loss: str = ""      # 止损建议
+    take_profit: str = ""    # 止盈建议
+
+
+def analyze_stock_for_master(
+    symbol: str,
+    blue_daily: float = None,
+    blue_weekly: float = None,
+    blue_monthly: float = None,
+    adx: float = None,
+    vol_ratio: float = None,      # 今日量/5日均量
+    change_pct: float = None,     # 今日涨跌幅
+    price: float = None,
+    sma5: float = None,
+    sma20: float = None,
+    is_heima: bool = False,
+    td_count: int = 0,            # 神奇九转计数 (负数=下跌，正数=上涨)
+    chip_pattern: str = ""
+) -> Dict[str, MasterAnalysis]:
+    """
+    为单只股票生成各大师的操作建议
+    
+    Args:
+        symbol: 股票代码
+        blue_daily: 日线BLUE
+        blue_weekly: 周线BLUE
+        blue_monthly: 月线BLUE
+        adx: ADX趋势强度
+        vol_ratio: 量比
+        change_pct: 涨跌幅
+        price: 当前价格
+        sma5: 5日均线
+        sma20: 20日均线
+        is_heima: 是否黑马信号
+        td_count: TD九转计数
+        chip_pattern: 筹码形态
+    
+    Returns:
+        Dict[master_key, MasterAnalysis]
+    """
+    analyses = {}
+    
+    # === 蔡森量价分析 ===
+    cai_sen = _analyze_cai_sen(
+        vol_ratio=vol_ratio,
+        change_pct=change_pct,
+        price=price,
+        sma5=sma5,
+        sma20=sma20
+    )
+    analyses['cai_sen'] = cai_sen
+    
+    # === 神奇九转分析 ===
+    td = _analyze_td_sequential(td_count=td_count)
+    analyses['td_sequential'] = td
+    
+    # === 萧明道量价结构 ===
+    xiao = _analyze_xiao_mingdao(
+        vol_ratio=vol_ratio,
+        change_pct=change_pct,
+        price=price,
+        sma5=sma5,
+        sma20=sma20
+    )
+    analyses['xiao_mingdao'] = xiao
+    
+    # === 黑马王子量学 ===
+    heima = _analyze_heima_prince(
+        vol_ratio=vol_ratio,
+        change_pct=change_pct,
+        is_heima=is_heima
+    )
+    analyses['heima'] = heima
+    
+    # === BLUE趋势共振 ===
+    blue = _analyze_blue_indicator(
+        blue_daily=blue_daily,
+        blue_weekly=blue_weekly,
+        blue_monthly=blue_monthly,
+        adx=adx
+    )
+    analyses['blue'] = blue
+    
+    return analyses
+
+
+def _analyze_cai_sen(vol_ratio: float = None, change_pct: float = None,
+                     price: float = None, sma5: float = None, sma20: float = None) -> MasterAnalysis:
+    """蔡森量价分析"""
+    vol_ratio = vol_ratio or 1.0
+    change_pct = change_pct or 0
+    
+    # 判断当前状态
+    if vol_ratio >= 1.5 and change_pct > 2:
+        return MasterAnalysis(
+            master="蔡森",
+            icon="📊",
+            action="买入",
+            action_emoji="🟢",
+            confidence=4,
+            reason=f"放量突破 (量比{vol_ratio:.1f}倍)",
+            operation="突破时放量，符合黄金买点1，可跟进",
+            stop_loss="跌破20日线或下跌8%止损",
+            take_profit="目标位：突破后涨幅15-20%"
+        )
+    elif vol_ratio < 0.6 and price and sma20 and abs(price - sma20) / sma20 < 0.02:
+        return MasterAnalysis(
+            master="蔡森",
+            icon="📊",
+            action="做T低吸",
+            action_emoji="🟡",
+            confidence=3,
+            reason="缩量回踩20日线支撑",
+            operation="符合黄金买点2，可在20日线附近低吸做T",
+            stop_loss="跌破前低或20日线",
+            take_profit="反弹至5日线上方高抛"
+        )
+    elif vol_ratio > 1.5 and abs(change_pct) < 1:
+        return MasterAnalysis(
+            master="蔡森",
+            icon="📊",
+            action="做T高抛",
+            action_emoji="🟡",
+            confidence=3,
+            reason=f"放量滞涨 (量比{vol_ratio:.1f})",
+            operation="高位放量但涨幅有限，可能见顶，建议做T高抛",
+            stop_loss="无持仓则不操作",
+            take_profit="减仓30-50%"
+        )
+    elif vol_ratio > 2 and change_pct < -3:
+        return MasterAnalysis(
+            master="蔡森",
+            icon="📊",
+            action="卖出/观望",
+            action_emoji="🔴",
+            confidence=4,
+            reason=f"巨量阴线 (量比{vol_ratio:.1f}，跌{change_pct:.1f}%)",
+            operation="高位巨量阴线是见顶信号，建议清仓或减仓",
+            stop_loss="已破位，止损离场",
+            take_profit=""
+        )
+    else:
+        return MasterAnalysis(
+            master="蔡森",
+            icon="📊",
+            action="观望",
+            action_emoji="⚪",
+            confidence=2,
+            reason="量价关系不明确",
+            operation="等待放量突破信号或缩量回踩机会"
+        )
+
+
+def _analyze_td_sequential(td_count: int = 0) -> MasterAnalysis:
+    """神奇九转分析"""
+    if td_count <= -7:
+        return MasterAnalysis(
+            master="Tom DeMark",
+            icon="🔢",
+            action="准备买入",
+            action_emoji="🟢",
+            confidence=4 if td_count <= -9 else 3,
+            reason=f"九转下跌第{abs(td_count)}根",
+            operation=f"连续{abs(td_count)}天收盘价低于4天前，" + 
+                     ("九转完成，可分批低吸" if td_count <= -9 else "接近买点，准备资金"),
+            stop_loss="九转失败(第10根继续跌)止损",
+            take_profit="反弹至第5-6根K线高点"
+        )
+    elif td_count >= 7:
+        return MasterAnalysis(
+            master="Tom DeMark",
+            icon="🔢",
+            action="准备卖出",
+            action_emoji="🔴",
+            confidence=4 if td_count >= 9 else 3,
+            reason=f"九转上涨第{td_count}根",
+            operation=f"连续{td_count}天收盘价高于4天前，" +
+                     ("九转完成，可分批高抛" if td_count >= 9 else "接近卖点，准备减仓"),
+            stop_loss="设在第7根K线低点",
+            take_profit="目标已达成，分批止盈"
+        )
+    elif 4 <= td_count <= 6:
+        return MasterAnalysis(
+            master="Tom DeMark",
+            icon="🔢",
+            action="持有/观察",
+            action_emoji="🟡",
+            confidence=2,
+            reason=f"九转上涨第{td_count}根",
+            operation="上涨中继，持股待涨，关注是否完成九转",
+            take_profit="等待九转完成后分批止盈"
+        )
+    elif -6 <= td_count <= -4:
+        return MasterAnalysis(
+            master="Tom DeMark",
+            icon="🔢",
+            action="观望",
+            action_emoji="🟡",
+            confidence=2,
+            reason=f"九转下跌第{abs(td_count)}根",
+            operation="下跌中继，不要抄底，等待九转完成",
+            stop_loss="已持仓考虑减仓"
+        )
+    else:
+        return MasterAnalysis(
+            master="Tom DeMark",
+            icon="🔢",
+            action="中性",
+            action_emoji="⚪",
+            confidence=1,
+            reason="无明显九转信号",
+            operation="数据不足或无连续趋势，继续观察"
+        )
+
+
+def _analyze_xiao_mingdao(vol_ratio: float = None, change_pct: float = None,
+                          price: float = None, sma5: float = None, sma20: float = None) -> MasterAnalysis:
+    """萧明道量价结构分析"""
+    vol_ratio = vol_ratio or 1.0
+    change_pct = change_pct or 0
+    
+    # 判断结构
+    above_ma = price and sma20 and price > sma20
+    near_ma5 = price and sma5 and abs(price - sma5) / sma5 < 0.02
+    
+    if vol_ratio >= 1.5 and change_pct > 2 and above_ma:
+        return MasterAnalysis(
+            master="萧明道",
+            icon="📐",
+            action="买入",
+            action_emoji="🟢",
+            confidence=4,
+            reason="量价齐升，结构健康",
+            operation="放量突破，上涨结构完整，可跟进做多",
+            stop_loss="跌破关键支撑位(前低或20日线)",
+            take_profit="根据结构目标位止盈"
+        )
+    elif vol_ratio < 0.5 and above_ma and change_pct < 0:
+        return MasterAnalysis(
+            master="萧明道",
+            icon="📐",
+            action="做T低吸",
+            action_emoji="🟡",
+            confidence=3,
+            reason="缩量回调，洗盘形态",
+            operation="缩量回踩，上涨结构完好，可在均线支撑低吸",
+            stop_loss="结构破坏(跌破前低)止损",
+            take_profit="反弹至结构高点附近"
+        )
+    elif vol_ratio > 2 and abs(change_pct) < 1 and above_ma:
+        return MasterAnalysis(
+            master="萧明道",
+            icon="📐",
+            action="做T高抛",
+            action_emoji="🟡",
+            confidence=3,
+            reason="巨量滞涨，警惕",
+            operation="放天量但价格不涨，主力可能出货，建议减仓",
+            stop_loss="跌破当日低点",
+            take_profit="当日高点附近减仓"
+        )
+    elif vol_ratio > 1.5 and change_pct < -3:
+        return MasterAnalysis(
+            master="萧明道",
+            icon="📐",
+            action="卖出",
+            action_emoji="🔴",
+            confidence=4,
+            reason="破位确认",
+            operation="放量下跌，结构可能破坏，建议离场",
+            stop_loss="立即止损"
+        )
+    else:
+        return MasterAnalysis(
+            master="萧明道",
+            icon="📐",
+            action="观望",
+            action_emoji="⚪",
+            confidence=2,
+            reason="结构不明确",
+            operation="等待明确的量价结构信号"
+        )
+
+
+def _analyze_heima_prince(vol_ratio: float = None, change_pct: float = None,
+                          is_heima: bool = False) -> MasterAnalysis:
+    """黑马王子量学分析"""
+    vol_ratio = vol_ratio or 1.0
+    change_pct = change_pct or 0
+    
+    if vol_ratio >= 2.0 and change_pct > 3:
+        return MasterAnalysis(
+            master="黑马王子",
+            icon="🐴",
+            action="强烈买入",
+            action_emoji="🟢",
+            confidence=5,
+            reason=f"倍量阳线! (量比{vol_ratio:.1f}倍，涨{change_pct:.1f}%)",
+            operation="倍量阳线是涨停基因，可积极跟进，明日可能继续涨停",
+            stop_loss=f"跌破今日低点或下跌5%",
+            take_profit="持股待涨，涨停板附近减仓"
+        )
+    elif is_heima and change_pct > 0:
+        return MasterAnalysis(
+            master="黑马王子",
+            icon="🐴",
+            action="买入",
+            action_emoji="🟢",
+            confidence=4,
+            reason="黑马信号确认",
+            operation="出现黑马形态，主力建仓迹象明显，可跟进",
+            stop_loss="跌破信号确认日低点",
+            take_profit="目标涨幅15-30%"
+        )
+    elif vol_ratio < 0.3 and abs(change_pct) < 2:
+        return MasterAnalysis(
+            master="黑马王子",
+            icon="🐴",
+            action="关注",
+            action_emoji="🟡",
+            confidence=3,
+            reason=f"极度缩量 (量比{vol_ratio:.1f})",
+            operation="量柱萎缩至极小，可能是缩量洗盘，关注后续是否放量",
+            stop_loss="跌破缩量区间低点",
+            take_profit="等待倍量阳线出现"
+        )
+    elif vol_ratio > 2 and change_pct < -3:
+        return MasterAnalysis(
+            master="黑马王子",
+            icon="🐴",
+            action="卖出",
+            action_emoji="🔴",
+            confidence=5,
+            reason=f"倍阴柱! (量比{vol_ratio:.1f}倍，跌{change_pct:.1f}%)",
+            operation="倍量阴线是出货信号，立即清仓，不可恋战",
+            stop_loss="已触发止损信号"
+        )
+    else:
+        return MasterAnalysis(
+            master="黑马王子",
+            icon="🐴",
+            action="观望",
+            action_emoji="⚪",
+            confidence=2,
+            reason="量柱形态不明确",
+            operation="等待明确的量柱信号(倍量/缩量)"
+        )
+
+
+def _analyze_blue_indicator(blue_daily: float = None, blue_weekly: float = None,
+                            blue_monthly: float = None, adx: float = None) -> MasterAnalysis:
+    """BLUE指标分析"""
+    if blue_daily is None:
+        return MasterAnalysis(
+            master="BLUE",
+            icon="🔵",
+            action="无数据",
+            action_emoji="⚪",
+            confidence=0,
+            reason="BLUE数据未获取",
+            operation=""
+        )
+    
+    # 三线共振判断
+    triple_resonance = (
+        blue_daily and blue_daily > 100 and
+        blue_weekly and blue_weekly > 80 and
+        blue_monthly and blue_monthly > 60
+    )
+    
+    if blue_daily > 200:
+        return MasterAnalysis(
+            master="BLUE",
+            icon="🔵",
+            action="强烈买入",
+            action_emoji="🟢",
+            confidence=5,
+            reason=f"BLUE超强势 ({blue_daily:.0f})" + (" + 三线共振" if triple_resonance else ""),
+            operation="趋势极强，可适当追高或等回踩5日线低吸",
+            stop_loss="BLUE跌破150或价格跌破5日线",
+            take_profit="持股待涨，BLUE开始回落时减仓"
+        )
+    elif blue_daily > 150:
+        return MasterAnalysis(
+            master="BLUE",
+            icon="🔵",
+            action="买入",
+            action_emoji="🟢",
+            confidence=4,
+            reason=f"BLUE强势 ({blue_daily:.0f})" + (" + 三线共振" if triple_resonance else ""),
+            operation="趋势启动，可分批建仓，逢回调加仓",
+            stop_loss="BLUE跌破100或价格跌破20日线",
+            take_profit="目标位：前高或涨幅15%"
+        )
+    elif blue_daily > 100:
+        return MasterAnalysis(
+            master="BLUE",
+            icon="🔵",
+            action="做T/持有",
+            action_emoji="🟡",
+            confidence=3,
+            reason=f"BLUE中性偏强 ({blue_daily:.0f})",
+            operation="趋势尚可，可小仓位做T或持有底仓",
+            stop_loss="BLUE跌破80",
+            take_profit="等待BLUE突破150加仓"
+        )
+    elif blue_daily > 80:
+        return MasterAnalysis(
+            master="BLUE",
+            icon="🔵",
+            action="观望",
+            action_emoji="⚪",
+            confidence=2,
+            reason=f"BLUE弱势 ({blue_daily:.0f})",
+            operation="趋势偏弱，不宜追高，等待BLUE回升",
+            stop_loss="已持仓考虑减仓"
+        )
+    else:
+        return MasterAnalysis(
+            master="BLUE",
+            icon="🔵",
+            action="回避",
+            action_emoji="🔴",
+            confidence=4,
+            reason=f"BLUE很弱 ({blue_daily:.0f})",
+            operation="趋势向下，不要抄底，等待BLUE企稳",
+            stop_loss="清仓观望"
+        )
+
+
+def get_master_summary_for_stock(analyses: Dict[str, MasterAnalysis]) -> Dict:
+    """
+    汇总各大师的分析，给出综合建议
+    
+    Returns:
+        {
+            'overall_action': str,  # 综合建议
+            'buy_votes': int,
+            'sell_votes': int,
+            'hold_votes': int,
+            'best_opportunity': str,  # 最佳机会描述
+            'key_risk': str           # 主要风险
+        }
+    """
+    buy_votes = 0
+    sell_votes = 0
+    hold_votes = 0
+    
+    best_opportunity = ""
+    best_confidence = 0
+    key_risk = ""
+    
+    for key, analysis in analyses.items():
+        if analysis.action in ['买入', '强烈买入', '做T低吸', '准备买入']:
+            buy_votes += 1
+            if analysis.confidence > best_confidence and '买入' in analysis.action:
+                best_confidence = analysis.confidence
+                best_opportunity = f"{analysis.icon}{analysis.master}: {analysis.reason}"
+        elif analysis.action in ['卖出', '做T高抛', '准备卖出', '回避']:
+            sell_votes += 1
+            if analysis.confidence >= 4 and '卖' in analysis.action:
+                key_risk = f"{analysis.icon}{analysis.master}: {analysis.reason}"
+        else:
+            hold_votes += 1
+    
+    # 综合建议
+    if buy_votes >= 3:
+        overall = "🟢 多数大师看多，可积极参与"
+    elif buy_votes >= 2 and sell_votes == 0:
+        overall = "🟢 偏多，可适当参与"
+    elif sell_votes >= 2:
+        overall = "🔴 多数大师看空，建议回避或减仓"
+    elif sell_votes == 1 and buy_votes == 0:
+        overall = "🟡 有风险信号，谨慎操作"
+    else:
+        overall = "⚪ 信号不明确，建议观望"
+    
+    return {
+        'overall_action': overall,
+        'buy_votes': buy_votes,
+        'sell_votes': sell_votes,
+        'hold_votes': hold_votes,
+        'best_opportunity': best_opportunity,
+        'key_risk': key_risk
+    }
+
+
+def format_master_analysis_short(analyses: Dict[str, MasterAnalysis]) -> str:
+    """生成简短的大师分析摘要 (用于表格显示)"""
+    parts = []
+    for key, analysis in analyses.items():
+        parts.append(f"{analysis.action_emoji}")
+    return "".join(parts)
+
+
+def format_master_analysis_full(analyses: Dict[str, MasterAnalysis]) -> str:
+    """生成完整的大师分析文本"""
+    text = ""
+    for key, analysis in analyses.items():
+        text += f"\n**{analysis.icon} {analysis.master}**: {analysis.action_emoji} {analysis.action}\n"
+        text += f"- 判断: {analysis.reason}\n"
+        text += f"- 操作: {analysis.operation}\n"
+        if analysis.stop_loss:
+            text += f"- 止损: {analysis.stop_loss}\n"
+        if analysis.take_profit:
+            text += f"- 目标: {analysis.take_profit}\n"
+    
+    return text
+
+
 if __name__ == "__main__":
     print("📚 Master Strategies Overview")
     print("=" * 50)
@@ -597,3 +1121,26 @@ if __name__ == "__main__":
         print(f"   买入规则: {len(strategy.buy_rules)}条")
         print(f"   卖出规则: {len(strategy.sell_rules)}条")
         print(f"   做T技巧: {len(strategy.t_rules)}条")
+    
+    # 测试个股分析
+    print("\n" + "=" * 50)
+    print("📊 测试个股分析 (NVDA)")
+    
+    analyses = analyze_stock_for_master(
+        symbol="NVDA",
+        blue_daily=165,
+        blue_weekly=120,
+        vol_ratio=1.8,
+        change_pct=3.2,
+        is_heima=True
+    )
+    
+    for key, analysis in analyses.items():
+        print(f"\n{analysis.icon} {analysis.master}: {analysis.action_emoji} {analysis.action}")
+        print(f"   {analysis.reason}")
+        print(f"   {analysis.operation}")
+    
+    summary = get_master_summary_for_stock(analyses)
+    print(f"\n综合: {summary['overall_action']}")
+    print(f"买入票数: {summary['buy_votes']}")
+

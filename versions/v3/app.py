@@ -1871,13 +1871,136 @@ def render_scan_page():
         except Exception as e:
             st.error(f"新闻分析失败: {e}")
     
-    # 如果有缓存的新闻数据，添加到 DataFrame
+    # 显示列顺序：核心指标在前，新发现标记靠前，新闻情绪列
     if news_cache_key in st.session_state and 'Ticker' in df.columns:
         news_data = st.session_state[news_cache_key]
         df['新闻'] = df['Ticker'].map(lambda t: news_data.get(t, '➖'))
 
+    # === 大师策略深度分析 ===
+    master_cache_key = f"master_analysis_{selected_date}_{selected_market}"
+    master_details_key = f"{master_cache_key}_details"
+    
+    col_master1, col_master2 = st.columns([1, 4])
+    with col_master1:
+        analyze_master = st.button("🤖 大师深度分析", help="基于5位大师策略分析前20只股票 (需获取历史数据，较慢)")
+    with col_master2:
+        if master_cache_key in st.session_state:
+            cached_master = len([v for v in st.session_state[master_cache_key].values() if v])
+            st.caption(f"✅ 已生成 {cached_master} 份大师报告")
+
+    if analyze_master and 'Ticker' in df.columns and len(df) > 0:
+        try:
+            from strategies.master_strategies import analyze_stock_for_master, get_master_summary_for_stock
+            if selected_market == 'US':
+                from data_fetcher import get_us_stock_data as get_data
+            else:
+                from data_fetcher import get_cn_stock_data as get_data
+            
+            # 先去重
+            all_tickers = df['Ticker'].unique().tolist()
+            # 分析前20只 (避免超时)
+            tickers_to_analyze = all_tickers[:20]
+            master_results = {}
+            master_details = {} # 存储详细报告用于展示
+            
+            progress = st.progress(0, text="正在进行大师级推演...")
+            
+            for i, ticker in enumerate(tickers_to_analyze):
+                try:
+                    # 1. 获取近期历史数据 (用于计算均线、量比、九转)
+                    hist_df = get_data(ticker, days=40)
+                    
+                    if hist_df is not None and not hist_df.empty:
+                        # 准备参数
+                        current_row = df[df['Ticker'] == ticker].iloc[0]
+                        price = float(current_row.get('Price', 0))
+                        
+                        # 计算技术指标
+                        sma5 = hist_df['Close'].rolling(5).mean().iloc[-1]
+                        sma20 = hist_df['Close'].rolling(20).mean().iloc[-1]
+                        
+                        # 量比
+                        vol = hist_df['Volume'].iloc[-1]
+                        vol_ma5 = hist_df['Volume'].rolling(5).mean().iloc[-1]
+                        vol_ratio = vol / vol_ma5 if vol_ma5 > 0 else 1.0
+                        
+                        # 九转计数 (简单计算)
+                        close_prices = hist_df['Close'].values
+                        td_count = 0
+                        if len(close_prices) > 13:
+                            # 简化的TD检测，实际应使用 SignalDetector
+                            c = close_prices
+                            if c[-1] < c[-5]: # 下跌
+                                count = 0
+                                for k in range(1, 10):
+                                    if c[-k] < c[-k-4]: count -= 1
+                                    else: break
+                                td_count = count
+                            elif c[-1] > c[-5]: # 上涨
+                                count = 0
+                                for k in range(1, 10):
+                                    if c[-k] > c[-k-4]: count += 1
+                                    else: break
+                                td_count = count
+                        
+                        # 2. 调用大师分析
+                        analyses = analyze_stock_for_master(
+                            symbol=ticker,
+                            blue_daily=float(current_row.get('Day BLUE', 0)),
+                            blue_weekly=float(current_row.get('Week BLUE', 0)),
+                            blue_monthly=float(current_row.get('Month BLUE', 0)),
+                            adx=float(current_row.get('ADX', 0)),
+                            vol_ratio=vol_ratio,
+                            change_pct=float(hist_df['Close'].pct_change().iloc[-1] * 100),
+                            price=price,
+                            sma5=sma5,
+                            sma20=sma20,
+                            td_count=td_count,
+                            is_heima=True if '黑马' in str(current_row.get('Strategy', '')) else False
+                        )
+                        
+                        # 3. 汇总结果
+                        summary = get_master_summary_for_stock(analyses)
+                        
+                        # 存入结果
+                        master_results[ticker] = summary['overall_action']
+                        master_details[ticker] = analyses
+                        
+                    else:
+                        master_results[ticker] = "数据不足"
+                        
+                except Exception as e:
+                    master_results[ticker] = "分析失败"
+                    print(f"Error analyzing {ticker}: {e}")
+                
+                progress.progress((i + 1) / len(tickers_to_analyze), 
+                                 text=f"大师正在分析 {ticker} ({i+1}/{len(tickers_to_analyze)})")
+            
+            progress.empty()
+            
+            # 缓存结果
+            st.session_state[master_cache_key] = master_results
+            st.session_state[master_details_key] = master_details
+            st.success(f"✅ 大师分析完成！已生成 {len(master_results)} 份策略报告")
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"大师分析服务异常: {e}")
+            import traceback
+            st.code(traceback.format_exc())
+
+    # 将大师建议合并到 DataFrame
+    if master_cache_key in st.session_state and 'Ticker' in df.columns:
+        master_data = st.session_state[master_cache_key]
+        df['大师建议'] = df['Ticker'].map(lambda t: master_data.get(t, '➖'))
+
+    # 更新列配置
+    column_config.update({
+        "大师建议": st.column_config.TextColumn("大师建议", width="medium", help="5位大师综合评级")
+    })
+
     # 显示列顺序：核心指标在前，新发现标记靠前，新闻情绪列
-    display_cols = ['新发现', '新闻', 'Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    display_cols = ['新发现', '新闻', '大师建议', 'Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
@@ -2973,6 +3096,77 @@ def render_scan_page():
             st.warning("⚠️ **免责声明**: 以上仅为量化模型生成的参考信号，不构成投资建议。请结合大盘环境自主决策。")
     else:
         st.info("👈 请在上方表格中点击一行，查看该股票的详细图表和分析。")
+
+    # === 大师分析详情查看器 (全局) ===
+    master_details_key = f"master_analysis_{selected_date}_{selected_market}_details"
+    
+    if master_details_key in st.session_state:
+        st.divider()
+        st.header("🔍 大师分析实验室 (Master's Lab)")
+        
+        details = st.session_state[master_details_key]
+        analyzed_tickers = list(details.keys())
+        
+        if analyzed_tickers:
+            col_sel, col_content = st.columns([1, 3])
+            
+            with col_sel:
+                # 尝试获取股票名称
+                def get_stock_label(tk):
+                    name = ""
+                    if 'Ticker' in df.columns and 'Name' in df.columns:
+                        matches = df[df['Ticker'] == tk]
+                        if not matches.empty:
+                            name = matches['Name'].iloc[0]
+                    return f"{tk} {name}"
+                
+                selected_ticker_for_detail = st.radio(
+                    "已分析股票", 
+                    analyzed_tickers,
+                    format_func=get_stock_label
+                )
+            
+            with col_content:
+                if selected_ticker_for_detail:
+                    analyses = details[selected_ticker_for_detail]
+                    
+                    # 1. 总体评价
+                    from strategies.master_strategies import get_master_summary_for_stock
+                    summary = get_master_summary_for_stock(analyses)
+                    
+                    st.success(f"### {summary['overall_action']}")
+                    
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("🟢 看多票数", summary['buy_votes'])
+                    c2.metric("🔴 看空票数", summary['sell_votes'])
+                    c3.metric("🟡 观望/做T", summary['hold_votes'])
+                    
+                    if summary['best_opportunity']:
+                        st.info(f"**最佳机会**: {summary['best_opportunity']}")
+                    if summary['key_risk']:
+                        st.warning(f"**主要风险**: {summary['key_risk']}")
+                    
+                    st.divider()
+                    
+                    # 2. 各大师详细观点
+                    for key, analysis in analyses.items():
+                        with st.expander(f"{analysis.icon} {analysis.master}: {analysis.action_emoji} {analysis.action}", expanded=True):
+                            st.markdown(f"**判断逻辑**: {analysis.reason}")
+                            st.markdown(f"**操作建议**: {analysis.operation}")
+                            
+                            if analysis.stop_loss:
+                                st.markdown(f"🛑 **止损**: {analysis.stop_loss}")
+                            if analysis.take_profit:
+                                st.markdown(f"🎯 **目标**: {analysis.take_profit}")
+                            
+                            st.caption(f"信心指数: {'⭐' * analysis.confidence}")
+
+    elif analyze_master: # 如果还没有详情但按钮被按了 (状态中)
+        pass # 等待上面rerun
+    else:
+        st.divider()
+        st.caption("ℹ️ 点击上方的 '🤖 大师深度分析' 按钮，可在此处查看 5 位大师对前 20 只股票的详细会诊报告。")
+
 
 
 def render_stock_lookup_page():
