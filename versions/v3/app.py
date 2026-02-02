@@ -1660,7 +1660,8 @@ def render_scan_page():
         "Chan_Desc": st.column_config.TextColumn("缠论形态", width="medium", help="Chan Theory"),
         "Profit_Ratio": st.column_config.NumberColumn("获利盘", format="%.0f%%", help="获利盘比例"),
         "筹码形态": st.column_config.TextColumn("筹码", width="small", help="🔥=强势顶格峰 📍=底部密集"),
-        "新发现": st.column_config.TextColumn("状态", width="small", help="🆕=今日新发现, 📅=之前出现过")
+        "新发现": st.column_config.TextColumn("状态", width="small", help="🆕=今日新发现, 📅=之前出现过"),
+        "新闻": st.column_config.TextColumn("新闻", width="small", help="🟢利好/🔴利空 (利好数/利空数)")
     }
 
     # === 新发现标记 ===
@@ -1695,8 +1696,67 @@ def render_scan_page():
         
         df['新发现'] = df['Ticker'].apply(get_newness_label)
 
-    # 显示列顺序：核心指标在前，新发现标记靠前
-    display_cols = ['新发现', 'Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    # === 新闻情绪分析 ===
+    # 添加新闻情绪列 (按需加载)
+    news_cache_key = f"news_sentiment_{selected_date}_{selected_market}"
+    
+    col_news1, col_news2 = st.columns([1, 4])
+    with col_news1:
+        analyze_news = st.button("📰 获取新闻情绪", help="分析前10只股票的新闻情绪")
+    with col_news2:
+        if news_cache_key in st.session_state:
+            cached_count = len([v for v in st.session_state[news_cache_key].values() if v])
+            st.caption(f"✅ 已缓存 {cached_count} 只股票的新闻情绪")
+    
+    if analyze_news and 'Ticker' in df.columns and len(df) > 0:
+        try:
+            from news import get_news_intelligence
+            intel = get_news_intelligence(use_llm=False)
+            
+            # 只分析前10只 (避免太慢)
+            tickers_to_analyze = df['Ticker'].tolist()[:10]
+            news_results = {}
+            
+            progress = st.progress(0, text="正在分析新闻...")
+            for i, ticker in enumerate(tickers_to_analyze):
+                try:
+                    events, impacts, digest = intel.analyze_symbol(ticker, market=selected_market)
+                    
+                    if digest.total_news_count > 0:
+                        ratio = digest.sentiment_ratio()
+                        if ratio > 0.3:
+                            emoji = "🟢"
+                        elif ratio < -0.3:
+                            emoji = "🔴"
+                        else:
+                            emoji = "⚪"
+                        
+                        news_results[ticker] = f"{emoji}{digest.bullish_count}/{digest.bearish_count}"
+                    else:
+                        news_results[ticker] = "➖"
+                except:
+                    news_results[ticker] = "❓"
+                
+                progress.progress((i + 1) / len(tickers_to_analyze), 
+                                 text=f"分析 {ticker} ({i+1}/{len(tickers_to_analyze)})")
+            
+            progress.empty()
+            
+            # 缓存结果
+            st.session_state[news_cache_key] = news_results
+            st.success(f"✅ 新闻分析完成！{len(news_results)} 只股票")
+            st.rerun()
+            
+        except Exception as e:
+            st.error(f"新闻分析失败: {e}")
+    
+    # 如果有缓存的新闻数据，添加到 DataFrame
+    if news_cache_key in st.session_state and 'Ticker' in df.columns:
+        news_data = st.session_state[news_cache_key]
+        df['新闻'] = df['Ticker'].map(lambda t: news_data.get(t, '➖'))
+
+    # 显示列顺序：核心指标在前，新发现标记靠前，新闻情绪列
+    display_cols = ['新发现', '新闻', 'Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
