@@ -82,7 +82,7 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
         records = []
         
         for row in batch:
-            records.append({
+            record = {
                 'symbol': row['symbol'],
                 'scan_date': row['scan_date'],
                 'price': row['price'],
@@ -97,19 +97,40 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
                 'market': row['market'] or 'US',
                 'company_name': row['company_name'],
                 'industry': row['industry'],
-                'market_cap': row['market_cap'],
-                'cap_category': row['cap_category']
-            })
+            }
+            # 可选字段 - 只在存在时添加
+            if row['market_cap'] is not None:
+                record['market_cap'] = row['market_cap']
+            if row['cap_category'] is not None:
+                record['cap_category'] = row['cap_category']
+            records.append(record)
         
         try:
+            # 先尝试完整记录
             supabase.table('scan_results').upsert(
                 records, 
                 on_conflict='symbol,scan_date,market'
             ).execute()
             total += len(records)
         except Exception as e:
-            errors += 1
-            print(f"❌ Batch error: {e}")
+            # 如果失败，尝试不带新字段
+            if 'cap_category' in str(e) or 'market_cap' in str(e):
+                print("⚠️ Supabase 表缺少 market_cap/cap_category 列，跳过这些字段...")
+                for rec in records:
+                    rec.pop('market_cap', None)
+                    rec.pop('cap_category', None)
+                try:
+                    supabase.table('scan_results').upsert(
+                        records, 
+                        on_conflict='symbol,scan_date,market'
+                    ).execute()
+                    total += len(records)
+                except Exception as e2:
+                    errors += 1
+                    print(f"❌ Batch error: {e2}")
+            else:
+                errors += 1
+                print(f"❌ Batch error: {e}")
     
     conn.close()
     
