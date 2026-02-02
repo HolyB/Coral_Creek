@@ -1,112 +1,112 @@
 {
-  "date": "2026-01-30",
+  "date": "2026-02-02",
   "market": "CN",
-  "total_signals": 263,
+  "total_signals": 321,
   "top_signals": [
+    {
+      "symbol": "920003.BJ",
+      "name": "中诚咨询",
+      "price": 32.5,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920651.BJ",
+      "name": "天罡股份",
+      "price": 36.22,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
     {
       "symbol": "920978.BJ",
       "name": "开特股份",
-      "price": 31.05,
+      "price": 29.18,
       "day_blue": 200.0,
       "week_blue": 0.0
     },
     {
       "symbol": "920436.BJ",
       "name": "大地电气",
-      "price": 17.04,
+      "price": 16.58,
       "day_blue": 200.0,
-      "week_blue": 122.8
+      "week_blue": 141.3
     },
     {
       "symbol": "920305.BJ",
       "name": "*ST云创",
-      "price": 7.1,
+      "price": 6.2,
       "day_blue": 200.0,
-      "week_blue": 121.0
+      "week_blue": 140.4
     },
     {
-      "symbol": "001965.SZ",
-      "name": "招商公路",
-      "price": 9.38,
+      "symbol": "600941.SH",
+      "name": "中国移动",
+      "price": 92.66,
       "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "002024.SZ",
-      "name": "ST易购",
-      "price": 1.55,
-      "day_blue": 200.0,
-      "week_blue": 128.0
-    },
-    {
-      "symbol": "920651.BJ",
-      "name": "天罡股份",
-      "price": 39.13,
-      "day_blue": 198.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300338.SZ",
-      "name": "ST开元",
-      "price": 3.36,
-      "day_blue": 197.9,
-      "week_blue": 179.4
-    },
-    {
-      "symbol": "002889.SZ",
-      "name": "东方嘉盛",
-      "price": 15.06,
-      "day_blue": 192.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920392.BJ",
-      "name": "佳合科技",
-      "price": 25.96,
-      "day_blue": 185.9,
-      "week_blue": 0.0
+      "week_blue": 156.7
     },
     {
       "symbol": "002514.SZ",
       "name": "宝馨科技",
-      "price": 5.65,
-      "day_blue": 182.8,
+      "price": 5.09,
+      "day_blue": 200.0,
+      "week_blue": 74.6
+    },
+    {
+      "symbol": "920392.BJ",
+      "name": "佳合科技",
+      "price": 25.33,
+      "day_blue": 197.7,
       "week_blue": 0.0
     },
     {
-      "symbol": "301227.SZ",
-      "name": "森鹰窗业",
-      "price": 34.68,
-      "day_blue": 177.5,
+      "symbol": "920002.BJ",
+      "name": "万达轴承",
+      "price": 101.11,
+      "day_blue": 194.9,
       "week_blue": 0.0
     },
     {
-      "symbol": "603633.SH",
-      "name": "徕木股份",
-      "price": 9.08,
-      "day_blue": 174.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688656.SH",
-      "name": "浩欧博",
-      "price": 143.8,
-      "day_blue": 172.4,
-      "week_blue": 0.0
+      "symbol": "002936.SZ",
+      "name": "郑州银行",
+      "price": 1.89,
+      "day_blue": 181.3,
+      "week_blue": 132.7
     },
     {
       "symbol": "688609.SH",
       "name": "九联科技",
-      "price": 9.1,
-      "day_blue": 165.4,
-      "week_blue": 83.5
+      "price": 8.87,
+      "day_blue": 176.5,
+      "week_blue": 96.4
     },
     {
-      "symbol": "600483.SH",
-      "name": "福能股份",
-      "price": 9.12,
-      "day_blue": 164.2,
-      "week_blue": 76.7
+      "symbol": "301557.SZ",
+      "name": "常友科技",
+      "price": 100.93,
+      "day_blue": 167.5,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301391.SZ",
+      "name": "卡莱特",
+      "price": 70.87,
+      "day_blue": 166.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301209.SZ",
+      "name": "联合化学",
+      "price": 92.76,
+      "day_blue": 166.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600239.SH",
+      "name": "云南城投",
+      "price": 2.32,
+      "day_blue": 166.1,
+      "week_blue": 0.0
     }
   ]
 }
