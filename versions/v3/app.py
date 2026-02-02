@@ -6335,6 +6335,184 @@ def render_ml_lab_page():
 
 # --- 博主推荐追踪页面 ---
 
+def render_external_strategies_tab():
+    """📊 外部策略 - TradingView 和社区策略"""
+    st.subheader("📊 外部策略库")
+    st.caption("TradingView 热门策略、社区策略、博主策略")
+    
+    try:
+        from strategies.aggregator import StrategyAggregator, StrategySource, StrategyCategory
+        from strategies.implementations import list_strategies
+        
+        aggregator = StrategyAggregator()
+        
+        # TradingView 热门策略
+        st.markdown("### 📈 TradingView 热门策略")
+        
+        tv_strategies = aggregator.tv_scraper.get_popular_strategies()
+        
+        if tv_strategies:
+            tv_df = pd.DataFrame([
+                {
+                    '策略名称': s.name,
+                    '类别': s.category.value if isinstance(s.category, StrategyCategory) else s.category,
+                    '入场规则': s.entry_rules[:50] + '...' if len(s.entry_rules) > 50 else s.entry_rules,
+                    '出场规则': s.exit_rules[:50] + '...' if len(s.exit_rules) > 50 else s.exit_rules,
+                    '声称胜率': f"{s.claimed_win_rate}%",
+                    '主要指标': ', '.join(s.indicators[:3])
+                }
+                for s in tv_strategies
+            ])
+            
+            st.dataframe(tv_df, use_container_width=True, hide_index=True)
+        
+        st.divider()
+        
+        # 可回测的策略
+        st.markdown("### 🧪 可回测策略")
+        st.caption("这些策略已实现完整逻辑，可直接回测")
+        
+        impl_strategies = list_strategies()
+        
+        impl_df = pd.DataFrame([
+            {
+                '策略ID': s['id'],
+                '策略名称': s['name'],
+                '描述': s['description'],
+                '使用指标': ', '.join(s.get('indicators', []))
+            }
+            for s in impl_strategies
+        ])
+        
+        st.dataframe(impl_df, use_container_width=True, hide_index=True)
+        
+        st.divider()
+        
+        # 博主列表
+        st.markdown("### 👤 知名博主")
+        
+        authors = aggregator.get_all_authors()
+        
+        if authors:
+            author_df = pd.DataFrame([
+                {
+                    '博主': a.name,
+                    '平台': a.platform.value if isinstance(a.platform, StrategySource) else a.platform,
+                    '专长': a.specialty,
+                    '粉丝数': f"{a.followers:,}" if a.followers else 'N/A',
+                    '简介': a.description[:30] + '...' if len(a.description) > 30 else a.description
+                }
+                for a in authors
+            ])
+            
+            st.dataframe(author_df, use_container_width=True, hide_index=True)
+        
+    except Exception as e:
+        st.error(f"加载失败: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
+def render_strategy_backtest_tab():
+    """🧪 策略回测 - 回测外部策略"""
+    st.subheader("🧪 外部策略回测")
+    st.caption("选择策略和股票，验证策略有效性")
+    
+    try:
+        from strategies.implementations import (
+            list_strategies, backtest_external_strategy, get_strategy
+        )
+        
+        # 策略选择
+        strategies = list_strategies()
+        strategy_options = {s['name']: s['id'] for s in strategies}
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            selected_name = st.selectbox("选择策略", list(strategy_options.keys()))
+            selected_id = strategy_options.get(selected_name)
+        
+        with col2:
+            symbol = st.text_input("股票代码", value="NVDA").upper().strip()
+        
+        with col3:
+            days = st.selectbox("回测周期", [90, 180, 365, 730], index=2)
+        
+        # 显示策略详情
+        strategy_info = next((s for s in strategies if s['id'] == selected_id), None)
+        if strategy_info:
+            st.info(f"**{strategy_info['name']}**: {strategy_info['description']}")
+            st.caption(f"使用指标: {', '.join(strategy_info.get('indicators', []))}")
+        
+        # 运行回测
+        if st.button("🚀 运行回测", type="primary"):
+            with st.spinner(f"正在回测 {selected_name} on {symbol}..."):
+                result = backtest_external_strategy(selected_id, symbol, days=days)
+                
+                if 'error' in result:
+                    st.error(result['error'])
+                elif result.get('total_signals', 0) == 0:
+                    st.warning("该策略在此期间未产生任何信号")
+                else:
+                    st.success("✅ 回测完成!")
+                    
+                    # 显示结果
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("总信号数", result.get('total_signals', 0))
+                    m2.metric("完成交易", result.get('completed_trades', 0))
+                    m3.metric("胜率", f"{result.get('win_rate', 0)}%")
+                    m4.metric("总收益", f"{result.get('total_return', 0)}%")
+                    
+                    m5, m6, m7, m8 = st.columns(4)
+                    m5.metric("平均收益", f"{result.get('avg_return', 0)}%")
+                    m6.metric("最大盈利", f"{result.get('max_gain', 0)}%")
+                    m7.metric("最大亏损", f"{result.get('max_loss', 0)}%")
+                    m8.metric("Sharpe", result.get('sharpe', 0))
+        
+        st.divider()
+        
+        # 批量对比
+        st.markdown("### 📊 策略对比")
+        st.caption("比较多个策略在同一股票上的表现")
+        
+        compare_symbol = st.text_input("对比股票", value="AAPL", key="compare_symbol").upper()
+        
+        if st.button("📊 对比所有策略"):
+            with st.spinner("正在对比..."):
+                results = []
+                
+                for s in strategies:
+                    try:
+                        r = backtest_external_strategy(s['id'], compare_symbol, days=365)
+                        if 'error' not in r and r.get('completed_trades', 0) > 0:
+                            results.append({
+                                '策略': s['name'],
+                                '信号数': r.get('total_signals', 0),
+                                '交易数': r.get('completed_trades', 0),
+                                '胜率': f"{r.get('win_rate', 0)}%",
+                                '总收益': f"{r.get('total_return', 0)}%",
+                                'Sharpe': r.get('sharpe', 0)
+                            })
+                    except:
+                        pass
+                
+                if results:
+                    compare_df = pd.DataFrame(results)
+                    # 按总收益排序
+                    compare_df['_sort'] = compare_df['总收益'].str.replace('%', '').astype(float)
+                    compare_df = compare_df.sort_values('_sort', ascending=False).drop('_sort', axis=1)
+                    
+                    st.dataframe(compare_df, use_container_width=True, hide_index=True)
+                else:
+                    st.warning("没有足够数据进行对比")
+        
+    except Exception as e:
+        st.error(f"加载失败: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
 def render_blogger_page():
     """📢 博主推荐追踪页面"""
     st.header("📢 博主推荐追踪")
@@ -6349,11 +6527,21 @@ def render_blogger_page():
     # 确保表存在
     init_blogger_tables()
     
-    tab_bloggers, tab_recs, tab_perf = st.tabs([
+    tab_bloggers, tab_recs, tab_perf, tab_external, tab_backtest = st.tabs([
         "👤 博主管理",
         "📝 推荐记录", 
-        "🏆 业绩排行"
+        "🏆 业绩排行",
+        "📊 外部策略",
+        "🧪 策略回测"
     ])
+    
+    # === Tab 4: 外部策略 ===
+    with tab_external:
+        render_external_strategies_tab()
+    
+    # === Tab 5: 策略回测 ===
+    with tab_backtest:
+        render_strategy_backtest_tab()
     
     # === Tab 1: 博主管理 ===
     with tab_bloggers:
