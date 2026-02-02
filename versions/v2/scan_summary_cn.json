@@ -1,7 +1,7 @@
 {
   "date": "2026-01-30",
   "market": "CN",
-  "total_signals": 212,
+  "total_signals": 250,
   "top_signals": [
     {
       "symbol": "920978.BJ",
@@ -46,10 +46,31 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "300338.SZ",
+      "name": "ST开元",
+      "price": 3.36,
+      "day_blue": 197.9,
+      "week_blue": 179.4
+    },
+    {
+      "symbol": "002889.SZ",
+      "name": "东方嘉盛",
+      "price": 15.06,
+      "day_blue": 192.1,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "920392.BJ",
       "name": "佳合科技",
       "price": 25.96,
       "day_blue": 185.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002514.SZ",
+      "name": "宝馨科技",
+      "price": 5.65,
+      "day_blue": 182.8,
       "week_blue": 0.0
     },
     {
@@ -85,27 +106,6 @@
       "name": "常友科技",
       "price": 106.42,
       "day_blue": 157.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301391.SZ",
-      "name": "卡莱特",
-      "price": 73.38,
-      "day_blue": 155.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301209.SZ",
-      "name": "联合化学",
-      "price": 99.7,
-      "day_blue": 140.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000006.SZ",
-      "name": "深振业Ａ",
-      "price": 8.96,
-      "day_blue": 139.4,
       "week_blue": 0.0
     }
   ]
