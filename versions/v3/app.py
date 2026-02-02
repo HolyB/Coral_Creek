@@ -2689,6 +2689,43 @@ def render_scan_page():
                     except Exception as e:
                         st.error(f"AI分析出错: {str(e)}")
         
+        # === 🗣️ 社区舆情 ===
+        with st.expander("🗣️ 社区舆情 (Reddit/Twitter)", expanded=False):
+            social_col1, social_col2 = st.columns([1, 4])
+            with social_col1:
+                do_social = st.button("🔍 分析舆情", key=f"social_{symbol}")
+            
+            if do_social:
+                with st.spinner(f"正在扫描 {symbol} 社区讨论..."):
+                    try:
+                        from services.social_monitor import get_social_service
+                        svc = get_social_service()
+                        report = svc.get_social_report(symbol, market=selected_market)
+                        
+                        # 总体情绪
+                        s_col1, s_col2, s_col3 = st.columns(3)
+                        s_col1.metric("🐂 看多", report['bullish_count'])
+                        s_col2.metric("🐻 看空", report['bearish_count'])
+                        s_col3.metric("😶 中性", report['neutral_count'])
+                        
+                        # 帖子列表
+                        st.markdown("#### 🔥 热门讨论")
+                        if report['posts']:
+                            for p in report['posts']:
+                                icon = "🐦" if p.platform == "Twitter" else "🤖" if p.platform == "Reddit" else "💬"
+                                sent_emoji = "🟢" if p.sentiment == "Bullish" else "🔴" if p.sentiment == "Bearish" else "⚪"
+                                
+                                st.markdown(f"**{icon} {p.title}**")
+                                st.caption(f"{sent_emoji} {p.sentiment} | {p.snippet[:100]}...")
+                                if p.url:
+                                    st.markdown(f"[查看原文]({p.url})")
+                                st.divider()
+                        else:
+                            st.info("暂无相关讨论")
+                            
+                    except Exception as e:
+                        st.error(f"舆情分析失败: {e}")
+        
         chart_col, info_col = st.columns([2, 1])
         
         with chart_col:
