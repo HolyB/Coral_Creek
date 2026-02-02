@@ -451,6 +451,17 @@ def get_first_scan_dates(symbols, market='US'):
     if not symbols:
         return {}
     
+    # 优先使用 Supabase
+    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+        try:
+            from db.supabase_db import get_first_scan_dates_supabase
+            result = get_first_scan_dates_supabase(symbols, market)
+            if result:
+                return result
+        except Exception as e:
+            print(f"⚠️ Supabase 获取首次日期失败，回退 SQLite: {e}")
+    
+    # SQLite 备用
     with get_db() as conn:
         cursor = conn.cursor()
         placeholders = ','.join(['?' for _ in symbols])

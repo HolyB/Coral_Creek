@@ -164,3 +164,44 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
     except Exception as e:
         print(f"⚠️ 插入失败: {e}")
         return False
+
+
+def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dict[str, str]:
+    """从 Supabase 获取股票首次出现的日期
+    
+    Args:
+        symbols: 股票代码列表
+        market: 市场 (US/CN)
+    
+    Returns:
+        dict: {symbol: first_scan_date}
+    """
+    supabase = get_supabase()
+    if not supabase or not symbols:
+        return {}
+    
+    try:
+        # Supabase 不支持直接的 GROUP BY MIN，需要用 RPC 或分批查询
+        # 这里用简单方法：查询所有匹配记录，在 Python 端处理
+        result = supabase.table('scan_results')\
+            .select('symbol, scan_date')\
+            .eq('market', market)\
+            .in_('symbol', symbols)\
+            .order('scan_date', desc=False)\
+            .execute()
+        
+        if not result.data:
+            return {}
+        
+        # 取每个 symbol 的最早日期
+        first_dates = {}
+        for row in result.data:
+            symbol = row['symbol']
+            if symbol not in first_dates:
+                first_dates[symbol] = row['scan_date']
+        
+        return first_dates
+    except Exception as e:
+        print(f"⚠️ 获取首次日期失败: {e}")
+        return {}
+
