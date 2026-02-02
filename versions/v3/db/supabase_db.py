@@ -157,6 +157,8 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
             'market': result_dict.get('Market') or result_dict.get('market') or 'US',
             'company_name': result_dict.get('Company_Name') or result_dict.get('company_name'),
             'industry': result_dict.get('Industry') or result_dict.get('industry'),
+            'market_cap': result_dict.get('Market_Cap') or result_dict.get('market_cap'),
+            'cap_category': result_dict.get('Cap_Category') or result_dict.get('cap_category'),
         }
         
         supabase.table('scan_results').upsert(record, on_conflict='symbol,scan_date,market').execute()

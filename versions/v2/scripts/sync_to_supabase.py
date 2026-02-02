@@ -58,7 +58,7 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
     cursor.execute('''
         SELECT symbol, scan_date, price, turnover_m, blue_daily, blue_weekly, 
                blue_monthly, adx, volatility, is_heima, is_juedi, market, 
-               company_name, industry
+               company_name, industry, market_cap, cap_category
         FROM scan_results 
         WHERE scan_date >= ?
         ORDER BY scan_date DESC
@@ -96,7 +96,9 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
                 'is_juedi': bool(row['is_juedi']) if row['is_juedi'] is not None else None,
                 'market': row['market'] or 'US',
                 'company_name': row['company_name'],
-                'industry': row['industry']
+                'industry': row['industry'],
+                'market_cap': row['market_cap'],
+                'cap_category': row['cap_category']
             })
         
         try:
