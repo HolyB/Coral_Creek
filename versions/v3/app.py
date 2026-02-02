@@ -1817,6 +1817,39 @@ def render_scan_page():
         
         df['新发现'] = df['Ticker'].apply(get_newness_label)
 
+    # === 🏆 智能排序 (ML Ranking) ===
+    # 自动计算基础技术分，如果有大师/舆情分析结果，自动加权
+    try:
+        from ml.ranking_system import get_ranking_system
+        ranker = get_ranking_system()
+        
+        # 获取缓存的大师/舆情/新闻结果
+        master_cache_key = f"master_analysis_{selected_date}_{selected_market}"
+        master_res = st.session_state.get(master_cache_key, {})
+        
+        # 舆情暂无全局缓存（通常是单点），但如果有新闻缓存，可以用新闻代替部分舆情分
+        news_cache_key = f"news_sentiment_{selected_date}_{selected_market}"
+        # 这里为了简化，暂时只用大师结果作为额外输入
+        
+        # 计算综合得分
+        df = ranker.calculate_integrated_score(df, master_results=master_res)
+        
+        # 添加排序列配置
+        column_config["Rank_Score"] = st.column_config.ProgressColumn(
+            "🏆 ML评分", 
+            min_value=0, 
+            max_value=100,
+            format="%.0f",
+            help="基于技术面+大师策略+舆情的综合AI评分"
+        )
+        
+    except ImportError:
+        # 如果 ml 模块未就绪，跳过
+        pass
+    except Exception as e:
+        print(f"Ranking error: {e}")
+
+
     # === 新闻情绪分析 ===
     # 添加新闻情绪列 (按需加载)
     news_cache_key = f"news_sentiment_{selected_date}_{selected_market}"
@@ -2000,7 +2033,8 @@ def render_scan_page():
     })
 
     # 显示列顺序：核心指标在前，新发现标记靠前，新闻情绪列
-    display_cols = ['新发现', '新闻', '大师建议', 'Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    # 显示列顺序：Rank_Score 优先，然后是新发现、大师建议
+    display_cols = ['Rank_Score', '新发现', '新闻', '大师建议', 'Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
@@ -2010,13 +2044,16 @@ def render_scan_page():
     has_month = df['Month BLUE'] > 0 if 'Month BLUE' in df.columns else False
     
     # 1. 只日BLUE: Day > 0, Week = 0
-    df_day_only = df[has_day & ~has_week].sort_values('Day BLUE', ascending=False) if 'Day BLUE' in df.columns else df.head(0)
+    sort_col_day = 'Rank_Score' if 'Rank_Score' in df.columns else 'Day BLUE'
+    df_day_only = df[has_day & ~has_week].sort_values(sort_col_day, ascending=False) if 'Day BLUE' in df.columns else df.head(0)
     
     # 2. 日周/只周: (Day > 0 AND Week > 0) OR (Day = 0 AND Week > 0)
-    df_day_week = df[(has_day & has_week) | (~has_day & has_week)].sort_values('Week BLUE', ascending=False) if 'Week BLUE' in df.columns else df.head(0)
+    sort_col_week = 'Rank_Score' if 'Rank_Score' in df.columns else 'Week BLUE'
+    df_day_week = df[(has_day & has_week) | (~has_day & has_week)].sort_values(sort_col_week, ascending=False) if 'Week BLUE' in df.columns else df.head(0)
     
     # 3. 日周月/只月: (Day > 0 AND Week > 0 AND Month > 0) OR (Month > 0)
-    df_month = df[(has_day & has_week & has_month) | has_month].sort_values('Month BLUE', ascending=False) if 'Month BLUE' in df.columns else df.head(0)
+    sort_col_month = 'Rank_Score' if 'Rank_Score' in df.columns else 'Month BLUE'
+    df_month = df[(has_day & has_week & has_month) | has_month].sort_values(sort_col_month, ascending=False) if 'Month BLUE' in df.columns else df.head(0)
     
     # 4. 特殊信号 (黑马/掘地) - 只要有黑马或掘地就显示，不管日周月
     heima_cache_key = f"heima_cache_{selected_date}_{selected_market}"
@@ -2050,7 +2087,7 @@ def render_scan_page():
     with tab_day_only:
         st.caption("💡 只有日线信号，尚未形成周线共振，适合短线")
         if len(df_day_only) > 0:
-            df_day_only = df_day_only.sort_values('Day BLUE', ascending=False)
+            df_day_only = df_day_only.sort_values(sort_col_day, ascending=False)
             event1 = st.dataframe(
                 df_day_only[existing_cols],
                 column_config=column_config,
@@ -2071,7 +2108,7 @@ def render_scan_page():
     with tab_day_week:
         st.caption("💡 日周双信号共振 或 周线独立信号，中期趋势确认")
         if len(df_day_week) > 0:
-            df_day_week = df_day_week.sort_values('Week BLUE', ascending=False)
+            df_day_week = df_day_week.sort_values(sort_col_week, ascending=False)
             event2 = st.dataframe(
                 df_day_week[existing_cols],
                 column_config=column_config,
@@ -2092,7 +2129,7 @@ def render_scan_page():
     with tab_month:
         st.caption("💡 日周月三重共振 或 月线信号，大级别底部机会")
         if len(df_month) > 0:
-            df_month = df_month.sort_values('Month BLUE', ascending=False)
+            df_month = df_month.sort_values(sort_col_month, ascending=False)
             event3 = st.dataframe(
                 df_month[existing_cols],
                 column_config=column_config,
