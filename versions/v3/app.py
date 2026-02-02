@@ -1480,6 +1480,72 @@ def render_scan_page():
             st.info("💡 **方式二**: 批量回填历史数据\n```bash\ncd versions/v2\npython scripts/backfill.py --start 2025-12-01 --end 2026-01-07\n```")
         return
             
+    # === 🏆 智能排序 & Alpha Picks ===
+    # 在筛选之前先计算全量分数，以便展示 Top Picks
+    try:
+        from ml.ranking_system import get_ranking_system
+        ranker = get_ranking_system()
+        
+        # 获取缓存的大师/舆情结果
+        master_cache_key = f"master_analysis_{selected_date}_{selected_market}"
+        master_res = st.session_state.get(master_cache_key, {})
+        sentiment_res = st.session_state.get(f"sentiment_{selected_date}_{selected_market}", {}) # 暂留接口
+        
+        # 计算综合得分
+        df = ranker.calculate_integrated_score(df, master_results=master_res, sentiment_results=sentiment_res)
+        
+        # === 👑 展示 Daily Alpha Picks (Top 3) ===
+        # 筛选逻辑: 分数 > 60, 且如果有大师意见不能是看空
+        valid_picks = df[df['Rank_Score'] > 60].copy()
+        
+        # 简单过滤风险股 (如果大师明确看空)
+        if master_res:
+            def is_safe(ticker):
+                res = master_res.get(ticker)
+                if isinstance(res, str) and ("卖出" in res or "回避" in res): return False
+                if isinstance(res, dict) and res.get('overall_action') == 'SELL': return False
+                return True
+            valid_picks = valid_picks[valid_picks['Ticker'].apply(is_safe)]
+            
+        top_picks = valid_picks.head(3)
+        
+        if len(top_picks) > 0:
+            st.markdown("### 👑 今日 Alpha Picks")
+            # st.caption("模型精选技术面与基本面共振的顶级标的")
+            
+            p_cols = st.columns(3)
+            for i, (_, row) in enumerate(top_picks.iterrows()):
+                with p_cols[i]:
+                    score = row['Rank_Score']
+                    ticker = row['Ticker']
+                    name = row.get('Name', '')
+                    price = row.get('Price', 0)
+                    
+                    # 动态标签
+                    tags = []
+                    if score >= 80: tags.append("🔥 强力推荐")
+                    if row.get('Day BLUE', 0) > 50: tags.append("🟦 底部确认")
+                    if row.get('ADX', 0) > 30: tags.append("📈 趋势向上")
+                    if master_res.get(ticker): tags.append("🤖 大师看好")
+                    
+                    with st.container(border=True):
+                        st.markdown(f"#### {ticker} {name[:6]}")
+                        st.markdown(f"**${price:.2f}**")
+                        st.progress(score/100, text=f"ML评分: {score:.0f}")
+                        
+                        # 标签展示
+                        st.markdown(" ".join([f"`{t}`" for t in tags[:3]]))
+                        
+                        # 简短理由
+                        strategy = row.get('Strategy', 'N/A')
+                        st.caption(f"💡 {strategy}")
+            st.divider()
+            
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"Ranking/Alpha Picks error: {e}")
+
     # 侧边栏：继续筛选器
     with st.sidebar:
         st.divider()
@@ -1817,37 +1883,7 @@ def render_scan_page():
         
         df['新发现'] = df['Ticker'].apply(get_newness_label)
 
-    # === 🏆 智能排序 (ML Ranking) ===
-    # 自动计算基础技术分，如果有大师/舆情分析结果，自动加权
-    try:
-        from ml.ranking_system import get_ranking_system
-        ranker = get_ranking_system()
-        
-        # 获取缓存的大师/舆情/新闻结果
-        master_cache_key = f"master_analysis_{selected_date}_{selected_market}"
-        master_res = st.session_state.get(master_cache_key, {})
-        
-        # 舆情暂无全局缓存（通常是单点），但如果有新闻缓存，可以用新闻代替部分舆情分
-        news_cache_key = f"news_sentiment_{selected_date}_{selected_market}"
-        # 这里为了简化，暂时只用大师结果作为额外输入
-        
-        # 计算综合得分
-        df = ranker.calculate_integrated_score(df, master_results=master_res)
-        
-        # 添加排序列配置
-        column_config["Rank_Score"] = st.column_config.ProgressColumn(
-            "🏆 ML评分", 
-            min_value=0, 
-            max_value=100,
-            format="%.0f",
-            help="基于技术面+大师策略+舆情的综合AI评分"
-        )
-        
-    except ImportError:
-        # 如果 ml 模块未就绪，跳过
-        pass
-    except Exception as e:
-        print(f"Ranking error: {e}")
+
 
 
     # === 新闻情绪分析 ===
