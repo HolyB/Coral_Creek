@@ -5140,6 +5140,235 @@ def render_parameter_lab():
                 st.error(f"蒙特卡洛模拟出错: {e}")
                 import traceback
                 st.code(traceback.format_exc())
+
+
+def render_picks_performance_tab():
+    """📈 机会表现 - 追踪历史选股表现"""
+    st.subheader("📈 每日机会历史表现")
+    st.caption("追踪每日扫描出的机会后续表现，分析哪些特征与成功相关")
+    
+    try:
+        from strategies.picks_tracker import (
+            PicksPerformanceTracker, FeatureAnalyzer,
+            record_todays_picks
+        )
+        
+        tracker = PicksPerformanceTracker()
+        analyzer = FeatureAnalyzer(tracker)
+        
+        # 操作区
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("🔄 更新收益数据", help="为缺少收益的记录计算前向收益"):
+                with st.spinner("正在更新..."):
+                    result = tracker.batch_update_returns(limit=50)
+                    st.success(f"✅ 更新完成: {result['updated']}/{result['total']}")
+        
+        with col2:
+            days = st.selectbox("分析周期", [30, 60, 90, 180], index=1)
+        
+        with col3:
+            market = st.selectbox("市场", ["US", "CN", "全部"], index=0)
+        
+        # 表现汇总
+        st.markdown("### 📊 表现汇总")
+        
+        from datetime import datetime, timedelta
+        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        end_date = datetime.now().strftime('%Y-%m-%d')
+        
+        summary = tracker.get_performance_summary(
+            start_date=start_date,
+            end_date=end_date,
+            market=market if market != "全部" else None
+        )
+        
+        if summary.get('total_picks', 0) > 0:
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("总机会数", summary.get('total_picks', 0))
+            m2.metric("平均5日收益", f"{summary.get('avg_return_d5', 0)}%")
+            m3.metric("5日胜率", f"{summary.get('win_rate_d5', 0)}%")
+            m4.metric("平均最大涨幅", f"{summary.get('avg_max_gain', 'N/A')}%")
+            
+            # 最佳/最差选股
+            col_best, col_worst = st.columns(2)
+            with col_best:
+                best = summary.get('best_pick')
+                if best:
+                    st.success(f"🏆 最佳: {best.get('symbol')} ({best.get('pick_date')}) +{best.get('return_d5')}%")
+            with col_worst:
+                worst = summary.get('worst_pick')
+                if worst:
+                    st.error(f"😢 最差: {worst.get('symbol')} ({worst.get('pick_date')}) {worst.get('return_d5')}%")
+        else:
+            st.info("📭 暂无足够的历史数据，请先记录每日机会")
+        
+        st.divider()
+        
+        # 特征分析
+        st.markdown("### 🔬 特征重要性分析")
+        
+        importance = analyzer.feature_importance()
+        
+        if importance.get('n_samples', 0) > 20:
+            # 相关性表
+            corr = importance.get('correlations', {})
+            if corr:
+                corr_df = pd.DataFrame([
+                    {'特征': k, '与5日收益相关性': v, 
+                     '解读': '✅ 正相关' if v > 0.1 else ('❌ 负相关' if v < -0.1 else '➖ 弱相关')}
+                    for k, v in corr.items()
+                ])
+                corr_df = corr_df.sort_values('与5日收益相关性', ascending=False)
+                st.dataframe(corr_df, use_container_width=True, hide_index=True)
+            
+            # 分类特征分析
+            cat_analysis = importance.get('categorical_analysis', {})
+            if cat_analysis:
+                st.markdown("**分类特征影响:**")
+                if 'heima_effect' in cat_analysis:
+                    he = cat_analysis['heima_effect']
+                    st.write(f"🐴 黑马信号: 有黑马 {he.get('heima_avg')}% vs 无黑马 {he.get('non_heima_avg')}% (提升 {he.get('lift')}%)")
+                
+                if 'new_discovery_effect' in cat_analysis:
+                    ne = cat_analysis['new_discovery_effect']
+                    st.write(f"🆕 新发现: 新 {ne.get('new_avg')}% vs 老 {ne.get('old_avg')}% (提升 {ne.get('lift')}%)")
+        else:
+            st.warning(f"样本不足 ({importance.get('n_samples', 0)} < 20)，无法进行特征分析")
+        
+        st.divider()
+        
+        # 策略有效性
+        st.markdown("### 🎯 策略有效性排名")
+        
+        strategies = analyzer.strategy_effectiveness()
+        
+        if strategies:
+            strategy_df = pd.DataFrame([
+                {
+                    '策略': name,
+                    '选股数': stats['total_picks'],
+                    '平均收益': f"{stats['avg_return_d5']}%",
+                    '胜率': f"{stats['win_rate']}%",
+                    'Sharpe-like': stats['sharpe_like'],
+                    '最佳': f"{stats['best']}%",
+                    '最差': f"{stats['worst']}%"
+                }
+                for name, stats in strategies.items()
+            ])
+            st.dataframe(strategy_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("暂无策略表现数据")
+            
+    except Exception as e:
+        st.error(f"加载失败: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
+def render_strategy_optimizer_tab():
+    """🎯 策略优化 - 自动寻找最优参数"""
+    st.subheader("🎯 策略参数优化器")
+    st.caption("通过历史数据自动寻找最优策略参数组合")
+    
+    try:
+        from strategies.optimizer import (
+            StrategyOptimizer, ContinuousOptimizer,
+            StrategyConfig, optimize_strategies
+        )
+        
+        optimizer = StrategyOptimizer()
+        
+        # 当前最优配置
+        st.markdown("### 🏆 当前最优配置")
+        
+        best_config = optimizer.get_best_config()
+        if best_config:
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("策略名称", best_config.name[:15])
+            col2.metric("BLUE日线阈值", best_config.blue_daily_min)
+            col3.metric("BLUE周线阈值", best_config.blue_weekly_min)
+            col4.metric("ADX阈值", best_config.adx_min)
+            
+            with st.expander("📋 完整配置"):
+                st.json(best_config.to_dict())
+        else:
+            st.info("暂无保存的最优配置，请运行优化")
+        
+        st.divider()
+        
+        # 优化选项
+        st.markdown("### 🔬 运行优化")
+        
+        opt_type = st.radio("优化方式", [
+            "📊 比较预定义策略", 
+            "🔍 网格搜索 (耗时较长)"
+        ], horizontal=True)
+        
+        if st.button("🚀 开始优化", type="primary"):
+            with st.spinner("正在优化策略参数..."):
+                if "预定义" in opt_type:
+                    results = optimizer.run_template_comparison()
+                else:
+                    results = optimizer.run_grid_search()
+                
+                if results:
+                    st.success(f"✅ 优化完成！测试了 {len(results)} 种配置")
+                    
+                    # 显示结果表
+                    results_df = pd.DataFrame([
+                        {
+                            '排名': r.rank,
+                            '策略': r.config.name[:25],
+                            '样本数': r.metrics.get('n_samples', 0),
+                            '平均收益': f"{r.metrics.get('avg_return', 0)}%",
+                            '胜率': f"{r.metrics.get('win_rate', 0)}%",
+                            'Sharpe': r.metrics.get('sharpe_like', 0),
+                            '综合得分': round(r.score, 1)
+                        }
+                        for r in results[:20]
+                    ])
+                    
+                    st.dataframe(results_df, use_container_width=True, hide_index=True)
+                    
+                    # 保存最优
+                    if st.button("💾 保存最优配置"):
+                        if optimizer.save_best_config(results[0]):
+                            st.success("✅ 已保存最优配置")
+                        else:
+                            st.error("保存失败")
+                else:
+                    st.warning("优化未产生有效结果，可能数据不足")
+        
+        st.divider()
+        
+        # 预定义策略模板
+        st.markdown("### 📚 预定义策略模板")
+        
+        templates = StrategyOptimizer.STRATEGY_TEMPLATES
+        template_df = pd.DataFrame([
+            {
+                '策略名称': name,
+                'BLUE日线': cfg.blue_daily_min,
+                'BLUE周线': cfg.blue_weekly_min,
+                'ADX': cfg.adx_min,
+                '黑马': '✅' if cfg.require_heima else '',
+                '掘地': '✅' if cfg.require_juedi else '',
+                '止损': f"{cfg.stop_loss_pct}%",
+                '止盈': f"{cfg.take_profit_pct}%"
+            }
+            for name, cfg in templates.items()
+        ])
+        
+        st.dataframe(template_df, use_container_width=True, hide_index=True)
+        
+    except Exception as e:
+        st.error(f"加载失败: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
 def render_historical_review():
     """历史复盘 - 查看某天信号的后续表现"""
     from services.signal_tracker_service import get_signal_performance_summary
@@ -5244,16 +5473,27 @@ def render_historical_review():
 def render_backtest_page():
     st.header("🧪 策略回测实验室 (Strategy Lab)")
     
-    tab_param_lab, tab_single, tab_risk, tab_review = st.tabs([
+    tab_param_lab, tab_single, tab_risk, tab_review, tab_picks, tab_optimizer = st.tabs([
         "🔬 参数实验室", 
         "📈 单股回测", 
         "🛡️ 风控计算器",
-        "📊 历史复盘"
+        "📊 历史复盘",
+        "📈 机会表现",
+        "🎯 策略优化"
     ])
     
     # === 参数实验室 Tab (新增) ===
     with tab_param_lab:
         render_parameter_lab()
+    
+    # === 机会表现 Tab (新增) ===
+    with tab_picks:
+        render_picks_performance_tab()
+    
+    # === 策略优化 Tab (新增) ===
+    with tab_optimizer:
+        render_strategy_optimizer_tab()
+
     
     # === 历史复盘 Tab (新增) ===
     with tab_review:
