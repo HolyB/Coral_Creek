@@ -3122,6 +3122,43 @@ def render_stock_lookup_page():
                     else:
                         st.error("流动性较差")
                 
+                # === 新闻智能分析 ===
+                st.divider()
+                st.markdown("### 📰 新闻智能分析")
+                
+                try:
+                    from news import get_news_intelligence
+                    
+                    with st.spinner("正在分析相关新闻..."):
+                        intel = get_news_intelligence(use_llm=False)
+                        events, impacts, digest = intel.analyze_symbol(
+                            symbol, company_name, market=selected_lookup_market
+                        )
+                    
+                    if events:
+                        # 摘要卡片
+                        nc1, nc2, nc3 = st.columns(3)
+                        with nc1:
+                            sentiment_ratio = digest.sentiment_ratio()
+                            sentiment_emoji = "🟢" if sentiment_ratio > 0.3 else ("🔴" if sentiment_ratio < -0.3 else "⚪")
+                            st.metric(f"{sentiment_emoji} 市场情绪", 
+                                     f"利好{digest.bullish_count}/利空{digest.bearish_count}")
+                        with nc2:
+                            st.metric("📊 预期影响", f"{digest.avg_expected_impact:+.2f}%")
+                        with nc3:
+                            st.metric("📰 新闻数", digest.total_news_count)
+                        
+                        # 最新新闻列表
+                        st.markdown("**最新新闻:**")
+                        for e in events[:5]:
+                            sentiment_icon = e.sentiment.emoji if hasattr(e.sentiment, 'emoji') else "➖"
+                            st.markdown(f"- {sentiment_icon} [{e.event_type.chinese_name}] [{e.title[:50]}...]({e.url})")
+                    else:
+                        st.info("📭 暂无相关新闻")
+                        
+                except Exception as news_err:
+                    st.caption(f"⚠️ 新闻分析暂不可用: {news_err}")
+                
                 st.warning("⚠️ **免责声明**: 以上仅为量化模型生成的参考信号，不构成投资建议。")
                 
             except Exception as e:
@@ -8044,7 +8081,7 @@ def render_ml_prediction_page():
         st.caption("💡 数据来源: Polygon API (优先) / yfinance (备用)")
 
 
-# --- V3 主导航 (精简版 7 Tabs) ---
+# --- V3 主导航 (精简版 8 Tabs) ---
 
 st.sidebar.title("Coral Creek V3 🦅")
 st.sidebar.caption("ML量化交易系统")
@@ -8053,6 +8090,7 @@ page = st.sidebar.radio("功能导航", [
     "🎯 今日精选",       # 新增: 多策略选股仪表板
     "📊 每日扫描", 
     "🔍 个股查询", 
+    "📰 新闻中心",      # 新增: 事件驱动新闻分析
     "📈 信号中心",      # 合并: 信号追踪 + 验证 + Baseline对比
     "💼 组合管理",      # 合并: 持仓 + 风控仪表盘 + 模拟交易
     "🧪 策略实验室",    # 合并: 回测 + 研究工具
@@ -8065,6 +8103,13 @@ elif page == "📊 每日扫描":
     render_scan_page()
 elif page == "🔍 个股查询":
     render_stock_lookup_page()
+elif page == "📰 新闻中心":
+    try:
+        from pages.news_center import render_news_center_page
+        render_news_center_page()
+    except Exception as e:
+        st.error(f"新闻中心加载失败: {e}")
+        st.info("请确保 news 模块正确安装")
 elif page == "📈 信号中心":
     render_signal_center_page()
 elif page == "💼 组合管理":
