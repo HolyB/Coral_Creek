@@ -9,7 +9,7 @@ from .models import NewsEvent, NewsImpact, EventType, Sentiment
 from .crawler import NewsCrawler
 from .classifier import EventClassifier
 from .scorer import ImpactScorer
-from .intelligence import NewsIntelligence
+from .intelligence import NewsIntelligence, get_news_intelligence
 
 __all__ = [
     'NewsEvent',
@@ -19,5 +19,6 @@ __all__ = [
     'NewsCrawler',
     'EventClassifier',
     'ImpactScorer',
-    'NewsIntelligence'
+    'NewsIntelligence',
+    'get_news_intelligence'
 ]
