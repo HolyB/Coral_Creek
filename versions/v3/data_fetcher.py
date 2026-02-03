@@ -106,11 +106,41 @@ def get_all_cn_tickers():
 # 缓存 A 股基本信息
 _cn_stock_info_cache = {}
 
-def get_cn_ticker_details(symbol):
-    """获取A股股票详细信息（名称、行业等）"""
-    global _cn_stock_info_cache
+# A股市值缓存 (全局)
+_cn_market_cap_cache = {}
+_cn_market_cap_loaded = False
+
+def _load_cn_market_cap_cache():
+    """预加载A股市值数据 (使用 AkShare)"""
+    global _cn_market_cap_cache, _cn_market_cap_loaded
     
-    # 如果缓存为空，加载所有股票基本信息
+    if _cn_market_cap_loaded:
+        return
+    
+    try:
+        import akshare as ak
+        print("Loading A-share market cap data from AkShare...")
+        spot_df = ak.stock_zh_a_spot_em()
+        
+        for _, row in spot_df.iterrows():
+            code = str(row.get('代码', ''))
+            _cn_market_cap_cache[code] = {
+                'market_cap': row.get('总市值', 0) or 0,
+                'name': row.get('名称', ''),
+                'industry': '',  # AkShare 实时数据不包含行业
+            }
+        
+        _cn_market_cap_loaded = True
+        print(f"Loaded {len(_cn_market_cap_cache)} A-share market caps")
+    except Exception as e:
+        print(f"Failed to load A-share market cap: {e}")
+
+
+def get_cn_ticker_details(symbol):
+    """获取A股股票详细信息（名称、行业、市值等）"""
+    global _cn_stock_info_cache, _cn_market_cap_cache
+    
+    # 如果基本信息缓存为空，加载所有股票基本信息
     if not _cn_stock_info_cache:
         try:
             import tushare as ts
@@ -140,17 +170,37 @@ def get_cn_ticker_details(symbol):
         except Exception as e:
             print(f"Error loading CN stock info cache: {e}")
     
-    # 从缓存返回
-    if symbol in _cn_stock_info_cache:
-        info = _cn_stock_info_cache[symbol]
-        return {
-            'market_cap': None,  # Tushare 基础版不提供市值
-            'shares_outstanding': None,
-            'name': info.get('name', symbol),
-            'sic_description': info.get('industry', ''),
-        }
+    # 提取股票代码 (去掉后缀)
+    code = symbol.split('.')[0] if '.' in symbol else symbol
     
-    return None
+    # 获取基本信息
+    info = _cn_stock_info_cache.get(symbol, {})
+    name = info.get('name', symbol)
+    industry = info.get('industry', '')
+    
+    # 获取市值 (优先从缓存，否则尝试加载)
+    market_cap = 0
+    if code in _cn_market_cap_cache:
+        mc_info = _cn_market_cap_cache[code]
+        market_cap = mc_info.get('market_cap', 0)
+        if not name or name == symbol:
+            name = mc_info.get('name', symbol)
+    else:
+        # 尝试加载市值缓存
+        if not _cn_market_cap_loaded:
+            _load_cn_market_cap_cache()
+            if code in _cn_market_cap_cache:
+                mc_info = _cn_market_cap_cache[code]
+                market_cap = mc_info.get('market_cap', 0)
+                if not name or name == symbol:
+                    name = mc_info.get('name', symbol)
+    
+    return {
+        'market_cap': market_cap,
+        'shares_outstanding': None,
+        'name': name,
+        'sic_description': industry,
+    }
 
 
 def get_us_stock_data(symbol, days=365):

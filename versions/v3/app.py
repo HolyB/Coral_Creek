@@ -283,44 +283,75 @@ def load_scan_results_from_db(scan_date=None, market=None):
         else:
             df['Mkt Cap'] = 0.0
 
-        # [补丁] A股数据如果市值为0，尝试用 AkShare 实时数据补全
-        if market == 'CN' and (df['Mkt Cap'] == 0).mean() > 0.5: # 如果超过一半是0
+        # [补丁] A股数据如果市值为0，尝试用 AkShare/yfinance 实时数据补全
+        if market == 'CN' and (df['Mkt Cap'] == 0).mean() > 0.5:
             try:
-                import akshare as ak
                 import streamlit as st
                 
                 # 缓存一下，避免每次rerun都拉取全市场
-                cache_key = f"ak_spot_data_{datetime.now().strftime('%H')}"
+                cache_key = f"cn_mkt_cap_{datetime.now().strftime('%Y%m%d_%H')}"
+                
                 if cache_key in st.session_state:
                     mkt_map = st.session_state[cache_key]
                 else:
-                    spot_df = ak.stock_zh_a_spot_em()
-                    # 映射: 代码 -> 总市值
-                    mkt_map = dict(zip(spot_df['代码'], spot_df['总市值']))
+                    mkt_map = {}
+                    
+                    # 方法1: 尝试 AkShare
+                    try:
+                        import akshare as ak
+                        spot_df = ak.stock_zh_a_spot_em()
+                        mkt_map = dict(zip(spot_df['代码'], spot_df['总市值']))
+                    except Exception as e1:
+                        print(f"AkShare failed: {e1}")
+                        
+                        # 方法2: 尝试 yfinance 批量获取 (只取前30个)
+                        try:
+                            import yfinance as yf
+                            tickers = df['Ticker'].head(30).tolist()
+                            yf_symbols = []
+                            for t in tickers:
+                                code = t.split('.')[0]
+                                suffix = '.SS' if t.endswith('.SH') else '.SZ'
+                                yf_symbols.append(code + suffix)
+                            
+                            objs = yf.Tickers(' '.join(yf_symbols))
+                            for t, yf_t in zip(tickers, yf_symbols):
+                                try:
+                                    code = t.split('.')[0]
+                                    mc = objs.tickers[yf_t].fast_info.get('marketCap', 0)
+                                    if mc:
+                                        mkt_map[code] = mc
+                                except:
+                                    pass
+                        except Exception as e2:
+                            print(f"yfinance CN failed: {e2}")
+                    
                     st.session_state[cache_key] = mkt_map
                 
-                def fill_cn_cap(row):
-                    if row['Mkt Cap'] > 0: return row['Mkt Cap']
-                    code = row['Ticker'].split('.')[0]
-                    cap = mkt_map.get(code, 0)
-                    if cap and cap > 0:
-                        return cap / 1_000_000_000 # 转为 Billion
-                    return 0
-                
-                df['Mkt Cap'] = df.apply(fill_cn_cap, axis=1)
-                
-                # 重新计算 Cap Category
-                def update_category(cap):
-                    if cap >= 200: return 'Mega-Cap (超大盘)'
-                    elif cap >= 10: return 'Large-Cap (大盘)'
-                    elif cap >= 2: return 'Mid-Cap (中盘)'
-                    elif cap >= 0.3: return 'Small-Cap (小盘)'
-                    return 'Micro-Cap (微盘)'
-                
-                df['Cap_Category'] = df['Mkt Cap'].apply(update_category)
+                if mkt_map:
+                    def fill_cn_cap(row):
+                        if row['Mkt Cap'] > 0: 
+                            return row['Mkt Cap']
+                        code = row['Ticker'].split('.')[0]
+                        cap = mkt_map.get(code, 0)
+                        if cap and cap > 0:
+                            return cap / 1_000_000_000
+                        return 0
+                    
+                    df['Mkt Cap'] = df.apply(fill_cn_cap, axis=1)
+                    
+                    # 重新计算 Cap Category
+                    def update_category(cap):
+                        if cap >= 200: return 'Mega-Cap (超大盘)'
+                        elif cap >= 10: return 'Large-Cap (大盘)'
+                        elif cap >= 2: return 'Mid-Cap (中盘)'
+                        elif cap >= 0.3: return 'Small-Cap (小盘)'
+                        return 'Micro-Cap (微盘)'
+                    
+                    df['Cap_Category'] = df['Mkt Cap'].apply(update_category)
                 
             except Exception as e:
-                print(f"Akshare fix failed: {e}")
+                print(f"CN market cap fix failed: {e}")
         
         # [补丁] 美股数据如果市值为0，尝试用 yfinance 和 Polygon 补全
         if market == 'US' and (df['Mkt Cap'] == 0).mean() > 0.5:
@@ -2114,7 +2145,7 @@ def render_scan_page():
 
     # 显示列顺序：核心指标在前，新发现标记靠前，新闻情绪列
     # 显示列顺序：Rank_Score 优先，然后是新发现、大师建议
-    display_cols = ['Rank_Score', '新发现', '新闻', '大师建议', 'Ticker', 'Name', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Mkt Cap', 'Cap_Category', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    display_cols = ['Rank_Score', '新发现', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
@@ -3636,6 +3667,29 @@ def render_stock_lookup_page():
                 company_name = ticker_info.get('name', symbol) if ticker_info else symbol
                 industry = ticker_info.get('sic_description', 'Unknown') if ticker_info else 'Unknown'
                 market_cap = ticker_info.get('market_cap', 0) if ticker_info else 0
+                
+                # 如果 API 没返回市值，尝试从数据库获取
+                if not market_cap:
+                    try:
+                        from db.database import get_connection
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        cursor.execute('''
+                            SELECT market_cap, company_name, industry 
+                            FROM scan_results 
+                            WHERE symbol = ? AND market_cap IS NOT NULL 
+                            ORDER BY scan_date DESC LIMIT 1
+                        ''', (symbol,))
+                        row = cursor.fetchone()
+                        conn.close()
+                        if row:
+                            market_cap = row[0] or 0
+                            if not company_name or company_name == symbol:
+                                company_name = row[1] or symbol
+                            if industry == 'Unknown':
+                                industry = row[2] or 'Unknown'
+                    except:
+                        pass
                 
                 # 计算各周期指标
                 # 日线

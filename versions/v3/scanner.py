@@ -188,28 +188,41 @@ def analyze_stock(symbol, market='US', account_size=100000):
         industry = "Unknown"
         
         try:
-            details = get_ticker_details(symbol)
-            if details:
-                market_cap = details.get('market_cap', 0)
-                shares_outstanding = details.get('shares_outstanding', 0)
-                company_name = details.get('name', symbol)
-                industry = details.get('sic_description', 'Unknown')
+            if market == 'US':
+                # 美股: 使用 Polygon API
+                details = get_ticker_details(symbol)
+                if details:
+                    market_cap = details.get('market_cap', 0)
+                    shares_outstanding = details.get('shares_outstanding', 0)
+                    company_name = details.get('name', symbol)
+                    industry = details.get('sic_description', 'Unknown')
+                    
+                    # 如果 API 没返回市值，尝试用 Price * Shares 估算
+                    if market_cap == 0 and shares_outstanding > 0:
+                        market_cap = curr_price * shares_outstanding
+            else:
+                # A股: 尝试从全局缓存获取 (在 scan_all_stocks 中预加载)
+                global _cn_market_cap_cache
+                if '_cn_market_cap_cache' not in dir() or _cn_market_cap_cache is None:
+                    _cn_market_cap_cache = {}
                 
-                # 如果 API 没返回市值，尝试用 Price * Shares 估算
-                if market_cap == 0 and shares_outstanding > 0:
-                    market_cap = curr_price * shares_outstanding
-                
-                # 分类逻辑
-                if market_cap > 200_000_000_000: # 200B
-                    cap_category = "Mega-Cap (巨头)"
-                elif market_cap > 10_000_000_000: # 10B
-                    cap_category = "Large-Cap (大盘)"
-                elif market_cap > 2_000_000_000: # 2B
-                    cap_category = "Mid-Cap (中盘)"
-                elif market_cap > 300_000_000: # 300M
-                    cap_category = "Small-Cap (小盘)"
-                elif market_cap > 0:
-                    cap_category = "Micro-Cap (微盘)"
+                code = symbol.split('.')[0]
+                if code in _cn_market_cap_cache:
+                    market_cap = _cn_market_cap_cache[code].get('market_cap', 0)
+                    company_name = _cn_market_cap_cache[code].get('name', symbol)
+                    industry = _cn_market_cap_cache[code].get('industry', 'Unknown')
+            
+            # 分类逻辑
+            if market_cap > 200_000_000_000: # 200B
+                cap_category = "Mega-Cap (巨头)"
+            elif market_cap > 10_000_000_000: # 10B
+                cap_category = "Large-Cap (大盘)"
+            elif market_cap > 2_000_000_000: # 2B
+                cap_category = "Mid-Cap (中盘)"
+            elif market_cap > 300_000_000: # 300M
+                cap_category = "Small-Cap (小盘)"
+            elif market_cap > 0:
+                cap_category = "Micro-Cap (微盘)"
         except:
             pass
         
