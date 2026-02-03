@@ -1,8 +1,15 @@
 {
   "date": "2026-02-02",
   "market": "CN",
-  "total_signals": 368,
+  "total_signals": 382,
   "top_signals": [
+    {
+      "symbol": "002024.SZ",
+      "name": "ST易购",
+      "price": 1.54,
+      "day_blue": 200.0,
+      "week_blue": 133.2
+    },
     {
       "symbol": "920003.BJ",
       "name": "中诚咨询",
@@ -74,6 +81,13 @@
       "week_blue": 132.7
     },
     {
+      "symbol": "600483.SH",
+      "name": "福能股份",
+      "price": 9.05,
+      "day_blue": 177.2,
+      "week_blue": 85.1
+    },
+    {
       "symbol": "688609.SH",
       "name": "九联科技",
       "price": 8.87,
@@ -92,20 +106,6 @@
       "name": "卡莱特",
       "price": 70.87,
       "day_blue": 166.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301209.SZ",
-      "name": "联合化学",
-      "price": 92.76,
-      "day_blue": 166.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600239.SH",
-      "name": "云南城投",
-      "price": 2.32,
-      "day_blue": 166.1,
       "week_blue": 0.0
     }
   ]
