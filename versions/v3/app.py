@@ -2479,41 +2479,62 @@ def render_scan_page():
     })
 
     # === 添加黑马和共振列 ===
-    # 黑马列
-    if 'Is_Heima' in df.columns:
-        df['黑马'] = df['Is_Heima'].apply(lambda x: '🐴' if x else '')
-    elif 'is_heima' in df.columns:
-        df['黑马'] = df['is_heima'].apply(lambda x: '🐴' if x else '')
-    else:
-        df['黑马'] = ''
+    # 检测黑马字段 (兼容大小写)
+    def get_col(df, names):
+        for n in names:
+            if n in df.columns:
+                return n
+        return None
     
-    # 日周共振 (Day和Week都>0)
-    if 'Day BLUE' in df.columns and 'Week BLUE' in df.columns:
-        df['日周'] = df.apply(
-            lambda r: '✅' if (r.get('Day BLUE', 0) or 0) > 0 and (r.get('Week BLUE', 0) or 0) > 0 else '', 
-            axis=1
-        )
-    else:
-        df['日周'] = ''
+    heima_daily_col = get_col(df, ['Heima_Daily', 'heima_daily'])
+    heima_weekly_col = get_col(df, ['Heima_Weekly', 'heima_weekly'])
+    heima_monthly_col = get_col(df, ['Heima_Monthly', 'heima_monthly'])
+    heima_any_col = get_col(df, ['Is_Heima', 'is_heima'])
     
-    # 日周月共振 (Day、Week、Month都>0)
-    if 'Day BLUE' in df.columns and 'Week BLUE' in df.columns and 'Month BLUE' in df.columns:
-        df['日周月'] = df.apply(
-            lambda r: '🔥' if (r.get('Day BLUE', 0) or 0) > 0 and (r.get('Week BLUE', 0) or 0) > 0 and (r.get('Month BLUE', 0) or 0) > 0 else '', 
-            axis=1
-        )
-    else:
-        df['日周月'] = ''
+    # 日线黑马
+    has_heima_daily = df[heima_daily_col].fillna(False).astype(bool) if heima_daily_col else pd.Series([False]*len(df))
+    # 周线黑马
+    has_heima_weekly = df[heima_weekly_col].fillna(False).astype(bool) if heima_weekly_col else pd.Series([False]*len(df))
+    # 月线黑马
+    has_heima_monthly = df[heima_monthly_col].fillna(False).astype(bool) if heima_monthly_col else pd.Series([False]*len(df))
+    # 任意黑马 (兼容旧数据)
+    has_heima_any = df[heima_any_col].fillna(False).astype(bool) if heima_any_col else pd.Series([False]*len(df))
+    
+    # 黑马列 (日线黑马)
+    df['日🐴'] = has_heima_daily.apply(lambda x: '🐴' if x else '')
+    df['周🐴'] = has_heima_weekly.apply(lambda x: '🐴' if x else '')
+    df['月🐴'] = has_heima_monthly.apply(lambda x: '🐴' if x else '')
+    
+    # 日周BLUE共振
+    has_day_blue = df['Day BLUE'].fillna(0) > 0 if 'Day BLUE' in df.columns else pd.Series([False]*len(df))
+    has_week_blue = df['Week BLUE'].fillna(0) > 0 if 'Week BLUE' in df.columns else pd.Series([False]*len(df))
+    has_month_blue = df['Month BLUE'].fillna(0) > 0 if 'Month BLUE' in df.columns else pd.Series([False]*len(df))
+    
+    # 日周共振 (Day和Week BLUE都>0)
+    df['日周'] = (has_day_blue & has_week_blue).apply(lambda x: '✅' if x else '')
+    
+    # 日周月共振 (Day、Week、Month BLUE都>0)
+    df['日周月'] = (has_day_blue & has_week_blue & has_month_blue).apply(lambda x: '🔥' if x else '')
+    
+    # 日周黑马 (日线黑马 + 周线黑马 同时出现)
+    df['日周🐴'] = (has_heima_daily & has_heima_weekly).apply(lambda x: '🐴🐴' if x else '')
+    
+    # 日周月黑马 (日/周/月线黑马 同时出现) - 最强信号
+    df['日周月🐴'] = (has_heima_daily & has_heima_weekly & has_heima_monthly).apply(lambda x: '🐴🔥🔥' if x else '')
     
     # 更新列配置
     column_config.update({
-        "黑马": st.column_config.TextColumn("黑马", width="small"),
-        "日周": st.column_config.TextColumn("日周", width="small", help="日线+周线同时出现信号"),
-        "日周月": st.column_config.TextColumn("日周月", width="small", help="日+周+月线同时出现信号"),
+        "日🐴": st.column_config.TextColumn("日🐴", width="small", help="日线黑马信号"),
+        "周🐴": st.column_config.TextColumn("周🐴", width="small", help="周线黑马信号"),
+        "月🐴": st.column_config.TextColumn("月🐴", width="small", help="月线黑马信号"),
+        "日周": st.column_config.TextColumn("日周", width="small", help="日+周线BLUE同时>0"),
+        "日周月": st.column_config.TextColumn("日周月", width="small", help="日+周+月线BLUE同时>0"),
+        "日周🐴": st.column_config.TextColumn("日周🐴", width="small", help="日+周线黑马同时出现 (强!)"),
+        "日周月🐴": st.column_config.TextColumn("日周月🐴", width="small", help="日+周+月线黑马同时出现 (最强!)"),
     })
 
-    # 显示列顺序：核心指标在前，新发现标记靠前，黑马和共振列
-    display_cols = ['Rank_Score', '新发现', '黑马', '日周', '日周月', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    # 显示列顺序：核心指标在前，黑马和共振列靠前
+    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '日周🐴', '日周月🐴', '日周', '日周月', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===

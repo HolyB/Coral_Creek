@@ -136,7 +136,7 @@ def get_db_stats_supabase() -> Dict:
 
 
 def insert_scan_result_supabase(result_dict: Dict) -> bool:
-    """插入扫描结果到 Supabase"""
+    """插入扫描结果到 Supabase - 完整字段版本"""
     supabase = get_supabase()
     if not supabase:
         return False
@@ -154,17 +154,39 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
             'volatility': result_dict.get('Volatility') or result_dict.get('volatility'),
             'is_heima': result_dict.get('Is_Heima') or result_dict.get('is_heima'),
             'is_juedi': result_dict.get('Is_Juedi') or result_dict.get('is_juedi'),
+            'heima_daily': result_dict.get('Heima_Daily') or result_dict.get('heima_daily'),
+            'heima_weekly': result_dict.get('Heima_Weekly') or result_dict.get('heima_weekly'),
+            'heima_monthly': result_dict.get('Heima_Monthly') or result_dict.get('heima_monthly'),
+            'juedi_daily': result_dict.get('Juedi_Daily') or result_dict.get('juedi_daily'),
+            'juedi_weekly': result_dict.get('Juedi_Weekly') or result_dict.get('juedi_weekly'),
+            'juedi_monthly': result_dict.get('Juedi_Monthly') or result_dict.get('juedi_monthly'),
             'market': result_dict.get('Market') or result_dict.get('market') or 'US',
             'company_name': result_dict.get('Company_Name') or result_dict.get('company_name'),
             'industry': result_dict.get('Industry') or result_dict.get('industry'),
             'market_cap': result_dict.get('Market_Cap') or result_dict.get('market_cap'),
             'cap_category': result_dict.get('Cap_Category') or result_dict.get('cap_category'),
+            # 补充缺失的字段
+            'stop_loss': result_dict.get('Stop_Loss') or result_dict.get('stop_loss'),
+            'strat_d_trend': result_dict.get('Strat_D_Trend') or result_dict.get('strat_d_trend'),
+            'strat_c_resonance': result_dict.get('Strat_C_Resonance') or result_dict.get('strat_c_resonance'),
+            'legacy_signal': result_dict.get('Legacy_Signal') or result_dict.get('legacy_signal'),
+            'regime': result_dict.get('Regime') or result_dict.get('regime'),
+            'adaptive_thresh': result_dict.get('Adaptive_Thresh') or result_dict.get('adaptive_thresh'),
+            'vp_rating': result_dict.get('VP_Rating') or result_dict.get('vp_rating'),
+            'profit_ratio': result_dict.get('Profit_Ratio') or result_dict.get('profit_ratio'),
+            'wave_phase': result_dict.get('Wave_Phase') or result_dict.get('wave_phase'),
+            'wave_desc': result_dict.get('Wave_Desc') or result_dict.get('wave_desc'),
+            'chan_signal': result_dict.get('Chan_Signal') or result_dict.get('chan_signal'),
+            'chan_desc': result_dict.get('Chan_Desc') or result_dict.get('chan_desc'),
         }
+        
+        # 移除 None 值的字段（Supabase 不接受某些 null）
+        record = {k: v for k, v in record.items() if v is not None}
         
         supabase.table('scan_results').upsert(record, on_conflict='symbol,scan_date,market').execute()
         return True
     except Exception as e:
-        print(f"⚠️ 插入失败: {e}")
+        print(f"⚠️ Supabase 插入失败: {e}")
         return False
 
 

@@ -71,6 +71,12 @@ def init_db():
                 volatility REAL,
                 is_heima BOOLEAN,
                 is_juedi BOOLEAN,
+                heima_daily BOOLEAN,
+                heima_weekly BOOLEAN,
+                heima_monthly BOOLEAN,
+                juedi_daily BOOLEAN,
+                juedi_weekly BOOLEAN,
+                juedi_monthly BOOLEAN,
                 strat_d_trend BOOLEAN,
                 strat_c_resonance BOOLEAN,
                 legacy_signal BOOLEAN,
@@ -101,6 +107,21 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_symbol ON scan_results(symbol)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_blue_daily ON scan_results(blue_daily)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_scan_date_blue ON scan_results(scan_date, blue_daily)")
+        
+        # 添加新的黑马字段 (如果不存在)
+        new_heima_cols = [
+            ('heima_daily', 'BOOLEAN'),
+            ('heima_weekly', 'BOOLEAN'),
+            ('heima_monthly', 'BOOLEAN'),
+            ('juedi_daily', 'BOOLEAN'),
+            ('juedi_weekly', 'BOOLEAN'),
+            ('juedi_monthly', 'BOOLEAN'),
+        ]
+        for col_name, col_type in new_heima_cols:
+            try:
+                cursor.execute(f"ALTER TABLE scan_results ADD COLUMN {col_name} {col_type}")
+            except:
+                pass  # 列已存在
         
         # 扫描任务表
         cursor.execute("""
@@ -291,11 +312,13 @@ def insert_scan_result(result_dict):
         cursor.execute("""
             INSERT INTO scan_results (
                 symbol, scan_date, price, turnover_m, blue_daily, blue_weekly, blue_monthly,
-                adx, volatility, is_heima, is_juedi, strat_d_trend, strat_c_resonance,
+                adx, volatility, is_heima, is_juedi, 
+                heima_daily, heima_weekly, heima_monthly, juedi_daily, juedi_weekly, juedi_monthly,
+                strat_d_trend, strat_c_resonance,
                 legacy_signal, regime, adaptive_thresh, vp_rating, profit_ratio,
                 wave_phase, wave_desc, chan_signal, chan_desc, market_cap, cap_category,
                 company_name, industry, stop_loss, shares_rec, risk_reward_score, market, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(symbol, scan_date) DO UPDATE SET
                 price = excluded.price,
                 turnover_m = excluded.turnover_m,
@@ -306,6 +329,12 @@ def insert_scan_result(result_dict):
                 volatility = excluded.volatility,
                 is_heima = excluded.is_heima,
                 is_juedi = excluded.is_juedi,
+                heima_daily = excluded.heima_daily,
+                heima_weekly = excluded.heima_weekly,
+                heima_monthly = excluded.heima_monthly,
+                juedi_daily = excluded.juedi_daily,
+                juedi_weekly = excluded.juedi_weekly,
+                juedi_monthly = excluded.juedi_monthly,
                 strat_d_trend = excluded.strat_d_trend,
                 strat_c_resonance = excluded.strat_c_resonance,
                 legacy_signal = excluded.legacy_signal,
@@ -338,6 +367,12 @@ def insert_scan_result(result_dict):
             result_dict.get('Volatility'),
             result_dict.get('Is_Heima'),
             result_dict.get('Is_Juedi') if 'Is_Juedi' in result_dict else result_dict.get('Is_Heima'),
+            result_dict.get('Heima_Daily'),
+            result_dict.get('Heima_Weekly'),
+            result_dict.get('Heima_Monthly'),
+            result_dict.get('Juedi_Daily'),
+            result_dict.get('Juedi_Weekly'),
+            result_dict.get('Juedi_Monthly'),
             result_dict.get('Strat_D_Trend'),
             result_dict.get('Strat_C_Resonance'),
             result_dict.get('Legacy_Signal'),

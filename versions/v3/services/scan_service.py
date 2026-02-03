@@ -107,10 +107,34 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
             )
             month_blue_val = month_blue[-1] if len(month_blue) > 0 else 0
         
-        # 黑马/掘地信号
+        # 黑马/掘地信号 - 日线
         heima_arr, juedi_arr = calculate_heima_signal_series(highs, lows, closes, opens)
         curr_heima = heima_arr[-1] if len(heima_arr) > 0 else False
         curr_juedi = juedi_arr[-1] if len(juedi_arr) > 0 else False
+        heima_daily = curr_heima
+        juedi_daily = curr_juedi
+        
+        # 黑马/掘地信号 - 周线
+        heima_weekly = False
+        juedi_weekly = False
+        if len(df_weekly) >= 10:
+            heima_w, juedi_w = calculate_heima_signal_series(
+                df_weekly['High'].values, df_weekly['Low'].values,
+                df_weekly['Close'].values, df_weekly['Open'].values
+            )
+            heima_weekly = heima_w[-1] if len(heima_w) > 0 else False
+            juedi_weekly = juedi_w[-1] if len(juedi_w) > 0 else False
+        
+        # 黑马/掘地信号 - 月线
+        heima_monthly = False
+        juedi_monthly = False
+        if len(df_monthly) >= 6:
+            heima_m, juedi_m = calculate_heima_signal_series(
+                df_monthly['High'].values, df_monthly['Low'].values,
+                df_monthly['Close'].values, df_monthly['Open'].values
+            )
+            heima_monthly = heima_m[-1] if len(heima_m) > 0 else False
+            juedi_monthly = juedi_m[-1] if len(juedi_m) > 0 else False
         
         # ADX
         adx_series = calculate_adx_series(highs, lows, closes)
@@ -189,8 +213,14 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
             'Blue_Monthly': round(month_blue_val, 1),
             'ADX': round(adx_val, 1),
             'Volatility': round(volatility, 2),
-            'Is_Heima': curr_heima or curr_juedi,
-            'Is_Juedi': curr_juedi,
+            'Is_Heima': heima_daily or heima_weekly or heima_monthly,  # 任何周期有黑马
+            'Is_Juedi': juedi_daily or juedi_weekly or juedi_monthly,  # 任何周期有掘地
+            'Heima_Daily': heima_daily,
+            'Heima_Weekly': heima_weekly,
+            'Heima_Monthly': heima_monthly,
+            'Juedi_Daily': juedi_daily,
+            'Juedi_Weekly': juedi_weekly,
+            'Juedi_Monthly': juedi_monthly,
             'Strat_D_Trend': is_strat_d,
             'Strat_C_Resonance': is_strat_c,
             'Legacy_Signal': legacy_signal,
