@@ -2742,14 +2742,14 @@ def render_scan_page():
         st.divider()
         st.subheader(f"🔍 深度透视: {symbol}")
         
-        # === AI 快速分析按钮 ===
-        ai_col1, ai_col2 = st.columns([1, 2])
-        with ai_col1:
-            do_ai = st.button("🤖 AI 快速分析", key=f"ai_analyze_{symbol}", type="primary")
-        with ai_col2:
+        # === 全方位诊断控制台 ===
+        diag_col1, diag_col2 = st.columns([1, 2])
+        with diag_col1:
+            do_full_diag = st.button("🚀 全面智能诊断 (AI+大师+舆情)", key=f"full_diag_{symbol}", type="primary", use_container_width=True)
+        with diag_col2:
             st.markdown(f"**BLUE日线**: {selected_row.get('Day BLUE', 0):.0f} | **周线**: {selected_row.get('Week BLUE', 0):.0f}")
         
-        if do_ai:
+        if do_full_diag:
             with st.container():
                 st.markdown("---")
                 with st.spinner("🤖 AI 正在分析..."):
@@ -2878,6 +2878,89 @@ def render_scan_page():
                         
                         # 置信度和来源
                         st.caption(f"📊 置信度: {confidence}% | 🤖 {'本地算法' if result.get('analysis_mode') == 'local' else 'Gemini AI'}")
+                        
+                        # === 4. 补充在大师和舆情视角 ===
+                        st.markdown("---")
+                        st.subheader("🧩 多维数据验证")
+                        
+                        tab_master, tab_social = st.tabs(["🤖 大师量化视角", "🗣️ 社区舆情热度"])
+                        
+                        with tab_master:
+                            with st.spinner("正在咨询 5 位交易大师..."):
+                                try:
+                                    from strategies.master_strategies import analyze_stock_for_master, get_master_summary_for_stock
+                                    if selected_market == 'US': from data_fetcher import get_us_stock_data as get_data_func
+                                    else: from data_fetcher import get_cn_stock_data as get_data_func
+                                    
+                                    # 获取数据
+                                    h_df = get_data_func(symbol, days=60)
+                                    if h_df is not None and not h_df.empty:
+                                        # 计算 TD
+                                        cc = h_df['Close'].values
+                                        td_cnt = 0
+                                        if len(cc) > 13 and cc[-1] > cc[-5]:
+                                            for k in range(1, 10):
+                                                if cc[-k] > cc[-k-4]: td_cnt += 1
+                                                else: break
+                                        
+                                        p_now = float(selected_row.get('Price', h_df['Close'].iloc[-1]))
+                                        v_now = h_df['Volume'].iloc[-1]
+                                        v_avg = h_df['Volume'].rolling(5).mean().iloc[-1]
+                                        
+                                        # 分析
+                                        ans = analyze_stock_for_master(
+                                            symbol=symbol,
+                                            blue_daily=float(selected_row.get('Day BLUE', 0)),
+                                            blue_weekly=float(selected_row.get('Week BLUE', 0)),
+                                            blue_monthly=float(selected_row.get('Month BLUE', 0)),
+                                            adx=float(selected_row.get('ADX', 0)),
+                                            vol_ratio=v_now/v_avg if v_avg>0 else 1.0,
+                                            change_pct=(cc[-1]/cc[-2]-1)*100 if len(cc)>1 else 0,
+                                            price=p_now,
+                                            sma5=h_df['Close'].rolling(5).mean().iloc[-1],
+                                            sma20=h_df['Close'].rolling(20).mean().iloc[-1],
+                                            td_count=td_cnt,
+                                            is_heima=True if '黑马' in str(selected_row.get('Strategy','')) else False
+                                        )
+                                        
+                                        # 展示
+                                        m_cols = st.columns(3)
+                                        strats = [('cai_sen', '蔡森(量价)', '📈'), ('td_seq', 'DeMark(拐点)', '🔄'), 
+                                                  ('xiao_min', '萧明道(均线)', '📏'), ('heima', '黑马(爆点)', '🐎'), ('blue', 'BLUE(趋势)', '🌊')]
+                                        
+                                        for i, (k, n, ic) in enumerate(strats):
+                                            r = ans.get(k, {})
+                                            with m_cols[i % 3]:
+                                                st.markdown(f"**{ic} {n}**")
+                                                if r.get('signal') == 'BUY': st.success(f"✅ 买入 ({r.get('confidence')}%)")
+                                                elif r.get('signal') == 'SELL': st.error(f"❌ 卖出")
+                                                else: st.info("⚪ 观望")
+                                                st.caption(r.get('reason', '')[:50])
+                                    else:
+                                        st.error("数据不足")
+                                except Exception as em:
+                                    st.error(f"大师分析出错: {em}")
+                        
+                        with tab_social:
+                            with st.spinner("正在扫描社区..."):
+                                try:
+                                    from services.social_monitor import get_social_service
+                                    svc = get_social_service()
+                                    rep = svc.get_social_report(symbol, market=selected_market)
+                                    
+                                    sc1, sc2 = st.columns(2)
+                                    sc1.metric("🐂 看多", rep['bullish_count'])
+                                    sc2.metric("🐻 看空", rep['bearish_count'])
+                                    
+                                    if rep['posts']:
+                                        st.markdown("**热门讨论:**")
+                                        for p in rep['posts'][:3]:
+                                            emoji = "🟢" if p.sentiment == "Bullish" else "🔴"
+                                            st.text(f"{emoji} {p.title[:40]}...")
+                                    else:
+                                        st.caption("暂无讨论")
+                                except Exception as es:
+                                    st.error(f"舆情出错: {es}")
                         
                         st.markdown("---")
                         
