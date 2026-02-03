@@ -2964,17 +2964,25 @@ def render_scan_page():
                                         
                                         # 展示
                                         m_cols = st.columns(3)
-                                        strats = [('cai_sen', '蔡森(量价)', '📈'), ('td_seq', 'DeMark(拐点)', '🔄'), 
-                                                  ('xiao_min', '萧明道(均线)', '📏'), ('heima', '黑马(爆点)', '🐎'), ('blue', 'BLUE(趋势)', '🌊')]
+                                        # 注意: Keys 必须与 analyze_stock_for_master 返回的 keys 一致
+                                        strats = [('cai_sen', '蔡森(量价)', '📈'), ('td_sequential', 'DeMark(拐点)', '🔄'), 
+                                                  ('xiao_mingdao', '萧明道(均线)', '📏'), ('heima', '黑马(爆点)', '🐎'), ('blue', 'BLUE(趋势)', '🌊')]
                                         
                                         for i, (k, n, ic) in enumerate(strats):
-                                            r = ans.get(k, {})
+                                            r = ans.get(k)
+                                            if not r: continue
+                                            
+                                            # r 是 MasterAnalysis 对象 (dataclass)，不是 dict
+                                            signal = getattr(r, 'signal', None)
+                                            confidence = getattr(r, 'confidence', 0)
+                                            reason = getattr(r, 'reason', '')
+                                            
                                             with m_cols[i % 3]:
                                                 st.markdown(f"**{ic} {n}**")
-                                                if r.get('signal') == 'BUY': st.success(f"✅ 买入 ({r.get('confidence')}%)")
-                                                elif r.get('signal') == 'SELL': st.error(f"❌ 卖出")
+                                                if signal == 'BUY': st.success(f"✅ 买入 ({confidence}%)")
+                                                elif signal == 'SELL': st.error(f"❌ 卖出")
                                                 else: st.info("⚪ 观望")
-                                                st.caption(r.get('reason', '')[:50])
+                                                st.caption(str(reason)[:50])
                                     else:
                                         st.error("数据不足")
                                 except Exception as em:
