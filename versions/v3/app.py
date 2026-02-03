@@ -2706,7 +2706,22 @@ def render_scan_page():
                         if master_res.get(ticker): tags.append("🤖 大师")
                         
                         with st.container(border=True):
-                            st.metric(f"{ticker}", f"{score:.0f}分", row.get('Name', '')[:6])
+                            name = row.get('Name', '')
+                            # 如果名称缺失，尝试补充获取
+                            if pd.isna(name) or str(name).strip() == '' or str(name) == 'nan':
+                                try:
+                                    from data_fetcher import get_cn_ticker_details, get_ticker_details
+                                    if selected_market == 'CN':
+                                        info_dict = get_cn_ticker_details(ticker)
+                                    else:
+                                        info_dict = get_ticker_details(ticker)
+                                    
+                                    if info_dict and info_dict.get('name'):
+                                        name = info_dict.get('name')
+                                except:
+                                    name = ticker
+
+                            st.metric(f"{ticker}", f"{score:.0f}分", str(name)[:6])
                             st.progress(score/100)
                             st.caption(" ".join(tags))
                             
