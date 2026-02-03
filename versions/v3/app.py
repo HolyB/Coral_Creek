@@ -322,6 +322,46 @@ def load_scan_results_from_db(scan_date=None, market=None):
             except Exception as e:
                 print(f"Akshare fix failed: {e}")
         
+        # [补丁] 美股数据如果市值为0，尝试用 yfinance 补全
+        if market == 'US' and (df['Mkt Cap'] == 0).mean() > 0.5:
+            try:
+                import yfinance as yf
+                # 只修复前 30 个，避免加载太慢
+                tickers_to_fix = df[df['Mkt Cap'] == 0]['Ticker'].tolist()[:30]
+                
+                if tickers_to_fix:
+                    @st.cache_data(ttl=3600, show_spinner=False)
+                    def fetch_yf_caps_cached(tickers):
+                        caps = {}
+                        try:
+                            txt = " ".join(tickers)
+                            objs = yf.Tickers(txt)
+                            for t in tickers:
+                                try:
+                                    val = objs.tickers[t].fast_info.market_cap
+                                    if val: caps[t] = val / 1_000_000_000
+                                except: pass
+                        except: pass
+                        return caps
+
+                    caps_map = fetch_yf_caps_cached(tickers_to_fix)
+                    
+                    def fill_us_cap(row):
+                         if row['Mkt Cap'] > 0: return row['Mkt Cap']
+                         return caps_map.get(row['Ticker'], 0)
+                    
+                    df['Mkt Cap'] = df.apply(fill_us_cap, axis=1)
+
+                    def update_category_us(cap):
+                        if cap >= 200: return 'Mega-Cap (超大盘)'
+                        elif cap >= 10: return 'Large-Cap (大盘)'
+                        elif cap >= 2: return 'Mid-Cap (中盘)'
+                        elif cap >= 0.3: return 'Small-Cap (小盘)'
+                        return 'Micro-Cap (微盘)'
+                    df['Cap_Category'] = df['Mkt Cap'].apply(update_category_us)
+            except Exception as e:
+                print(f"YFinance fix failed: {e}")
+        
         # 合成 Strategy 列
         def get_strategy_label(row):
             strategies = []
