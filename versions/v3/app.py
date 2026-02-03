@@ -322,18 +322,19 @@ def load_scan_results_from_db(scan_date=None, market=None):
             except Exception as e:
                 print(f"Akshare fix failed: {e}")
         
-        # [补丁] 美股数据如果市值为0，尝试用 yfinance 补全
+        # [补丁] 美股数据如果市值为0，尝试用 yfinance 和 Polygon 补全
         if market == 'US' and (df['Mkt Cap'] == 0).mean() > 0.5:
             try:
-                import yfinance as yf
                 # 只修复前 30 个，避免加载太慢
                 tickers_to_fix = df[df['Mkt Cap'] == 0]['Ticker'].tolist()[:30]
                 
                 if tickers_to_fix:
                     @st.cache_data(ttl=3600, show_spinner=False)
-                    def fetch_yf_caps_cached(tickers):
+                    def fetch_us_caps_cached(tickers):
                         caps = {}
+                        # 1. 尝试 Yahoo Finance
                         try:
+                            import yfinance as yf
                             txt = " ".join(tickers)
                             objs = yf.Tickers(txt)
                             for t in tickers:
@@ -341,10 +342,27 @@ def load_scan_results_from_db(scan_date=None, market=None):
                                     val = objs.tickers[t].fast_info.market_cap
                                     if val: caps[t] = val / 1_000_000_000
                                 except: pass
+                        except Exception as ye:
+                             print(f"YF Error: {ye}")
+                        
+                        # 2. 尝试 Polygon (作为补充)
+                        try:
+                            from data_fetcher import get_ticker_details
+                            import time
+                            # 只对还没拿到的尝试，且限制数量防止超时
+                            missing = [t for t in tickers if t not in caps][:10]
+                            for t in missing:
+                                try:
+                                    det = get_ticker_details(t)
+                                    if det and det.get('market_cap'):
+                                        caps[t] = det.get('market_cap') / 1_000_000_000
+                                    time.sleep(0.25) # 避免限流 (5 calls/min limit for free tier)
+                                except: pass
                         except: pass
+                        
                         return caps
 
-                    caps_map = fetch_yf_caps_cached(tickers_to_fix)
+                    caps_map = fetch_us_caps_cached(tickers_to_fix)
                     
                     def fill_us_cap(row):
                          if row['Mkt Cap'] > 0: return row['Mkt Cap']
@@ -353,6 +371,7 @@ def load_scan_results_from_db(scan_date=None, market=None):
                     df['Mkt Cap'] = df.apply(fill_us_cap, axis=1)
 
                     def update_category_us(cap):
+                        if cap == 0: return 'Unknown'
                         if cap >= 200: return 'Mega-Cap (超大盘)'
                         elif cap >= 10: return 'Large-Cap (大盘)'
                         elif cap >= 2: return 'Mid-Cap (中盘)'
@@ -360,7 +379,7 @@ def load_scan_results_from_db(scan_date=None, market=None):
                         return 'Micro-Cap (微盘)'
                     df['Cap_Category'] = df['Mkt Cap'].apply(update_category_us)
             except Exception as e:
-                print(f"YFinance fix failed: {e}")
+                print(f"US Cap fix failed: {e}")
         
         # 合成 Strategy 列
         def get_strategy_label(row):
