@@ -2075,7 +2075,18 @@ def render_scan_page():
             if selected_strategies:
                 df = df[df['Strategy'].isin(selected_strategies)]
         
-        # === 5. 高级筛选 (折叠) ===
+        # === 5. 黑马信号筛选 ===
+        st.subheader("🐴 黑马信号")
+        
+        heima_filter = st.radio(
+            "黑马筛选",
+            options=["全部", "有日黑马", "有周黑马", "有月黑马", "有任意黑马"],
+            horizontal=True,
+            help="筛选出有黑马信号的股票"
+        )
+        st.session_state['heima_filter'] = heima_filter
+        
+        # === 6. 高级筛选 (折叠) ===
         with st.expander("🔬 高级筛选", expanded=False):
             # 获利盘比例
             if 'Profit_Ratio' in df.columns:
@@ -2478,8 +2489,8 @@ def render_scan_page():
         "大师建议": st.column_config.TextColumn("大师建议", width="medium", help="5位大师综合评级")
     })
 
-    # === 添加黑马和共振列 ===
-    # 检测黑马字段 (兼容大小写)
+    # === 添加黑马列 (简洁版) ===
+    # 检测黑马字段
     def get_col(df, names):
         for n in names:
             if n in df.columns:
@@ -2489,52 +2500,45 @@ def render_scan_page():
     heima_daily_col = get_col(df, ['Heima_Daily', 'heima_daily'])
     heima_weekly_col = get_col(df, ['Heima_Weekly', 'heima_weekly'])
     heima_monthly_col = get_col(df, ['Heima_Monthly', 'heima_monthly'])
-    heima_any_col = get_col(df, ['Is_Heima', 'is_heima'])
+    heima_any_col = get_col(df, ['Is_Heima', 'is_heima'])  # 兼容旧数据
     
-    # 日线黑马
-    has_heima_daily = df[heima_daily_col].fillna(False).astype(bool) if heima_daily_col else pd.Series([False]*len(df))
-    # 周线黑马
-    has_heima_weekly = df[heima_weekly_col].fillna(False).astype(bool) if heima_weekly_col else pd.Series([False]*len(df))
-    # 月线黑马
-    has_heima_monthly = df[heima_monthly_col].fillna(False).astype(bool) if heima_monthly_col else pd.Series([False]*len(df))
-    # 任意黑马 (兼容旧数据)
-    has_heima_any = df[heima_any_col].fillna(False).astype(bool) if heima_any_col else pd.Series([False]*len(df))
+    # 创建黑马布尔列 (用于过滤)
+    df['日黑马'] = df[heima_daily_col].fillna(False).astype(bool) if heima_daily_col else (
+        df[heima_any_col].fillna(False).astype(bool) if heima_any_col else False
+    )
+    df['周黑马'] = df[heima_weekly_col].fillna(False).astype(bool) if heima_weekly_col else False
+    df['月黑马'] = df[heima_monthly_col].fillna(False).astype(bool) if heima_monthly_col else False
     
-    # 黑马列 (日线黑马)
-    df['日🐴'] = has_heima_daily.apply(lambda x: '🐴' if x else '')
-    df['周🐴'] = has_heima_weekly.apply(lambda x: '🐴' if x else '')
-    df['月🐴'] = has_heima_monthly.apply(lambda x: '🐴' if x else '')
-    
-    # 日周BLUE共振
-    has_day_blue = df['Day BLUE'].fillna(0) > 0 if 'Day BLUE' in df.columns else pd.Series([False]*len(df))
-    has_week_blue = df['Week BLUE'].fillna(0) > 0 if 'Week BLUE' in df.columns else pd.Series([False]*len(df))
-    has_month_blue = df['Month BLUE'].fillna(0) > 0 if 'Month BLUE' in df.columns else pd.Series([False]*len(df))
-    
-    # 日周共振 (Day和Week BLUE都>0)
-    df['日周'] = (has_day_blue & has_week_blue).apply(lambda x: '✅' if x else '')
-    
-    # 日周月共振 (Day、Week、Month BLUE都>0)
-    df['日周月'] = (has_day_blue & has_week_blue & has_month_blue).apply(lambda x: '🔥' if x else '')
-    
-    # 日周黑马 (日线黑马 + 周线黑马 同时出现)
-    df['日周🐴'] = (has_heima_daily & has_heima_weekly).apply(lambda x: '🐴🐴' if x else '')
-    
-    # 日周月黑马 (日/周/月线黑马 同时出现) - 最强信号
-    df['日周月🐴'] = (has_heima_daily & has_heima_weekly & has_heima_monthly).apply(lambda x: '🐴🔥🔥' if x else '')
+    # 显示列 (🐴 图标)
+    df['日🐴'] = df['日黑马'].apply(lambda x: '🐴' if x else '')
+    df['周🐴'] = df['周黑马'].apply(lambda x: '🐴' if x else '')
+    df['月🐴'] = df['月黑马'].apply(lambda x: '🐴' if x else '')
     
     # 更新列配置
     column_config.update({
-        "日🐴": st.column_config.TextColumn("日🐴", width="small", help="日线黑马信号"),
-        "周🐴": st.column_config.TextColumn("周🐴", width="small", help="周线黑马信号"),
-        "月🐴": st.column_config.TextColumn("月🐴", width="small", help="月线黑马信号"),
-        "日周": st.column_config.TextColumn("日周", width="small", help="日+周线BLUE同时>0"),
-        "日周月": st.column_config.TextColumn("日周月", width="small", help="日+周+月线BLUE同时>0"),
-        "日周🐴": st.column_config.TextColumn("日周🐴", width="small", help="日+周线黑马同时出现 (强!)"),
-        "日周月🐴": st.column_config.TextColumn("日周月🐴", width="small", help="日+周+月线黑马同时出现 (最强!)"),
+        "日🐴": st.column_config.TextColumn("日🐴", width="small", help="日线黑马"),
+        "周🐴": st.column_config.TextColumn("周🐴", width="small", help="周线黑马"),
+        "月🐴": st.column_config.TextColumn("月🐴", width="small", help="月线黑马"),
     })
+    
+    # === 应用黑马筛选 ===
+    heima_filter = st.session_state.get('heima_filter', '全部')
+    before_heima_count = len(df)
+    
+    if heima_filter == "有日黑马":
+        df = df[df['日黑马'] == True]
+    elif heima_filter == "有周黑马":
+        df = df[df['周黑马'] == True]
+    elif heima_filter == "有月黑马":
+        df = df[df['月黑马'] == True]
+    elif heima_filter == "有任意黑马":
+        df = df[(df['日黑马'] == True) | (df['周黑马'] == True) | (df['月黑马'] == True)]
+    
+    if heima_filter != "全部" and before_heima_count != len(df):
+        st.info(f"🐴 黑马筛选: {before_heima_count} → {len(df)} 只")
 
-    # 显示列顺序：核心指标在前，黑马和共振列靠前
-    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '日周🐴', '日周月🐴', '日周', '日周月', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    # 显示列顺序
+    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
