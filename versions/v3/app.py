@@ -1023,11 +1023,11 @@ def get_market_mood(df):
 # --- 页面逻辑 ---
 
 def render_todays_picks_page():
-    """🎯 今日精选 - 多策略选股仪表板"""
-    st.header("🎯 今日精选 (Multi-Strategy Dashboard)")
-    st.caption("综合多个策略，智能推荐今日最佳交易机会")
+    """🎯 今日行动 - 30秒决策仪表盘"""
+    st.header("🎯 今日行动 (Action Dashboard)")
+    st.caption("30秒内知道该买什么、该卖什么、该关注什么")
     
-    # 导入策略模块
+    # 导入模块
     try:
         from strategies.decision_system import get_strategy_manager
         from strategies.performance_tracker import get_all_strategy_performance
@@ -1035,10 +1035,13 @@ def render_todays_picks_page():
         st.error(f"策略模块导入失败: {e}")
         return
     
+    from db.database import query_scan_results, get_scanned_dates, get_stock_info_batch
+    from services.portfolio_service import get_portfolio_summary
+    
     # 侧边栏: 设置
     with st.sidebar:
         st.divider()
-        st.subheader("⚙️ 今日精选设置")
+        st.subheader("⚙️ 行动设置")
         
         market_choice = st.radio("市场", ["🇺🇸 美股", "🇨🇳 A股"], horizontal=True, key="picks_market")
         market = "US" if "美股" in market_choice else "CN"
@@ -1047,6 +1050,240 @@ def render_todays_picks_page():
         
         show_performance = st.checkbox("显示策略历史表现", value=True, key="picks_perf")
         show_backtest = st.checkbox("显示回测追踪", value=False, key="picks_backtest")
+    
+    # ============================================
+    # 📊 顶部: 行动摘要卡片
+    # ============================================
+    dates = get_scanned_dates(market=market)
+    if not dates:
+        st.warning(f"暂无 {market} 市场数据")
+        return
+    
+    latest_date = dates[0]
+    results = query_scan_results(scan_date=latest_date, market=market, limit=500)
+    df = pd.DataFrame(results) if results else pd.DataFrame()
+    
+    # 获取持仓数据
+    try:
+        portfolio = get_portfolio_summary() or {}
+        positions = portfolio.get('details', [])  # 从 summary 中获取持仓详情
+    except:
+        positions = []
+        portfolio = {}
+    
+    # 计算行动项
+    buy_opportunities = 0
+    sell_signals = 0
+    risk_alerts = 0
+    
+    if not df.empty:
+        # 强买入信号: 日BLUE > 100 且 周BLUE > 50
+        strong_buy = df[
+            (df.get('blue_daily', pd.Series([0]*len(df))) > 100) & 
+            (df.get('blue_weekly', pd.Series([0]*len(df))) > 50)
+        ]
+        buy_opportunities = len(strong_buy)
+    
+    # 检测持仓卖出信号
+    position_alerts = []
+    for pos in positions:
+        symbol = pos.get('symbol', '')
+        avg_cost = pos.get('avg_cost', 0)
+        current_price = pos.get('current_price', 0)
+        stop_loss = pos.get('stop_loss', avg_cost * 0.92)  # 默认8%止损
+        
+        if current_price > 0:
+            pnl_pct = (current_price - avg_cost) / avg_cost * 100 if avg_cost > 0 else 0
+            
+            # 检查止损
+            if current_price < stop_loss:
+                position_alerts.append({
+                    'symbol': symbol,
+                    'type': 'stop_loss',
+                    'message': f'触及止损 ${current_price:.2f} < ${stop_loss:.2f}',
+                    'action': '建议卖出',
+                    'urgency': 'high'
+                })
+                sell_signals += 1
+            
+            # 检查大幅亏损
+            elif pnl_pct < -10:
+                position_alerts.append({
+                    'symbol': symbol,
+                    'type': 'loss',
+                    'message': f'亏损 {pnl_pct:.1f}%',
+                    'action': '检查止损',
+                    'urgency': 'medium'
+                })
+                risk_alerts += 1
+            
+            # 检查是否有卖出信号 (BLUE 转弱)
+            if not df.empty and symbol in df['symbol'].values:
+                stock_data = df[df['symbol'] == symbol].iloc[0]
+                day_blue = stock_data.get('blue_daily', 100)
+                if day_blue < 30 and pnl_pct > 5:
+                    position_alerts.append({
+                        'symbol': symbol,
+                        'type': 'signal_weak',
+                        'message': f'BLUE信号转弱 ({day_blue:.0f}), 盈利 {pnl_pct:.1f}%',
+                        'action': '考虑获利了结',
+                        'urgency': 'low'
+                    })
+    
+    # 行动摘要卡片
+    st.markdown(f"### 📅 {latest_date} 行动摘要")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "🟢 买入机会", 
+            f"{buy_opportunities} 只",
+            help="日BLUE>100 且 周BLUE>50 的强信号"
+        )
+    
+    with col2:
+        delta_color = "inverse" if sell_signals > 0 else "off"
+        st.metric(
+            "🔴 卖出信号", 
+            f"{sell_signals} 只",
+            delta="需要行动" if sell_signals > 0 else None,
+            delta_color=delta_color
+        )
+    
+    with col3:
+        st.metric(
+            "⚠️ 风险警告", 
+            f"{risk_alerts} 只",
+            delta="注意" if risk_alerts > 0 else None,
+            delta_color="inverse" if risk_alerts > 0 else "off"
+        )
+    
+    with col4:
+        total_positions = len(positions)
+        total_pnl = portfolio.get('total_pnl_pct', 0)
+        st.metric(
+            "💼 持仓", 
+            f"{total_positions} 只",
+            delta=f"{total_pnl:+.1f}%" if total_positions > 0 else None,
+            delta_color="normal" if total_pnl >= 0 else "inverse"
+        )
+    
+    st.divider()
+    
+    # ============================================
+    # 🚨 持仓警报 (优先显示)
+    # ============================================
+    if position_alerts:
+        st.markdown("### 🚨 持仓警报 (需要立即关注)")
+        
+        for alert in sorted(position_alerts, key=lambda x: {'high': 0, 'medium': 1, 'low': 2}.get(x['urgency'], 3)):
+            urgency_icon = {'high': '🔴', 'medium': '🟡', 'low': '🟢'}.get(alert['urgency'], '⚪')
+            
+            with st.container():
+                col1, col2, col3 = st.columns([2, 4, 2])
+                with col1:
+                    st.markdown(f"**{urgency_icon} {alert['symbol']}**")
+                with col2:
+                    st.markdown(f"{alert['message']}")
+                with col3:
+                    if st.button(f"📝 {alert['action']}", key=f"alert_{alert['symbol']}_{alert['type']}"):
+                        st.info(f"已记录: {alert['symbol']} - {alert['action']}")
+        
+        st.divider()
+    
+    # ============================================
+    # 📋 观察列表 & 信号追踪
+    # ============================================
+    try:
+        from services.signal_tracker import (
+            get_watchlist, get_tracking_summary, add_to_watchlist, 
+            remove_from_watchlist, analyze_sell_signals, get_signal_history
+        )
+        
+        tracking_summary = get_tracking_summary(market=market)
+        watchlist = tracking_summary.get('watchlist', [])
+        
+        if watchlist:
+            st.markdown("### 👁️ 观察列表追踪")
+            st.caption(f"持续关注 {len(watchlist)} 只股票的信号变化")
+            
+            # 显示未读提醒数
+            unread_count = tracking_summary.get('unread_alerts', 0)
+            if unread_count > 0:
+                st.warning(f"🔔 有 {unread_count} 条未读提醒")
+            
+            # 展示观察列表
+            for item in watchlist[:10]:
+                symbol = item['symbol']
+                entry_price = item.get('entry_price', 0)
+                target_price = item.get('target_price', 0)
+                stop_loss = item.get('stop_loss', 0)
+                added_date = item.get('added_date', '')
+                
+                # 获取最新信号
+                history = get_signal_history(symbol, market, days=2)
+                latest = history[0] if history else {}
+                current_price = latest.get('price', entry_price)
+                blue_daily = latest.get('blue_daily', 0)
+                
+                # 计算盈亏
+                pnl_pct = (current_price - entry_price) / entry_price * 100 if entry_price > 0 else 0
+                
+                # 分析卖出信号
+                sell_analysis = analyze_sell_signals(
+                    symbol, market, current_price, entry_price,
+                    target_price, stop_loss, blue_daily
+                )
+                
+                with st.container():
+                    col1, col2, col3, col4 = st.columns([2, 3, 3, 2])
+                    
+                    with col1:
+                        urgency_icon = {
+                            'critical': '🔴', 'high': '🟠', 'medium': '🟡', 'low': '🟢', 'none': '⚪'
+                        }.get(sell_analysis['sell_urgency'], '⚪')
+                        st.markdown(f"**{urgency_icon} {symbol}**")
+                        st.caption(f"加入: {added_date}")
+                    
+                    with col2:
+                        price_symbol = "¥" if market == "CN" else "$"
+                        pnl_color = "green" if pnl_pct >= 0 else "red"
+                        st.markdown(f"入场: {price_symbol}{entry_price:.2f}")
+                        st.markdown(f"现价: {price_symbol}{current_price:.2f}")
+                        st.markdown(f"盈亏: <span style='color:{pnl_color}'>{pnl_pct:+.1f}%</span>", unsafe_allow_html=True)
+                    
+                    with col3:
+                        st.markdown(f"BLUE: {blue_daily:.0f}")
+                        st.markdown(f"止盈: {price_symbol}{target_price:.2f}")
+                        st.markdown(f"止损: {price_symbol}{stop_loss:.2f}")
+                    
+                    with col4:
+                        if sell_analysis['should_sell']:
+                            action_text = sell_analysis['recommended_action']
+                            action_map = {
+                                'sell_now': '🔴 立即卖出',
+                                'take_profit': '🟢 止盈卖出', 
+                                'consider_sell': '🟡 考虑卖出',
+                                'consider_partial_sell': '🟡 部分卖出'
+                            }
+                            st.markdown(f"**{action_map.get(action_text, action_text)}**")
+                            for reason in sell_analysis['reasons'][:2]:
+                                st.caption(reason)
+                        else:
+                            st.markdown("**✅ 继续持有**")
+                        
+                        if st.button("❌", key=f"remove_{symbol}"):
+                            remove_from_watchlist(symbol, market)
+                            st.rerun()
+                
+                st.markdown("---")
+            
+            st.divider()
+    except ImportError:
+        pass  # 模块不可用时跳过
+    except Exception as e:
+        st.warning(f"追踪模块加载失败: {e}")
     
     # 加载今日数据
     from db.database import query_scan_results, get_scanned_dates, get_stock_info_batch
@@ -1080,28 +1317,126 @@ def render_todays_picks_page():
     all_picks = manager.get_all_picks(df, top_n=top_n)
     consensus = manager.get_consensus_picks(df, min_votes=2)
     
-    # === 顶部: 共识精选 ===
+    # === 顶部: Top 3 买入机会 (带操作按钮) ===
+    st.markdown("### 🏆 Top 3 买入机会")
+    st.caption("综合评分最高、多策略认可的股票")
+    
+    # 合并共识和策略评分
+    top_picks = []
+    
+    # 从共识中获取
     if consensus:
-        st.subheader("🔥 多策略共识 (Consensus Picks)")
-        st.caption("被多个策略同时看好的股票")
-        
-        cols = st.columns(min(len(consensus), 5))
-        for i, (symbol, votes, avg_score) in enumerate(consensus[:5]):
-            with cols[i]:
-                stars = "⭐" * votes
-                # 获取股票名称
-                info = stock_info.get(symbol, {})
-                name = info.get('name', '')[:10] if info else ''
+        for symbol, votes, avg_score in consensus[:5]:
+            # 获取更多信息
+            stock_row = df[df['symbol'] == symbol].iloc[0] if not df.empty and symbol in df['symbol'].values else {}
+            info = stock_info.get(symbol, {})
+            
+            price = stock_row.get('price', 0) if isinstance(stock_row, dict) or len(stock_row) > 0 else 0
+            if hasattr(stock_row, 'get'):
+                price = stock_row.get('price', 0)
+            elif hasattr(stock_row, '__getitem__') and 'price' in stock_row.index:
+                price = stock_row['price']
+            
+            day_blue = stock_row.get('blue_daily', 0) if hasattr(stock_row, 'get') else (stock_row['blue_daily'] if 'blue_daily' in getattr(stock_row, 'index', []) else 0)
+            week_blue = stock_row.get('blue_weekly', 0) if hasattr(stock_row, 'get') else (stock_row['blue_weekly'] if 'blue_weekly' in getattr(stock_row, 'index', []) else 0)
+            
+            top_picks.append({
+                'symbol': symbol,
+                'name': info.get('name', '')[:15] if info else '',
+                'score': avg_score,
+                'votes': votes,
+                'price': price,
+                'day_blue': day_blue,
+                'week_blue': week_blue,
+                'stop_loss': price * 0.92 if price else 0,  # 8%止损
+                'target': price * 1.15 if price else 0,  # 15%目标
+            })
+    
+    # 按评分排序取前3
+    top_picks = sorted(top_picks, key=lambda x: x['score'], reverse=True)[:3]
+    
+    if top_picks:
+        for i, pick in enumerate(top_picks):
+            with st.container():
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
+                            padding: 15px; border-radius: 10px; margin-bottom: 10px;
+                            border-left: 4px solid {'#00ff88' if pick['votes'] >= 3 else '#ffaa00'};">
+                """, unsafe_allow_html=True)
                 
-                st.metric(
-                    label=f"{symbol}",
-                    value=f"{avg_score:.0f}分",
-                    delta=f"{votes}个策略认可"
-                )
-                if name:
-                    st.caption(f"📌 {name}")
-                st.caption(stars)
+                col1, col2, col3, col4 = st.columns([2, 3, 3, 2])
+                
+                with col1:
+                    stars = "⭐" * min(pick['votes'], 5)
+                    st.markdown(f"### {pick['symbol']}")
+                    st.caption(f"{pick['name']}")
+                    st.markdown(f"{stars}")
+                
+                with col2:
+                    price_symbol = "¥" if market == "CN" else "$"
+                    st.markdown(f"**评分: {pick['score']:.0f}分**")
+                    st.markdown(f"现价: {price_symbol}{pick['price']:.2f}")
+                    st.markdown(f"日BLUE: {pick['day_blue']:.0f} | 周BLUE: {pick['week_blue']:.0f}")
+                
+                with col3:
+                    st.markdown(f"**交易计划:**")
+                    st.markdown(f"🎯 目标: {price_symbol}{pick['target']:.2f} (+15%)")
+                    st.markdown(f"🛑 止损: {price_symbol}{pick['stop_loss']:.2f} (-8%)")
+                    st.markdown(f"📊 风险比: 1:1.9")
+                
+                with col4:
+                    st.markdown("**操作:**")
+                    if st.button("📋 加入观察", key=f"watch_{pick['symbol']}"):
+                        try:
+                            from services.signal_tracker import add_to_watchlist, record_signal
+                            # 添加到观察列表
+                            add_to_watchlist(
+                                symbol=pick['symbol'],
+                                market=market,
+                                entry_price=pick['price'],
+                                target_price=pick['target'],
+                                stop_loss=pick['stop_loss'],
+                                signal_type='consensus',
+                                signal_score=pick['score'],
+                                notes=f"多策略共识 {pick['votes']}票"
+                            )
+                            # 记录当前信号
+                            record_signal(
+                                symbol=pick['symbol'],
+                                market=market,
+                                record_date=latest_date,
+                                price=pick['price'],
+                                blue_daily=pick['day_blue'],
+                                blue_weekly=pick['week_blue']
+                            )
+                            st.success(f"✅ {pick['symbol']} 已加入观察列表")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"添加失败: {e}")
+                    if st.button("💰 模拟买入", key=f"buy_{pick['symbol']}"):
+                        st.info(f"请前往「组合管理」页面进行模拟买入")
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+        
         st.divider()
+    
+    # === 共识精选 (简化版) ===
+    if consensus and len(consensus) > 3:
+        with st.expander(f"📊 更多共识精选 ({len(consensus)-3} 只)", expanded=False):
+            cols = st.columns(min(len(consensus)-3, 5))
+            for i, (symbol, votes, avg_score) in enumerate(consensus[3:8]):
+                with cols[i % 5]:
+                    stars = "⭐" * votes
+                    info = stock_info.get(symbol, {})
+                    name = info.get('name', '')[:10] if info else ''
+                    
+                    st.metric(
+                        label=f"{symbol}",
+                        value=f"{avg_score:.0f}分",
+                        delta=f"{votes}策略"
+                    )
+                    if name:
+                        st.caption(f"📌 {name}")
     
     # === 策略表现概览 ===
     if show_performance:
@@ -2143,9 +2478,42 @@ def render_scan_page():
         "大师建议": st.column_config.TextColumn("大师建议", width="medium", help="5位大师综合评级")
     })
 
-    # 显示列顺序：核心指标在前，新发现标记靠前，新闻情绪列
-    # 显示列顺序：Rank_Score 优先，然后是新发现、大师建议
-    display_cols = ['Rank_Score', '新发现', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    # === 添加黑马和共振列 ===
+    # 黑马列
+    if 'Is_Heima' in df.columns:
+        df['黑马'] = df['Is_Heima'].apply(lambda x: '🐴' if x else '')
+    elif 'is_heima' in df.columns:
+        df['黑马'] = df['is_heima'].apply(lambda x: '🐴' if x else '')
+    else:
+        df['黑马'] = ''
+    
+    # 日周共振 (Day和Week都>0)
+    if 'Day BLUE' in df.columns and 'Week BLUE' in df.columns:
+        df['日周'] = df.apply(
+            lambda r: '✅' if (r.get('Day BLUE', 0) or 0) > 0 and (r.get('Week BLUE', 0) or 0) > 0 else '', 
+            axis=1
+        )
+    else:
+        df['日周'] = ''
+    
+    # 日周月共振 (Day、Week、Month都>0)
+    if 'Day BLUE' in df.columns and 'Week BLUE' in df.columns and 'Month BLUE' in df.columns:
+        df['日周月'] = df.apply(
+            lambda r: '🔥' if (r.get('Day BLUE', 0) or 0) > 0 and (r.get('Week BLUE', 0) or 0) > 0 and (r.get('Month BLUE', 0) or 0) > 0 else '', 
+            axis=1
+        )
+    else:
+        df['日周月'] = ''
+    
+    # 更新列配置
+    column_config.update({
+        "黑马": st.column_config.TextColumn("黑马", width="small"),
+        "日周": st.column_config.TextColumn("日周", width="small", help="日线+周线同时出现信号"),
+        "日周月": st.column_config.TextColumn("日周月", width="small", help="日+周+月线同时出现信号"),
+    })
+
+    # 显示列顺序：核心指标在前，新发现标记靠前，黑马和共振列
+    display_cols = ['Rank_Score', '新发现', '黑马', '日周', '日周月', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
@@ -7510,7 +7878,8 @@ def render_signal_center_page():
     """📈 信号中心 - 合并: 信号追踪 + 信号验证 + 健康监控"""
     st.header("📈 信号中心")
     
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "👁️ 观察追踪",
         "🩺 信号健康", 
         "📊 信号追踪", 
         "📉 信号验证", 
@@ -7519,19 +7888,325 @@ def render_signal_center_page():
     ])
     
     with tab1:
-        render_signal_health_monitor()
+        render_watchlist_tracking_tab()
     
     with tab2:
-        render_signal_tracker_page()
+        render_signal_health_monitor()
     
     with tab3:
-        render_signal_performance_page()
+        render_signal_tracker_page()
     
     with tab4:
-        render_historical_tracking_tab()
+        render_signal_performance_page()
     
     with tab5:
+        render_historical_tracking_tab()
+    
+    with tab6:
         render_baseline_comparison_page()
+
+
+def render_watchlist_tracking_tab():
+    """👁️ 观察列表追踪 - 持续跟踪已发现的机会股票"""
+    import plotly.graph_objects as go
+    
+    st.subheader("👁️ 观察列表追踪")
+    st.caption("持续关注已发现机会的股票，实时监控信号变化、卖出点、做T时机")
+    
+    # 侧边栏设置
+    with st.sidebar:
+        st.divider()
+        st.subheader("👁️ 追踪设置")
+        
+        market_choice = st.radio(
+            "市场", 
+            ["🇺🇸 美股", "🇨🇳 A股"], 
+            horizontal=True, 
+            key="watchlist_market"
+        )
+        market = "US" if "美股" in market_choice else "CN"
+    
+    try:
+        from services.signal_tracker import (
+            get_watchlist, add_to_watchlist, remove_from_watchlist,
+            get_signal_history, analyze_sell_signals, analyze_t_trade_opportunity,
+            get_unread_alerts, mark_alert_read, get_tracking_summary, record_signal
+        )
+    except ImportError as e:
+        st.error(f"追踪模块导入失败: {e}")
+        return
+    
+    # 获取数据
+    watchlist = get_watchlist(market=market)
+    tracking_summary = get_tracking_summary(market=market)
+    unread_alerts = get_unread_alerts(market=market)
+    
+    # === 顶部: 追踪概览 ===
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("👁️ 观察中", f"{len(watchlist)} 只")
+    
+    with col2:
+        buy_signals = tracking_summary.get('buy_signals', 0)
+        st.metric("🟢 买入信号", f"{buy_signals} 条", 
+                  delta="有机会" if buy_signals > 0 else None)
+    
+    with col3:
+        sell_signals = tracking_summary.get('sell_signals', 0)
+        st.metric("🔴 卖出信号", f"{sell_signals} 条",
+                  delta="需关注" if sell_signals > 0 else None,
+                  delta_color="inverse" if sell_signals > 0 else "off")
+    
+    with col4:
+        st.metric("🔔 未读提醒", f"{len(unread_alerts)} 条")
+    
+    st.divider()
+    
+    # === 未读提醒 ===
+    if unread_alerts:
+        with st.expander(f"🔔 未读提醒 ({len(unread_alerts)} 条)", expanded=True):
+            for alert in unread_alerts[:10]:
+                urgency_icon = {'high': '🔴', 'medium': '🟡', 'low': '🟢'}.get(alert['urgency'], '⚪')
+                
+                col1, col2, col3 = st.columns([2, 5, 1])
+                with col1:
+                    st.markdown(f"**{urgency_icon} {alert['symbol']}**")
+                with col2:
+                    st.markdown(f"{alert['message']}")
+                    st.caption(f"{alert['alert_date']} | {alert['alert_type']}")
+                with col3:
+                    if st.button("✓", key=f"read_{alert['id']}"):
+                        mark_alert_read(alert['id'])
+                        st.rerun()
+    
+    # === 添加观察 ===
+    with st.expander("➕ 添加股票到观察列表", expanded=False):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            new_symbol = st.text_input("股票代码", placeholder="NVDA / 600519.SH", key="add_symbol")
+            entry_price = st.number_input("入场价", min_value=0.0, step=0.01, key="add_entry")
+        
+        with col2:
+            target_price = st.number_input("目标价 (止盈)", min_value=0.0, step=0.01, key="add_target")
+            stop_loss = st.number_input("止损价", min_value=0.0, step=0.01, key="add_stop")
+        
+        notes = st.text_input("备注", placeholder="买入理由...", key="add_notes")
+        
+        if st.button("➕ 添加", type="primary"):
+            if new_symbol:
+                add_to_watchlist(
+                    symbol=new_symbol.upper(),
+                    market=market,
+                    entry_price=entry_price if entry_price > 0 else None,
+                    target_price=target_price if target_price > 0 else None,
+                    stop_loss=stop_loss if stop_loss > 0 else None,
+                    notes=notes
+                )
+                st.success(f"✅ {new_symbol.upper()} 已添加")
+                st.rerun()
+            else:
+                st.warning("请输入股票代码")
+    
+    # === 观察列表详情 ===
+    if not watchlist:
+        st.info("👆 观察列表为空，点击上方添加股票开始追踪")
+        return
+    
+    st.markdown("### 📋 观察列表详情")
+    
+    # 获取最新扫描数据
+    from db.database import query_scan_results, get_scanned_dates
+    dates = get_scanned_dates(market=market)
+    latest_date = dates[0] if dates else None
+    latest_scan = {}
+    
+    if latest_date:
+        scan_results = query_scan_results(scan_date=latest_date, market=market, limit=1000)
+        for r in scan_results:
+            latest_scan[r['symbol']] = r
+    
+    # 为每只股票创建追踪卡片
+    for item in watchlist:
+        symbol = item['symbol']
+        entry_price = item.get('entry_price', 0) or 0
+        target_price = item.get('target_price', 0) or (entry_price * 1.15 if entry_price else 0)
+        stop_loss = item.get('stop_loss', 0) or (entry_price * 0.92 if entry_price else 0)
+        added_date = item.get('added_date', '')
+        notes = item.get('notes', '')
+        
+        # 获取最新数据
+        scan_data = latest_scan.get(symbol, {})
+        current_price = scan_data.get('price', entry_price) or entry_price
+        blue_daily = scan_data.get('blue_daily', 0) or 0
+        blue_weekly = scan_data.get('blue_weekly', 0) or 0
+        heima = scan_data.get('heima', 0) or 0
+        volume = scan_data.get('volume', 0) or 0
+        
+        # 计算盈亏
+        pnl_pct = (current_price - entry_price) / entry_price * 100 if entry_price > 0 else 0
+        
+        # 分析卖出信号
+        sell_analysis = analyze_sell_signals(
+            symbol, market, current_price, entry_price,
+            target_price, stop_loss, blue_daily, blue_weekly
+        )
+        
+        # 卡片样式
+        urgency = sell_analysis['sell_urgency']
+        border_color = {
+            'critical': '#ff4444', 'high': '#ff8800', 
+            'medium': '#ffcc00', 'low': '#44ff44', 'none': '#666666'
+        }.get(urgency, '#666666')
+        
+        st.markdown(f"""
+        <div style="border-left: 4px solid {border_color}; padding-left: 15px; margin-bottom: 20px;">
+        """, unsafe_allow_html=True)
+        
+        # 标题行
+        col1, col2, col3 = st.columns([3, 5, 2])
+        
+        with col1:
+            urgency_icon = {'critical': '🔴', 'high': '🟠', 'medium': '🟡', 'low': '🟢', 'none': '⚪'}.get(urgency, '⚪')
+            st.markdown(f"### {urgency_icon} {symbol}")
+            st.caption(f"加入: {added_date}")
+            if notes:
+                st.caption(f"📝 {notes}")
+        
+        with col2:
+            # 信号状态
+            sub_cols = st.columns(4)
+            price_symbol = "¥" if market == "CN" else "$"
+            
+            with sub_cols[0]:
+                pnl_color = "green" if pnl_pct >= 0 else "red"
+                st.markdown(f"**现价**")
+                st.markdown(f"{price_symbol}{current_price:.2f}")
+                st.markdown(f"<span style='color:{pnl_color}'>{pnl_pct:+.1f}%</span>", unsafe_allow_html=True)
+            
+            with sub_cols[1]:
+                blue_color = "green" if blue_daily >= 100 else ("orange" if blue_daily >= 50 else "red")
+                st.markdown(f"**日BLUE**")
+                st.markdown(f"<span style='color:{blue_color}'>{blue_daily:.0f}</span>", unsafe_allow_html=True)
+            
+            with sub_cols[2]:
+                st.markdown(f"**周BLUE**")
+                st.markdown(f"{blue_weekly:.0f}")
+            
+            with sub_cols[3]:
+                st.markdown(f"**黑马**")
+                st.markdown("🐴" if heima else "-")
+        
+        with col3:
+            # 交易计划
+            st.markdown(f"🎯 {price_symbol}{target_price:.2f}")
+            st.markdown(f"🛑 {price_symbol}{stop_loss:.2f}")
+        
+        # 卖出建议
+        if sell_analysis['should_sell'] or sell_analysis['reasons']:
+            with st.container():
+                action_text = sell_analysis.get('recommended_action', 'hold')
+                action_display = {
+                    'sell_now': '🔴 建议立即卖出',
+                    'take_profit': '🟢 已达止盈目标',
+                    'consider_sell': '🟡 考虑卖出',
+                    'consider_partial_sell': '🟡 考虑部分卖出',
+                    'hold': '✅ 继续持有'
+                }.get(action_text, '⚪ ' + action_text)
+                
+                st.markdown(f"**{action_display}**")
+                
+                for reason in sell_analysis['reasons']:
+                    st.markdown(f"  • {reason}")
+        
+        # 操作按钮
+        btn_cols = st.columns([1, 1, 1, 3])
+        
+        with btn_cols[0]:
+            if st.button("📊 详情", key=f"detail_{symbol}"):
+                st.session_state['stock_symbol'] = symbol
+                st.info(f"请前往「个股查询」查看 {symbol} 详情")
+        
+        with btn_cols[1]:
+            if st.button("💰 模拟买", key=f"sim_buy_{symbol}"):
+                st.info("请前往「组合管理」执行模拟交易")
+        
+        with btn_cols[2]:
+            if st.button("❌ 移除", key=f"del_{symbol}"):
+                remove_from_watchlist(symbol, market)
+                st.rerun()
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("---")
+    
+    # === 信号历史图表 ===
+    st.markdown("### 📈 信号历史对比")
+    
+    if len(watchlist) > 0:
+        selected_symbol = st.selectbox(
+            "选择股票查看历史",
+            [w['symbol'] for w in watchlist],
+            key="history_select"
+        )
+        
+        if selected_symbol:
+            history = get_signal_history(selected_symbol, market, days=30)
+            
+            if history:
+                hist_df = pd.DataFrame(history)
+                hist_df['record_date'] = pd.to_datetime(hist_df['record_date'])
+                hist_df = hist_df.sort_values('record_date')
+                
+                # 创建图表
+                fig = go.Figure()
+                
+                # 价格线
+                if 'price' in hist_df.columns:
+                    fig.add_trace(go.Scatter(
+                        x=hist_df['record_date'],
+                        y=hist_df['price'],
+                        name='价格',
+                        line=dict(color='white', width=2),
+                        yaxis='y'
+                    ))
+                
+                # BLUE 指标
+                if 'blue_daily' in hist_df.columns:
+                    fig.add_trace(go.Scatter(
+                        x=hist_df['record_date'],
+                        y=hist_df['blue_daily'],
+                        name='日BLUE',
+                        line=dict(color='#00ff88', width=1.5),
+                        yaxis='y2'
+                    ))
+                
+                if 'blue_weekly' in hist_df.columns:
+                    fig.add_trace(go.Scatter(
+                        x=hist_df['record_date'],
+                        y=hist_df['blue_weekly'],
+                        name='周BLUE',
+                        line=dict(color='#ffaa00', width=1.5),
+                        yaxis='y2'
+                    ))
+                
+                # 买入线 (BLUE=100)
+                fig.add_hline(y=100, line_dash="dash", line_color="green", 
+                              annotation_text="BLUE买入线", yref='y2')
+                
+                fig.update_layout(
+                    title=f"{selected_symbol} 信号历史 (30日)",
+                    xaxis_title="日期",
+                    yaxis=dict(title="价格", side='left'),
+                    yaxis2=dict(title="BLUE", overlaying='y', side='right'),
+                    template='plotly_dark',
+                    height=400,
+                    legend=dict(x=0, y=1.1, orientation='h')
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info(f"暂无 {selected_symbol} 的历史数据")
 
 
 def render_historical_tracking_tab():

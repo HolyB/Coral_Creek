@@ -282,7 +282,8 @@ def get_missing_dates(start_date, end_date):
 
 
 def insert_scan_result(result_dict):
-    """插入或更新单条扫描结果"""
+    """插入或更新单条扫描结果 - 同时写入 SQLite 和 Supabase"""
+    # 1. 写入 SQLite (本地备份)
     with get_db() as conn:
         cursor = conn.cursor()
         
@@ -357,6 +358,13 @@ def insert_scan_result(result_dict):
             result_dict.get('Risk_Reward_Score'),
             result_dict.get('Market', 'US')  # 默认 US
         ))
+    
+    # 2. 同步写入 Supabase (云端)
+    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+        try:
+            insert_scan_result_supabase(result_dict)
+        except Exception as e:
+            pass  # Supabase 失败不影响主流程
 
 
 def bulk_insert_scan_results(results_list):
