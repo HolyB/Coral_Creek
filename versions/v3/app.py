@@ -282,6 +282,45 @@ def load_scan_results_from_db(scan_date=None, market=None):
             df['Mkt Cap'] = pd.to_numeric(df['Mkt Cap Raw'], errors='coerce').fillna(0) / 1_000_000_000
         else:
             df['Mkt Cap'] = 0.0
+
+        # [补丁] A股数据如果市值为0，尝试用 AkShare 实时数据补全
+        if market == 'CN' and (df['Mkt Cap'] == 0).mean() > 0.5: # 如果超过一半是0
+            try:
+                import akshare as ak
+                import streamlit as st
+                
+                # 缓存一下，避免每次rerun都拉取全市场
+                cache_key = f"ak_spot_data_{datetime.now().strftime('%H')}"
+                if cache_key in st.session_state:
+                    mkt_map = st.session_state[cache_key]
+                else:
+                    spot_df = ak.stock_zh_a_spot_em()
+                    # 映射: 代码 -> 总市值
+                    mkt_map = dict(zip(spot_df['代码'], spot_df['总市值']))
+                    st.session_state[cache_key] = mkt_map
+                
+                def fill_cn_cap(row):
+                    if row['Mkt Cap'] > 0: return row['Mkt Cap']
+                    code = row['Ticker'].split('.')[0]
+                    cap = mkt_map.get(code, 0)
+                    if cap and cap > 0:
+                        return cap / 1_000_000_000 # 转为 Billion
+                    return 0
+                
+                df['Mkt Cap'] = df.apply(fill_cn_cap, axis=1)
+                
+                # 重新计算 Cap Category
+                def update_category(cap):
+                    if cap >= 200: return 'Mega-Cap (超大盘)'
+                    elif cap >= 10: return 'Large-Cap (大盘)'
+                    elif cap >= 2: return 'Mid-Cap (中盘)'
+                    elif cap >= 0.3: return 'Small-Cap (小盘)'
+                    return 'Micro-Cap (微盘)'
+                
+                df['Cap_Category'] = df['Mkt Cap'].apply(update_category)
+                
+            except Exception as e:
+                print(f"Akshare fix failed: {e}")
         
         # 合成 Strategy 列
         def get_strategy_label(row):
