@@ -1876,7 +1876,7 @@ def render_todays_picks_page():
                 
                 # === 📊 详细信息展开区域 ===
                 with st.expander(f"📊 {pick['symbol']} 详细分析", expanded=False):
-                    detail_tabs = st.tabs(["📈 K线图表", "🔍 技术指标", "🤖 AI诊断", "🗣️ 舆情分析"])
+                    detail_tabs = st.tabs(["📈 K线图表", "🔍 技术指标", "🤖 AI诊断", "🗣️ 问AI", "📰 舆情分析"])
                     
                     with detail_tabs[0]:  # K线图表
                         try:
@@ -2039,7 +2039,102 @@ def render_todays_picks_page():
                         else:
                             st.info("点击上方按钮启动 AI 智能诊断")
                     
-                    with detail_tabs[3]:  # 舆情分析
+                    with detail_tabs[3]:  # 问AI - 自由对话
+                        st.markdown("### 🗣️ 向AI询问关于这只股票的任何问题")
+                        
+                        # 预设问题快捷按钮
+                        st.markdown("**💡 常见问题:**")
+                        q_col1, q_col2, q_col3 = st.columns(3)
+                        
+                        # 用于存储选择的问题
+                        preset_question = None
+                        
+                        with q_col1:
+                            if st.button("📊 公司基本面", key=f"q1_{pick['symbol']}"):
+                                preset_question = f"{pick['symbol']}这家公司的基本面如何？主营业务是什么？市值多少？PE和PB是多少？"
+                            if st.button("📈 技术面分析", key=f"q4_{pick['symbol']}"):
+                                preset_question = f"{pick['symbol']}目前的技术形态如何？支撑位和压力位在哪里？"
+                        
+                        with q_col2:
+                            if st.button("💰 财务状况", key=f"q2_{pick['symbol']}"):
+                                preset_question = f"{pick['symbol']}的财务状况如何？营收增长率、利润率、负债率是多少？"
+                            if st.button("🎯 买卖建议", key=f"q5_{pick['symbol']}"):
+                                preset_question = f"现在是买入{pick['symbol']}的好时机吗？应该设置什么样的止损和止盈？"
+                        
+                        with q_col3:
+                            if st.button("📰 最近新闻", key=f"q3_{pick['symbol']}"):
+                                preset_question = f"{pick['symbol']}最近有什么重大新闻或事件？对股价有什么影响？"
+                            if st.button("⚠️ 风险分析", key=f"q6_{pick['symbol']}"):
+                                preset_question = f"投资{pick['symbol']}有哪些主要风险？需要注意什么？"
+                        
+                        st.divider()
+                        
+                        # 自定义问题输入
+                        user_question = st.text_input(
+                            "或输入你的问题:",
+                            value=preset_question if preset_question else "",
+                            placeholder=f"例如: {pick['symbol']}的竞争对手有哪些？",
+                            key=f"user_q_{pick['symbol']}"
+                        )
+                        
+                        if st.button("🚀 提问", key=f"ask_ai_{pick['symbol']}", type="primary"):
+                            if user_question:
+                                with st.spinner("🤖 AI 正在思考..."):
+                                    try:
+                                        from ml.llm_intelligence import LLMAnalyzer
+                                        
+                                        # 构建上下文
+                                        context = f"""
+股票信息:
+- 代码: {pick['symbol']}
+- 名称: {pick['name']}
+- 当前价格: {price_symbol}{pick['price']:.2f}
+- 日线BLUE: {pick['day_blue']:.0f}
+- 周线BLUE: {pick['week_blue']:.0f}
+- 建议止损: {price_symbol}{pick['stop_loss']:.2f}
+- 建议目标: {price_symbol}{pick['target']:.2f}
+- 市场: {'美股' if market == 'US' else 'A股'}
+"""
+                                        
+                                        analyzer = LLMAnalyzer(provider='gemini')
+                                        
+                                        # 使用自然语言查询
+                                        full_question = f"关于股票 {pick['symbol']} ({pick['name']}): {user_question}"
+                                        response = analyzer.natural_query(full_question, context)
+                                        
+                                        # 显示回答
+                                        st.markdown("### 🤖 AI 回答:")
+                                        st.markdown(f"""
+                                        <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
+                                                    padding: 20px; border-radius: 10px; border-left: 4px solid #4CAF50;">
+                                            {response}
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                        
+                                        # 存储对话历史
+                                        chat_key = f"chat_history_{pick['symbol']}"
+                                        if chat_key not in st.session_state:
+                                            st.session_state[chat_key] = []
+                                        st.session_state[chat_key].append({
+                                            'question': user_question,
+                                            'answer': response
+                                        })
+                                        
+                                    except Exception as e:
+                                        st.error(f"AI回答失败: {e}")
+                            else:
+                                st.warning("请输入问题或点击预设问题")
+                        
+                        # 显示对话历史
+                        chat_key = f"chat_history_{pick['symbol']}"
+                        if chat_key in st.session_state and st.session_state[chat_key]:
+                            with st.expander("📜 对话历史", expanded=False):
+                                for idx, chat in enumerate(reversed(st.session_state[chat_key][-5:])):  # 最近5条
+                                    st.markdown(f"**🙋 问:** {chat['question']}")
+                                    st.markdown(f"**🤖 答:** {chat['answer'][:200]}...")
+                                    st.divider()
+                    
+                    with detail_tabs[4]:  # 舆情分析
                         if st.button("🔍 分析舆情", key=f"social_{pick['symbol']}", type="primary"):
                             with st.spinner(f"正在扫描 {pick['symbol']} 社区讨论..."):
                                 try:
@@ -2435,7 +2530,7 @@ def render_todays_picks_page():
                         st.markdown(f"📊 风险比: 1:{rr:.1f}")
                     
                     # 详情标签页
-                    detail_t1, detail_t2 = st.tabs(["📈 K线", "🤖 AI诊断"])
+                    detail_t1, detail_t2, detail_t3 = st.tabs(["📈 K线", "🤖 AI诊断", "🗣️ 问AI"])
                     
                     with detail_t1:
                         try:
@@ -2482,6 +2577,46 @@ def render_todays_picks_page():
                                     st.error(f"AI诊断失败: {e}")
                         else:
                             st.info("点击按钮启动AI分析")
+                    
+                    with detail_t3:  # 问AI
+                        st.markdown("**💡 快捷问题:**")
+                        qq_col1, qq_col2 = st.columns(2)
+                        
+                        preset_q = None
+                        with qq_col1:
+                            if st.button("📊 基本面", key=f"sq1_{key}_{p.symbol}"):
+                                preset_q = f"{p.symbol}的基本面如何？主营业务和市值?"
+                            if st.button("📈 技术面", key=f"sq2_{key}_{p.symbol}"):
+                                preset_q = f"{p.symbol}的技术形态如何？支撑压力位?"
+                        with qq_col2:
+                            if st.button("💰 财务", key=f"sq3_{key}_{p.symbol}"):
+                                preset_q = f"{p.symbol}的财务状况如何？营收和利润率?"
+                            if st.button("⚠️ 风险", key=f"sq4_{key}_{p.symbol}"):
+                                preset_q = f"投资{p.symbol}有哪些风险?"
+                        
+                        user_q = st.text_input(
+                            "输入问题:",
+                            value=preset_q if preset_q else "",
+                            placeholder=f"例如: {p.symbol}的竞争对手?",
+                            key=f"strat_q_{key}_{p.symbol}"
+                        )
+                        
+                        if st.button("🚀 提问", key=f"strat_ask_{key}_{p.symbol}", type="primary"):
+                            if user_q:
+                                with st.spinner("🤖 思考中..."):
+                                    try:
+                                        from ml.llm_intelligence import LLMAnalyzer
+                                        analyzer = LLMAnalyzer(provider='gemini')
+                                        
+                                        context = f"股票: {p.symbol}, 名称: {name}, 价格: {price_sym}{p.entry_price:.2f}, 策略: {strategy.name}"
+                                        response = analyzer.natural_query(f"关于{p.symbol}: {user_q}", context)
+                                        
+                                        st.markdown("**🤖 回答:**")
+                                        st.info(response)
+                                    except Exception as e:
+                                        st.error(f"AI回答失败: {e}")
+                            else:
+                                st.warning("请输入问题")
             
             # === 回测追踪 ===
             if show_backtest and len(dates) > 1:
