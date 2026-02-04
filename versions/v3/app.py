@@ -1497,6 +1497,90 @@ def render_todays_picks_page():
     # === 各策略详细选股 ===
     st.subheader("🎯 策略选股详情")
     
+    # 策略条件详细说明
+    strategy_conditions = {
+        'momentum': {
+            'name': '🚀 动量突破',
+            'conditions': [
+                '✅ BLUE ≥ 80 (强势抄底信号)',
+                '✅ ADX ≥ 20 (趋势明确)',
+                '✅ 成交额 ≥ 3M (流动性好)'
+            ],
+            'scoring': '评分 = BLUE×60% + ADX×40%',
+            'target': '止盈 +15~25%, 风险比 1:2.5'
+        },
+        'value': {
+            'name': '💎 价值洼地',
+            'conditions': [
+                '✅ BLUE ≥ 70 (有信号但不极端)',
+                '✅ 波动率 ≤ 30% (不是投机票)',
+                '✅ 周线BLUE>50 额外加分'
+            ],
+            'scoring': '评分 = 日BLUE×60% + 周共振+20分',
+            'target': '止盈 +10~15%, 风险比 1:2'
+        },
+        'conservative': {
+            'name': '🛡️ 稳健保守',
+            'conditions': [
+                '✅ BLUE ≥ 60 (有信号即可)',
+                '✅ 成交额 ≥ 10M (高流动性)',
+                '✅ 波动率 ≤ 25% (低风险)'
+            ],
+            'scoring': '评分 = 成交额×50% + 低波动×30% + BLUE×20%',
+            'target': '止盈 +8~12%, 风险比 1:1.5'
+        },
+        'aggressive': {
+            'name': '⚡ 激进突破',
+            'conditions': [
+                '✅ BLUE ≥ 90 (极强信号)',
+                '✅ ADX ≥ 30 (强趋势)',
+                '✅ 成交额 ≥ 5M'
+            ],
+            'scoring': '评分 = BLUE×70% + ADX×30%',
+            'target': '止盈 +20~30%, 风险比 1:3'
+        },
+        'multi_timeframe': {
+            'name': '🔄 多周期共振',
+            'conditions': [
+                '✅ 日线 BLUE ≥ 60',
+                '✅ 周线 BLUE ≥ 50',
+                '✅ 月线 BLUE>50 额外加分'
+            ],
+            'scoring': '评分 = 日BLUE×40% + 周BLUE×40% + 月共振+20分',
+            'target': '止盈 +15~20%, 风险比 1:2.5'
+        },
+        'reversal': {
+            'name': '🔃 超跌反弹',
+            'conditions': [
+                '✅ 有掘地(Juedi)信号',
+                '✅ BLUE ≥ 50 (反弹确认)',
+                '✅ 成交额 ≥ 1M'
+            ],
+            'scoring': '评分 = BLUE值',
+            'target': '止盈 +20~30%, 风险比 1:3'
+        },
+        'volume_breakout': {
+            'name': '📊 放量突破',
+            'conditions': [
+                '✅ 成交额排名前20%',
+                '✅ BLUE ≥ 70',
+                '✅ 量价齐升'
+            ],
+            'scoring': '评分 = 成交额×50% + BLUE×50%',
+            'target': '止盈 +12~18%, 风险比 1:2'
+        },
+        'heima': {
+            'name': '🐴 黑马形态',
+            'conditions': [
+                '✅ 有黑马(Heima)信号',
+                '✅ BLUE ≥ 60',
+                '✅ 成交额 ≥ 1M'
+            ],
+            'scoring': '评分 = BLUE×70% + ADX×30%',
+            'target': '止盈 +25~35%, 风险比 1:3'
+        }
+    }
+    
     # 动态获取所有策略
     all_strategy_keys = list(manager.strategies.keys())
     strategy_tabs = st.tabs([
@@ -1509,17 +1593,70 @@ def render_todays_picks_page():
             strategy = manager.strategies[key]
             picks = all_picks[key]
             
-            st.caption(f"💡 {strategy.description}")
+            # 显示策略详细条件
+            cond_info = strategy_conditions.get(key, {})
+            
+            st.markdown(f"**💡 策略说明**: {strategy.description}")
+            
+            # 筛选条件
+            col_cond, col_score = st.columns(2)
+            with col_cond:
+                st.markdown("**📋 筛选条件:**")
+                for cond in cond_info.get('conditions', []):
+                    st.markdown(f"  {cond}")
+            with col_score:
+                st.markdown(f"**📊 评分公式:** {cond_info.get('scoring', 'N/A')}")
+                st.markdown(f"**🎯 目标:** {cond_info.get('target', 'N/A')}")
+            
+            st.divider()
             
             if not picks:
                 st.info("暂无符合条件的股票")
                 continue
             
-            # 表格展示 (包含股票名称)
+            st.markdown(f"**找到 {len(picks)} 只符合条件的股票:**")
+            
+            # 表格展示 (包含股票名称和详细理由)
             pick_data = []
             for p in picks:
                 info = stock_info.get(p.symbol, {})
                 name = info.get('name', '') if info else ''
+                
+                # 获取原始数据用于解释
+                stock_row = df[df['symbol'] == p.symbol]
+                if not stock_row.empty:
+                    row = stock_row.iloc[0]
+                    blue_d = row.get('blue_daily', 0)
+                    blue_w = row.get('blue_weekly', 0)
+                    blue_m = row.get('blue_monthly', 0)
+                    adx = row.get('adx', 0)
+                    vol = row.get('volatility', 0)
+                    turnover = row.get('turnover_m', 0)
+                    is_heima = row.get('is_heima', False)
+                    is_juedi = row.get('is_juedi', False)
+                    
+                    # 构建详细理由
+                    details = []
+                    if key == 'momentum':
+                        details = [f"BLUE={blue_d:.0f}(≥80✓)", f"ADX={adx:.0f}(≥20✓)", f"成交={turnover:.1f}M"]
+                    elif key == 'value':
+                        details = [f"日BLUE={blue_d:.0f}", f"周BLUE={blue_w:.0f}", f"波动={vol:.1%}"]
+                    elif key == 'conservative':
+                        details = [f"成交={turnover:.1f}M(≥10M✓)", f"波动={vol:.1%}(≤25%✓)"]
+                    elif key == 'aggressive':
+                        details = [f"BLUE={blue_d:.0f}(≥90✓)", f"ADX={adx:.0f}(≥30✓)"]
+                    elif key == 'multi_timeframe':
+                        details = [f"日={blue_d:.0f}", f"周={blue_w:.0f}", f"月={blue_m:.0f}"]
+                    elif key == 'reversal':
+                        details = [f"掘地={'是' if is_juedi else '否'}", f"BLUE={blue_d:.0f}"]
+                    elif key == 'volume_breakout':
+                        details = [f"成交={turnover:.1f}M(Top20%)", f"BLUE={blue_d:.0f}"]
+                    elif key == 'heima':
+                        details = [f"黑马={'🐴是' if is_heima else '否'}", f"BLUE={blue_d:.0f}", f"ADX={adx:.0f}"]
+                    
+                    detailed_reason = " | ".join(details)
+                else:
+                    detailed_reason = p.reason
                 
                 # A股价格用人民币符号
                 price_symbol = "¥" if market == "CN" else "$"
@@ -1532,7 +1669,7 @@ def render_todays_picks_page():
                     "买入价": f"{price_symbol}{p.entry_price:.2f}",
                     "止损": f"{price_symbol}{p.stop_loss:.2f}",
                     "止盈": f"{price_symbol}{p.take_profit:.2f}",
-                    "理由": p.reason
+                    "符合条件": detailed_reason
                 })
             
             pick_df = pd.DataFrame(pick_data)
@@ -1547,10 +1684,10 @@ def render_todays_picks_page():
                     "名称": st.column_config.TextColumn("名称", width="medium"),
                     "评分": st.column_config.TextColumn("评分", width="small"),
                     "信心": st.column_config.TextColumn("信心", width="small"),
-                    "买入价": st.column_config.TextColumn("买入价", width="small"),
+                    "买入价": st.column_config.TextColumn("买入", width="small"),
                     "止损": st.column_config.TextColumn("止损", width="small"),
                     "止盈": st.column_config.TextColumn("止盈", width="small"),
-                    "理由": st.column_config.TextColumn("理由", width="medium"),
+                    "符合条件": st.column_config.TextColumn("符合条件", width="large"),
                 }
             )
             
