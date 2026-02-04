@@ -2073,20 +2073,70 @@ def render_todays_picks_page():
     # === 共识精选 (简化版) ===
     if consensus and len(consensus) > 3:
         with st.expander(f"📊 更多共识精选 ({len(consensus)-3} 只)", expanded=False):
-            cols = st.columns(min(len(consensus)-3, 5))
-            for i, (symbol, votes, avg_score) in enumerate(consensus[3:8]):
-                with cols[i % 5]:
-                    stars = "⭐" * votes
-                    info = stock_info.get(symbol, {})
-                    name = info.get('name', '')[:10] if info else ''
+            for i, (symbol, votes, avg_score) in enumerate(consensus[3:10]):  # 显示更多
+                info = stock_info.get(symbol, {})
+                name = info.get('name', '')[:15] if info else ''
+                price_symbol = "¥" if market == "CN" else "$"
+                
+                # 获取价格
+                stock_row = df[df['symbol'] == symbol] if not df.empty and 'symbol' in df.columns else pd.DataFrame()
+                price = 0
+                if not stock_row.empty:
+                    price = stock_row.iloc[0].get('price', 0) or 0
+                
+                with st.container():
+                    c1, c2, c3, c4 = st.columns([2, 2, 2, 3])
                     
-                    st.metric(
-                        label=f"{symbol}",
-                        value=f"{avg_score:.0f}分",
-                        delta=f"{votes}策略"
-                    )
-                    if name:
-                        st.caption(f"📌 {name}")
+                    with c1:
+                        stars = "⭐" * min(votes, 5)
+                        st.markdown(f"**{symbol}** {stars}")
+                        if name:
+                            st.caption(name)
+                    
+                    with c2:
+                        st.metric("评分", f"{avg_score:.0f}分", f"{votes}策略共识")
+                    
+                    with c3:
+                        if price > 0:
+                            st.metric("价格", f"{price_symbol}{price:.2f}")
+                        else:
+                            st.metric("价格", "N/A")
+                    
+                    with c4:
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            if st.button("📋 观察", key=f"more_watch_{symbol}"):
+                                try:
+                                    from services.signal_tracker import add_to_watchlist
+                                    add_to_watchlist(
+                                        symbol=symbol,
+                                        market=market,
+                                        entry_price=price,
+                                        target_price=price * 1.15 if price else 0,
+                                        stop_loss=price * 0.92 if price else 0,
+                                        signal_type='consensus',
+                                        signal_score=avg_score,
+                                        notes=f"共识精选 {votes}票"
+                                    )
+                                    st.success("✅")
+                                except Exception as e:
+                                    st.error(f"❌")
+                        
+                        with btn_col2:
+                            if price > 0:
+                                if st.button("💰 买入", key=f"more_buy_{symbol}"):
+                                    try:
+                                        from services.portfolio_service import paper_buy
+                                        shares = max(1, int(1000 / price))
+                                        result = paper_buy(symbol, shares, price, market)
+                                        if result.get('success'):
+                                            st.success(f"✅ {shares}股")
+                                        else:
+                                            st.error("❌")
+                                    except Exception as e:
+                                        st.error("❌")
+                    
+                    st.divider()
     
     # === 策略表现概览 ===
     if show_performance:
@@ -2326,6 +2376,112 @@ def render_todays_picks_page():
                     "符合条件": st.column_config.TextColumn("符合条件", width="large"),
                 }
             )
+            
+            # === 每只股票的操作区 ===
+            st.markdown("#### 💰 快捷操作")
+            
+            # 用 expander 为每只股票提供操作
+            for p_idx, p in enumerate(picks[:10]):  # 限制显示前10只
+                info = stock_info.get(p.symbol, {})
+                name = info.get('name', '')[:15] if info else ''
+                price_sym = "¥" if market == "CN" else "$"
+                
+                with st.expander(f"📊 {p.symbol} - {name} | 评分:{p.score:.0f} | {price_sym}{p.entry_price:.2f}", expanded=False):
+                    op_col1, op_col2, op_col3 = st.columns([1, 1, 2])
+                    
+                    with op_col1:
+                        # 加入观察
+                        if st.button("📋 加入观察", key=f"strat_watch_{key}_{p.symbol}"):
+                            try:
+                                from services.signal_tracker import add_to_watchlist
+                                add_to_watchlist(
+                                    symbol=p.symbol,
+                                    market=market,
+                                    entry_price=p.entry_price,
+                                    target_price=p.take_profit,
+                                    stop_loss=p.stop_loss,
+                                    signal_type=key,
+                                    signal_score=p.score,
+                                    notes=f"{strategy.name} | {p.reason}"
+                                )
+                                st.success(f"✅ 已加入观察")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"失败: {e}")
+                    
+                    with op_col2:
+                        # 模拟买入
+                        suggested_shares = max(1, int(1000 / p.entry_price)) if p.entry_price > 0 else 10
+                        shares = st.number_input("股数", min_value=1, value=suggested_shares, key=f"strat_shares_{key}_{p.symbol}")
+                        
+                        if st.button("💰 模拟买入", key=f"strat_buy_{key}_{p.symbol}", type="primary"):
+                            try:
+                                from services.portfolio_service import paper_buy
+                                result = paper_buy(p.symbol, shares, p.entry_price, market)
+                                if result.get('success'):
+                                    st.success(f"✅ 买入 {p.symbol} x {shares}股")
+                                    st.balloons()
+                                else:
+                                    st.error(f"❌ {result.get('error')}")
+                            except Exception as e:
+                                st.error(f"❌ {e}")
+                    
+                    with op_col3:
+                        # 交易计划
+                        st.markdown("**📋 交易计划:**")
+                        st.markdown(f"🎯 目标: {price_sym}{p.take_profit:.2f}")
+                        st.markdown(f"🛑 止损: {price_sym}{p.stop_loss:.2f}")
+                        rr = (p.take_profit - p.entry_price) / (p.entry_price - p.stop_loss) if p.entry_price > p.stop_loss else 0
+                        st.markdown(f"📊 风险比: 1:{rr:.1f}")
+                    
+                    # 详情标签页
+                    detail_t1, detail_t2 = st.tabs(["📈 K线", "🤖 AI诊断"])
+                    
+                    with detail_t1:
+                        try:
+                            from data_fetcher import get_stock_data
+                            import plotly.graph_objects as go
+                            
+                            hist = get_stock_data(p.symbol, market=market, days=90)
+                            if hist is not None and not hist.empty:
+                                fig = go.Figure(data=[go.Candlestick(
+                                    x=hist.index, open=hist['Open'], high=hist['High'],
+                                    low=hist['Low'], close=hist['Close']
+                                )])
+                                ma5 = hist['Close'].rolling(5).mean()
+                                ma20 = hist['Close'].rolling(20).mean()
+                                fig.add_trace(go.Scatter(x=hist.index, y=ma5, name='MA5', line=dict(color='yellow', width=1)))
+                                fig.add_trace(go.Scatter(x=hist.index, y=ma20, name='MA20', line=dict(color='orange', width=1)))
+                                fig.update_layout(height=300, template="plotly_dark", xaxis_rangeslider_visible=False, showlegend=False)
+                                st.plotly_chart(fig, use_container_width=True, key=f"strat_chart_{key}_{p.symbol}")
+                            else:
+                                st.warning("无历史数据")
+                        except Exception as e:
+                            st.error(f"图表加载失败: {e}")
+                    
+                    with detail_t2:
+                        if st.button("🚀 启动AI诊断", key=f"strat_ai_{key}_{p.symbol}"):
+                            with st.spinner("分析中..."):
+                                try:
+                                    from ml.llm_intelligence import LLMAnalyzer
+                                    analyzer = LLMAnalyzer(provider='gemini')
+                                    stock_data = {
+                                        'symbol': p.symbol, 'price': p.entry_price,
+                                        'blue_daily': 80, 'blue_weekly': 70,
+                                        'ma5': p.entry_price * 0.98, 'ma20': p.entry_price * 0.94,
+                                        'rsi': 50, 'volume_ratio': 1.2
+                                    }
+                                    result = analyzer.generate_decision_dashboard(stock_data, "")
+                                    
+                                    signal = result.get('signal', 'HOLD')
+                                    colors = {"BUY": "🟢买入", "SELL": "🔴卖出", "HOLD": "🟡观望"}
+                                    st.markdown(f"### {colors.get(signal, '🟡观望')}")
+                                    st.markdown(f"📌 {result.get('verdict', '分析中...')}")
+                                    st.caption(f"置信度: {result.get('confidence', 0)}%")
+                                except Exception as e:
+                                    st.error(f"AI诊断失败: {e}")
+                        else:
+                            st.info("点击按钮启动AI分析")
             
             # === 回测追踪 ===
             if show_backtest and len(dates) > 1:
