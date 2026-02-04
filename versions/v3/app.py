@@ -1873,6 +1873,200 @@ def render_todays_picks_page():
                                 st.error(f"❌ 买入异常: {e}")
                 
                 st.markdown("</div>", unsafe_allow_html=True)
+                
+                # === 📊 详细信息展开区域 ===
+                with st.expander(f"📊 {pick['symbol']} 详细分析", expanded=False):
+                    detail_tabs = st.tabs(["📈 K线图表", "🔍 技术指标", "🤖 AI诊断", "🗣️ 舆情分析"])
+                    
+                    with detail_tabs[0]:  # K线图表
+                        try:
+                            from data_fetcher import get_stock_data
+                            hist_data = get_stock_data(pick['symbol'], market=market, days=180)
+                            
+                            if hist_data is not None and not hist_data.empty:
+                                import plotly.graph_objects as go
+                                
+                                fig = go.Figure(data=[go.Candlestick(
+                                    x=hist_data.index,
+                                    open=hist_data['Open'],
+                                    high=hist_data['High'],
+                                    low=hist_data['Low'],
+                                    close=hist_data['Close'],
+                                    name='K线'
+                                )])
+                                
+                                # 添加均线
+                                ma5 = hist_data['Close'].rolling(5).mean()
+                                ma20 = hist_data['Close'].rolling(20).mean()
+                                ma60 = hist_data['Close'].rolling(60).mean()
+                                
+                                fig.add_trace(go.Scatter(x=hist_data.index, y=ma5, name='MA5', line=dict(color='yellow', width=1)))
+                                fig.add_trace(go.Scatter(x=hist_data.index, y=ma20, name='MA20', line=dict(color='orange', width=1)))
+                                fig.add_trace(go.Scatter(x=hist_data.index, y=ma60, name='MA60', line=dict(color='purple', width=1)))
+                                
+                                fig.update_layout(
+                                    title=f"{pick['symbol']} 日K线",
+                                    xaxis_title="日期",
+                                    yaxis_title="价格",
+                                    template="plotly_dark",
+                                    height=400,
+                                    xaxis_rangeslider_visible=False
+                                )
+                                st.plotly_chart(fig, use_container_width=True, key=f"chart_{pick['symbol']}")
+                                
+                                # 成交量
+                                vol_fig = go.Figure(data=[go.Bar(
+                                    x=hist_data.index,
+                                    y=hist_data['Volume'],
+                                    name='成交量',
+                                    marker_color='rgba(100,149,237,0.6)'
+                                )])
+                                vol_fig.update_layout(
+                                    title="成交量",
+                                    height=150,
+                                    template="plotly_dark",
+                                    showlegend=False
+                                )
+                                st.plotly_chart(vol_fig, use_container_width=True, key=f"vol_{pick['symbol']}")
+                            else:
+                                st.warning("无法获取历史数据")
+                        except Exception as e:
+                            st.error(f"图表加载失败: {e}")
+                    
+                    with detail_tabs[1]:  # 技术指标
+                        ind_col1, ind_col2 = st.columns(2)
+                        with ind_col1:
+                            st.markdown("### 🟦 BLUE 信号")
+                            st.metric("日线 BLUE", f"{pick['day_blue']:.0f}", 
+                                     delta="强势" if pick['day_blue'] > 100 else "弱势",
+                                     delta_color="normal" if pick['day_blue'] > 100 else "inverse")
+                            st.metric("周线 BLUE", f"{pick['week_blue']:.0f}",
+                                     delta="强势" if pick['week_blue'] > 100 else "弱势", 
+                                     delta_color="normal" if pick['week_blue'] > 100 else "inverse")
+                        
+                        with ind_col2:
+                            st.markdown("### 📊 交易计划")
+                            st.metric("目标价", f"{price_symbol}{pick['target']:.2f}", delta="+15%")
+                            st.metric("止损价", f"{price_symbol}{pick['stop_loss']:.2f}", delta="-8%", delta_color="inverse")
+                            rr_ratio = (pick['target'] - pick['price']) / (pick['price'] - pick['stop_loss']) if pick['price'] > pick['stop_loss'] else 0
+                            st.metric("风险收益比", f"1:{rr_ratio:.1f}")
+                        
+                        # 尝试获取更多指标
+                        try:
+                            # 从扫描结果获取更多数据
+                            scan_match = df[df['symbol'] == pick['symbol']] if not df.empty and 'symbol' in df.columns else pd.DataFrame()
+                            if not scan_match.empty:
+                                row = scan_match.iloc[0]
+                                st.divider()
+                                st.markdown("### 📈 更多指标")
+                                
+                                more_cols = st.columns(4)
+                                with more_cols[0]:
+                                    adx = row.get('adx', 0) or 0
+                                    st.metric("ADX", f"{adx:.0f}", delta="趋势强" if adx > 25 else "趋势弱")
+                                with more_cols[1]:
+                                    month_blue = row.get('blue_monthly', 0) or 0
+                                    st.metric("月线 BLUE", f"{month_blue:.0f}")
+                                with more_cols[2]:
+                                    # 黑马信号
+                                    heima_d = row.get('heima_daily', False) or row.get('Heima_Daily', False)
+                                    heima_w = row.get('heima_weekly', False) or row.get('Heima_Weekly', False)
+                                    heima_m = row.get('heima_monthly', False) or row.get('Heima_Monthly', False)
+                                    heima_str = f"{'日🐴' if heima_d else ''} {'周🐴' if heima_w else ''} {'月🐴' if heima_m else ''}"
+                                    st.metric("黑马信号", heima_str if heima_str.strip() else "无")
+                                with more_cols[3]:
+                                    regime = row.get('regime', '-') or '-'
+                                    st.metric("市场状态", regime[:8])
+                        except Exception as e:
+                            pass
+                    
+                    with detail_tabs[2]:  # AI诊断
+                        if st.button("🚀 启动 AI 诊断", key=f"ai_diag_{pick['symbol']}", type="primary"):
+                            with st.spinner("🤖 AI 正在分析..."):
+                                try:
+                                    from ml.llm_intelligence import LLMAnalyzer
+                                    
+                                    stock_data = {
+                                        'symbol': pick['symbol'],
+                                        'price': pick['price'],
+                                        'blue_daily': pick['day_blue'],
+                                        'blue_weekly': pick['week_blue'],
+                                        'ma5': pick['price'] * 0.98,
+                                        'ma10': pick['price'] * 0.96,
+                                        'ma20': pick['price'] * 0.94,
+                                        'rsi': 50,
+                                        'volume_ratio': 1.2
+                                    }
+                                    
+                                    analyzer = LLMAnalyzer(provider='gemini')
+                                    result = analyzer.generate_decision_dashboard(stock_data, "")
+                                    
+                                    # 显示结果
+                                    signal = result.get('signal', 'HOLD')
+                                    confidence = result.get('confidence', 0)
+                                    verdict = result.get('verdict', '分析中...')
+                                    
+                                    signal_colors = {
+                                        "BUY": ("#00C853", "🟢", "买入"),
+                                        "SELL": ("#FF1744", "🔴", "卖出"),
+                                        "HOLD": ("#FFD600", "🟡", "观望")
+                                    }
+                                    color, icon, label = signal_colors.get(signal, ("#FFD600", "🟡", "观望"))
+                                    
+                                    st.markdown(f"""
+                                    <div style="background: linear-gradient(135deg, {color}22, {color}11); 
+                                                border-left: 4px solid {color}; 
+                                                padding: 16px; border-radius: 8px;">
+                                        <h3 style="margin: 0; color: {color};">{icon} {label}</h3>
+                                        <p style="margin: 8px 0 0 0;">📌 {verdict}</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                    # 价位建议
+                                    p1, p2, p3 = st.columns(3)
+                                    entry = result.get('entry_price', pick['price'])
+                                    stop = result.get('stop_loss', pick['stop_loss'])
+                                    target = result.get('target_price', pick['target'])
+                                    
+                                    p1.metric("🎯 买入价", f"{price_symbol}{entry:.2f}")
+                                    p2.metric("🛑 止损价", f"{price_symbol}{stop:.2f}")
+                                    p3.metric("🚀 目标价", f"{price_symbol}{target:.2f}")
+                                    
+                                    st.caption(f"📊 置信度: {confidence}%")
+                                    
+                                except Exception as e:
+                                    st.error(f"AI诊断失败: {e}")
+                        else:
+                            st.info("点击上方按钮启动 AI 智能诊断")
+                    
+                    with detail_tabs[3]:  # 舆情分析
+                        if st.button("🔍 分析舆情", key=f"social_{pick['symbol']}", type="primary"):
+                            with st.spinner(f"正在扫描 {pick['symbol']} 社区讨论..."):
+                                try:
+                                    from services.social_monitor import get_social_service
+                                    svc = get_social_service()
+                                    report = svc.get_social_report(pick['symbol'], market=market)
+                                    
+                                    s_col1, s_col2, s_col3 = st.columns(3)
+                                    s_col1.metric("🐂 看多", report['bullish_count'])
+                                    s_col2.metric("🐻 看空", report['bearish_count'])
+                                    s_col3.metric("😶 中性", report['neutral_count'])
+                                    
+                                    if report['posts']:
+                                        st.markdown("#### 🔥 热门讨论")
+                                        for p in report['posts'][:3]:
+                                            icon = "🐦" if p.platform == "Twitter" else "🤖"
+                                            sent_emoji = "🟢" if p.sentiment == "Bullish" else "🔴" if p.sentiment == "Bearish" else "⚪"
+                                            st.markdown(f"**{icon} {p.title}**")
+                                            st.caption(f"{sent_emoji} {p.sentiment} | {p.snippet[:80]}...")
+                                            st.divider()
+                                    else:
+                                        st.info("暂无相关讨论")
+                                        
+                                except Exception as e:
+                                    st.error(f"舆情分析失败: {e}")
+                        else:
+                            st.info("点击上方按钮分析社区舆情")
         
         st.divider()
     
