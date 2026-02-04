@@ -284,6 +284,13 @@ def load_scan_results_from_db(scan_date=None, market=None):
         }
         df.rename(columns=col_map, inplace=True)
         
+        # 转换布尔字段 (SQLite 存储为字节 b'\x00'/b'\x01')
+        bool_cols = ['Is_Heima', 'Is_Juedi', 'Heima_Daily', 'Heima_Weekly', 'Heima_Monthly', 
+                     'Juedi_Daily', 'Juedi_Weekly', 'Juedi_Monthly', 'Strat_D_Trend', 'Strat_C_Resonance']
+        for col in bool_cols:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: x == b'\x01' or x == 1 or x == True if x is not None else False)
+        
         # 格式化市值
         if 'Mkt Cap Raw' in df.columns:
             df['Mkt Cap'] = pd.to_numeric(df['Mkt Cap Raw'], errors='coerce').fillna(0) / 1_000_000_000
