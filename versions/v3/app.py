@@ -1836,8 +1836,41 @@ def render_todays_picks_page():
                             st.rerun()
                         except Exception as e:
                             st.error(f"添加失败: {e}")
-                    if st.button("💰 模拟买入", key=f"buy_{pick['symbol']}"):
-                        st.info(f"请前往「组合管理」页面进行模拟买入")
+                    
+                    # 模拟买入 - 使用 expander 显示买入表单
+                    with st.expander("💰 模拟买入", expanded=False):
+                        buy_key = f"buy_shares_{pick['symbol']}"
+                        # 计算建议股数 (基于$1000风险敞口)
+                        suggested_shares = max(1, int(1000 / pick['price'])) if pick['price'] > 0 else 10
+                        
+                        shares_to_buy = st.number_input(
+                            "买入股数",
+                            min_value=1,
+                            value=suggested_shares,
+                            step=1,
+                            key=buy_key
+                        )
+                        
+                        buy_cost = shares_to_buy * pick['price']
+                        st.caption(f"预计花费: {price_symbol}{buy_cost:,.2f}")
+                        
+                        if st.button("✅ 确认买入", key=f"confirm_buy_{pick['symbol']}"):
+                            try:
+                                from services.portfolio_service import paper_buy
+                                result = paper_buy(
+                                    symbol=pick['symbol'],
+                                    shares=shares_to_buy,
+                                    price=pick['price'],
+                                    market=market
+                                )
+                                if result.get('success'):
+                                    st.success(f"✅ 买入成功! {pick['symbol']} x {shares_to_buy}股 @ {price_symbol}{pick['price']:.2f}")
+                                    st.caption(f"佣金: {price_symbol}{result.get('commission', 0):.2f} | 余额: {price_symbol}{result.get('new_balance', 0):,.2f}")
+                                    st.balloons()
+                                else:
+                                    st.error(f"❌ 买入失败: {result.get('error', '未知错误')}")
+                            except Exception as e:
+                                st.error(f"❌ 买入异常: {e}")
                 
                 st.markdown("</div>", unsafe_allow_html=True)
         
