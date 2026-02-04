@@ -1,111 +1,111 @@
 {
-  "date": "2026-02-03",
+  "date": "2026-02-04",
   "market": "CN",
-  "total_signals": 310,
+  "total_signals": 121,
   "top_signals": [
-    {
-      "symbol": "002024.SZ",
-      "name": "ST易购",
-      "price": 1.53,
-      "day_blue": 200.0,
-      "week_blue": 133.2
-    },
-    {
-      "symbol": "920002.BJ",
-      "name": "万达轴承",
-      "price": 102.5,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920651.BJ",
-      "name": "天罡股份",
-      "price": 35.75,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920978.BJ",
-      "name": "开特股份",
-      "price": 29.35,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920392.BJ",
-      "name": "佳合科技",
-      "price": 25.65,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920436.BJ",
-      "name": "大地电气",
-      "price": 16.81,
-      "day_blue": 200.0,
-      "week_blue": 141.3
-    },
-    {
-      "symbol": "601825.SH",
-      "name": "沪农商行",
-      "price": 8.24,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002514.SZ",
-      "name": "宝馨科技",
-      "price": 4.87,
-      "day_blue": 200.0,
-      "week_blue": 75.2
-    },
     {
       "symbol": "002936.SZ",
       "name": "郑州银行",
-      "price": 1.89,
-      "day_blue": 197.3,
+      "price": 1.91,
+      "day_blue": 200.0,
       "week_blue": 132.9
     },
     {
       "symbol": "002653.SZ",
       "name": "海思科",
-      "price": 47.5,
-      "day_blue": 177.1,
+      "price": 47.07,
+      "day_blue": 200.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "301557.SZ",
-      "name": "常友科技",
-      "price": 100.99,
-      "day_blue": 176.0,
-      "week_blue": 0.0
+      "symbol": "002024.SZ",
+      "name": "ST易购",
+      "price": 1.56,
+      "day_blue": 200.0,
+      "week_blue": 133.2
     },
     {
       "symbol": "300841.SZ",
       "name": "康华生物",
-      "price": 70.03,
-      "day_blue": 174.9,
+      "price": 68.78,
+      "day_blue": 190.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "002124.SZ",
-      "name": "天邦食品",
-      "price": 2.49,
-      "day_blue": 174.1,
-      "week_blue": 155.1
-    },
-    {
-      "symbol": "002262.SZ",
-      "name": "恩华药业",
-      "price": 22.82,
-      "day_blue": 171.0,
+      "symbol": "301209.SZ",
+      "name": "联合化学",
+      "price": 93.04,
+      "day_blue": 177.1,
       "week_blue": 0.0
     },
     {
-      "symbol": "002052.SZ",
-      "name": "同洲电子",
-      "price": 11.45,
-      "day_blue": 167.3,
+      "symbol": "600027.SH",
+      "name": "华电国际",
+      "price": 4.88,
+      "day_blue": 171.2,
+      "week_blue": 113.9
+    },
+    {
+      "symbol": "688656.SH",
+      "name": "浩欧博",
+      "price": 140.89,
+      "day_blue": 168.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000016.SZ",
+      "name": "深康佳Ａ",
+      "price": 3.83,
+      "day_blue": 162.1,
+      "week_blue": 68.8
+    },
+    {
+      "symbol": "920663.BJ",
+      "name": "明阳科技",
+      "price": 16.94,
+      "day_blue": 153.5,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301631.SZ",
+      "name": "壹连科技",
+      "price": 96.31,
+      "day_blue": 148.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002907.SZ",
+      "name": "华森制药",
+      "price": 14.91,
+      "day_blue": 147.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300910.SZ",
+      "name": "瑞丰新材",
+      "price": 54.3,
+      "day_blue": 145.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300791.SZ",
+      "name": "仙乐健康",
+      "price": 21.87,
+      "day_blue": 141.0,
+      "week_blue": 84.4
+    },
+    {
+      "symbol": "688577.SH",
+      "name": "浙海德曼",
+      "price": 73.99,
+      "day_blue": 137.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688566.SH",
+      "name": "吉贝尔",
+      "price": 28.09,
+      "day_blue": 133.5,
       "week_blue": 0.0
     }
   ]
