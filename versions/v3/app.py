@@ -7782,6 +7782,205 @@ def render_external_strategies_tab():
         st.code(traceback.format_exc())
 
 
+def render_article_crawler_tab():
+    """🔍 文章爬取与策略分析 - 自动爬取量化博客文章"""
+    st.subheader("🔍 量化博客文章爬取")
+    st.caption("自动爬取中英文量化博客，分析其中的策略并回测验证")
+    
+    # 数据源列表
+    st.markdown("### 📚 数据源")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**🇺🇸 英文源**")
+        en_sources = [
+            ("Quantocracy", "量化聚合站", "https://quantocracy.com/"),
+            ("Alpha Architect", "因子研究", "https://alphaarchitect.com/blog/"),
+            ("Quantpedia", "策略库", "https://quantpedia.com/blog/"),
+            ("SSRN Finance", "学术论文", "https://papers.ssrn.com/"),
+            ("QuantStart", "量化教程", "https://www.quantstart.com/"),
+        ]
+        for name, cat, url in en_sources:
+            st.markdown(f"• **{name}** - {cat}")
+    
+    with col2:
+        st.markdown("**🇨🇳 中文源**")
+        cn_sources = [
+            ("雪球热帖", "社区热门", "https://xueqiu.com/"),
+            ("聚宽社区", "量化策略", "https://www.joinquant.com/"),
+            ("米筐研究", "量化策略", "https://www.ricequant.com/"),
+            ("同花顺量化", "量化资讯", "https://quant.10jqka.com.cn/"),
+        ]
+        for name, cat, url in cn_sources:
+            st.markdown(f"• **{name}** - {cat}")
+    
+    st.divider()
+    
+    # 爬取控制
+    st.markdown("### 🚀 爬取文章")
+    
+    col_fetch1, col_fetch2 = st.columns(2)
+    
+    with col_fetch1:
+        fetch_lang = st.radio("选择语言", ["全部", "英文", "中文"], horizontal=True)
+    
+    with col_fetch2:
+        use_llm = st.checkbox("使用 LLM 分析策略", value=False, 
+                              help="使用 GPT-4 提取更精准的策略，需要 OPENAI_API_KEY")
+    
+    if st.button("🔍 开始爬取", type="primary"):
+        try:
+            from services.blogger_tracker import (
+                ArticleFetcher, StrategyExtractor, StrategyBacktester,
+                BloggerTrackerDB
+            )
+            
+            with st.spinner("正在爬取文章..."):
+                fetcher = ArticleFetcher()
+                results = fetcher.fetch_all(save=True)
+                
+                en_count = len(results.get('en', []))
+                cn_count = len(results.get('cn', []))
+                
+                st.success(f"✅ 爬取完成! 英文: {en_count} 篇, 中文: {cn_count} 篇")
+            
+            # 分析策略
+            if en_count + cn_count > 0:
+                with st.spinner("正在分析策略..."):
+                    db = BloggerTrackerDB()
+                    extractor = StrategyExtractor()
+                    
+                    articles = db.get_recent_articles(days=1)
+                    strategies_found = 0
+                    
+                    progress = st.progress(0)
+                    for i, article in enumerate(articles):
+                        if use_llm:
+                            strategy = extractor.extract_strategy_with_llm(article)
+                        else:
+                            strategy = extractor.extract_strategy_rule_based(article)
+                        
+                        if strategy:
+                            db.save_strategy(strategy)
+                            strategies_found += 1
+                        
+                        progress.progress((i + 1) / len(articles))
+                    
+                    progress.empty()
+                    st.success(f"✅ 分析完成! 提取了 {strategies_found} 个策略")
+                    
+                    # 回测
+                    if strategies_found > 0:
+                        with st.spinner("正在回测策略..."):
+                            backtester = StrategyBacktester()
+                            strategies_list = db.get_strategies_with_backtests()
+                            
+                            backtest_count = 0
+                            for strategy in strategies_list:
+                                if strategy.get('total_return') is None:
+                                    result = backtester.backtest_extracted_strategy(strategy)
+                                    if result:
+                                        db.save_backtest(result)
+                                        backtest_count += 1
+                            
+                            st.success(f"✅ 回测完成! 回测了 {backtest_count} 个策略")
+        
+        except ImportError as e:
+            st.error(f"需要安装依赖: {e}")
+            st.code("pip install beautifulsoup4 lxml")
+        except Exception as e:
+            st.error(f"爬取失败: {e}")
+    
+    st.divider()
+    
+    # 显示已爬取的文章
+    st.markdown("### 📰 最新文章")
+    
+    try:
+        from services.blogger_tracker import BloggerTrackerDB
+        
+        db = BloggerTrackerDB()
+        articles = db.get_recent_articles(days=7)
+        
+        if articles:
+            article_df = pd.DataFrame([
+                {
+                    '来源': a['source'],
+                    '标题': a['title'][:50] + '...' if len(a['title']) > 50 else a['title'],
+                    '作者': a['author'],
+                    '类别': a['category'],
+                    '语言': '🇨🇳' if a['language'] == 'cn' else '🇺🇸',
+                    '日期': a['publish_date'],
+                    '已分析': '✅' if a.get('analyzed') else '❌'
+                }
+                for a in articles[:30]
+            ])
+            
+            st.dataframe(article_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("暂无文章，请点击「开始爬取」")
+    except Exception as e:
+        st.warning(f"加载文章失败: {e}")
+    
+    st.divider()
+    
+    # 策略排行榜
+    st.markdown("### 🏆 策略排行榜")
+    st.caption("根据回测结果排序，展示最有效的策略")
+    
+    try:
+        from services.blogger_tracker import BloggerTrackerDB
+        
+        db = BloggerTrackerDB()
+        strategies = db.get_strategies_with_backtests()
+        
+        # 只显示有回测结果的
+        strategies_with_bt = [s for s in strategies if s.get('total_return') is not None]
+        
+        if strategies_with_bt:
+            # 按收益排序
+            strategies_with_bt.sort(key=lambda x: x.get('sharpe_ratio', 0) or 0, reverse=True)
+            
+            strat_df = pd.DataFrame([
+                {
+                    '策略名称': s['strategy_name'][:40],
+                    '类型': s['strategy_type'],
+                    '来源文章': s.get('article_title', '')[:30] if s.get('article_title') else '-',
+                    '总收益': f"{s['total_return']:.1f}%" if s.get('total_return') else '-',
+                    'Sharpe': f"{s['sharpe_ratio']:.2f}" if s.get('sharpe_ratio') else '-',
+                    '最大回撤': f"{s['max_drawdown']:.1f}%" if s.get('max_drawdown') else '-',
+                    '胜率': f"{s['win_rate']:.0f}%" if s.get('win_rate') else '-',
+                    '有效': '✅' if s.get('is_profitable') else '❌'
+                }
+                for s in strategies_with_bt[:20]
+            ])
+            
+            st.dataframe(
+                strat_df, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "策略名称": st.column_config.TextColumn("策略名称", width="large"),
+                    "类型": st.column_config.TextColumn("类型", width="small"),
+                    "来源文章": st.column_config.TextColumn("来源", width="medium"),
+                    "总收益": st.column_config.TextColumn("收益", width="small"),
+                    "Sharpe": st.column_config.TextColumn("Sharpe", width="small"),
+                    "最大回撤": st.column_config.TextColumn("回撤", width="small"),
+                    "胜率": st.column_config.TextColumn("胜率", width="small"),
+                    "有效": st.column_config.TextColumn("有效", width="small"),
+                }
+            )
+            
+            # 统计
+            profitable_count = sum(1 for s in strategies_with_bt if s.get('is_profitable'))
+            st.info(f"📊 统计: {len(strategies_with_bt)} 个策略已回测, {profitable_count} 个盈利 ({profitable_count/len(strategies_with_bt)*100:.0f}%)")
+        else:
+            st.info("暂无回测结果，请先爬取并分析文章")
+    except Exception as e:
+        st.warning(f"加载策略失败: {e}")
+
+
 def render_strategy_backtest_tab():
     """🧪 策略回测 - 回测外部策略"""
     st.subheader("🧪 外部策略回测")
@@ -7896,12 +8095,13 @@ def render_blogger_page():
     # 确保表存在
     init_blogger_tables()
     
-    tab_bloggers, tab_recs, tab_perf, tab_external, tab_backtest = st.tabs([
+    tab_bloggers, tab_recs, tab_perf, tab_external, tab_backtest, tab_crawler = st.tabs([
         "👤 博主管理",
         "📝 推荐记录", 
         "🏆 业绩排行",
         "📊 外部策略",
-        "🧪 策略回测"
+        "🧪 策略回测",
+        "🔍 文章爬取"
     ])
     
     # === Tab 4: 外部策略 ===
@@ -7911,6 +8111,10 @@ def render_blogger_page():
     # === Tab 5: 策略回测 ===
     with tab_backtest:
         render_strategy_backtest_tab()
+    
+    # === Tab 6: 文章爬取与策略分析 ===
+    with tab_crawler:
+        render_article_crawler_tab()
     
     # === Tab 1: 博主管理 ===
     with tab_bloggers:
