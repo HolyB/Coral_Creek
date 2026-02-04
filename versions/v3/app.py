@@ -2582,6 +2582,40 @@ def render_scan_page():
     count_month = len(df_month)
     count_special = len(df_special)
     
+    # === 🐴 黑马快捷筛选 (在表格上方，更明显) ===
+    st.markdown("---")
+    heima_col1, heima_col2, heima_col3, heima_col4, heima_col5 = st.columns(5)
+    with heima_col1:
+        show_all = st.button("🔄 全部", key="heima_all", use_container_width=True)
+        if show_all:
+            st.session_state['heima_filter'] = '全部'
+            st.rerun()
+    with heima_col2:
+        show_daily = st.button("🐴 日黑马", key="heima_d", use_container_width=True)
+        if show_daily:
+            st.session_state['heima_filter'] = '有日黑马'
+            st.rerun()
+    with heima_col3:
+        show_weekly = st.button("🐴 周黑马", key="heima_w", use_container_width=True)
+        if show_weekly:
+            st.session_state['heima_filter'] = '有周黑马'
+            st.rerun()
+    with heima_col4:
+        show_monthly = st.button("🐴 月黑马", key="heima_m", use_container_width=True)
+        if show_monthly:
+            st.session_state['heima_filter'] = '有月黑马'
+            st.rerun()
+    with heima_col5:
+        show_any = st.button("🐴 任意黑马", key="heima_any", use_container_width=True)
+        if show_any:
+            st.session_state['heima_filter'] = '有任意黑马'
+            st.rerun()
+    
+    # 显示当前黑马筛选状态
+    current_filter = st.session_state.get('heima_filter', '全部')
+    if current_filter != '全部':
+        st.info(f"🐴 当前筛选: **{current_filter}** (共 {len(df)} 只)")
+    
     # 创建标签页 (增加板块热度)
     tab_day_only, tab_day_week, tab_month, tab_special, tab_sector = st.tabs([
         f"📈 只日线 ({count_day_only})",
@@ -2675,15 +2709,16 @@ def render_scan_page():
             scan_tickers = df['Ticker'].tolist()
             scope_label = "当前信号股"
         else:
-            # 全量扫描 - 从数据库获取市场所有股票
-            from db.database import get_stock_info_batch
+            # 全量扫描 - 从 Polygon API 获取所有股票
             try:
-                # 获取市场所有股票信息
-                all_stocks = get_stock_info_batch(None)  # 获取所有
+                from data_fetcher import get_all_us_tickers, get_all_cn_tickers
                 if selected_market == 'CN':
-                    scan_tickers = [s['symbol'] for s in all_stocks if s.get('market') == 'CN']
+                    scan_tickers = get_all_cn_tickers()
                 else:
-                    scan_tickers = [s['symbol'] for s in all_stocks if s.get('market') == 'US']
+                    scan_tickers = get_all_us_tickers()
+                # 限制数量，避免太慢
+                if len(scan_tickers) > 3000:
+                    scan_tickers = scan_tickers[:3000]
                 scope_label = f"全量扫描 ({len(scan_tickers)} 只)"
             except Exception as e:
                 scan_tickers = df['Ticker'].tolist()
