@@ -1356,21 +1356,98 @@ def render_todays_picks_page():
         with stage_tabs[0]:
             st.caption("昨日新发现的高质量信号")
             if not df.empty:
-                # 显示强信号
-                display_df = df.head(10)
+                # 显示强信号，添加详细黑马标识
+                display_df = df.head(20).copy()
+                
                 if 'symbol' in display_df.columns:
-                    show_cols = ['symbol', 'blue_daily', 'blue_weekly', 'adx', 'price', 'is_heima']
+                    # 构建独立的黑马列 - 分别显示日🐴、周🐴、月🐴
+                    def check_heima(row, level):
+                        """检查指定级别的黑马信号"""
+                        key_map = {
+                            'daily': ['Heima_Daily', 'heima_daily'],
+                            'weekly': ['Heima_Weekly', 'heima_weekly'],
+                            'monthly': ['Heima_Monthly', 'heima_monthly']
+                        }
+                        for key in key_map.get(level, []):
+                            val = row.get(key)
+                            if val == True or val == 1 or val == b'\x01':
+                                return '🐴'
+                        return ''
+                    
+                    def check_juedi(row, level):
+                        """检查指定级别的掘地信号"""
+                        key_map = {
+                            'daily': ['Juedi_Daily', 'juedi_daily'],
+                            'weekly': ['Juedi_Weekly', 'juedi_weekly'],
+                            'monthly': ['Juedi_Monthly', 'juedi_monthly']
+                        }
+                        for key in key_map.get(level, []):
+                            val = row.get(key)
+                            if val == True or val == 1 or val == b'\x01':
+                                return '⛏️'
+                        return ''
+                    
+                    # 创建独立的黑马列
+                    display_df['日🐴'] = display_df.apply(lambda r: check_heima(r, 'daily'), axis=1)
+                    display_df['周🐴'] = display_df.apply(lambda r: check_heima(r, 'weekly'), axis=1)
+                    display_df['月🐴'] = display_df.apply(lambda r: check_heima(r, 'monthly'), axis=1)
+                    
+                    # 创建独立的掘地列
+                    display_df['日⛏️'] = display_df.apply(lambda r: check_juedi(r, 'daily'), axis=1)
+                    display_df['周⛏️'] = display_df.apply(lambda r: check_juedi(r, 'weekly'), axis=1)
+                    display_df['月⛏️'] = display_df.apply(lambda r: check_juedi(r, 'monthly'), axis=1)
+                    
+                    # 选择显示列 - 使用独立的黑马/掘地列
+                    show_cols = ['symbol', 'blue_daily', 'blue_weekly', 'blue_monthly', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', 'adx', 'price']
                     show_cols = [c for c in show_cols if c in display_df.columns]
                     
+                    # 格式化数值
+                    formatted_df = display_df[show_cols].copy()
+                    if 'blue_daily' in formatted_df.columns:
+                        formatted_df['blue_daily'] = formatted_df['blue_daily'].fillna(0).astype(float).round(0).astype(int)
+                    if 'blue_weekly' in formatted_df.columns:
+                        formatted_df['blue_weekly'] = formatted_df['blue_weekly'].fillna(0).astype(float).round(0).astype(int)
+                    if 'blue_monthly' in formatted_df.columns:
+                        formatted_df['blue_monthly'] = formatted_df['blue_monthly'].fillna(0).astype(float).round(0).astype(int)
+                    if 'adx' in formatted_df.columns:
+                        formatted_df['adx'] = formatted_df['adx'].fillna(0).astype(float).round(0).astype(int)
+                    if 'price' in formatted_df.columns:
+                        formatted_df['price'] = formatted_df['price'].apply(lambda x: f"${x:.2f}" if x else "-")
+                    
                     st.dataframe(
-                        display_df[show_cols].rename(columns={
-                            'symbol': '代码', 'blue_daily': '日BLUE', 
-                            'blue_weekly': '周BLUE', 'adx': 'ADX',
-                            'price': '价格', 'is_heima': '黑马'
+                        formatted_df.rename(columns={
+                            'symbol': '代码', 'blue_daily': '日B', 
+                            'blue_weekly': '周B', 'blue_monthly': '月B',
+                            'adx': 'ADX', 'price': '价格'
                         }),
                         use_container_width=True,
-                        hide_index=True
+                        hide_index=True,
+                        column_config={
+                            "代码": st.column_config.TextColumn("代码", width="small"),
+                            "日B": st.column_config.NumberColumn("日B", width="small"),
+                            "周B": st.column_config.NumberColumn("周B", width="small"),
+                            "月B": st.column_config.NumberColumn("月B", width="small"),
+                            "日🐴": st.column_config.TextColumn("日🐴", width="small", help="日线黑马信号"),
+                            "周🐴": st.column_config.TextColumn("周🐴", width="small", help="周线黑马信号"),
+                            "月🐴": st.column_config.TextColumn("月🐴", width="small", help="月线黑马信号"),
+                            "日⛏️": st.column_config.TextColumn("日⛏️", width="small", help="日线掘地信号"),
+                            "周⛏️": st.column_config.TextColumn("周⛏️", width="small", help="周线掘地信号"),
+                            "月⛏️": st.column_config.TextColumn("月⛏️", width="small", help="月线掘地信号"),
+                            "ADX": st.column_config.NumberColumn("ADX", width="small"),
+                            "价格": st.column_config.TextColumn("价格", width="small"),
+                        }
                     )
+                    
+                    # 显示黑马统计
+                    day_heima = len([h for h in display_df['日🐴'] if h == '🐴'])
+                    week_heima = len([h for h in display_df['周🐴'] if h == '🐴'])
+                    month_heima = len([h for h in display_df['月🐴'] if h == '🐴'])
+                    day_juedi = len([h for h in display_df['日⛏️'] if h == '⛏️'])
+                    week_juedi = len([h for h in display_df['周⛏️'] if h == '⛏️'])
+                    month_juedi = len([h for h in display_df['月⛏️'] if h == '⛏️'])
+                    
+                    if day_heima + week_heima + month_heima > 0 or day_juedi + week_juedi + month_juedi > 0:
+                        st.caption(f"📊 黑马: 日{day_heima} 周{week_heima} 月{month_heima} | 掘地: 日{day_juedi} 周{week_juedi} 月{month_juedi}")
         
         with stage_tabs[1]:
             st.caption("正在观察等待买入的股票")
