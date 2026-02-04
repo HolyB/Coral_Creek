@@ -2079,28 +2079,105 @@ def render_todays_picks_page():
                         
                         if st.button("🚀 提问", key=f"ask_ai_{pick['symbol']}", type="primary"):
                             if user_question:
-                                with st.spinner("🤖 AI 正在思考..."):
+                                with st.spinner("🤖 AI 正在获取数据并分析..."):
                                     try:
                                         from ml.llm_intelligence import LLMAnalyzer
+                                        import yfinance as yf
                                         
-                                        # 构建上下文
+                                        # === 获取真实股票数据 ===
+                                        ticker = yf.Ticker(pick['symbol'])
+                                        info = ticker.info
+                                        
+                                        # 提取关键信息
+                                        company_name = info.get('shortName', info.get('longName', pick['symbol']))
+                                        industry = info.get('industry', '未知')
+                                        sector = info.get('sector', '未知')
+                                        market_cap = info.get('marketCap', 0)
+                                        pe_ratio = info.get('trailingPE', info.get('forwardPE', 'N/A'))
+                                        pb_ratio = info.get('priceToBook', 'N/A')
+                                        dividend_yield = info.get('dividendYield', 0)
+                                        
+                                        # 财务数据
+                                        revenue = info.get('totalRevenue', 0)
+                                        profit_margin = info.get('profitMargins', 0)
+                                        debt_to_equity = info.get('debtToEquity', 'N/A')
+                                        revenue_growth = info.get('revenueGrowth', 0)
+                                        earnings_growth = info.get('earningsGrowth', 0)
+                                        
+                                        # 价格数据
+                                        current_price = info.get('currentPrice', info.get('regularMarketPrice', pick['price']))
+                                        high_52w = info.get('fiftyTwoWeekHigh', 0)
+                                        low_52w = info.get('fiftyTwoWeekLow', 0)
+                                        avg_volume = info.get('averageVolume', 0)
+                                        
+                                        # 公司描述
+                                        business_summary = info.get('longBusinessSummary', '')[:500] if info.get('longBusinessSummary') else ''
+                                        
+                                        # 格式化市值
+                                        def format_cap(cap):
+                                            if cap >= 1e12: return f"${cap/1e12:.2f}万亿"
+                                            elif cap >= 1e9: return f"${cap/1e9:.2f}亿"
+                                            elif cap >= 1e6: return f"${cap/1e6:.2f}百万"
+                                            else: return f"${cap:,.0f}"
+                                        
+                                        # 构建详细上下文
                                         context = f"""
-股票信息:
-- 代码: {pick['symbol']}
-- 名称: {pick['name']}
-- 当前价格: {price_symbol}{pick['price']:.2f}
-- 日线BLUE: {pick['day_blue']:.0f}
-- 周线BLUE: {pick['week_blue']:.0f}
-- 建议止损: {price_symbol}{pick['stop_loss']:.2f}
-- 建议目标: {price_symbol}{pick['target']:.2f}
-- 市场: {'美股' if market == 'US' else 'A股'}
+=== 股票基本信息 ===
+代码: {pick['symbol']}
+公司名称: {company_name}
+行业: {industry}
+板块: {sector}
+市场: {'美股' if market == 'US' else 'A股'}
+
+=== 估值指标 ===
+市值: {format_cap(market_cap) if market_cap else 'N/A'}
+市盈率 (PE): {pe_ratio if pe_ratio != 'N/A' else 'N/A'}
+市净率 (PB): {f'{pb_ratio:.2f}' if isinstance(pb_ratio, (int, float)) else 'N/A'}
+股息率: {f'{dividend_yield*100:.2f}%' if dividend_yield else 'N/A'}
+
+=== 财务状况 ===
+年营收: {format_cap(revenue) if revenue else 'N/A'}
+利润率: {f'{profit_margin*100:.1f}%' if profit_margin else 'N/A'}
+负债权益比: {f'{debt_to_equity:.1f}%' if isinstance(debt_to_equity, (int, float)) else 'N/A'}
+营收增长率: {f'{revenue_growth*100:.1f}%' if revenue_growth else 'N/A'}
+盈利增长率: {f'{earnings_growth*100:.1f}%' if earnings_growth else 'N/A'}
+
+=== 价格数据 ===
+当前价格: ${current_price:.2f}
+52周最高: ${high_52w:.2f}
+52周最低: ${low_52w:.2f}
+日均成交量: {avg_volume:,.0f}
+
+=== 技术指标 (BLUE系统) ===
+日线BLUE: {pick['day_blue']:.0f}
+周线BLUE: {pick['week_blue']:.0f}
+建议止损: {price_symbol}{pick['stop_loss']:.2f}
+建议目标: {price_symbol}{pick['target']:.2f}
+
+=== 公司简介 ===
+{business_summary if business_summary else '暂无公司简介'}
 """
                                         
                                         analyzer = LLMAnalyzer(provider='gemini')
                                         
                                         # 使用自然语言查询
-                                        full_question = f"关于股票 {pick['symbol']} ({pick['name']}): {user_question}"
+                                        full_question = f"基于以上{pick['symbol']}的详细数据，请回答: {user_question}"
                                         response = analyzer.natural_query(full_question, context)
+                                        
+                                        # 显示获取到的数据摘要
+                                        st.markdown("### 📊 已获取数据:")
+                                        data_col1, data_col2, data_col3 = st.columns(3)
+                                        with data_col1:
+                                            st.caption(f"**{company_name}**")
+                                            st.caption(f"行业: {industry}")
+                                        with data_col2:
+                                            st.caption(f"市值: {format_cap(market_cap) if market_cap else 'N/A'}")
+                                            st.caption(f"PE: {pe_ratio if pe_ratio != 'N/A' else 'N/A'}")
+                                        with data_col3:
+                                            st.caption(f"营收增长: {f'{revenue_growth*100:.1f}%' if revenue_growth else 'N/A'}")
+                                            st.caption(f"利润率: {f'{profit_margin*100:.1f}%' if profit_margin else 'N/A'}")
+                                        
+                                        st.divider()
                                         
                                         # 显示回答
                                         st.markdown("### 🤖 AI 回答:")
@@ -2603,13 +2680,47 @@ def render_todays_picks_page():
                         
                         if st.button("🚀 提问", key=f"strat_ask_{key}_{p.symbol}", type="primary"):
                             if user_q:
-                                with st.spinner("🤖 思考中..."):
+                                with st.spinner("🤖 获取数据并分析中..."):
                                     try:
                                         from ml.llm_intelligence import LLMAnalyzer
-                                        analyzer = LLMAnalyzer(provider='gemini')
+                                        import yfinance as yf
                                         
-                                        context = f"股票: {p.symbol}, 名称: {name}, 价格: {price_sym}{p.entry_price:.2f}, 策略: {strategy.name}"
-                                        response = analyzer.natural_query(f"关于{p.symbol}: {user_q}", context)
+                                        # 获取真实股票数据
+                                        ticker = yf.Ticker(p.symbol)
+                                        info = ticker.info
+                                        
+                                        company_name = info.get('shortName', info.get('longName', p.symbol))
+                                        industry = info.get('industry', '未知')
+                                        sector = info.get('sector', '未知')
+                                        market_cap = info.get('marketCap', 0)
+                                        pe_ratio = info.get('trailingPE', 'N/A')
+                                        profit_margin = info.get('profitMargins', 0)
+                                        revenue_growth = info.get('revenueGrowth', 0)
+                                        current_price = info.get('currentPrice', p.entry_price)
+                                        business_summary = info.get('longBusinessSummary', '')[:300] if info.get('longBusinessSummary') else ''
+                                        
+                                        def format_cap(cap):
+                                            if cap >= 1e12: return f"${cap/1e12:.2f}万亿"
+                                            elif cap >= 1e9: return f"${cap/1e9:.2f}亿"
+                                            else: return f"${cap/1e6:.2f}百万" if cap >= 1e6 else "N/A"
+                                        
+                                        context = f"""
+股票: {p.symbol}
+公司名称: {company_name}
+行业: {industry} | 板块: {sector}
+市值: {format_cap(market_cap)}
+PE: {pe_ratio} | 利润率: {f'{profit_margin*100:.1f}%' if profit_margin else 'N/A'}
+营收增长: {f'{revenue_growth*100:.1f}%' if revenue_growth else 'N/A'}
+当前价格: ${current_price:.2f}
+策略: {strategy.name}
+公司简介: {business_summary}
+"""
+                                        
+                                        analyzer = LLMAnalyzer(provider='gemini')
+                                        response = analyzer.natural_query(f"基于以上数据回答: {user_q}", context)
+                                        
+                                        # 显示获取的数据
+                                        st.caption(f"📊 {company_name} | {industry} | 市值: {format_cap(market_cap)}")
                                         
                                         st.markdown("**🤖 回答:**")
                                         st.info(response)
