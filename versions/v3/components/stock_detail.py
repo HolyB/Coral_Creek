@@ -22,7 +22,12 @@ from datetime import datetime, timedelta
 # 导入必要的模块
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# 确保 versions/v3 在 sys.path 中 (Streamlit Cloud 兼容)
+_component_dir = os.path.dirname(os.path.abspath(__file__))  # components/
+_v3_dir = os.path.dirname(_component_dir)  # versions/v3/
+if _v3_dir not in sys.path:
+    sys.path.insert(0, _v3_dir)
 
 
 def render_unified_stock_detail(
