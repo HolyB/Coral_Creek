@@ -2678,26 +2678,31 @@ def render_scan_page():
         show_all = st.button("🔄 全部", key="heima_all", use_container_width=True)
         if show_all:
             st.session_state['heima_filter'] = '全部'
+            st.session_state['heima_filter_radio'] = '全部'
             st.rerun()
     with heima_col2:
         show_daily = st.button("🐴 日黑马", key="heima_d", use_container_width=True)
         if show_daily:
             st.session_state['heima_filter'] = '有日黑马'
+            st.session_state['heima_filter_radio'] = '有日黑马'
             st.rerun()
     with heima_col3:
         show_weekly = st.button("🐴 周黑马", key="heima_w", use_container_width=True)
         if show_weekly:
             st.session_state['heima_filter'] = '有周黑马'
+            st.session_state['heima_filter_radio'] = '有周黑马'
             st.rerun()
     with heima_col4:
         show_monthly = st.button("🐴 月黑马", key="heima_m", use_container_width=True)
         if show_monthly:
             st.session_state['heima_filter'] = '有月黑马'
+            st.session_state['heima_filter_radio'] = '有月黑马'
             st.rerun()
     with heima_col5:
         show_any = st.button("🐴 任意黑马", key="heima_any", use_container_width=True)
         if show_any:
             st.session_state['heima_filter'] = '有任意黑马'
+            st.session_state['heima_filter_radio'] = '有任意黑马'
             st.rerun()
     
     # 显示当前黑马筛选状态
