@@ -8593,19 +8593,313 @@ def render_strategy_lab_page():
 
 
 def render_ai_center_page():
-    """🤖 AI中心 - 合并: ML预测 + AI决策 + 博主追踪"""
-    st.header("🤖 AI 中心")
+    """🤖 AI中心 - 重新设计: 智能选股 + 模型管理 + 博主追踪"""
+    st.header("🤖 AI 选股中心")
     
-    tab1, tab2, tab3 = st.tabs(["🎯 ML 预测", "🧠 AI 决策", "📢 博主追踪"])
+    tab1, tab2, tab3 = st.tabs(["🎯 今日精选", "⚙️ 模型管理", "📢 博主追踪"])
     
     with tab1:
-        render_ml_prediction_page()
+        render_ai_smart_picks()
     
     with tab2:
-        render_ai_dashboard_page()
+        render_ml_prediction_page()  # 保留原有模型管理
     
     with tab3:
         render_blogger_page()
+
+
+def render_ai_smart_picks():
+    """🎯 AI智能选股 - 核心推荐页面"""
+    from pathlib import Path
+    
+    st.markdown("""
+    <style>
+    .pick-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+        border-left: 4px solid #00C853;
+    }
+    .pick-card.warning {
+        border-left-color: #FFD600;
+    }
+    .star-rating {
+        color: #FFD700;
+        font-size: 1.2em;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # 市场选择
+    col1, col2, col3 = st.columns([1, 1, 2])
+    with col1:
+        market = st.selectbox("市场", ["US", "CN"], key="ai_pick_market")
+    with col2:
+        max_picks = st.selectbox("推荐数量", [3, 5, 8, 10], index=1, key="ai_max_picks")
+    
+    # 检查模型状态
+    model_dir = Path(__file__).parent / "ml" / "saved_models" / f"v2_{market.lower()}"
+    model_exists = (model_dir / "return_5d.joblib").exists()
+    
+    if not model_exists:
+        st.info("💡 模型未训练，使用规则引擎进行选股")
+    
+    st.divider()
+    
+    # 获取推荐
+    if st.button("🔄 刷新推荐", type="primary", key="refresh_ai_picks"):
+        st.session_state['ai_picks_loaded'] = False
+    
+    # 加载推荐
+    with st.spinner("AI 分析中..."):
+        try:
+            from ml.smart_picker import get_todays_picks, SmartPicker
+            from db.database import get_connection
+            from db.stock_history import get_stock_history
+            
+            # 获取最新信号
+            conn = get_connection()
+            query = """
+                SELECT DISTINCT symbol, scan_date, price, 
+                       COALESCE(blue_daily, 0) as blue_daily,
+                       COALESCE(blue_weekly, 0) as blue_weekly,
+                       COALESCE(blue_monthly, 0) as blue_monthly,
+                       COALESCE(is_heima, 0) as is_heima,
+                       company_name
+                FROM scan_results
+                WHERE market = ?
+                ORDER BY scan_date DESC
+                LIMIT 100
+            """
+            signals_df = pd.read_sql_query(query, conn, params=(market,))
+            conn.close()
+            
+            if signals_df.empty:
+                st.warning("暂无信号数据，请先运行扫描")
+                return
+            
+            latest_date = signals_df['scan_date'].iloc[0]
+            today_signals = signals_df[signals_df['scan_date'] == latest_date]
+            
+            st.caption(f"📅 信号日期: {latest_date} | 共 {len(today_signals)} 只股票")
+            
+            # 获取价格历史
+            price_history = {}
+            progress = st.progress(0)
+            symbols = today_signals['symbol'].unique()
+            
+            for i, symbol in enumerate(symbols):
+                history = get_stock_history(symbol, market, days=100)
+                if not history.empty:
+                    price_history[symbol] = history
+                progress.progress((i + 1) / len(symbols))
+            progress.empty()
+            
+            # 智能选股
+            picker = SmartPicker(market=market)
+            picks = picker.pick(today_signals, price_history, max_picks=max_picks)
+            
+            if not picks:
+                st.info("今日没有高置信度的推荐")
+                return
+            
+            # === 显示推荐 ===
+            st.markdown(f"### 🎯 今日精选 ({len(picks)} 只)")
+            
+            # 汇总统计
+            avg_score = sum(p.overall_score for p in picks) / len(picks)
+            avg_rr = sum(p.risk_reward_ratio for p in picks) / len(picks)
+            high_conf = sum(1 for p in picks if p.star_rating >= 4)
+            
+            sum_cols = st.columns(4)
+            with sum_cols[0]:
+                st.metric("平均评分", f"{avg_score:.0f}/100")
+            with sum_cols[1]:
+                st.metric("高置信度", f"{high_conf}/{len(picks)}")
+            with sum_cols[2]:
+                st.metric("平均风险收益比", f"1:{avg_rr:.1f}")
+            with sum_cols[3]:
+                avg_pred = sum(p.pred_return_5d for p in picks) / len(picks)
+                st.metric("平均预测收益", f"{avg_pred:+.1f}%")
+            
+            st.divider()
+            
+            # 详细推荐卡片
+            for i, pick in enumerate(picks):
+                stars = "⭐" * pick.star_rating + "☆" * (5 - pick.star_rating)
+                
+                # 卡片颜色
+                if pick.star_rating >= 4:
+                    card_border = "#00C853"
+                    card_bg = "#1a472a"
+                elif pick.star_rating >= 3:
+                    card_border = "#FFD600"
+                    card_bg = "#4a4a00"
+                else:
+                    card_border = "#666"
+                    card_bg = "#333"
+                
+                # 价格符号
+                price_sym = "¥" if market == "CN" else "$"
+                
+                with st.container():
+                    # 头部: 股票名称 + 评分
+                    header_col1, header_col2 = st.columns([3, 1])
+                    with header_col1:
+                        display_name = pick.name if pick.name else pick.symbol
+                        st.markdown(f"""
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 1.5em; font-weight: bold;">{display_name}</span>
+                            <span style="color: #888; font-size: 0.9em;">{pick.symbol}</span>
+                            <span class="star-rating">{stars}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    with header_col2:
+                        st.markdown(f"""
+                        <div style="text-align: right;">
+                            <span style="font-size: 1.3em; font-weight: bold;">{price_sym}{pick.price:.2f}</span>
+                            <br>
+                            <span style="font-size: 1.1em; color: {'#00C853' if pick.pred_return_5d > 0 else '#FF5252'};">
+                                {pick.pred_return_5d:+.1f}% 预测
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # 内容区
+                    content_cols = st.columns([1, 1, 1])
+                    
+                    with content_cols[0]:
+                        st.markdown("**📊 信号验证**")
+                        for signal in pick.signals_confirmed[:4]:
+                            st.markdown(f"<span style='color: #00C853;'>{signal}</span>", unsafe_allow_html=True)
+                        for warning in pick.signals_warning[:2]:
+                            st.markdown(f"<span style='color: #FFD600;'>{warning}</span>", unsafe_allow_html=True)
+                    
+                    with content_cols[1]:
+                        st.markdown("**🎯 交易计划**")
+                        st.markdown(f"""
+                        - 止损: {price_sym}{pick.stop_loss_price:.2f} ({pick.stop_loss_pct:+.1f}%)
+                        - 目标: {price_sym}{pick.target_price:.2f} (+{pick.target_pct:.1f}%)
+                        - 风险收益比: **1:{pick.risk_reward_ratio:.1f}**
+                        """)
+                    
+                    with content_cols[2]:
+                        st.markdown("**💡 建议**")
+                        st.markdown(f"""
+                        - 仓位: **{pick.suggested_position_pct:.0f}%**
+                        - 上涨概率: **{pick.pred_direction_prob:.0%}**
+                        - 综合评分: **{pick.overall_score:.0f}**/100
+                        """)
+                    
+                    # 指标徽章
+                    st.markdown(f"""
+                    <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                        <span style="background: #00C85333; padding: 4px 10px; border-radius: 12px; font-size: 0.85em;">
+                            日B {pick.blue_daily:.0f}
+                        </span>
+                        <span style="background: #FFD60033; padding: 4px 10px; border-radius: 12px; font-size: 0.85em;">
+                            周B {pick.blue_weekly:.0f}
+                        </span>
+                        <span style="background: #2196F333; padding: 4px 10px; border-radius: 12px; font-size: 0.85em;">
+                            月B {pick.blue_monthly:.0f}
+                        </span>
+                        <span style="background: #9C27B033; padding: 4px 10px; border-radius: 12px; font-size: 0.85em;">
+                            RSI {pick.rsi:.0f}
+                        </span>
+                        <span style="background: #FF572233; padding: 4px 10px; border-radius: 12px; font-size: 0.85em;">
+                            量比 {pick.volume_ratio:.1f}x
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # 操作按钮
+                    btn_cols = st.columns([1, 1, 1, 3])
+                    with btn_cols[0]:
+                        if st.button("📈 查看K线", key=f"ai_chart_{pick.symbol}"):
+                            st.session_state[f'ai_detail_{pick.symbol}'] = True
+                    with btn_cols[1]:
+                        if st.button("💰 模拟买入", key=f"ai_buy_{pick.symbol}"):
+                            st.session_state[f'ai_buy_form_{pick.symbol}'] = True
+                    with btn_cols[2]:
+                        if st.button("👁️ 加入观察", key=f"ai_watch_{pick.symbol}"):
+                            try:
+                                from services.signal_tracker import add_to_watchlist
+                                add_to_watchlist(
+                                    pick.symbol, market,
+                                    entry_price=pick.price,
+                                    target_price=pick.target_price,
+                                    stop_loss=pick.stop_loss_price
+                                )
+                                st.success(f"已加入观察列表")
+                            except Exception as e:
+                                st.error(f"添加失败: {e}")
+                    
+                    # 详情展开
+                    if st.session_state.get(f'ai_detail_{pick.symbol}'):
+                        with st.expander("📊 详细分析", expanded=True):
+                            from components.stock_detail import render_unified_stock_detail
+                            render_unified_stock_detail(
+                                symbol=pick.symbol,
+                                market=market,
+                                key_prefix=f"ai_detail_{pick.symbol}"
+                            )
+                    
+                    # 买入表单
+                    if st.session_state.get(f'ai_buy_form_{pick.symbol}'):
+                        with st.expander("💰 模拟买入", expanded=True):
+                            buy_col1, buy_col2 = st.columns(2)
+                            with buy_col1:
+                                buy_shares = st.number_input(
+                                    "买入数量", 
+                                    min_value=1, 
+                                    value=100,
+                                    key=f"ai_buy_shares_{pick.symbol}"
+                                )
+                            with buy_col2:
+                                buy_price = st.number_input(
+                                    "买入价格",
+                                    value=pick.price,
+                                    key=f"ai_buy_price_{pick.symbol}"
+                                )
+                            
+                            total_cost = buy_shares * buy_price
+                            st.info(f"总成本: {price_sym}{total_cost:,.2f}")
+                            
+                            if st.button("确认买入", key=f"ai_confirm_buy_{pick.symbol}", type="primary"):
+                                try:
+                                    from services.portfolio_service import paper_buy
+                                    result = paper_buy(
+                                        symbol=pick.symbol,
+                                        market=market,
+                                        shares=buy_shares,
+                                        price=buy_price
+                                    )
+                                    if result.get('success'):
+                                        st.success(f"✅ 成功买入 {buy_shares} 股 {pick.symbol}")
+                                        st.session_state[f'ai_buy_form_{pick.symbol}'] = False
+                                    else:
+                                        st.error(result.get('error', '买入失败'))
+                                except Exception as e:
+                                    st.error(f"买入失败: {e}")
+                    
+                    st.divider()
+            
+            # === 风险提示 ===
+            st.markdown("""
+            ---
+            ### ⚠️ 风险提示
+            
+            - 以上推荐基于 **技术分析 + ML模型**，仅供参考
+            - **严格执行止损**，保护本金是第一位的
+            - 建议单只股票仓位不超过 **15%**
+            - 历史表现不代表未来收益
+            """)
+            
+        except Exception as e:
+            st.error(f"分析失败: {e}")
+            import traceback
+            st.code(traceback.format_exc())
 
 
 def render_ml_prediction_page():
