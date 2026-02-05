@@ -2531,14 +2531,27 @@ def render_scan_page():
     
     # === 调试: 检查黑马数据类型和值 ===
     with st.expander("🔍 黑马调试信息", expanded=False):
+        st.write(f"**数据来源**: {data_source}")
+        st.write(f"**总记录数**: {len(df)}")
         st.write(f"**Heima_Daily 列存在**: {heima_daily_col}")
+        
         if heima_daily_col:
             sample_values = df[heima_daily_col].head(10).tolist()
             sample_types = [type(v).__name__ for v in sample_values]
+            unique_values = df[heima_daily_col].unique().tolist()[:10]  # 前10个唯一值
             st.write(f"**{heima_daily_col} 样本值**: {sample_values}")
             st.write(f"**样本类型**: {sample_types}")
+            st.write(f"**唯一值 (前10)**: {unique_values}")
             st.write(f"**列 dtype**: {df[heima_daily_col].dtype}")
+            
+            # 统计各类型值的数量
+            true_count = len(df[df[heima_daily_col] == True])
+            false_count = len(df[df[heima_daily_col] == False])
+            one_count = len(df[df[heima_daily_col] == 1])
+            zero_count = len(df[df[heima_daily_col] == 0])
+            st.write(f"**值统计**: True={true_count}, False={false_count}, 1={one_count}, 0={zero_count}")
         
+        st.write("---")
         st.write(f"**日黑马 样本值**: {df['日黑马'].head(10).tolist()}")
         st.write(f"**日黑马 dtype**: {df['日黑马'].dtype}")
         st.write(f"**日黑马 True 数量**: {day_heima_count}/{len(df)}")
