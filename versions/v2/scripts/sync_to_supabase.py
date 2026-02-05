@@ -58,7 +58,9 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
     cursor.execute('''
         SELECT symbol, scan_date, price, turnover_m, blue_daily, blue_weekly, 
                blue_monthly, adx, volatility, is_heima, is_juedi, market, 
-               company_name, industry, market_cap, cap_category
+               company_name, industry, market_cap, cap_category,
+               heima_daily, heima_weekly, heima_monthly,
+               juedi_daily, juedi_weekly, juedi_monthly
         FROM scan_results 
         WHERE scan_date >= ?
         ORDER BY scan_date DESC
@@ -77,6 +79,18 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
     total = 0
     errors = 0
     
+    def sqlite_bool_to_python(val):
+        """正确转换 SQLite 布尔值 (bytes b'\x00'/b'\x01' 或 int 0/1)"""
+        if val is None:
+            return None
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, bytes):
+            return val == b'\x01'  # b'\x00' -> False, b'\x01' -> True
+        if isinstance(val, (int, float)):
+            return val == 1
+        return bool(val)
+    
     for i in range(0, len(rows), batch_size):
         batch = rows[i:i+batch_size]
         records = []
@@ -92,8 +106,14 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
                 'blue_monthly': row['blue_monthly'],
                 'adx': row['adx'],
                 'volatility': row['volatility'],
-                'is_heima': bool(row['is_heima']) if row['is_heima'] is not None else None,
-                'is_juedi': bool(row['is_juedi']) if row['is_juedi'] is not None else None,
+                'is_heima': sqlite_bool_to_python(row['is_heima']),
+                'is_juedi': sqlite_bool_to_python(row['is_juedi']),
+                'heima_daily': sqlite_bool_to_python(row['heima_daily']) if 'heima_daily' in row.keys() else None,
+                'heima_weekly': sqlite_bool_to_python(row['heima_weekly']) if 'heima_weekly' in row.keys() else None,
+                'heima_monthly': sqlite_bool_to_python(row['heima_monthly']) if 'heima_monthly' in row.keys() else None,
+                'juedi_daily': sqlite_bool_to_python(row['juedi_daily']) if 'juedi_daily' in row.keys() else None,
+                'juedi_weekly': sqlite_bool_to_python(row['juedi_weekly']) if 'juedi_weekly' in row.keys() else None,
+                'juedi_monthly': sqlite_bool_to_python(row['juedi_monthly']) if 'juedi_monthly' in row.keys() else None,
                 'market': row['market'] or 'US',
                 'company_name': row['company_name'],
                 'industry': row['industry'],
