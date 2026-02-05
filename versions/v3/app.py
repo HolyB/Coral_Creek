@@ -3481,12 +3481,27 @@ def render_scan_page():
                     from strategies.master_strategies import get_master_summary_for_stock
                     summary = get_master_summary_for_stock(analyses)
                     
-                    st.success(f"### {summary['overall_action']}")
+                    # 显示共识信号
+                    signal = summary.get('overall_signal', 'HOLD')
+                    if signal == 'BUY':
+                        st.success(f"### {summary['overall_action']}")
+                    elif signal == 'SELL':
+                        st.error(f"### {summary['overall_action']}")
+                    elif signal == 'CONFLICT':
+                        st.warning(f"### {summary['overall_action']}")
+                    else:
+                        st.info(f"### {summary['overall_action']}")
                     
-                    c1, c2, c3 = st.columns(3)
-                    c1.metric("🟢 看多票数", summary['buy_votes'])
-                    c2.metric("🔴 看空票数", summary['sell_votes'])
-                    c3.metric("🟡 观望/做T", summary['hold_votes'])
+                    # 显示指标
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("🟢 看多", f"{summary['buy_votes']} (权重:{summary.get('weighted_buy', 0):.1f})")
+                    c2.metric("🔴 看空", f"{summary['sell_votes']} (权重:{summary.get('weighted_sell', 0):.1f})")
+                    c3.metric("⚪ 观望", summary['hold_votes'])
+                    c4.metric("📊 共识度", f"{summary.get('consensus_score', 0):.0f}%")
+                    
+                    # 冲突警告
+                    if summary.get('conflict_warning'):
+                        st.warning(summary['conflict_warning'])
                     
                     if summary['best_opportunity']:
                         st.info(f"**最佳机会**: {summary['best_opportunity']}")

@@ -1035,56 +1035,127 @@ def get_master_summary_for_stock(analyses: Dict[str, MasterAnalysis]) -> Dict:
     """
     汇总各大师的分析，给出综合建议
     
+    使用加权共识机制:
+    1. 每个大师的投票权重 = 信号置信度 / 5
+    2. 买入/卖出权重求和
+    3. 当存在冲突时，提供详细说明
+    
     Returns:
         {
-            'overall_action': str,  # 综合建议
+            'overall_action': str,       # 综合建议
+            'overall_signal': str,       # 'BUY' / 'SELL' / 'HOLD' / 'CONFLICT'
+            'consensus_score': float,    # 共识强度 0-100
             'buy_votes': int,
             'sell_votes': int,
             'hold_votes': int,
-            'best_opportunity': str,  # 最佳机会描述
-            'key_risk': str           # 主要风险
+            'weighted_buy': float,       # 加权买入分
+            'weighted_sell': float,      # 加权卖出分
+            'best_opportunity': str,     # 最佳机会描述
+            'key_risk': str,             # 主要风险
+            'conflict_warning': str,     # 冲突警告 (如果有)
+            'confidence_avg': float      # 平均置信度
         }
     """
     buy_votes = 0
     sell_votes = 0
     hold_votes = 0
     
+    weighted_buy = 0.0
+    weighted_sell = 0.0
+    
     best_opportunity = ""
     best_confidence = 0
     key_risk = ""
     
+    confidence_sum = 0
+    
+    # 大师权重 (基于策略适用性)
+    # 趋势明确时: 蔡森、BLUE 权重高
+    # 震荡市: 萧明道、DeMark 权重高
+    default_weights = {
+        'cai_sen': 1.0,      # 量价突破
+        'td_sequential': 0.8, # 拐点捕捉
+        'xiao_mingdao': 1.0,  # 均线结构
+        'heima': 0.9,         # 爆发力
+        'blue': 1.2           # BLUE 趋势 (核心指标)
+    }
+    
+    buy_masters = []
+    sell_masters = []
+    
     for key, analysis in analyses.items():
+        weight = default_weights.get(key, 1.0)
+        confidence_score = analysis.confidence * weight
+        confidence_sum += analysis.confidence
+        
         if analysis.action in ['买入', '强烈买入', '做T低吸', '准备买入']:
             buy_votes += 1
+            weighted_buy += confidence_score
+            buy_masters.append(f"{analysis.icon}{analysis.master}")
+            
             if analysis.confidence > best_confidence and '买入' in analysis.action:
                 best_confidence = analysis.confidence
                 best_opportunity = f"{analysis.icon}{analysis.master}: {analysis.reason}"
+                
         elif analysis.action in ['卖出', '做T高抛', '准备卖出', '回避']:
             sell_votes += 1
+            weighted_sell += confidence_score
+            sell_masters.append(f"{analysis.icon}{analysis.master}")
+            
             if analysis.confidence >= 4 and '卖' in analysis.action:
                 key_risk = f"{analysis.icon}{analysis.master}: {analysis.reason}"
         else:
             hold_votes += 1
     
-    # 综合建议
-    if buy_votes >= 3:
-        overall = "🟢 多数大师看多，可积极参与"
-    elif buy_votes >= 2 and sell_votes == 0:
-        overall = "🟢 偏多，可适当参与"
-    elif sell_votes >= 2:
-        overall = "🔴 多数大师看空，建议回避或减仓"
-    elif sell_votes == 1 and buy_votes == 0:
-        overall = "🟡 有风险信号，谨慎操作"
+    # 计算共识强度
+    total_votes = buy_votes + sell_votes + hold_votes
+    confidence_avg = confidence_sum / total_votes if total_votes > 0 else 0
+    
+    # 共识分数 = |买入权重 - 卖出权重| / (买入权重 + 卖出权重 + 1) * 100
+    consensus_score = abs(weighted_buy - weighted_sell) / (weighted_buy + weighted_sell + 0.01) * 100
+    
+    # 冲突检测
+    conflict_warning = ""
+    if buy_votes >= 2 and sell_votes >= 2:
+        conflict_warning = f"⚠️ 大师分歧! 看多({', '.join(buy_masters)}) vs 看空({', '.join(sell_masters)})"
+    elif buy_votes >= 1 and sell_votes >= 1:
+        conflict_warning = f"⚠️ 信号冲突: {', '.join(buy_masters)} 看多 / {', '.join(sell_masters)} 看空"
+    
+    # 综合建议 (使用加权分数)
+    net_score = weighted_buy - weighted_sell
+    
+    if net_score >= 4.0:
+        overall = "🟢 强烈看多 - 多位大师一致看涨"
+        overall_signal = "BUY"
+    elif net_score >= 2.0:
+        overall = "🟢 偏多 - 可适当参与"
+        overall_signal = "BUY"
+    elif net_score <= -4.0:
+        overall = "🔴 强烈看空 - 建议回避或清仓"
+        overall_signal = "SELL"
+    elif net_score <= -2.0:
+        overall = "🔴 偏空 - 建议减仓观望"
+        overall_signal = "SELL"
+    elif conflict_warning:
+        overall = "⚠️ 信号冲突 - 等待明确方向"
+        overall_signal = "CONFLICT"
     else:
-        overall = "⚪ 信号不明确，建议观望"
+        overall = "⚪ 信号不明确 - 建议观望"
+        overall_signal = "HOLD"
     
     return {
         'overall_action': overall,
+        'overall_signal': overall_signal,
+        'consensus_score': round(consensus_score, 1),
         'buy_votes': buy_votes,
         'sell_votes': sell_votes,
         'hold_votes': hold_votes,
+        'weighted_buy': round(weighted_buy, 2),
+        'weighted_sell': round(weighted_sell, 2),
         'best_opportunity': best_opportunity,
-        'key_risk': key_risk
+        'key_risk': key_risk,
+        'conflict_warning': conflict_warning,
+        'confidence_avg': round(confidence_avg, 1)
     }
 
 
