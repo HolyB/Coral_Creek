@@ -2414,7 +2414,7 @@ def render_scan_page():
         "大师建议": st.column_config.TextColumn("大师建议", width="medium", help="5位大师综合评级")
     })
 
-    # === 添加黑马列 (简洁版) ===
+    # === 添加黑马列 (修复版) ===
     # 检测黑马字段
     def get_col(df, names):
         for n in names:
@@ -2422,17 +2422,50 @@ def render_scan_page():
                 return n
         return None
     
+    def safe_bool_convert(series):
+        """
+        安全地将列转换为布尔值
+        处理: 0/1, True/False, None, bytes (b'\x01'), strings ('True'/'False')
+        """
+        def to_bool(val):
+            if val is None or pd.isna(val):
+                return False
+            if isinstance(val, bool):
+                return val
+            if isinstance(val, (int, float)):
+                return val == 1  # 只有 1 才是 True
+            if isinstance(val, bytes):
+                return val == b'\x01'
+            if isinstance(val, str):
+                return val.lower() in ('true', '1', 'yes')
+            return False
+        return series.apply(to_bool)
+    
     heima_daily_col = get_col(df, ['Heima_Daily', 'heima_daily'])
     heima_weekly_col = get_col(df, ['Heima_Weekly', 'heima_weekly'])
     heima_monthly_col = get_col(df, ['Heima_Monthly', 'heima_monthly'])
     heima_any_col = get_col(df, ['Is_Heima', 'is_heima'])  # 兼容旧数据
     
-    # 创建黑马布尔列 (用于过滤)
-    df['日黑马'] = df[heima_daily_col].fillna(False).astype(bool) if heima_daily_col else (
-        df[heima_any_col].fillna(False).astype(bool) if heima_any_col else False
-    )
-    df['周黑马'] = df[heima_weekly_col].fillna(False).astype(bool) if heima_weekly_col else False
-    df['月黑马'] = df[heima_monthly_col].fillna(False).astype(bool) if heima_monthly_col else False
+    # 创建黑马布尔列 (用于过滤) - 使用安全转换
+    # 日黑马: 优先使用 heima_daily, 回退到 is_heima
+    if heima_daily_col:
+        df['日黑马'] = safe_bool_convert(df[heima_daily_col])
+    elif heima_any_col:
+        df['日黑马'] = safe_bool_convert(df[heima_any_col])
+    else:
+        df['日黑马'] = False
+    
+    # 周黑马: 只使用 heima_weekly
+    if heima_weekly_col:
+        df['周黑马'] = safe_bool_convert(df[heima_weekly_col])
+    else:
+        df['周黑马'] = False
+    
+    # 月黑马: 只使用 heima_monthly
+    if heima_monthly_col:
+        df['月黑马'] = safe_bool_convert(df[heima_monthly_col])
+    else:
+        df['月黑马'] = False
     
     # 显示列 (🐴 图标)
     df['日🐴'] = df['日黑马'].apply(lambda x: '🐴' if x else '')
@@ -2450,6 +2483,11 @@ def render_scan_page():
     heima_filter = st.session_state.get('heima_filter', '全部')
     before_heima_count = len(df)
     
+    # 统计黑马数量 (调试用)
+    day_heima_count = df['日黑马'].sum()
+    week_heima_count = df['周黑马'].sum()
+    month_heima_count = df['月黑马'].sum()
+    
     if heima_filter == "有日黑马":
         df = df[df['日黑马'] == True]
     elif heima_filter == "有周黑马":
@@ -2459,8 +2497,12 @@ def render_scan_page():
     elif heima_filter == "有任意黑马":
         df = df[(df['日黑马'] == True) | (df['周黑马'] == True) | (df['月黑马'] == True)]
     
-    if heima_filter != "全部" and before_heima_count != len(df):
-        st.info(f"🐴 黑马筛选: {before_heima_count} → {len(df)} 只")
+    # 显示筛选结果
+    if heima_filter != "全部":
+        st.info(f"🐴 黑马筛选 [{heima_filter}]: {before_heima_count} → {len(df)} 只")
+    else:
+        # 在"全部"模式下显示各类黑马统计
+        st.caption(f"🐴 黑马统计: 日{day_heima_count} | 周{week_heima_count} | 月{month_heima_count}")
 
     # 显示列顺序
     display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
