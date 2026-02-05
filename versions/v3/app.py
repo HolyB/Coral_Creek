@@ -1266,9 +1266,15 @@ def render_todays_picks_page():
                 if not strong.empty:
                     for idx, row in strong.iterrows():
                         symbol = row.get('symbol', '')
+                        company_name = row.get('company_name', '')
                         blue_d = row.get('blue_daily', 0)
                         blue_w = row.get('blue_weekly', 0)
                         price = row.get('price', 0)
+                        
+                        # 价格符号和名称显示
+                        price_sym = "¥" if market == "CN" else "$"
+                        display_name = company_name if company_name else symbol
+                        display_code = symbol.split('.')[0] if '.' in symbol else symbol
                         
                         # 卡片式展示
                         with st.container():
@@ -1277,8 +1283,11 @@ def render_todays_picks_page():
                                         border-left: 3px solid #00C853; padding: 12px; 
                                         border-radius: 8px; margin-bottom: 8px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-size: 1.2em; font-weight: bold;">{symbol}</span>
-                                    <span style="color: #00C853;">${price:.2f}</span>
+                                    <div>
+                                        <span style="font-size: 1.1em; font-weight: bold;">{display_name}</span>
+                                        <span style="font-size: 0.8em; color: #888; margin-left: 4px;">{display_code}</span>
+                                    </div>
+                                    <span style="color: #00C853;">{price_sym}{price:.2f}</span>
                                 </div>
                                 <div style="font-size: 0.9em; color: #888; margin-top: 4px;">
                                     日BLUE {blue_d:.0f} | 周BLUE {blue_w:.0f}
@@ -1454,11 +1463,19 @@ def render_todays_picks_page():
                         
                         row = filtered_df.iloc[data_idx]
                         symbol = row.get('symbol', 'N/A')
+                        company_name = row.get('company_name', '')
                         price = row.get('price', 0)
                         blue_d = row.get('blue_daily', 0)
                         blue_w = row.get('blue_weekly', 0)
                         blue_m = row.get('blue_monthly', 0)
                         adx = row.get('adx', 0)
+                        
+                        # 价格符号
+                        price_sym = "¥" if market == "CN" else "$"
+                        
+                        # 显示名称：有公司名则显示，否则只显示代码
+                        display_name = f"{company_name}" if company_name else symbol
+                        display_code = symbol.split('.')[0] if '.' in symbol else symbol  # 去掉 .SH/.SZ 后缀
                         
                         # 信号强度颜色
                         if blue_d > 100 and blue_w > 80:
@@ -1472,15 +1489,18 @@ def render_todays_picks_page():
                             card_bg = "#333"
                         
                         with col:
-                            # 卡片容器
+                            # 卡片容器 - 显示名称和代码
                             st.markdown(f"""
                             <div style="background: linear-gradient(135deg, {card_bg}66, {card_bg}33); 
                                         border: 1px solid {card_color}44;
                                         border-radius: 12px; padding: 16px; margin-bottom: 12px;
                                         transition: transform 0.2s;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-size: 1.3em; font-weight: bold; color: {card_color};">{symbol}</span>
-                                    <span style="font-size: 1.1em;">${price:.2f}</span>
+                                    <div>
+                                        <span style="font-size: 1.2em; font-weight: bold; color: {card_color};">{display_name}</span>
+                                        <span style="font-size: 0.85em; color: #888; margin-left: 6px;">{display_code}</span>
+                                    </div>
+                                    <span style="font-size: 1.1em;">{price_sym}{price:.2f}</span>
                                 </div>
                                 <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
                                     <span style="background: #00C85333; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">
