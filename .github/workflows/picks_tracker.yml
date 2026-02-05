@@ -1,0 +1,50 @@
+name: Daily Picks Tracker
+
+on:
+  schedule:
+    # 每日收盘后运行 (UTC 21:00 = 美股收盘后)
+    - cron: '0 21 * * 1-5'  # 周一到周五
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  track-picks:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r versions/v3/requirements.txt
+          
+      - name: Run picks tracker (US)
+        working-directory: versions/v3
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python services/picks_tracker.py --market US
+          
+      - name: Run picks tracker (CN)
+        working-directory: versions/v3
+        env:
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+        continue-on-error: true  # CN market is optional
+        run: |
+          python services/picks_tracker.py --market CN
+          
+      - name: Commit updated picks data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "chore: update picks tracker data [skip ci]"
+          git push
