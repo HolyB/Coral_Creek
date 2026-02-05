@@ -1052,6 +1052,117 @@ def _render_ml_prediction_tab(
             <div style="color: #00C853;">(+{pick.target_pct:.1f}%)</div>
             """, unsafe_allow_html=True)
         
+        # === 专业仓位计算 ===
+        st.markdown("### 💰 仓位计算器")
+        st.caption("基于固定比例仓位法 (风险管理最佳实践)")
+        
+        pos_cols = st.columns([1, 1, 2])
+        
+        with pos_cols[0]:
+            total_capital = st.number_input(
+                "总资金 ($)",
+                min_value=1000,
+                max_value=10000000,
+                value=100000,
+                step=10000,
+                key=f"capital_{unique_key}"
+            )
+        
+        with pos_cols[1]:
+            risk_per_trade = st.slider(
+                "单笔风险 (%)",
+                min_value=0.5,
+                max_value=5.0,
+                value=2.0,
+                step=0.5,
+                key=f"risk_{unique_key}"
+            ) / 100
+        
+        with pos_cols[2]:
+            # 使用 PositionSizer 计算
+            try:
+                from risk.position_sizer import PositionSizer
+                
+                sizer = PositionSizer(total_capital=total_capital, risk_per_trade=risk_per_trade)
+                result = sizer.fixed_fractional(
+                    entry_price=current_price,
+                    stop_loss=pick.stop_loss_price
+                )
+                
+                shares = result.get('shares', 0)
+                position_value = result.get('position_value', 0)
+                position_pct = result.get('position_pct', 0)
+                risk_amount = result.get('risk_amount', 0)
+                
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                            padding: 16px; border-radius: 10px; border-left: 4px solid #00C853;">
+                    <div style="font-size: 1.8em; font-weight: bold; color: #00C853;">
+                        买入 {shares} 股
+                    </div>
+                    <div style="margin-top: 8px;">
+                        📊 仓位金额: {price_symbol}{position_value:,.0f} ({position_pct:.1%})
+                    </div>
+                    <div>
+                        ⚠️ 最大亏损: {price_symbol}{risk_amount:,.0f} ({risk_per_trade:.1%}本金)
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            except Exception as e:
+                # 回退到简单计算
+                risk_amount = total_capital * risk_per_trade
+                stop_distance = current_price - pick.stop_loss_price
+                shares = int(risk_amount / stop_distance) if stop_distance > 0 else 0
+                position_value = shares * current_price
+                
+                st.metric("建议买入", f"{shares} 股")
+                st.caption(f"仓位: {price_symbol}{position_value:,.0f}")
+        
+        # 凯利公式建议 (可选展开)
+        with st.expander("📈 凯利公式建议 (进阶)", expanded=False):
+            st.markdown("""
+            **凯利公式** 是数学家 John Kelly 提出的最优仓位公式:
+            
+            `f* = (bp - q) / b`
+            
+            其中:
+            - b = 赔率 (平均盈利 / 平均亏损)
+            - p = 胜率
+            - q = 1 - p
+            """)
+            
+            kelly_col1, kelly_col2 = st.columns(2)
+            with kelly_col1:
+                win_rate = st.slider("历史胜率 (%)", 30, 80, 55, key=f"kelly_wr_{unique_key}") / 100
+                avg_win = st.number_input("平均盈利 (%)", 1.0, 50.0, 8.0, key=f"kelly_win_{unique_key}")
+            with kelly_col2:
+                avg_loss = st.number_input("平均亏损 (%)", 1.0, 20.0, 5.0, key=f"kelly_loss_{unique_key}")
+            
+            try:
+                from risk.position_sizer import PositionSizer
+                sizer = PositionSizer(total_capital=total_capital)
+                kelly_fraction = sizer.kelly_criterion(
+                    win_rate=win_rate,
+                    avg_win=avg_win,
+                    avg_loss=avg_loss,
+                    fraction=0.5  # 半凯利 (更保守)
+                )
+                
+                st.metric(
+                    "半凯利建议仓位", 
+                    f"{kelly_fraction:.1%}",
+                    delta=f"约 {price_symbol}{total_capital * kelly_fraction:,.0f}"
+                )
+                
+                if kelly_fraction <= 0:
+                    st.warning("⚠️ 凯利公式建议不开仓 (期望值为负)")
+                elif kelly_fraction > 0.25:
+                    st.info("💡 凯利建议仓位较高，建议使用半凯利或更保守的比例")
+                    
+            except Exception as e:
+                st.warning(f"凯利计算失败: {e}")
+        
         st.divider()
         
         # === 信号验证 ===

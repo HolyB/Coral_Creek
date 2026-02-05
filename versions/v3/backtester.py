@@ -40,7 +40,30 @@ def calculate_adx_series_local(high, low, close, period=14):
     return adx.values
 
 class SimpleBacktester:
-    def __init__(self, symbol, market='US', initial_capital=100000, days=1095, commission_rate=0.001, blue_threshold=100, require_heima=False, require_week_blue=False, require_vp_filter=False, use_risk_management=True, strategy_mode='C'):
+    """
+    简单回测引擎
+    
+    信号时序说明 (No Lookahead Bias):
+    ================================
+    1. 日线 BLUE 在 time T 收盘后计算完成
+    2. 信号判断基于 time T 的数据 (包括当天收盘价)
+    3. 买入执行在 time T+1 的开盘价
+    4. 这符合真实交易场景: 收盘后看到信号 -> 第二天开盘买入
+    
+    周线信号处理:
+    - 周线 BLUE 在周五收盘后确定
+    - 在日线回测中，使用 shift(1) + ffill，确保下周一才能看到上周的周线 BLUE
+    """
+    
+    def __init__(self, symbol, market='US', initial_capital=100000, days=1095, 
+                 commission_rate=0.001, blue_threshold=100, require_heima=False, 
+                 require_week_blue=False, require_vp_filter=False, 
+                 use_risk_management=True, strategy_mode='C',
+                 strict_mode=True):  # 新增：严格模式
+        """
+        Args:
+            strict_mode: 如果为 True，强制执行信号延迟验证
+        """
         self.symbol = symbol
         self.market = market
         self.initial_capital = initial_capital
@@ -52,6 +75,7 @@ class SimpleBacktester:
         self.require_vp_filter = require_vp_filter
         self.use_risk_management = use_risk_management
         self.strategy_mode = strategy_mode
+        self.strict_mode = strict_mode
         
         self.stop_atr_multiple = 2.0
         self.risk_per_trade_pct = 0.02

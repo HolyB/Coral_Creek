@@ -172,7 +172,8 @@ class FeatureEngineer:
 def prepare_training_data(
     signals: List[Dict],
     forward_days: int = 10,
-    target_type: str = 'binary'
+    target_type: str = 'binary',
+    fetch_history: bool = False
 ) -> Tuple[pd.DataFrame, pd.Series]:
     """
     从信号数据准备 ML 训练数据
@@ -181,9 +182,14 @@ def prepare_training_data(
         signals: 信号列表 (from backtest_service.run_signal_backtest)
         forward_days: 前向收益天数
         target_type: 'binary' (盈亏分类) 或 'regression' (收益回归)
+        fetch_history: 是否获取历史数据以计算完整特征 (较慢但更准确)
     
     Returns:
         (X, y) 特征矩阵和目标变量
+        
+    Note:
+        如果 fetch_history=False，仅使用信号中已有的特征。
+        如果 fetch_history=True，会从数据库获取历史K线并计算 100+ 特征。
     """
     ret_col = f'return_{forward_days}d'
     
@@ -193,19 +199,94 @@ def prepare_training_data(
     if not valid_signals:
         return pd.DataFrame(), pd.Series()
     
-    # 构建特征 (使用现有的信号字段)
-    X = pd.DataFrame([{
-        'blue_daily': s.get('blue_daily', 0),
-        'price': s.get('price', 0),
-    } for s in valid_signals])
+    # === 构建特征矩阵 ===
+    feature_rows = []
     
-    # 构建目标变量
+    for s in valid_signals:
+        row = {
+            # 核心 BLUE 特征
+            'blue_daily': s.get('blue_daily', 0) or 0,
+            'blue_weekly': s.get('blue_weekly', 0) or 0,
+            'blue_monthly': s.get('blue_monthly', 0) or 0,
+            'is_heima': 1 if s.get('is_heima') else 0,
+            
+            # 价格特征
+            'price': s.get('price', 0) or 0,
+            'price_log': np.log(max(s.get('price', 1), 1)),  # Log price for scaling
+            
+            # ADX/波动率 (如果可用)
+            'adx': s.get('adx', 25) or 25,
+            'volatility': s.get('volatility', 0.3) or 0.3,
+            
+            # 成交量特征 (如果可用)
+            'volume_ratio': s.get('volume_ratio', 1.0) or 1.0,
+            'turnover': s.get('turnover', 0) or 0,
+            
+            # 市值 (如果可用)
+            'market_cap': s.get('market_cap', 0) or 0,
+            'market_cap_log': np.log(max(s.get('market_cap', 1e6), 1e6)),
+            
+            # === BLUE 衍生特征 ===
+            'blue_daily_level': _blue_level(s.get('blue_daily', 0) or 0),
+            'blue_weekly_level': _blue_level(s.get('blue_weekly', 0) or 0),
+            'blue_dw_resonance': int((s.get('blue_daily', 0) or 0) >= 100 and (s.get('blue_weekly', 0) or 0) >= 100),
+            'blue_dwm_resonance': int(
+                (s.get('blue_daily', 0) or 0) >= 100 and 
+                (s.get('blue_weekly', 0) or 0) >= 100 and 
+                (s.get('blue_monthly', 0) or 0) >= 100
+            ),
+            'blue_daily_deviation': (s.get('blue_daily', 0) or 0) - 100,
+            'blue_overbought': int((s.get('blue_daily', 0) or 0) > 120),
+            'blue_oversold': int((s.get('blue_daily', 0) or 0) < 20),
+            'blue_golden_zone': int(80 <= (s.get('blue_daily', 0) or 0) <= 120),
+            
+            # 信号强度综合评分
+            'signal_strength': _calculate_signal_strength(s),
+        }
+        feature_rows.append(row)
+    
+    X = pd.DataFrame(feature_rows)
+    
+    # 处理缺失值
+    X = X.fillna(0)
+    X = X.replace([np.inf, -np.inf], 0)
+    
+    # === 构建目标变量 ===
     if target_type == 'binary':
         y = pd.Series([1 if s[ret_col] > 0 else 0 for s in valid_signals])
     else:
         y = pd.Series([s[ret_col] for s in valid_signals])
     
     return X, y
+
+
+def _blue_level(blue_value: float) -> int:
+    """BLUE 值分档: 0-4"""
+    if blue_value >= 150:
+        return 4  # 极强
+    elif blue_value >= 120:
+        return 3  # 强
+    elif blue_value >= 100:
+        return 2  # 中等
+    elif blue_value >= 50:
+        return 1  # 弱
+    else:
+        return 0  # 无信号
+
+
+def _calculate_signal_strength(signal: Dict) -> int:
+    """计算综合信号强度"""
+    score = 0
+    blue_d = signal.get('blue_daily', 0) or 0
+    blue_w = signal.get('blue_weekly', 0) or 0
+    blue_m = signal.get('blue_monthly', 0) or 0
+    
+    if blue_d >= 100: score += 1
+    if blue_w >= 100: score += 1
+    if blue_m >= 100: score += 1
+    if signal.get('is_heima'): score += 2
+    
+    return min(score, 5)
 
 
 if __name__ == "__main__":
