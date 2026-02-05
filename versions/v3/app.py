@@ -285,12 +285,26 @@ def load_scan_results_from_db(scan_date=None, market=None):
         }
         df.rename(columns=col_map, inplace=True)
         
-        # 转换布尔字段 (SQLite 存储为字节 b'\x00'/b'\x01')
+        # 转换布尔字段 (SQLite=bytes, Supabase=bool/str)
+        def robust_bool_convert(x):
+            """健壮的布尔转换，处理所有可能的数据来源"""
+            if x is None:
+                return False
+            if isinstance(x, bool):
+                return x
+            if isinstance(x, bytes):
+                return x == b'\x01'
+            if isinstance(x, (int, float)):
+                return x == 1
+            if isinstance(x, str):
+                return x.lower() in ('true', '1', 't', 'yes')
+            return False
+        
         bool_cols = ['Is_Heima', 'Is_Juedi', 'Heima_Daily', 'Heima_Weekly', 'Heima_Monthly', 
                      'Juedi_Daily', 'Juedi_Weekly', 'Juedi_Monthly', 'Strat_D_Trend', 'Strat_C_Resonance']
         for col in bool_cols:
             if col in df.columns:
-                df[col] = df[col].apply(lambda x: x == b'\x01' or x == 1 or x == True if x is not None else False)
+                df[col] = df[col].apply(robust_bool_convert)
         
         # 格式化市值
         if 'Mkt Cap Raw' in df.columns:
@@ -1858,6 +1872,13 @@ def render_scan_page():
         df, data_source = load_latest_scan_results()
         if data_source and not data_source.startswith("📅"):
             data_source = f"📁 {data_source}"
+    
+    # === 调试: 检查数据加载后的 Heima 列 ===
+    if df is not None and not df.empty and 'Heima_Daily' in df.columns:
+        heima_true_count = df['Heima_Daily'].sum()
+        heima_sample = df['Heima_Daily'].head(5).tolist()
+        heima_types = [type(v).__name__ for v in heima_sample]
+        print(f"[DEBUG] 加载后 Heima_Daily: True={heima_true_count}/{len(df)}, 样本={heima_sample}, 类型={heima_types}")
 
     if df is None or df.empty:
         st.warning("⚠️ 未找到扫描结果。")
@@ -2427,18 +2448,38 @@ def render_scan_page():
         安全地将列转换为布尔值
         处理: 0/1, True/False, None, bytes (b'\x01'), strings ('True'/'False')
         """
+        import numpy as np
+        
         def to_bool(val):
-            if val is None or pd.isna(val):
+            # 1. 处理 None 和 NaN
+            if val is None:
                 return False
-            if isinstance(val, bool):
-                return val
-            if isinstance(val, (int, float)):
+            try:
+                if pd.isna(val):
+                    return False
+            except (TypeError, ValueError):
+                pass  # 某些类型不支持 pd.isna
+            
+            # 2. 处理布尔值 (包括 numpy bool)
+            if isinstance(val, (bool, np.bool_)):
+                return bool(val)
+            
+            # 3. 处理整数/浮点数
+            if isinstance(val, (int, float, np.integer, np.floating)):
                 return val == 1  # 只有 1 才是 True
+            
+            # 4. 处理字节 (SQLite BLOB)
             if isinstance(val, bytes):
                 return val == b'\x01'
+            
+            # 5. 处理字符串 (Supabase JSON 可能返回字符串)
             if isinstance(val, str):
-                return val.lower() in ('true', '1', 'yes')
+                return val.lower() in ('true', '1', 'yes', 't')
+            
+            # 6. 未知类型，默认 False
+            print(f"[DEBUG] safe_bool_convert: 未知类型 {type(val).__name__}: {val!r}")
             return False
+        
         return series.apply(to_bool)
     
     heima_daily_col = get_col(df, ['Heima_Daily', 'heima_daily'])
@@ -2487,6 +2528,26 @@ def render_scan_page():
     day_heima_count = df['日黑马'].sum()
     week_heima_count = df['周黑马'].sum()
     month_heima_count = df['月黑马'].sum()
+    
+    # === 调试: 检查黑马数据类型和值 ===
+    with st.expander("🔍 黑马调试信息", expanded=False):
+        st.write(f"**Heima_Daily 列存在**: {heima_daily_col}")
+        if heima_daily_col:
+            sample_values = df[heima_daily_col].head(10).tolist()
+            sample_types = [type(v).__name__ for v in sample_values]
+            st.write(f"**{heima_daily_col} 样本值**: {sample_values}")
+            st.write(f"**样本类型**: {sample_types}")
+            st.write(f"**列 dtype**: {df[heima_daily_col].dtype}")
+        
+        st.write(f"**日黑马 样本值**: {df['日黑马'].head(10).tolist()}")
+        st.write(f"**日黑马 dtype**: {df['日黑马'].dtype}")
+        st.write(f"**日黑马 True 数量**: {day_heima_count}/{len(df)}")
+        
+        # 检查 🐴 列
+        emoji_sample = df['日🐴'].head(10).tolist()
+        emoji_non_empty = len([x for x in df['日🐴'].tolist() if x])
+        st.write(f"**日🐴 样本值**: {emoji_sample}")
+        st.write(f"**日🐴 非空数量**: {emoji_non_empty}/{len(df)}")
     
     if heima_filter == "有日黑马":
         df = df[df['日黑马'] == True]
