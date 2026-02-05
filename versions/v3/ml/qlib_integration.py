@@ -54,16 +54,34 @@ class QlibBridge:
     Qlib 桥接器
     
     连接 Coral Creek 和 Microsoft Qlib
+    
+    部署模式:
+    - 完整模式: 本地开发，需要 Qlib 数据
+    - 推理模式: 线上部署，只需模型文件
     """
     
-    def __init__(self, market: str = 'US', data_dir: Optional[str] = None):
+    def __init__(self, market: str = 'US', data_dir: Optional[str] = None, 
+                 inference_only: bool = False):
         """
         Args:
             market: 'US' or 'CN'
             data_dir: Qlib 数据目录 (默认 ~/.qlib/qlib_data)
+            inference_only: 如果为 True，不初始化 Qlib，只加载模型做推理
         """
         self.market = market.upper()
         self.initialized = False
+        self.inference_only = inference_only
+        
+        # 模型存储路径 (这些可以提交到 Git)
+        self.model_dir = Path(__file__).parent / "saved_models" / f"qlib_{market.lower()}"
+        self.model_dir.mkdir(parents=True, exist_ok=True)
+        
+        if inference_only:
+            # 推理模式: 不需要 Qlib 数据，只加载模型
+            self._load_pretrained_models()
+            self.initialized = True
+            print(f"✅ Qlib 推理模式 (market={self.market})")
+            return
         
         if not QLIB_AVAILABLE:
             print("⚠️ Qlib 未安装。请运行: pip install pyqlib")
@@ -76,6 +94,50 @@ class QlibBridge:
             self.data_dir = Path.home() / ".qlib" / "qlib_data" / f"{market.lower()}_data"
         
         self._init_qlib()
+    
+    def _load_pretrained_models(self):
+        """加载预训练模型 (推理模式)"""
+        self.pretrained_models = {}
+        
+        try:
+            import joblib
+            
+            # 加载 LightGBM 模型
+            lgb_path = self.model_dir / "lightgbm_ranker.joblib"
+            if lgb_path.exists():
+                self.pretrained_models['lgb'] = joblib.load(lgb_path)
+                print(f"  ✓ LightGBM 模型已加载: {lgb_path}")
+            
+            # 加载特征名
+            feature_path = self.model_dir / "feature_names.json"
+            if feature_path.exists():
+                import json
+                with open(feature_path) as f:
+                    self.pretrained_models['feature_names'] = json.load(f)
+                print(f"  ✓ 特征配置已加载")
+                    
+        except Exception as e:
+            print(f"加载预训练模型失败: {e}")
+    
+    def predict_with_pretrained(self, features: pd.DataFrame) -> Optional[np.ndarray]:
+        """
+        使用预训练模型预测 (推理模式)
+        
+        Args:
+            features: 特征 DataFrame (来自 FeatureCalculator)
+            
+        Returns:
+            预测分数数组
+        """
+        if 'lgb' not in self.pretrained_models:
+            return None
+        
+        try:
+            model = self.pretrained_models['lgb']
+            return model.predict(features)
+        except Exception as e:
+            print(f"预测失败: {e}")
+            return None
     
     def _init_qlib(self):
         """初始化 Qlib"""
