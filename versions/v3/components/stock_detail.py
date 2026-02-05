@@ -168,6 +168,9 @@ def render_unified_stock_detail(
     tabs = []
     tab_names = []
     
+    # ML预测放在最前面 (重要)
+    tab_names.append("🎯 ML预测")
+    
     if show_charts:
         tab_names.append("📈 K线图表")
     if show_chips:
@@ -184,6 +187,22 @@ def render_unified_stock_detail(
     if tab_names:
         tabs = st.tabs(tab_names)
         tab_idx = 0
+        
+        # === Tab: ML预测 (新增) ===
+        with tabs[tab_idx]:
+            _render_ml_prediction_tab(
+                symbol=symbol,
+                market=market,
+                hist_data=df_daily,
+                blue_daily=blue_daily,
+                blue_weekly=blue_weekly,
+                blue_monthly=blue_monthly,
+                is_heima=heima_daily,
+                current_price=current_price,
+                price_symbol=price_symbol,
+                unique_key=unique_key
+            )
+        tab_idx += 1
         
         # === Tab: K线图表 ===
         if show_charts:
@@ -899,3 +918,224 @@ def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly
                     st.error(f"❌ {result.get('error', '未知错误')}")
             except Exception as e:
                 st.error(f"❌ 买入异常: {e}")
+
+
+def _render_ml_prediction_tab(
+    symbol: str,
+    market: str,
+    hist_data: pd.DataFrame,
+    blue_daily: float,
+    blue_weekly: float,
+    blue_monthly: float,
+    is_heima: bool,
+    current_price: float,
+    price_symbol: str,
+    unique_key: str
+):
+    """
+    渲染 ML 预测标签页
+    
+    显示:
+    1. 收益预测 (ReturnPredictor)
+    2. 排序得分 (SignalRanker - Learning to Rank)
+    3. 交易建议 (止损/目标/仓位)
+    """
+    st.markdown("### 🎯 AI 智能预测")
+    
+    try:
+        from ml.smart_picker import SmartPicker, StockPick
+        
+        # 构造信号数据
+        signal_data = pd.Series({
+            'symbol': symbol,
+            'price': current_price,
+            'blue_daily': blue_daily,
+            'blue_weekly': blue_weekly,
+            'blue_monthly': blue_monthly,
+            'is_heima': 1 if is_heima else 0,
+            'company_name': ''
+        })
+        
+        # 分析三个周期
+        results = {}
+        for horizon in ['short', 'medium', 'long']:
+            picker = SmartPicker(market=market, horizon=horizon)
+            pick = picker._analyze_stock(signal_data, hist_data)
+            if pick:
+                results[horizon] = pick
+        
+        if not results:
+            st.warning("⚠️ 无法生成预测 (数据不足或模型未训练)")
+            st.info("💡 请确保已训练 ML 模型，或数据至少有 60 天历史")
+            return
+        
+        # === 选择默认周期 ===
+        horizon_labels = {"short": "短线 (1-5天)", "medium": "中线 (10-30天)", "long": "长线 (60天+)"}
+        selected_horizon = st.radio(
+            "选择预测周期",
+            options=list(results.keys()),
+            format_func=lambda x: horizon_labels.get(x, x),
+            horizontal=True,
+            key=f"ml_horizon_{unique_key}"
+        )
+        
+        pick = results.get(selected_horizon)
+        if not pick:
+            st.warning("该周期无预测数据")
+            return
+        
+        st.divider()
+        
+        # === 核心指标卡片 ===
+        m1, m2, m3, m4 = st.columns(4)
+        
+        with m1:
+            stars = "⭐" * pick.star_rating + "☆" * (5 - pick.star_rating)
+            st.metric("综合评分", f"{pick.overall_score:.0f}/100")
+            st.caption(stars)
+        
+        with m2:
+            color = "green" if pick.pred_return_5d > 0 else "red"
+            st.metric(
+                "预测收益", 
+                f"{pick.pred_return_5d:+.1f}%",
+                delta=f"上涨概率 {pick.pred_direction_prob:.0%}"
+            )
+        
+        with m3:
+            # 获取对应周期的排名分
+            rank_score = pick.rank_score_short
+            if selected_horizon == 'medium':
+                rank_score = pick.rank_score_medium
+            elif selected_horizon == 'long':
+                rank_score = pick.rank_score_long
+            st.metric("🏆 排序得分", f"{rank_score:.1f}")
+            st.caption("Learning to Rank")
+        
+        with m4:
+            st.metric("风险收益比", f"1:{pick.risk_reward_ratio:.1f}")
+            st.caption(f"建议仓位: {pick.suggested_position_pct:.0f}%")
+        
+        st.divider()
+        
+        # === 交易计划 ===
+        st.markdown("### 📋 交易计划")
+        
+        plan_cols = st.columns(3)
+        
+        with plan_cols[0]:
+            st.markdown(f"""
+            **🎯 入场价**
+            
+            <div style="font-size: 1.5em; font-weight: bold; color: #2196F3;">
+                {price_symbol}{current_price:.2f}
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with plan_cols[1]:
+            st.markdown(f"""
+            **🛑 止损价**
+            
+            <div style="font-size: 1.5em; font-weight: bold; color: #FF5252;">
+                {price_symbol}{pick.stop_loss_price:.2f}
+            </div>
+            <div style="color: #FF5252;">({pick.stop_loss_pct:+.1f}%)</div>
+            """, unsafe_allow_html=True)
+        
+        with plan_cols[2]:
+            st.markdown(f"""
+            **🎯 目标价**
+            
+            <div style="font-size: 1.5em; font-weight: bold; color: #00C853;">
+                {price_symbol}{pick.target_price:.2f}
+            </div>
+            <div style="color: #00C853;">(+{pick.target_pct:.1f}%)</div>
+            """, unsafe_allow_html=True)
+        
+        st.divider()
+        
+        # === 信号验证 ===
+        st.markdown("### ✓ 信号验证")
+        
+        sig_cols = st.columns(2)
+        
+        with sig_cols[0]:
+            st.markdown("**确认信号:**")
+            if pick.signals_confirmed:
+                for sig in pick.signals_confirmed:
+                    st.markdown(f"<span style='color: #00C853;'>{sig}</span>", unsafe_allow_html=True)
+            else:
+                st.caption("无确认信号")
+        
+        with sig_cols[1]:
+            st.markdown("**风险提示:**")
+            if pick.signals_warning:
+                for warn in pick.signals_warning:
+                    st.markdown(f"<span style='color: #FFD600;'>{warn}</span>", unsafe_allow_html=True)
+            else:
+                st.caption("暂无风险提示")
+        
+        # === 指标徽章 ===
+        st.markdown(f"""
+        <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
+            <span style="background: #E91E6333; padding: 6px 12px; border-radius: 12px; font-weight: bold;">
+                🏆 排名分 {rank_score:.0f}
+            </span>
+            <span style="background: #00C85333; padding: 6px 12px; border-radius: 12px;">
+                日B {pick.blue_daily:.0f}
+            </span>
+            <span style="background: #FFD60033; padding: 6px 12px; border-radius: 12px;">
+                周B {pick.blue_weekly:.0f}
+            </span>
+            <span style="background: #2196F333; padding: 6px 12px; border-radius: 12px;">
+                月B {pick.blue_monthly:.0f}
+            </span>
+            <span style="background: #9C27B033; padding: 6px 12px; border-radius: 12px;">
+                RSI {pick.rsi:.0f}
+            </span>
+            <span style="background: #FF572233; padding: 6px 12px; border-radius: 12px;">
+                量比 {pick.volume_ratio:.1f}x
+            </span>
+            <span style="background: #60606033; padding: 6px 12px; border-radius: 12px;">
+                信号分 {pick.signal_score}/5
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # === 模型状态 ===
+        with st.expander("📊 模型详情", expanded=False):
+            from pathlib import Path
+            model_dir = Path(__file__).parent.parent / "ml" / "saved_models" / f"v2_{market.lower()}"
+            
+            status_cols = st.columns(2)
+            with status_cols[0]:
+                return_exists = (model_dir / "return_5d.joblib").exists()
+                if return_exists:
+                    st.success("✓ 收益预测模型已加载")
+                else:
+                    st.warning("⚠ 收益预测模型未训练 (使用规则引擎)")
+            
+            with status_cols[1]:
+                ranker_exists = (model_dir / f"ranker_{selected_horizon}.joblib").exists()
+                if ranker_exists:
+                    st.success(f"✓ 排序模型 ({selected_horizon}) 已加载")
+                else:
+                    st.warning(f"⚠ 排序模型 ({selected_horizon}) 未训练 (使用规则引擎)")
+            
+            st.markdown("""
+            **评分构成:**
+            - 排序模型分 (25%): Learning to Rank 输出
+            - 收益预测分 (20%): 预测收益 × 置信度
+            - 信号验证分 (25%): BLUE/MACD/成交量确认
+            - 方向概率分 (15%): 上涨概率
+            - 风险收益分 (15%): 风险收益比
+            """)
+        
+        # === 免责声明 ===
+        st.caption("⚠️ 以上预测基于历史数据和技术分析，仅供参考，不构成投资建议。请严格执行止损。")
+        
+    except Exception as e:
+        st.error(f"ML 预测失败: {e}")
+        import traceback
+        with st.expander("错误详情"):
+            st.code(traceback.format_exc())
