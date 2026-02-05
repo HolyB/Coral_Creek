@@ -24,10 +24,22 @@ import sys
 import os
 
 # 确保 versions/v3 在 sys.path 中 (Streamlit Cloud 兼容)
-_component_dir = os.path.dirname(os.path.abspath(__file__))  # components/
-_v3_dir = os.path.dirname(_component_dir)  # versions/v3/
-if _v3_dir not in sys.path:
-    sys.path.insert(0, _v3_dir)
+# 使用 realpath 确保路径被正确解析
+_component_dir = os.path.realpath(os.path.dirname(__file__))  # .../components
+_v3_dir = os.path.realpath(os.path.join(_component_dir, '..'))  # .../versions/v3
+
+# 强制添加到 sys.path 最前面
+sys.path.insert(0, _v3_dir)
+
+# 同时尝试添加可能的 Streamlit Cloud 路径
+_possible_paths = [
+    '/mount/src/coral_creek/versions/v3',
+    os.path.join(os.getcwd(), 'versions', 'v3'),
+    os.getcwd(),  # 如果 cwd 已经是 v3
+]
+for p in _possible_paths:
+    if os.path.isdir(p) and p not in sys.path:
+        sys.path.insert(0, p)
 
 
 def render_unified_stock_detail(
@@ -61,9 +73,7 @@ def render_unified_stock_detail(
         key_prefix: Streamlit组件key前缀
     """
     from data_fetcher import get_stock_data
-    from indicators.blue_signal import calculate_blue_signal_series
-    from indicators.adx import calculate_adx_series
-    from indicators.heima_signal import calculate_heima_signal_series
+    from indicator_utils import calculate_blue_signal_series, calculate_adx_series, calculate_heima_signal_series
     
     price_symbol = "¥" if market == "CN" else "$"
     unique_key = f"{key_prefix}_{symbol}" if key_prefix else symbol
@@ -232,7 +242,7 @@ def _get_yfinance_info(symbol: str) -> Dict:
 def _calc_blue(df: pd.DataFrame) -> float:
     """计算BLUE信号"""
     try:
-        from indicators.blue_signal import calculate_blue_signal_series
+        from indicator_utils import calculate_blue_signal_series
         blue = calculate_blue_signal_series(
             df['Open'].values, df['High'].values,
             df['Low'].values, df['Close'].values
@@ -245,7 +255,7 @@ def _calc_blue(df: pd.DataFrame) -> float:
 def _calc_adx(df: pd.DataFrame) -> float:
     """计算ADX"""
     try:
-        from indicators.adx import calculate_adx_series
+        from indicator_utils import calculate_adx_series
         adx = calculate_adx_series(
             df['High'].values, df['Low'].values, df['Close'].values
         )
@@ -257,7 +267,7 @@ def _calc_adx(df: pd.DataFrame) -> float:
 def _calc_heima(df: pd.DataFrame) -> tuple:
     """计算黑马/掘地信号"""
     try:
-        from indicators.heima_signal import calculate_heima_signal_series
+        from indicator_utils import calculate_heima_signal_series
         heima, juedi = calculate_heima_signal_series(
             df['High'].values, df['Low'].values,
             df['Close'].values, df['Open'].values
