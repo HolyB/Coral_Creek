@@ -1,111 +1,111 @@
 {
-  "date": "2026-02-04",
+  "date": "2026-02-05",
   "market": "CN",
-  "total_signals": 156,
+  "total_signals": 121,
   "top_signals": [
-    {
-      "symbol": "002936.SZ",
-      "name": "郑州银行",
-      "price": 1.91,
-      "day_blue": 200.0,
-      "week_blue": 132.9
-    },
-    {
-      "symbol": "002653.SZ",
-      "name": "海思科",
-      "price": 47.07,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002024.SZ",
-      "name": "ST易购",
-      "price": 1.56,
-      "day_blue": 200.0,
-      "week_blue": 133.2
-    },
-    {
-      "symbol": "300841.SZ",
-      "name": "康华生物",
-      "price": 68.78,
-      "day_blue": 190.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301209.SZ",
-      "name": "联合化学",
-      "price": 93.04,
-      "day_blue": 177.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600027.SH",
-      "name": "华电国际",
-      "price": 4.88,
-      "day_blue": 171.2,
-      "week_blue": 113.9
-    },
-    {
-      "symbol": "688656.SH",
-      "name": "浩欧博",
-      "price": 140.89,
-      "day_blue": 168.2,
-      "week_blue": 0.0
-    },
     {
       "symbol": "000016.SZ",
       "name": "深康佳Ａ",
-      "price": 3.83,
-      "day_blue": 162.1,
-      "week_blue": 68.8
+      "price": 3.57,
+      "day_blue": 176.7,
+      "week_blue": 69.1
     },
     {
       "symbol": "920663.BJ",
       "name": "明阳科技",
-      "price": 16.94,
-      "day_blue": 153.5,
+      "price": 16.51,
+      "day_blue": 171.9,
       "week_blue": 0.0
     },
     {
-      "symbol": "301631.SZ",
-      "name": "壹连科技",
-      "price": 96.31,
-      "day_blue": 148.8,
+      "symbol": "301557.SZ",
+      "name": "常友科技",
+      "price": 95.18,
+      "day_blue": 157.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "002907.SZ",
-      "name": "华森制药",
-      "price": 14.91,
-      "day_blue": 147.9,
+      "symbol": "301096.SZ",
+      "name": "百诚医药",
+      "price": 49.61,
+      "day_blue": 152.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "300910.SZ",
-      "name": "瑞丰新材",
-      "price": 54.3,
-      "day_blue": 145.1,
+      "symbol": "301080.SZ",
+      "name": "百普赛斯",
+      "price": 49.58,
+      "day_blue": 149.1,
       "week_blue": 0.0
     },
     {
-      "symbol": "300791.SZ",
-      "name": "仙乐健康",
-      "price": 21.87,
-      "day_blue": 141.0,
-      "week_blue": 84.4
+      "symbol": "688660.SH",
+      "name": "电气风电",
+      "price": 13.89,
+      "day_blue": 146.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300904.SZ",
+      "name": "威力传动",
+      "price": 60.04,
+      "day_blue": 143.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920108.BJ",
+      "name": "宏海科技",
+      "price": 12.98,
+      "day_blue": 142.9,
+      "week_blue": 200.0
     },
     {
       "symbol": "688577.SH",
       "name": "浙海德曼",
-      "price": 73.99,
-      "day_blue": 137.2,
+      "price": 73.26,
+      "day_blue": 140.9,
       "week_blue": 0.0
     },
     {
-      "symbol": "688566.SH",
-      "name": "吉贝尔",
-      "price": 28.09,
-      "day_blue": 133.5,
+      "symbol": "301100.SZ",
+      "name": "风光股份",
+      "price": 20.66,
+      "day_blue": 137.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920857.BJ",
+      "name": "泓禧科技",
+      "price": 26.59,
+      "day_blue": 136.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301319.SZ",
+      "name": "唯特偶",
+      "price": 45.18,
+      "day_blue": 134.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688678.SH",
+      "name": "福立旺",
+      "price": 21.49,
+      "day_blue": 133.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300756.SZ",
+      "name": "金马游乐",
+      "price": 48.0,
+      "day_blue": 132.5,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300946.SZ",
+      "name": "恒而达",
+      "price": 47.55,
+      "day_blue": 126.9,
       "week_blue": 0.0
     }
   ]
