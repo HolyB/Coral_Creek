@@ -1071,6 +1071,18 @@ def render_todays_picks_page():
         market_choice = st.radio("市场", ["🇺🇸 美股", "🇨🇳 A股"], horizontal=True, key="picks_market")
         market = "US" if "美股" in market_choice else "CN"
         
+        # 检测市场切换，清除之前选中的股票
+        prev_market = st.session_state.get('_picks_prev_market', market)
+        if prev_market != market:
+            # 清除所有选中状态
+            for key in ['action_selected_symbol', 'action_buy_symbol', 'discover_selected', 
+                       'portfolio_selected', 'portfolio_sell', 'portfolio_add']:
+                if key in st.session_state:
+                    st.session_state[key] = None
+            st.session_state['_picks_prev_market'] = market
+        else:
+            st.session_state['_picks_prev_market'] = market
+        
         top_n = st.slider("每策略选股数", 3, 10, 5, key="picks_topn")
         
         show_performance = st.checkbox("显示策略历史表现", value=True, key="picks_perf")

@@ -116,8 +116,29 @@ def render_unified_stock_detail(
         # 当前价格
         current_price = float(df_daily['Close'].iloc[-1])
         
-        # 公司名称
-        company_name = yf_info.get('shortName', yf_info.get('longName', symbol))
+        # 公司名称 - A股优先从数据库获取
+        company_name = symbol
+        if market == 'CN':
+            # 尝试从数据库获取A股名称
+            try:
+                from db.database import get_connection
+                conn = get_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT company_name FROM scan_results 
+                    WHERE symbol = ? AND company_name IS NOT NULL AND company_name != ''
+                    ORDER BY scan_date DESC LIMIT 1
+                ''', (symbol,))
+                row = cursor.fetchone()
+                conn.close()
+                if row and row[0]:
+                    company_name = row[0]
+            except:
+                pass
+        
+        # 如果还没有名称，尝试yfinance
+        if company_name == symbol:
+            company_name = yf_info.get('shortName', yf_info.get('longName', symbol))
     
     # === 2. 顶部概览 ===
     st.subheader(f"🔍 {symbol} - {company_name}")
