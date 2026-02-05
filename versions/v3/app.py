@@ -2579,6 +2579,7 @@ def render_scan_page():
     
     # === 调试: 检查黑马数据类型和值 ===
     with st.expander("🔍 黑马调试信息", expanded=False):
+        st.write(f"**当前筛选**: {heima_filter}")
         st.write(f"**数据来源**: {data_source}")
         st.write(f"**总记录数**: {len(df)}")
         st.write(f"**Heima_Daily 列存在**: {heima_daily_col}")
@@ -2628,7 +2629,10 @@ def render_scan_page():
     
     # 显示筛选结果
     if heima_filter != "全部":
-        st.info(f"🐴 黑马筛选 [{heima_filter}]: {before_heima_count} → {len(df)} 只")
+        if len(df) == 0:
+            st.warning(f"⚠️ 黑马筛选 [{heima_filter}]: 当天无符合条件的股票！请切换到其他日期（如 2026-02-02 有 56 只日黑马）")
+        else:
+            st.success(f"🐴 黑马筛选 [{heima_filter}]: {before_heima_count} → {len(df)} 只")
     else:
         # 在"全部"模式下显示各类黑马统计
         st.caption(f"🐴 黑马统计: 日{day_heima_count} | 周{week_heima_count} | 月{month_heima_count}")
@@ -2708,7 +2712,9 @@ def render_scan_page():
     # 显示当前黑马筛选状态
     current_filter = st.session_state.get('heima_filter', '全部')
     if current_filter != '全部':
-        st.info(f"🐴 当前筛选: **{current_filter}** (共 {len(df)} 只)")
+        st.success(f"✅ 当前筛选: **{current_filter}** (共 {len(df)} 只)")
+    else:
+        st.caption(f"💡 点击上方按钮筛选黑马股票 | 当前日期黑马数: 日{day_heima_count} 周{week_heima_count} 月{month_heima_count}")
     
     # 创建标签页 (增加板块热度)
     tab_day_only, tab_day_week, tab_month, tab_special, tab_sector = st.tabs([
