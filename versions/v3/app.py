@@ -206,11 +206,52 @@ with st.sidebar:
                 result = supabase.table('scan_results').select('*').limit(5).execute()
                 st.success(f"✅ Supabase 连接成功! 获取到 {len(result.data)} 条记录")
                 if result.data:
+                    # 检查 heima 列是否存在
+                    cols = list(result.data[0].keys())
+                    heima_cols = [c for c in cols if 'heima' in c.lower()]
+                    st.write(f"**heima 相关列**: {heima_cols if heima_cols else '❌ 无'}")
                     st.json(result.data[0])
             else:
                 st.error("❌ Supabase 不可用")
         except Exception as e:
             st.error(f"❌ 连接错误: {e}")
+    
+    # 修复 Supabase 表结构
+    if st.button("🔧 修复黑马列", help="添加缺失的 heima_daily/weekly/monthly 列"):
+        try:
+            from db.supabase_db import get_supabase, is_supabase_available
+            if is_supabase_available():
+                supabase = get_supabase()
+                
+                # 检查是否需要添加列
+                result = supabase.table('scan_results').select('*').limit(1).execute()
+                if result.data:
+                    existing_cols = set(result.data[0].keys())
+                    needed_cols = ['heima_daily', 'heima_weekly', 'heima_monthly', 
+                                   'juedi_daily', 'juedi_weekly', 'juedi_monthly']
+                    missing_cols = [c for c in needed_cols if c not in existing_cols]
+                    
+                    if not missing_cols:
+                        st.success("✅ 所有 heima 列已存在，无需修复")
+                    else:
+                        st.warning(f"缺失列: {missing_cols}")
+                        st.info("""
+请在 Supabase SQL Editor 中运行:
+```sql
+ALTER TABLE scan_results ADD COLUMN IF NOT EXISTS heima_daily BOOLEAN DEFAULT FALSE;
+ALTER TABLE scan_results ADD COLUMN IF NOT EXISTS heima_weekly BOOLEAN DEFAULT FALSE;
+ALTER TABLE scan_results ADD COLUMN IF NOT EXISTS heima_monthly BOOLEAN DEFAULT FALSE;
+ALTER TABLE scan_results ADD COLUMN IF NOT EXISTS juedi_daily BOOLEAN DEFAULT FALSE;
+ALTER TABLE scan_results ADD COLUMN IF NOT EXISTS juedi_weekly BOOLEAN DEFAULT FALSE;
+ALTER TABLE scan_results ADD COLUMN IF NOT EXISTS juedi_monthly BOOLEAN DEFAULT FALSE;
+```
+                        """)
+                else:
+                    st.warning("表为空，请先运行扫描")
+            else:
+                st.error("❌ Supabase 不可用")
+        except Exception as e:
+            st.error(f"❌ 错误: {e}")
 
 # --- 工具函数 ---
 
