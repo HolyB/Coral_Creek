@@ -55,16 +55,25 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
     from datetime import datetime, timedelta
     cutoff_date = (datetime.now() - timedelta(days=days_back)).strftime('%Y-%m-%d')
     
-    cursor.execute('''
-        SELECT symbol, scan_date, price, turnover_m, blue_daily, blue_weekly, 
-               blue_monthly, adx, volatility, is_heima, is_juedi, market, 
-               company_name, industry, market_cap, cap_category,
-               heima_daily, heima_weekly, heima_monthly,
-               juedi_daily, juedi_weekly, juedi_monthly
-        FROM scan_results 
-        WHERE scan_date >= ?
-        ORDER BY scan_date DESC
-    ''', (cutoff_date,))
+    # 检查哪些列存在
+    cursor.execute("PRAGMA table_info(scan_results)")
+    existing_cols = {row[1] for row in cursor.fetchall()}
+    
+    # 基础列
+    base_cols = ['symbol', 'scan_date', 'price', 'turnover_m', 'blue_daily', 'blue_weekly', 
+                 'blue_monthly', 'adx', 'volatility', 'is_heima', 'is_juedi', 'market', 
+                 'company_name', 'industry', 'market_cap', 'cap_category']
+    
+    # 可选列 (可能不存在于旧数据库)
+    optional_cols = ['heima_daily', 'heima_weekly', 'heima_monthly',
+                     'juedi_daily', 'juedi_weekly', 'juedi_monthly']
+    
+    # 只选择存在的列
+    select_cols = [c for c in base_cols if c in existing_cols]
+    select_cols += [c for c in optional_cols if c in existing_cols]
+    
+    query = f"SELECT {', '.join(select_cols)} FROM scan_results WHERE scan_date >= ? ORDER BY scan_date DESC"
+    cursor.execute(query, (cutoff_date,))
     
     rows = cursor.fetchall()
     print(f"📊 Found {len(rows)} records from {cutoff_date}")
@@ -96,27 +105,28 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
         records = []
         
         for row in batch:
+            row_keys = row.keys()
             record = {
                 'symbol': row['symbol'],
                 'scan_date': row['scan_date'],
-                'price': row['price'],
-                'turnover_m': row['turnover_m'],
-                'blue_daily': row['blue_daily'],
-                'blue_weekly': row['blue_weekly'],
-                'blue_monthly': row['blue_monthly'],
-                'adx': row['adx'],
-                'volatility': row['volatility'],
-                'is_heima': sqlite_bool_to_python(row['is_heima']),
-                'is_juedi': sqlite_bool_to_python(row['is_juedi']),
-                'heima_daily': sqlite_bool_to_python(row['heima_daily']) if 'heima_daily' in row.keys() else None,
-                'heima_weekly': sqlite_bool_to_python(row['heima_weekly']) if 'heima_weekly' in row.keys() else None,
-                'heima_monthly': sqlite_bool_to_python(row['heima_monthly']) if 'heima_monthly' in row.keys() else None,
-                'juedi_daily': sqlite_bool_to_python(row['juedi_daily']) if 'juedi_daily' in row.keys() else None,
-                'juedi_weekly': sqlite_bool_to_python(row['juedi_weekly']) if 'juedi_weekly' in row.keys() else None,
-                'juedi_monthly': sqlite_bool_to_python(row['juedi_monthly']) if 'juedi_monthly' in row.keys() else None,
-                'market': row['market'] or 'US',
-                'company_name': row['company_name'],
-                'industry': row['industry'],
+                'price': row['price'] if 'price' in row_keys else None,
+                'turnover_m': row['turnover_m'] if 'turnover_m' in row_keys else None,
+                'blue_daily': row['blue_daily'] if 'blue_daily' in row_keys else None,
+                'blue_weekly': row['blue_weekly'] if 'blue_weekly' in row_keys else None,
+                'blue_monthly': row['blue_monthly'] if 'blue_monthly' in row_keys else None,
+                'adx': row['adx'] if 'adx' in row_keys else None,
+                'volatility': row['volatility'] if 'volatility' in row_keys else None,
+                'is_heima': sqlite_bool_to_python(row['is_heima']) if 'is_heima' in row_keys else None,
+                'is_juedi': sqlite_bool_to_python(row['is_juedi']) if 'is_juedi' in row_keys else None,
+                'heima_daily': sqlite_bool_to_python(row['heima_daily']) if 'heima_daily' in row_keys else None,
+                'heima_weekly': sqlite_bool_to_python(row['heima_weekly']) if 'heima_weekly' in row_keys else None,
+                'heima_monthly': sqlite_bool_to_python(row['heima_monthly']) if 'heima_monthly' in row_keys else None,
+                'juedi_daily': sqlite_bool_to_python(row['juedi_daily']) if 'juedi_daily' in row_keys else None,
+                'juedi_weekly': sqlite_bool_to_python(row['juedi_weekly']) if 'juedi_weekly' in row_keys else None,
+                'juedi_monthly': sqlite_bool_to_python(row['juedi_monthly']) if 'juedi_monthly' in row_keys else None,
+                'market': row['market'] if 'market' in row_keys else 'US',
+                'company_name': row['company_name'] if 'company_name' in row_keys else None,
+                'industry': row['industry'] if 'industry' in row_keys else None,
             }
             # 可选字段 - 只在存在时添加
             if row['market_cap'] is not None:
