@@ -1394,13 +1394,13 @@ def render_todays_picks_page():
         with filter_col1:
             signal_filter = st.selectbox(
                 "信号类型", 
-                ["🔥 全部强信号", "📊 日线BLUE>100", "📈 日周共振", "🐴 黑马信号"],
+                ["🔥 全部强信号", "📊 日线BLUE>100", "📈 日周共振", "🚀 日周月共振", "🐴 黑马信号"],
                 key="discover_filter"
             )
         with filter_col2:
             sort_by = st.selectbox(
                 "排序方式",
-                ["日BLUE↓", "周BLUE↓", "价格↓", "ADX↓"],
+                ["日BLUE↓", "周BLUE↓", "月BLUE↓", "价格↓", "ADX↓"],
                 key="discover_sort"
             )
         with filter_col3:
@@ -1419,6 +1419,12 @@ def render_todays_picks_page():
                     (filtered_df['blue_daily'].fillna(0) > 100) & 
                     (filtered_df['blue_weekly'].fillna(0) > 80)
                 ]
+            elif signal_filter == "🚀 日周月共振":
+                filtered_df = filtered_df[
+                    (filtered_df['blue_daily'].fillna(0) > 100) & 
+                    (filtered_df['blue_weekly'].fillna(0) > 80) &
+                    (filtered_df['blue_monthly'].fillna(0) > 60)
+                ]
             elif signal_filter == "🐴 黑马信号":
                 # 检查黑马列
                 heima_cols = [c for c in filtered_df.columns if 'heima' in c.lower()]
@@ -1432,6 +1438,7 @@ def render_todays_picks_page():
             sort_map = {
                 "日BLUE↓": ('blue_daily', False),
                 "周BLUE↓": ('blue_weekly', False),
+                "月BLUE↓": ('blue_monthly', False),
                 "价格↓": ('price', False),
                 "ADX↓": ('adx', False)
             }
@@ -1508,6 +1515,9 @@ def render_todays_picks_page():
                                     </span>
                                     <span style="background: #FFD60033; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">
                                         周B {blue_w:.0f}
+                                    </span>
+                                    <span style="background: #2196F333; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">
+                                        月B {blue_m:.0f}
                                     </span>
                                     <span style="background: #9C27B033; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">
                                         ADX {adx:.0f}
