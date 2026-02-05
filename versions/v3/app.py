@@ -2549,7 +2549,14 @@ def render_scan_page():
             false_count = len(df[df[heima_daily_col] == False])
             one_count = len(df[df[heima_daily_col] == 1])
             zero_count = len(df[df[heima_daily_col] == 0])
-            st.write(f"**值统计**: True={true_count}, False={false_count}, 1={one_count}, 0={zero_count}")
+            none_count = df[heima_daily_col].isna().sum()
+            st.write(f"**值统计**: True={true_count}, False={false_count}, 1={one_count}, 0={zero_count}, None/NaN={none_count}")
+        else:
+            st.warning(f"⚠️ Heima_Daily 列不存在！可用列: {list(df.columns)[:20]}...")
+            # 检查 Is_Heima
+            if 'Is_Heima' in df.columns:
+                is_heima_true = df['Is_Heima'].sum()
+                st.write(f"**Is_Heima True 数量**: {is_heima_true}/{len(df)}")
         
         st.write("---")
         st.write(f"**日黑马 样本值**: {df['日黑马'].head(10).tolist()}")
