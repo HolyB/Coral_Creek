@@ -42,6 +42,11 @@ class StockPick:
     pred_direction_prob: float = 0.5  # 上涨概率
     ml_confidence: float = 0.0
     
+    # 排序模型分数
+    rank_score_short: float = 0.0   # 短线排名分
+    rank_score_medium: float = 0.0  # 中线排名分
+    rank_score_long: float = 0.0    # 长线排名分
+    
     # 信号验证
     signals_confirmed: List[str] = field(default_factory=list)
     signals_warning: List[str] = field(default_factory=list)
@@ -75,6 +80,9 @@ class StockPick:
             'pred_return_5d': self.pred_return_5d,
             'pred_direction_prob': self.pred_direction_prob,
             'ml_confidence': self.ml_confidence,
+            'rank_score_short': self.rank_score_short,
+            'rank_score_medium': self.rank_score_medium,
+            'rank_score_long': self.rank_score_long,
             'signals_confirmed': self.signals_confirmed,
             'signals_warning': self.signals_warning,
             'signal_score': self.signal_score,
@@ -98,29 +106,67 @@ class StockPick:
 class SmartPicker:
     """智能选股器"""
     
-    def __init__(self, market: str = 'US'):
+    def __init__(self, market: str = 'US', horizon: str = 'short'):
+        """
+        Args:
+            market: 市场 ('US' or 'CN')
+            horizon: 交易周期 ('short', 'medium', 'long')
+        """
         self.market = market
+        self.horizon = horizon
         self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}"
-        self.model = None
+        
+        # 收益预测模型
+        self.return_model = None
         self.feature_names = []
-        self._load_model()
+        
+        # 排序模型 (Learning to Rank)
+        self.ranker_models = {}  # {'short': model, 'medium': model, 'long': model}
+        
+        self._load_models()
     
-    def _load_model(self):
-        """加载ML模型"""
+    def _load_models(self):
+        """加载所有ML模型"""
         if not ML_AVAILABLE:
             return
         
+        # 1. 加载收益预测模型
         try:
             model_path = self.model_dir / "return_5d.joblib"
             if model_path.exists():
-                self.model = joblib.load(model_path)
+                self.return_model = joblib.load(model_path)
                 
                 feature_path = self.model_dir / "feature_names.json"
                 if feature_path.exists():
                     with open(feature_path) as f:
                         self.feature_names = json.load(f)
+                print(f"✓ 收益预测模型已加载")
         except Exception as e:
-            print(f"模型加载失败: {e}")
+            print(f"收益预测模型加载失败: {e}")
+        
+        # 2. 加载排序模型 (SignalRanker)
+        for horizon in ['short', 'medium', 'long']:
+            try:
+                ranker_path = self.model_dir / f"ranker_{horizon}.joblib"
+                if ranker_path.exists():
+                    self.ranker_models[horizon] = joblib.load(ranker_path)
+                    print(f"✓ 排序模型 ({horizon}) 已加载")
+            except Exception as e:
+                print(f"排序模型 ({horizon}) 加载失败: {e}")
+        
+        # 加载排序模型元数据
+        try:
+            ranker_meta_path = self.model_dir / "ranker_meta.json"
+            if ranker_meta_path.exists():
+                with open(ranker_meta_path) as f:
+                    self.ranker_meta = json.load(f)
+        except:
+            self.ranker_meta = {}
+    
+    @property
+    def model(self):
+        """兼容旧代码"""
+        return self.return_model
     
     def pick(self, 
              signals_df: pd.DataFrame,
@@ -182,11 +228,17 @@ class SmartPicker:
         if not self._pass_prefilter(signal, history):
             return None
         
-        # === Stage 2: ML Prediction ===
+        # === Stage 2: ML Prediction (收益预测) ===
         ml_result = self._ml_predict(signal, history)
         pick.pred_return_5d = ml_result.get('pred_return', 0)
         pick.pred_direction_prob = ml_result.get('direction_prob', 0.5)
         pick.ml_confidence = ml_result.get('confidence', 0)
+        
+        # === Stage 2.5: Ranker Scoring (排序模型) ===
+        rank_result = self._rank_score(signal, history)
+        pick.rank_score_short = rank_result.get('short', 0)
+        pick.rank_score_medium = rank_result.get('medium', 0)
+        pick.rank_score_long = rank_result.get('long', 0)
         
         # === Stage 3: Signal Validation ===
         validation = self._validate_signals(signal, history)
@@ -303,6 +355,68 @@ class SmartPicker:
             result['pred_return'] = pred_return
             result['direction_prob'] = direction_prob
             result['confidence'] = confidence
+            
+        except Exception as e:
+            pass
+        
+        return result
+    
+    def _rank_score(self, signal: pd.Series, history: pd.DataFrame) -> Dict:
+        """
+        使用排序模型(Learning to Rank)计算排名分数
+        
+        排序模型综合考虑收益和风险，输出"赚钱概率"排名
+        """
+        result = {'short': 0.0, 'medium': 0.0, 'long': 0.0}
+        
+        if not self.ranker_models or history.empty or len(history) < 60:
+            # 无排序模型，使用规则估计
+            blue_d = float(signal.get('blue_daily', 0))
+            blue_w = float(signal.get('blue_weekly', 0))
+            blue_m = float(signal.get('blue_monthly', 0))
+            is_heima = bool(signal.get('is_heima', 0))
+            
+            # 规则: 信号强度 -> 排名分
+            base_score = 0
+            if blue_d >= 100: base_score += 30
+            if blue_w >= 80: base_score += 20
+            if blue_m >= 60: base_score += 10
+            if is_heima: base_score += 20
+            
+            result['short'] = base_score
+            result['medium'] = base_score * 0.9
+            result['long'] = base_score * 0.8
+            return result
+        
+        try:
+            from ml.features.feature_calculator import FeatureCalculator
+            
+            calc = FeatureCalculator()
+            blue_signals = {
+                'blue_daily': signal.get('blue_daily', 0),
+                'blue_weekly': signal.get('blue_weekly', 0),
+                'blue_monthly': signal.get('blue_monthly', 0),
+                'is_heima': signal.get('is_heima', 0),
+                'is_juedi': 0
+            }
+            
+            features = calc.get_latest_features(history, blue_signals)
+            if not features:
+                return result
+            
+            # 构建特征向量
+            X = np.array([[features.get(f, 0) for f in self.feature_names]])
+            X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+            X = np.clip(X, -1e6, 1e6)
+            
+            # 对每个周期使用排序模型
+            for horizon in ['short', 'medium', 'long']:
+                if horizon in self.ranker_models:
+                    try:
+                        score = float(self.ranker_models[horizon].predict(X)[0])
+                        result[horizon] = score
+                    except:
+                        pass
             
         except Exception as e:
             pass
@@ -504,25 +618,46 @@ class SmartPicker:
         }
     
     def _calculate_overall_score(self, pick: StockPick) -> float:
-        """计算综合评分 (0-100)"""
+        """
+        计算综合评分 (0-100)
+        
+        评分构成:
+        - 排序模型分 (25%): Learning to Rank 模型的输出
+        - ML预测分 (20%): 收益预测 * 置信度
+        - 信号验证分 (25%): BLUE/MACD/成交量等技术确认
+        - 方向概率分 (15%): 预测上涨概率
+        - 风险收益分 (15%): 风险收益比
+        """
         score = 0.0
         
-        # 1. ML预测分 (30%)
+        # 1. 排序模型分 (25%) - 基于 horizon
+        # 排序模型输出通常是0-4的标签分数，需要归一化
+        rank_score = pick.rank_score_short  # 默认用短线
+        if self.horizon == 'medium':
+            rank_score = pick.rank_score_medium
+        elif self.horizon == 'long':
+            rank_score = pick.rank_score_long
+        
+        # 归一化到0-25分 (假设排序分在0-100范围)
+        normalized_rank = min(rank_score, 100) / 100 * 25
+        score += normalized_rank
+        
+        # 2. ML预测分 (20%)
         # 预测收益越高越好，但要有置信度
-        pred_score = min(pick.pred_return_5d * 5, 30)  # 6%收益=30分
+        pred_score = min(pick.pred_return_5d * 3.33, 20)  # 6%收益=20分
         pred_score *= pick.ml_confidence  # 乘以置信度
         score += max(pred_score, 0)
         
-        # 2. 信号验证分 (30%)
-        signal_score = pick.signal_score * 6  # 5分=30
+        # 3. 信号验证分 (25%)
+        signal_score = pick.signal_score * 5  # 5分=25
         score += signal_score
         
-        # 3. 方向概率分 (20%)
-        direction_score = (pick.pred_direction_prob - 0.5) * 200  # 0.6 = 20分
+        # 4. 方向概率分 (15%)
+        direction_score = (pick.pred_direction_prob - 0.5) * 150  # 0.6 = 15分
         score += max(direction_score, 0)
         
-        # 4. 风险收益分 (20%)
-        rr_score = min(pick.risk_reward_ratio * 5, 20)  # 4:1 = 20分
+        # 5. 风险收益分 (15%)
+        rr_score = min(pick.risk_reward_ratio * 3.75, 15)  # 4:1 = 15分
         score += rr_score
         
         return round(min(score, 100), 1)

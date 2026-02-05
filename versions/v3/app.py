@@ -8631,19 +8631,34 @@ def render_ai_smart_picks():
     </style>
     """, unsafe_allow_html=True)
     
-    # 市场选择
-    col1, col2, col3 = st.columns([1, 1, 2])
+    # 选项
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
     with col1:
         market = st.selectbox("市场", ["US", "CN"], key="ai_pick_market")
     with col2:
+        horizon_options = {"短线 (1-5天)": "short", "中线 (10-30天)": "medium", "长线 (60天+)": "long"}
+        horizon_label = st.selectbox("交易周期", list(horizon_options.keys()), key="ai_horizon")
+        horizon = horizon_options[horizon_label]
+    with col3:
         max_picks = st.selectbox("推荐数量", [3, 5, 8, 10], index=1, key="ai_max_picks")
     
     # 检查模型状态
     model_dir = Path(__file__).parent / "ml" / "saved_models" / f"v2_{market.lower()}"
-    model_exists = (model_dir / "return_5d.joblib").exists()
+    return_model_exists = (model_dir / "return_5d.joblib").exists()
+    ranker_model_exists = (model_dir / f"ranker_{horizon}.joblib").exists()
     
-    if not model_exists:
-        st.info("💡 模型未训练，使用规则引擎进行选股")
+    # 模型状态显示
+    status_cols = st.columns(2)
+    with status_cols[0]:
+        if return_model_exists:
+            st.success("✓ 收益预测模型已加载", icon="🎯")
+        else:
+            st.warning("⚠ 收益预测模型未训练", icon="⚠️")
+    with status_cols[1]:
+        if ranker_model_exists:
+            st.success(f"✓ 排序模型 ({horizon}) 已加载", icon="🏆")
+        else:
+            st.info(f"💡 排序模型 ({horizon}) 未训练，使用规则引擎")
     
     st.divider()
     
@@ -8696,8 +8711,8 @@ def render_ai_smart_picks():
                 progress.progress((i + 1) / len(symbols))
             progress.empty()
             
-            # 智能选股
-            picker = SmartPicker(market=market)
+            # 智能选股 (使用排序模型)
+            picker = SmartPicker(market=market, horizon=horizon)
             picks = picker.pick(today_signals, price_history, max_picks=max_picks)
             
             if not picks:
@@ -8786,15 +8801,25 @@ def render_ai_smart_picks():
                     
                     with content_cols[2]:
                         st.markdown("**💡 建议**")
+                        # 获取当前周期的排名分
+                        rank_score = pick.rank_score_short
+                        if horizon == 'medium':
+                            rank_score = pick.rank_score_medium
+                        elif horizon == 'long':
+                            rank_score = pick.rank_score_long
                         st.markdown(f"""
                         - 仓位: **{pick.suggested_position_pct:.0f}%**
                         - 上涨概率: **{pick.pred_direction_prob:.0%}**
+                        - 排序得分: **{rank_score:.1f}**
                         - 综合评分: **{pick.overall_score:.0f}**/100
                         """)
                     
                     # 指标徽章
                     st.markdown(f"""
                     <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                        <span style="background: #E91E6333; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold;">
+                            🏆 排名分 {rank_score:.0f}
+                        </span>
                         <span style="background: #00C85333; padding: 4px 10px; border-radius: 12px; font-size: 0.85em;">
                             日B {pick.blue_daily:.0f}
                         </span>
