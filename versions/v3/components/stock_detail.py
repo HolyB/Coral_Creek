@@ -331,7 +331,7 @@ def _render_chart_tab(symbol, df_daily, df_weekly, df_monthly, price_symbol, uni
     
     try:
         # 尝试使用高级图表函数
-        from charts import create_candlestick_chart_dynamic
+        from chart_utils import create_candlestick_chart_dynamic
         fig = create_candlestick_chart_dynamic(
             display_data, chart_data, symbol, chart_title,
             period=selected_period, show_volume_profile=True,
@@ -386,7 +386,7 @@ def _render_chips_tab(symbol, df_daily, unique_key):
     st.markdown("### 📊 筹码分布分析")
     
     try:
-        from charts import analyze_chip_flow, create_chip_flow_chart, create_chip_change_chart
+        from chart_utils import analyze_chip_flow, create_chip_flow_chart, create_chip_change_chart
         
         # 对比周期选择
         lookback_options = {"5天": 5, "10天": 10, "20天": 20, "30天": 30, "60天": 60}
