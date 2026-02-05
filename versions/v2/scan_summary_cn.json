@@ -1,8 +1,15 @@
 {
   "date": "2026-02-05",
   "market": "CN",
-  "total_signals": 121,
+  "total_signals": 168,
   "top_signals": [
+    {
+      "symbol": "300841.SZ",
+      "name": "康华生物",
+      "price": 68.0,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
     {
       "symbol": "000016.SZ",
       "name": "深康佳Ａ",
@@ -36,6 +43,20 @@
       "name": "百普赛斯",
       "price": 49.58,
       "day_blue": 149.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "605008.SH",
+      "name": "长鸿高科",
+      "price": 13.42,
+      "day_blue": 148.5,
+      "week_blue": 65.1
+    },
+    {
+      "symbol": "300910.SZ",
+      "name": "瑞丰新材",
+      "price": 53.66,
+      "day_blue": 147.0,
       "week_blue": 0.0
     },
     {
@@ -85,27 +106,6 @@
       "name": "唯特偶",
       "price": 45.18,
       "day_blue": 134.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688678.SH",
-      "name": "福立旺",
-      "price": 21.49,
-      "day_blue": 133.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300756.SZ",
-      "name": "金马游乐",
-      "price": 48.0,
-      "day_blue": 132.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300946.SZ",
-      "name": "恒而达",
-      "price": 47.55,
-      "day_blue": 126.9,
       "week_blue": 0.0
     }
   ]
