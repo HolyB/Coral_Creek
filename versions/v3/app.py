@@ -2065,11 +2065,18 @@ def render_scan_page():
         # === 5. 黑马信号筛选 ===
         st.subheader("🐴 黑马信号")
         
+        # 从 session_state 获取当前筛选值
+        heima_options = ["全部", "有日黑马", "有周黑马", "有月黑马", "有任意黑马"]
+        current_heima = st.session_state.get('heima_filter', '全部')
+        current_index = heima_options.index(current_heima) if current_heima in heima_options else 0
+        
         heima_filter = st.radio(
             "黑马筛选",
-            options=["全部", "有日黑马", "有周黑马", "有月黑马", "有任意黑马"],
+            options=heima_options,
+            index=current_index,
             horizontal=True,
-            help="筛选出有黑马信号的股票"
+            help="筛选出有黑马信号的股票",
+            key="heima_filter_radio"
         )
         st.session_state['heima_filter'] = heima_filter
         
