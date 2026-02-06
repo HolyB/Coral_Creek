@@ -1324,7 +1324,8 @@ def render_todays_picks_page():
                                 show_charts=True,
                                 show_chips=False,
                                 show_news=False,
-                                key_prefix=f"urgent_{alert['symbol']}"
+                                show_actions=False,
+                                key_prefix=f"tab1_urgent_{alert['symbol']}"
                             )
                 
                 st.divider()
@@ -1431,7 +1432,7 @@ def render_todays_picks_page():
             render_unified_stock_detail(
                 symbol=symbol,
                 market=market,
-                key_prefix=f"action_{symbol}"
+                key_prefix=f"tab1_action_{symbol}"
             )
         
         # 处理模拟买入
@@ -1626,7 +1627,7 @@ def render_todays_picks_page():
                     render_unified_stock_detail(
                         symbol=symbol,
                         market=market,
-                        key_prefix=f"discover_{symbol}"
+                        key_prefix=f"tab2_discover_{symbol}"
                     )
         else:
             st.info("正在加载数据...")
@@ -1720,7 +1721,7 @@ def render_todays_picks_page():
                 render_unified_stock_detail(
                     symbol=selected_consensus_symbol,
                     market=market,
-                    key_prefix=f"consensus_{selected_consensus_symbol}"
+                    key_prefix=f"tab3_consensus_{selected_consensus_symbol}"
                 )
         else:
             st.info("暂无共识股票，请检查扫描数据")
@@ -1819,7 +1820,7 @@ def render_todays_picks_page():
                 render_unified_stock_detail(
                     symbol=symbol,
                     market=market,
-                    key_prefix=f"portfolio_{symbol}"
+                    key_prefix=f"tab4_portfolio_{symbol}"
                 )
             
             # 处理卖出
