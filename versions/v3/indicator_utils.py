@@ -38,6 +38,147 @@ def AVEDEV(series, periods):
     s = pd.Series(series)
     return s.rolling(window=periods, min_periods=1).apply(lambda x: np.abs(x - x.mean()).mean(), raw=True).values
 
+def DMA(series, alpha):
+    """通达信 DMA: 动态移动平均, Y = alpha * X + (1-alpha) * Y'"""
+    result = np.zeros(len(series))
+    result[0] = series[0] if not np.isnan(series[0]) else 0
+    a = min(max(float(alpha), 0.001), 0.999)  # clamp
+    for i in range(1, len(series)):
+        result[i] = a * series[i] + (1 - a) * result[i - 1]
+    return result
+
+def CROSS(a, b):
+    """判断 a 上穿 b: 前一刻 a<b 且当前 a>=b"""
+    a_arr = np.asarray(a, dtype=float) if not np.isscalar(a) else None
+    b_arr = np.asarray(b, dtype=float) if not np.isscalar(b) else None
+    
+    if a_arr is None and b_arr is None:
+        return np.array([False])  # 两个标量无法判断
+    
+    n = len(a_arr) if a_arr is not None else len(b_arr)
+    if a_arr is None:
+        a_arr = np.full(n, float(a))
+    if b_arr is None:
+        b_arr = np.full(n, float(b))
+    
+    cross = np.zeros(n, dtype=bool)
+    cross[1:] = (a_arr[:-1] < b_arr[:-1]) & (a_arr[1:] >= b_arr[1:])
+    return cross
+
+
+# ==================== 幻影主力指标 (Phantom Main Force) ====================
+
+def calculate_phantom_indicator(open_p, high, low, close, volume):
+    """
+    幻影主力指标 = 海底捞月 + 资金力度 + 改良KDJ
+    
+    Args:
+        open_p, high, low, close, volume: numpy arrays of OHLCV
+    
+    Returns:
+        dict with:
+        - 'blue': 海底捞月柱值 (>0 时有信号, 消失=买点)
+        - 'lired': 负向海底捞月 (>0 时有逃顶信号)
+        - 'red': 超大单流入
+        - 'yellow': 大单流入
+        - 'green': 资金流出
+        - 'pink': 主力资金线 (KDJ变体, >90逃顶, <10进场)
+        - 'lightblue': 资金流量线
+        - 'buy_signal': PINK上穿10
+        - 'sell_signal': PINK下穿90 (逃顶信号)
+        - 'blue_disappear': 海底捞月消失 (买点)
+        - 'lired_disappear': 负向海底捞月消失 (卖点)
+    """
+    open_p = np.asarray(open_p, dtype=float)
+    high = np.asarray(high, dtype=float)
+    low = np.asarray(low, dtype=float)
+    close = np.asarray(close, dtype=float)
+    volume = np.asarray(volume, dtype=float)
+    n = len(close)
+    
+    # === 海底捞月 (底部) ===
+    var1 = REF((low + open_p + close + high) / 4, 1)
+    var2_num = SMA(np.abs(low - var1), 13, 1)
+    var2_den = SMA(np.maximum(low - var1, 0), 10, 1)
+    var2_den = np.where(var2_den == 0, 1e-10, var2_den)  # 避免除零
+    var2 = var2_num / var2_den
+    var3 = EMA(var2, 10)
+    var4 = LLV(low, 33)
+    var5 = EMA(IF(low <= var4, var3, 0), 3)
+    var6 = POW(np.maximum(var5, 0), 0.3)
+    
+    # 海底捞月柱 (BLUE)
+    blue_bar = IF(var5 > REF(var5, 1), var6, 0)
+    
+    # === 负向海底捞月 (顶部) ===
+    var21_num = SMA(np.abs(high - var1), 13, 1)
+    var21_den = SMA(np.minimum(high - var1, 0), 10, 1)
+    var21_den = np.where(var21_den == 0, -1e-10, var21_den)
+    var21 = var21_num / var21_den
+    var31 = EMA(var21, 10)
+    var41 = HHV(high, 33)
+    var51 = EMA(IF(high >= var41, -var31, 0), 3)
+    var61 = POW(np.maximum(-var51, 0), 0.3)  # 取正值用于显示
+    
+    # 负向海底捞月柱 (LIRED)
+    lired_bar = IF(var51 < REF(var51, 1), var61, 0)
+    
+    # === 资金力度 ===
+    hl_range = (high - low) * 2 - np.abs(close - open_p)
+    hl_range = np.where(hl_range == 0, 1e-10, hl_range)
+    qjj = volume / hl_range
+    xvl = IF(close == open_p, 0, (close - open_p) * qjj)
+    hsl = xvl / 20 / 1.15
+    
+    # 攻击流量 (3日加权)
+    attack_flow = hsl * 0.55 + REF(hsl, 1) * 0.33 + REF(hsl, 2) * 0.22
+    lljx = EMA(attack_flow, 3)
+    
+    red = IF(lljx > 0, lljx, 0)
+    yellow = IF(hsl > 0, hsl * 0.6, 0)
+    green = IF((lljx < 0) | (hsl < 0), np.minimum(lljx, hsl * 0.6), 0)
+    
+    # 资金流量线
+    lightblue = DMA(attack_flow, 0.222228)
+    
+    # === KDJ 变体 (PINK) ===
+    llv39 = LLV(low, 39)
+    hhv39 = HHV(high, 39)
+    denom = hhv39 - llv39
+    denom = np.where(denom == 0, 1e-10, denom)
+    rsv1 = (close - llv39) / denom * 100
+    k = SMA(rsv1, 2, 1)
+    d = SMA(k, 2, 1)
+    j = 3 * k - 2 * d
+    pink = SMA(j, 2, 1)
+    
+    # === 信号 ===
+    buy_signal = CROSS(pink, 10)       # PINK 上穿 10 = 进场
+    sell_signal = CROSS(90, pink)      # PINK 下穿 90 = 逃顶 (即 94 下穿 PINK => 原版用94)
+    
+    # 海底捞月消失 = 买点 (前一根有 BLUE, 当前没有)
+    blue_disappear = np.zeros(n, dtype=bool)
+    blue_disappear[1:] = (blue_bar[:-1] > 0) & (blue_bar[1:] == 0)
+    
+    # 负向海底捞月消失 = 卖点
+    lired_disappear = np.zeros(n, dtype=bool)
+    lired_disappear[1:] = (lired_bar[:-1] > 0) & (lired_bar[1:] == 0)
+    
+    return {
+        'blue': blue_bar,
+        'lired': lired_bar,
+        'red': red,
+        'yellow': yellow,
+        'green': green,
+        'pink': pink,
+        'lightblue': lightblue,
+        'buy_signal': buy_signal,
+        'sell_signal': sell_signal,
+        'blue_disappear': blue_disappear,
+        'lired_disappear': lired_disappear,
+    }
+
+
 # ==================== 复合信号计算 ====================
 
 def calculate_blue_signal_series(open_p, high, low, close):
