@@ -27,5 +27,5 @@ pyarrow>=14.0.0
 pyqlib>=0.9.0  # Microsoft Qlib for alpha factors and backtesting
 lightgbm>=4.0.0  # Gradient boosting for ranking models
 
-
-
+# Paper Trading
+alpaca-py>=0.40.0  # Alpaca paper trading API
