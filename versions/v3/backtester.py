@@ -252,9 +252,17 @@ class SimpleBacktester:
                          new_stop = max(stop_loss_price, close_price - trail_dist)
                          stop_loss_price = new_stop
                 
-                if signal == 0 and kdj_j > 100:
+                # 卖出条件1: KDJ J > 90 (超买)
+                if signal == 0 and kdj_j > 90:
                     signal = -1
-                    sell_reason = "KDJ Overbought"
+                    sell_reason = "KDJ J>90 Overbought"
+                
+                # 卖出条件2: 跌破5日均线
+                if signal == 0 and i >= 5:
+                    sma5 = np.mean(closes[i-4:i+1])  # 5日均线
+                    if close_price < sma5:
+                        signal = -1
+                        sell_reason = "Break Below MA5"
 
             # --- 买入逻辑 (多策略核心) ---
             elif position == 0:

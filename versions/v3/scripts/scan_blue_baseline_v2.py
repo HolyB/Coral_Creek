@@ -69,31 +69,19 @@ def AVEDEV(series, periods):
 
 
 def calculate_blue_signal(ohlcv_df):
-    """计算 BLUE 信号"""
+    """计算 BLUE 信号 (统一使用 indicator_utils)"""
     if ohlcv_df is None or len(ohlcv_df) < 50:
         return None, None
+    
+    # 导入统一的 BLUE 计算函数
+    from indicator_utils import calculate_blue_signal_series
     
     OPEN = ohlcv_df['Open'].values
     HIGH = ohlcv_df['High'].values
     LOW = ohlcv_df['Low'].values
     CLOSE = ohlcv_df['Close'].values
     
-    VAR1 = REF((LOW + OPEN + CLOSE + HIGH) / 4, 1)
-    VAR2 = SMA(np.abs(LOW - VAR1), 13, 1) / SMA(np.maximum(LOW - VAR1, 0), 10, 1)
-    VAR3 = EMA(VAR2, 10)
-    VAR4 = LLV(LOW, 33)
-    VAR5 = EMA(IF(LOW <= VAR4, VAR3, 0), 3)
-    VAR6 = POW(np.abs(VAR5), 0.3) * np.sign(VAR5)
-    
-    VAR21 = SMA(np.abs(HIGH - VAR1), 13, 1) / SMA(np.minimum(HIGH - VAR1, 0), 10, 1)
-    VAR31 = EMA(VAR21, 10)
-    VAR41 = HHV(HIGH, 33)
-    VAR51 = EMA(IF(HIGH >= VAR41, -VAR31, 0), 3)
-    VAR61 = POW(np.abs(VAR51), 0.3) * np.sign(VAR51)
-    
-    max_value = np.nanmax(np.maximum(VAR6, np.abs(VAR61)))
-    RADIO1 = 200 / max_value if max_value > 0 else 1
-    BLUE = IF(VAR5 > REF(VAR5, 1), VAR6 * RADIO1, 0)
+    BLUE = calculate_blue_signal_series(OPEN, HIGH, LOW, CLOSE)
     
     return BLUE, CLOSE
 

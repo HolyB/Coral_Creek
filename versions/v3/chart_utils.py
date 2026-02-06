@@ -7,51 +7,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import json
 
+# 统一使用 indicator_utils 的 BLUE 计算
+from indicator_utils import calculate_blue_signal_series
+
 def calculate_blue_signal(open_p, high, low, close):
-    """计算BLUE信号（与扫描器中的函数一致）"""
-    def REF(x, n):
-        return np.roll(x, n)
-    
-    def EMA(x, n):
-        return pd.Series(x).ewm(span=n, adjust=False).mean().values
-    
-    # 使用正确的通达信 SMA (加权移动平均)
-    def SMA(series, periods, weight):
-        return pd.Series(series).ewm(alpha=weight/periods, adjust=False).mean().values
-    
-    def LLV(x, n):
-        return pd.Series(x).rolling(window=n).min().values
-    
-    def HHV(x, n):
-        return pd.Series(x).rolling(window=n).max().values
-    
-    def IF(condition, true_value, false_value):
-        return np.where(condition, true_value, false_value)
-    
-    OPEN = open_p
-    HIGH = high
-    LOW = low
-    CLOSE = close
-    
-    VAR1 = REF((LOW + OPEN + CLOSE + HIGH) / 4, 1)
-    # 添加小值避免除以零
-    denominator = SMA(np.maximum(LOW - VAR1, 0), 10, 1)
-    denominator = np.where(denominator == 0, 1e-10, denominator)
-    VAR2 = SMA(np.abs(LOW - VAR1), 13, 1) / denominator
-    VAR3 = EMA(VAR2, 10)
-    VAR4 = LLV(LOW, 33)
-    VAR5 = EMA(IF(LOW <= VAR4, VAR3, 0), 3)
-    
-    # 过滤噪音
-    is_noise = np.abs(VAR5) < 0.5
-    VAR5 = np.where(is_noise, 0, VAR5)
-    
-    VAR6 = np.power(np.abs(VAR5), 0.3) * np.sign(VAR5)
-    
-    # 使用固定乘数而非自归一化
-    RADIO1 = np.minimum(VAR6 * 35, 200)
-    BLUE = IF(VAR5 > REF(VAR5, 1), RADIO1, 0)
-    return BLUE
+    """计算BLUE信号（统一使用 indicator_utils 版本）"""
+    return calculate_blue_signal_series(open_p, high, low, close)
 
 
 def create_candlestick_chart_dynamic(df_full, df_for_vp, symbol, name, period='daily', 
