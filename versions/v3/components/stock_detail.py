@@ -119,6 +119,9 @@ def render_unified_stock_detail(
         # 计算完整黑马 (含金叉、顶背离等新信号)
         heima_full = _calc_heima_full(df_daily)
         
+        # 计算安全区域指标 (新增)
+        safety_zone = _calc_safety_zone(df_daily)
+        
         # 当前价格
         current_price = float(df_daily['Close'].iloc[-1])
         
@@ -151,7 +154,8 @@ def render_unified_stock_detail(
         blue_daily, blue_weekly, blue_monthly, adx_val,
         heima_daily, heima_weekly, heima_monthly,
         juedi_daily, juedi_weekly, juedi_monthly,
-        df_daily, current_price, phantom=phantom, heima_full=heima_full
+        df_daily, current_price, phantom=phantom, heima_full=heima_full,
+        safety_zone=safety_zone
     )
     
     # 判断面板 + 指标
@@ -225,6 +229,38 @@ def render_unified_stock_detail(
                 st.metric("量比", f"{vol_ratio:.1f}x")
             else:
                 st.metric("量比", "N/A")
+        
+        # 第三行: 安全区域指标 (新增)
+        if safety_zone and safety_zone.get('zone_cn'):
+            zone_level = safety_zone.get('safety_level', 50)
+            zone_name = safety_zone.get('zone_cn', '未知')
+            
+            # 根据区域设置颜色
+            if zone_level <= 20:
+                zone_color = "#00E676"  # 绿色 - 安全
+                zone_emoji = "🟢"
+            elif zone_level <= 50:
+                zone_color = "#4CAF50"  # 浅绿 - 可关注
+                zone_emoji = "🟡"
+            elif zone_level <= 80:
+                zone_color = "#FFC107"  # 黄色 - 持股区
+                zone_emoji = "🟠"
+            else:
+                zone_color = "#FF5722"  # 红色 - 风险
+                zone_emoji = "🔴"
+            
+            st.markdown(f"""
+            <div style="background: rgba(30,30,30,0.6); border-radius: 8px; padding: 10px; margin-top: 8px;
+                        border-left: 4px solid {zone_color};">
+                <span style="font-size: 0.85rem; color: #8b949e;">安全区域</span>
+                <span style="font-size: 1.2rem; font-weight: 600; color: {zone_color}; margin-left: 8px;">
+                    {zone_emoji} {zone_name} ({zone_level:.0f})
+                </span>
+                <span style="font-size: 0.8rem; color: #6e7681; margin-left: 10px;">
+                    {'📈 趋势向上' if safety_zone.get('trend_up') else '📉 趋势向下'}
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
     
     st.divider()
     
@@ -354,17 +390,19 @@ def _compute_verdict(
     blue_daily, blue_weekly, blue_monthly, adx,
     heima_daily, heima_weekly, heima_monthly,
     juedi_daily, juedi_weekly, juedi_monthly,
-    df_daily, current_price, phantom: Dict = None, heima_full: Dict = None
+    df_daily, current_price, phantom: Dict = None, heima_full: Dict = None,
+    safety_zone: Dict = None
 ) -> Dict:
     """
     综合所有信号计算买卖判断
     
     评分体系 (0-100):
-    - BLUE信号 (0-35): 日线+周线+月线共振
-    - 趋势确认 (0-18): ADX趋势强度
-    - 特殊信号 (0-17): 黑马+掘地加分
-    - 价量形态 (0-18): 量价配合、均线支撑
-    - 幻影主力 (±12): PINK/资金流向/海底捞月 (可加可减)
+    - BLUE信号 (0-30): 日线+周线+月线共振
+    - 安全区域 (0-15): 风险过滤 (新增)
+    - 趋势确认 (0-15): ADX趋势强度
+    - 特殊信号 (0-15): 黑马+掘地加分
+    - 价量形态 (0-15): 量价配合、均线支撑
+    - 幻影主力 (±10): PINK/资金流向/海底捞月 (可加可减)
     
     Returns:
         {'action': '买入', 'score': 75, 'label': '看多', 'color': '#00C853',
@@ -598,6 +636,47 @@ def _compute_verdict(
     
     score += max(min(heima_adv_score, 10), -10)
     
+    # === 7. 安全区域 (±15) 新增 ===
+    zone_score = 0
+    if safety_zone and isinstance(safety_zone, dict):
+        zone_level = safety_zone.get('safety_level', 50)
+        zone_name = safety_zone.get('zone_cn', '未知')
+        buy_signals = safety_zone.get('buy_signals', [])
+        sell_signals = safety_zone.get('sell_signals', [])
+        
+        # 区域评分
+        if zone_level <= 20:
+            zone_score += 12
+            reasons.append(f"✅ 安全区域: {zone_name} ({zone_level:.0f}) 底部区域")
+        elif zone_level <= 50:
+            zone_score += 6
+            reasons.append(f"✅ 安全区域: {zone_name} ({zone_level:.0f}) 可关注")
+        elif zone_level <= 80:
+            zone_score += 0
+            # 不加分也不减分
+        elif zone_level <= 90:
+            zone_score -= 5
+            reasons.append(f"⚠️ 安全区域: {zone_name} ({zone_level:.0f}) 风险区")
+        else:
+            zone_score -= 10
+            reasons.append(f"🚨 安全区域: {zone_name} ({zone_level:.0f}) 高风险区")
+        
+        # 买入信号加分
+        if buy_signals:
+            for sig_name, sig_weight in buy_signals[:2]:
+                zone_score += min(sig_weight, 3)
+                if sig_weight >= 2:
+                    reasons.append(f"✅ {sig_name}")
+        
+        # 卖出信号减分
+        if sell_signals:
+            for sig_name, sig_weight in sell_signals[:2]:
+                zone_score -= min(sig_weight, 3)
+                if sig_weight >= 2:
+                    reasons.append(f"⚠️ {sig_name}")
+    
+    score += max(min(zone_score, 15), -15)
+    
     # === 生成判断 ===
     score = min(score, 100)
     
@@ -718,6 +797,30 @@ def _calc_heima_full(df: pd.DataFrame) -> Dict:
     except Exception:
         return {}
 
+
+def _calc_safety_zone(df: pd.DataFrame) -> Dict:
+    """计算安全区域指标 (粉区持币/绿区持股)"""
+    try:
+        from strategies.safety_zone_indicator import SafetyZoneIndicator
+        if len(df) < 50:
+            return {}
+        indicator = SafetyZoneIndicator()
+        result = indicator.calculate(df)
+        signals = indicator.get_signals(df)
+        
+        # 合并结果
+        return {
+            'safety_level': result.get('safety_level', 50),
+            'zone': result.get('zone', 'UNKNOWN'),
+            'zone_cn': result.get('zone_cn', '未知'),
+            'trend_up': result.get('trend_up', False),
+            'buy_signals': signals.get('buy_signals', []),
+            'sell_signals': signals.get('sell_signals', []),
+            'buy_score': signals.get('buy_score', 0),
+            'sell_score': signals.get('sell_score', 0),
+        }
+    except Exception:
+        return {}
 
 # ==================== 各Tab渲染函数 ====================
 
