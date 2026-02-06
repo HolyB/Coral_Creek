@@ -292,68 +292,212 @@ with tab3:
                 st.rerun()
 
 # ============================================================================
-# Tab 4: 自动交易
+# Tab 4: 自动交易 (增强版)
 # ============================================================================
 with tab4:
     st.subheader("🤖 信号自动交易")
     
-    st.markdown("""
-    根据系统信号自动执行交易。当检测到买入/卖出信号时，自动下单。
-    """)
+    # 子标签页
+    auto_tab1, auto_tab2 = st.tabs(["📡 批量信号交易", "🔧 手动信号交易"])
     
-    # 配置
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        max_position = st.slider("单只股票最大仓位", 5, 30, 10, 5)
-        st.caption(f"每只股票最多使用 {max_position}% 资金")
-    
-    with col2:
-        stop_loss = st.slider("止损比例", 3, 15, 8)
-        st.caption(f"自动设置 {stop_loss}% 止损单")
-    
-    st.markdown("---")
-    
-    # 信号执行
-    st.subheader("执行买入信号")
-    
-    buy_symbol = st.text_input("股票代码 (买入)", "").upper()
-    buy_reason = st.text_input("信号原因", "BLUE + 黑马共振")
-    
-    if st.button("🟢 执行买入", type="primary") and buy_symbol:
-        signal_trader = SignalTrader(trader, max_position/100, stop_loss/100)
-        result = signal_trader.execute_buy_signal(buy_symbol, buy_reason)
+    # -------------------- 批量信号交易 --------------------
+    with auto_tab1:
+        st.markdown("根据最新扫描信号，自动批量买入符合条件的股票")
         
-        if result['success']:
-            st.success(f"✅ {result['message']}")
-            st.info(f"止损价: ${result.get('stop_price', 0):.2f}")
-        else:
-            st.error(f"❌ {result['message']}")
-    
-    st.markdown("---")
-    
-    st.subheader("执行卖出信号")
-    
-    positions = trader.get_positions()
-    if positions:
-        sell_symbol = st.selectbox("选择持仓卖出", [p.symbol for p in positions])
-        sell_reason = st.text_input("卖出原因", "KDJ J > 90")
+        col1, col2 = st.columns(2)
         
-        if st.button("🔴 执行卖出", type="secondary"):
-            signal_trader = SignalTrader(trader)
-            result = signal_trader.execute_sell_signal(sell_symbol, sell_reason)
+        with col1:
+            auto_max_positions = st.slider("最大持仓数", 1, 10, 5, key="auto_max")
+            auto_min_blue = st.slider("最低 BLUE 分数", 80, 200, 100, key="auto_blue")
+            auto_position_pct = st.slider("单股仓位 %", 5, 25, 10, key="auto_pct")
+        
+        with col2:
+            auto_stop_loss = st.slider("止损 %", 3, 15, 8, key="auto_sl")
+            auto_take_profit = st.slider("止盈 %", 10, 50, 20, key="auto_tp")
+            auto_min_turnover = st.slider("最低成交额 (M)", 1, 50, 10, key="auto_turnover")
+        
+        st.markdown("---")
+        
+        # 信号预览
+        if st.button("🔍 预览可交易信号", key="preview_signals"):
+            with st.spinner("获取信号..."):
+                try:
+                    from db.database import query_scan_results, get_scanned_dates
+                    
+                    dates = get_scanned_dates(market='US')
+                    if dates:
+                        results = query_scan_results(scan_date=dates[0], market='US', min_blue=auto_min_blue)
+                        
+                        # 过滤
+                        filtered = []
+                        for r in results:
+                            turnover = r.get('turnover_m') or 0
+                            cap = r.get('market_cap') or 0
+                            symbol = r.get('symbol', '')
+                            
+                            if (turnover >= auto_min_turnover and 
+                                cap >= 100_000_000 and 
+                                len(symbol) <= 5):
+                                filtered.append(r)
+                                if len(filtered) >= 20:
+                                    break
+                        
+                        if filtered:
+                            st.success(f"✅ 找到 {len(filtered)} 个符合条件的信号 (扫描日期: {dates[0]})")
+                            
+                            df_preview = pd.DataFrame([{
+                                '股票': r.get('symbol'),
+                                '名称': r.get('name', '')[:15],
+                                '价格': f"${r.get('price', 0):.2f}",
+                                'BLUE日': f"{r.get('blue_daily', 0):.0f}",
+                                'BLUE周': f"{r.get('blue_weekly', 0):.0f}",
+                                '成交额': f"${r.get('turnover_m', 0):.1f}M",
+                                '黑马': '🐴' if r.get('heima_daily') else ''
+                            } for r in filtered[:10]])
+                            
+                            st.dataframe(df_preview, use_container_width=True, hide_index=True)
+                        else:
+                            st.warning(f"没有符合条件的信号 (BLUE >= {auto_min_blue}, 成交额 >= ${auto_min_turnover}M)")
+                    else:
+                        st.error("没有扫描数据")
+                        
+                except Exception as e:
+                    st.error(f"获取信号失败: {e}")
+        
+        st.markdown("---")
+        
+        # 执行批量交易
+        if st.button("🚀 执行批量买入", type="primary", key="batch_buy"):
+            with st.spinner("执行信号交易..."):
+                try:
+                    from db.database import query_scan_results, get_scanned_dates
+                    
+                    signal_trader = SignalTrader(
+                        trader=trader,
+                        max_position_pct=auto_position_pct/100,
+                        stop_loss_pct=auto_stop_loss/100
+                    )
+                    
+                    # 获取当前持仓
+                    positions = trader.get_positions()
+                    current_symbols = {p.symbol for p in positions}
+                    available_slots = auto_max_positions - len(current_symbols)
+                    
+                    if available_slots <= 0:
+                        st.warning(f"⚠️ 持仓已满 ({len(current_symbols)}/{auto_max_positions})")
+                    else:
+                        # 获取信号
+                        dates = get_scanned_dates(market='US')
+                        if dates:
+                            results = query_scan_results(scan_date=dates[0], market='US', min_blue=auto_min_blue)
+                            
+                            # 过滤并验证
+                            filtered = []
+                            for r in results:
+                                turnover = r.get('turnover_m') or 0
+                                cap = r.get('market_cap') or 0
+                                symbol = r.get('symbol', '')
+                                
+                                if (turnover >= auto_min_turnover and 
+                                    cap >= 100_000_000 and 
+                                    len(symbol) <= 5 and
+                                    symbol not in current_symbols):
+                                    
+                                    # 验证价格
+                                    try:
+                                        price = trader.get_latest_price(symbol)
+                                        if price > 0:
+                                            r['current_price'] = price
+                                            filtered.append(r)
+                                    except:
+                                        pass
+                                    
+                                    if len(filtered) >= available_slots:
+                                        break
+                            
+                            if filtered:
+                                # 按 BLUE 排序
+                                filtered.sort(key=lambda x: x.get('blue_daily', 0) or 0, reverse=True)
+                                
+                                executed = []
+                                for signal in filtered[:available_slots]:
+                                    symbol = signal['symbol']
+                                    blue_score = signal.get('blue_daily', 0)
+                                    result = signal_trader.execute_buy_signal(symbol, f"BLUE={blue_score:.0f}")
+                                    
+                                    if result['success']:
+                                        executed.append(result)
+                                        st.success(f"✅ {result['message']}")
+                                    else:
+                                        st.warning(f"⚠️ {symbol}: {result['message']}")
+                                
+                                if executed:
+                                    st.balloons()
+                                    st.success(f"🎉 成功买入 {len(executed)} 只股票!")
+                            else:
+                                st.warning("没有找到可交易的股票")
+                        else:
+                            st.error("没有扫描数据")
+                            
+                except Exception as e:
+                    st.error(f"执行失败: {e}")
+    
+    # -------------------- 手动信号交易 --------------------
+    with auto_tab2:
+        st.markdown("手动输入股票代码执行信号交易")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            max_position = st.slider("单只股票最大仓位", 5, 30, 10, 5, key="manual_max")
+            st.caption(f"每只股票最多使用 {max_position}% 资金")
+        
+        with col2:
+            stop_loss = st.slider("止损比例", 3, 15, 8, key="manual_sl")
+            st.caption(f"自动设置 {stop_loss}% 止损单")
+        
+        st.markdown("---")
+        
+        # 买入
+        st.markdown("##### 🟢 买入信号")
+        buy_symbol = st.text_input("股票代码", "", key="manual_buy_symbol").upper()
+        buy_reason = st.text_input("信号原因", "BLUE + 黑马共振", key="manual_buy_reason")
+        
+        if st.button("执行买入", type="primary", key="manual_buy_btn") and buy_symbol:
+            signal_trader = SignalTrader(trader, max_position/100, stop_loss/100)
+            result = signal_trader.execute_buy_signal(buy_symbol, buy_reason)
             
             if result['success']:
                 st.success(f"✅ {result['message']}")
-                if result.get('pnl'):
-                    color = "green" if result['pnl'] >= 0 else "red"
-                    st.markdown(f"盈亏: <span style='color:{color}'>${result['pnl']:+,.2f} ({result['pnl_pct']:+.2f}%)</span>",
-                               unsafe_allow_html=True)
+                st.info(f"止损价: ${result.get('stop_price', 0):.2f}")
             else:
                 st.error(f"❌ {result['message']}")
-    else:
-        st.info("暂无持仓可卖出")
+        
+        st.markdown("---")
+        
+        # 卖出
+        st.markdown("##### 🔴 卖出信号")
+        positions = trader.get_positions()
+        if positions:
+            sell_symbol = st.selectbox("选择持仓卖出", [p.symbol for p in positions], key="manual_sell_symbol")
+            sell_reason = st.text_input("卖出原因", "KDJ J > 90", key="manual_sell_reason")
+            
+            if st.button("执行卖出", type="secondary", key="manual_sell_btn"):
+                signal_trader = SignalTrader(trader)
+                result = signal_trader.execute_sell_signal(sell_symbol, sell_reason)
+                
+                if result['success']:
+                    st.success(f"✅ {result['message']}")
+                    if result.get('pnl'):
+                        color = "green" if result['pnl'] >= 0 else "red"
+                        st.markdown(f"盈亏: <span style='color:{color}'>${result['pnl']:+,.2f} ({result['pnl_pct']:+.2f}%)</span>",
+                                   unsafe_allow_html=True)
+                else:
+                    st.error(f"❌ {result['message']}")
+        else:
+            st.info("暂无持仓可卖出")
 
 # 页脚
 st.markdown("---")
 st.caption(f"🔌 已连接 Alpaca {'模拟盘' if account.is_paper else '实盘'} | 最后更新: {datetime.now().strftime('%H:%M:%S')}")
+
