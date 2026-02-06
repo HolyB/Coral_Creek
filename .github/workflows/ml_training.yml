@@ -6,9 +6,14 @@ on:
     - cron: '0 3 * * 1'
   workflow_dispatch:  # 允许手动触发
 
+# 权限 - 允许写入仓库 (提交模型文件)
+permissions:
+  contents: write
+
 jobs:
   train:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     
     steps:
       - name: Checkout
@@ -18,211 +23,95 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
       
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install xgboost scikit-learn pandas numpy huggingface_hub
-          pip install supabase yfinance
+          pip install xgboost lightgbm scikit-learn pandas numpy joblib
+          pip install polygon-api-client requests yfinance tqdm
       
-      - name: Train with Real Data
+      - name: Train SmartPicker Models (pipeline.py)
+        working-directory: versions/v3
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: |
+          echo "🚀 Training SmartPicker models via ml/pipeline.py"
+          echo "   This trains ReturnPredictor + SignalRanker (101 features)"
+          echo ""
+          
+          python ml/pipeline.py --market US --days 180
+          
+          echo ""
+          echo "📂 Model files:"
+          ls -la ml/saved_models/v2_us/ || echo "No v2_us models"
+      
+      - name: Verify models
         working-directory: versions/v3
         run: |
           python -c "
-          import os
-          import sys
-          import json
-          import pandas as pd
-          import numpy as np
-          from datetime import datetime, timedelta
-          from xgboost import XGBClassifier
-          from sklearn.model_selection import train_test_split
-          from sklearn.metrics import accuracy_score, roc_auc_score
-          import yfinance as yf
+          import joblib, json, os
           
-          print('🔍 Connecting to Supabase...')
+          model_dir = 'ml/saved_models/v2_us'
           
-          from supabase import create_client
-          
-          url = os.environ.get('SUPABASE_URL')
-          key = os.environ.get('SUPABASE_KEY')
-          
-          if not url or not key:
-              print('❌ Missing SUPABASE credentials')
-              sys.exit(1)
-          
-          supabase = create_client(url, key)
-          print('✅ Connected to Supabase')
-          
-          # 1. 获取历史扫描信号
-          print('📊 Fetching scan results from database...')
-          
-          # 获取最近90天的信号
-          cutoff = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
-          
-          response = supabase.table('scan_results').select('*').gte('scan_date', cutoff).execute()
-          signals = response.data
-          
-          print(f'📈 Found {len(signals)} signals')
-          
-          if len(signals) < 50:
-              print('⚠️ Not enough signals, using synthetic data supplement')
-              # 补充合成数据
-              np.random.seed(42)
-              n_synthetic = 200
-              synthetic_signals = []
-              for i in range(n_synthetic):
-                  synthetic_signals.append({
-                      'symbol': f'SYN{i}',
-                      'blue_daily': np.random.randint(50, 200),
-                      'blue_weekly': np.random.randint(30, 150),
-                      'price': np.random.uniform(10, 500),
-                      'scan_date': (datetime.now() - timedelta(days=np.random.randint(10, 90))).strftime('%Y-%m-%d')
-                  })
-              signals.extend(synthetic_signals)
-          
-          df = pd.DataFrame(signals)
-          print(f'📊 Total samples: {len(df)}')
-          
-          # 2. 计算未来收益 (只对有价格的信号)
-          print('💹 Calculating forward returns...')
-          
-          def get_forward_return(row, days=10):
-              '''获取股票未来N天收益'''
-              try:
-                  symbol = str(row.get('symbol', '')).upper()
-                  scan_date = row.get('scan_date')
-                  
-                  if not symbol or not scan_date or symbol.startswith('SYN'):
-                      # 合成数据使用随机收益
-                      blue = row.get('blue_daily', 50)
-                      # 模拟: BLUE越高，盈利概率越大
-                      if blue > 120:
-                          return np.random.uniform(-5, 15)
-                      elif blue > 100:
-                          return np.random.uniform(-8, 10)
-                      else:
-                          return np.random.uniform(-10, 8)
-                  
-                  # 真实股票获取价格
-                  start = pd.to_datetime(scan_date)
-                  end = start + timedelta(days=days+5)
-                  
-                  ticker = yf.Ticker(symbol)
-                  hist = ticker.history(start=start, end=end)
-                  
-                  if len(hist) < 2:
-                      return None
-                  
-                  entry_price = hist['Close'].iloc[0]
-                  exit_price = hist['Close'].iloc[min(days, len(hist)-1)]
-                  
-                  return (exit_price - entry_price) / entry_price * 100
-              except:
-                  return None
-          
-          # 批量计算收益 (限制API调用)
-          returns = []
-          for idx, row in df.iterrows():
-              if idx < 100:  # 限制真实API调用
-                  ret = get_forward_return(row)
+          # 检查关键模型文件
+          required = ['return_5d.joblib', 'ranker_short.joblib', 'ranker_medium.joblib', 'ranker_long.joblib', 'feature_names.json']
+          for f in required:
+              path = os.path.join(model_dir, f)
+              if os.path.exists(path):
+                  size = os.path.getsize(path)
+                  print(f'  ✅ {f} ({size:,} bytes)')
               else:
-                  # 大部分使用模拟
-                  blue = row.get('blue_daily', 50) or 50
-                  if blue > 120:
-                      ret = np.random.uniform(-5, 15)
-                  else:
-                      ret = np.random.uniform(-10, 8)
-              returns.append(ret)
+                  print(f'  ❌ MISSING: {f}')
           
-          df['forward_return'] = returns
-          df = df.dropna(subset=['forward_return'])
+          # 验证特征数
+          fn_path = os.path.join(model_dir, 'feature_names.json')
+          if os.path.exists(fn_path):
+              with open(fn_path) as f:
+                  features = json.load(f)
+              print(f'  📊 Features: {len(features)}')
           
-          print(f'📊 Samples with returns: {len(df)}')
-          
-          # 3. 准备特征和标签
-          print('🔧 Preparing features...')
-          
-          feature_cols = ['blue_daily', 'blue_weekly']
-          
-          for col in feature_cols:
-              if col not in df.columns:
-                  df[col] = 0
-              df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-          
-          X = df[feature_cols].values
-          y = (df['forward_return'] > 0).astype(int).values
-          
-          print(f'Features shape: {X.shape}')
-          print(f'Positive rate: {y.mean():.2%}')
-          
-          # 4. 训练模型
-          print('🧠 Training XGBoost model...')
-          
-          X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-          
-          model = XGBClassifier(
-              n_estimators=100,
-              max_depth=4,
-              learning_rate=0.1,
-              random_state=42,
-              use_label_encoder=False,
-              eval_metric='logloss'
-          )
-          model.fit(X_train, y_train)
-          
-          y_pred = model.predict(X_test)
-          y_proba = model.predict_proba(X_test)[:, 1]
-          
-          acc = accuracy_score(y_test, y_pred)
-          try:
-              auc = roc_auc_score(y_test, y_proba)
-          except:
-              auc = 0.5
-          
-          print(f'✅ Accuracy: {acc:.4f}')
-          print(f'✅ AUC: {auc:.4f}')
-          
-          # 5. 保存模型
-          os.makedirs('ml/saved_models', exist_ok=True)
-          
-          model.save_model('ml/saved_models/xgb_signal_us.json')
-          print('💾 Model saved')
-          
-          meta = {
-              'market': 'US',
-              'accuracy': float(acc),
-              'auc': float(auc),
-              'n_samples': len(df),
-              'n_real_signals': len([s for s in signals if not str(s.get('symbol','')).startswith('SYN')]),
-              'features': feature_cols,
-              'trained_at': datetime.now().isoformat()
-          }
-          
-          with open('ml/saved_models/xgb_signal_us_meta.json', 'w') as f:
-              json.dump(meta, f, indent=2)
-          
-          print('✅ Training complete!')
-          print(f'   Real signals used: {meta[\"n_real_signals\"]}')
-          print(f'   Total samples: {meta[\"n_samples\"]}')
+          # 验证模型可加载
+          model_path = os.path.join(model_dir, 'return_5d.joblib')
+          if os.path.exists(model_path):
+              model = joblib.load(model_path)
+              print(f'  ✅ return_5d model loaded: {type(model).__name__}')
           "
       
-      - name: Upload to HuggingFace Hub
+      - name: Commit updated models
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add versions/v3/ml/saved_models/ || true
+          
+          if git diff --staged --quiet; then
+            echo "No model changes to commit"
+          else
+            git commit -m "🧠 Auto-update: ML models retrained $(date +%Y-%m-%d)"
+            
+            if ! git pull --rebase origin main; then
+              git rebase --abort || true
+              git pull -X ours origin main || true
+            fi
+            git push
+          fi
+      
+      - name: Upload models to HuggingFace Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         working-directory: versions/v3
         run: |
+          pip install huggingface_hub
           python -c "
           from huggingface_hub import HfApi, login, create_repo
-          import os
+          import os, glob
           
           token = os.environ.get('HF_TOKEN')
           if not token:
-              print('❌ HF_TOKEN not set')
-              exit(1)
+              print('⚠️ HF_TOKEN not set, skipping upload')
+              exit(0)
           
           login(token=token)
           api = HfApi()
@@ -231,30 +120,22 @@ jobs:
           
           try:
               create_repo(repo_id, repo_type='model', private=True, exist_ok=True)
-              print(f'✅ Repo {repo_id} ready')
           except Exception as e:
               print(f'Repo check: {e}')
           
-          model_path = 'ml/saved_models/xgb_signal_us.json'
-          meta_path = 'ml/saved_models/xgb_signal_us_meta.json'
-          
-          if os.path.exists(model_path):
-              api.upload_file(
-                  path_or_fileobj=model_path,
-                  path_in_repo='xgb_signal_us.json',
-                  repo_id=repo_id,
-                  repo_type='model'
-              )
-              print('✅ Uploaded model')
-          
-          if os.path.exists(meta_path):
-              api.upload_file(
-                  path_or_fileobj=meta_path,
-                  path_in_repo='xgb_signal_us_meta.json',
-                  repo_id=repo_id,
-                  repo_type='model'
-              )
-              print('✅ Uploaded metadata')
+          # 上传 v2_us 模型目录
+          model_dir = 'ml/saved_models/v2_us'
+          if os.path.exists(model_dir):
+              for f in os.listdir(model_dir):
+                  fpath = os.path.join(model_dir, f)
+                  if os.path.isfile(fpath):
+                      api.upload_file(
+                          path_or_fileobj=fpath,
+                          path_in_repo=f'v2_us/{f}',
+                          repo_id=repo_id,
+                          repo_type='model'
+                      )
+                      print(f'  ✅ Uploaded: v2_us/{f}')
           
           print('🎉 Upload complete!')
           "
@@ -262,5 +143,6 @@ jobs:
       - name: Summary
         run: |
           echo "🎉 ML Training Complete!"
-          echo "Models trained with real database signals"
-          echo "Uploaded to: https://huggingface.co/HolyBert/coral-creek-models"
+          echo "Models: ReturnPredictor (1d/5d/10d/30d) + SignalRanker (short/medium/long)"
+          echo "Features: 101 technical indicators"
+          echo "Used by: SmartPicker in AI中心 and 今日精选"
