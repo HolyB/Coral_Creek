@@ -54,6 +54,12 @@ def init_db():
                 volatility REAL,
                 is_heima BOOLEAN,
                 is_juedi BOOLEAN,
+                heima_daily BOOLEAN DEFAULT 0,
+                heima_weekly BOOLEAN DEFAULT 0,
+                heima_monthly BOOLEAN DEFAULT 0,
+                juedi_daily BOOLEAN DEFAULT 0,
+                juedi_weekly BOOLEAN DEFAULT 0,
+                juedi_monthly BOOLEAN DEFAULT 0,
                 strat_d_trend BOOLEAN,
                 strat_c_resonance BOOLEAN,
                 legacy_signal BOOLEAN,
@@ -78,6 +84,21 @@ def init_db():
                 UNIQUE(symbol, scan_date)
             )
         """)
+        
+        # 迁移: 给旧数据库添加新列 (如果不存在)
+        migrate_cols = [
+            ('heima_daily', 'BOOLEAN DEFAULT 0'),
+            ('heima_weekly', 'BOOLEAN DEFAULT 0'),
+            ('heima_monthly', 'BOOLEAN DEFAULT 0'),
+            ('juedi_daily', 'BOOLEAN DEFAULT 0'),
+            ('juedi_weekly', 'BOOLEAN DEFAULT 0'),
+            ('juedi_monthly', 'BOOLEAN DEFAULT 0'),
+        ]
+        existing_cols = {row[1] for row in cursor.execute("PRAGMA table_info(scan_results)").fetchall()}
+        for col_name, col_type in migrate_cols:
+            if col_name not in existing_cols:
+                cursor.execute(f"ALTER TABLE scan_results ADD COLUMN {col_name} {col_type}")
+                print(f"  [migrate] Added column: {col_name}")
         
         # 创建索引
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_scan_date ON scan_results(scan_date)")
@@ -263,11 +284,14 @@ def insert_scan_result(result_dict):
         cursor.execute("""
             INSERT INTO scan_results (
                 symbol, scan_date, price, turnover_m, blue_daily, blue_weekly, blue_monthly,
-                adx, volatility, is_heima, is_juedi, strat_d_trend, strat_c_resonance,
+                adx, volatility, is_heima, is_juedi,
+                heima_daily, heima_weekly, heima_monthly,
+                juedi_daily, juedi_weekly, juedi_monthly,
+                strat_d_trend, strat_c_resonance,
                 legacy_signal, regime, adaptive_thresh, vp_rating, profit_ratio,
                 wave_phase, wave_desc, chan_signal, chan_desc, market_cap, cap_category,
                 company_name, industry, stop_loss, shares_rec, risk_reward_score, market, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(symbol, scan_date) DO UPDATE SET
                 price = excluded.price,
                 turnover_m = excluded.turnover_m,
@@ -278,6 +302,12 @@ def insert_scan_result(result_dict):
                 volatility = excluded.volatility,
                 is_heima = excluded.is_heima,
                 is_juedi = excluded.is_juedi,
+                heima_daily = excluded.heima_daily,
+                heima_weekly = excluded.heima_weekly,
+                heima_monthly = excluded.heima_monthly,
+                juedi_daily = excluded.juedi_daily,
+                juedi_weekly = excluded.juedi_weekly,
+                juedi_monthly = excluded.juedi_monthly,
                 strat_d_trend = excluded.strat_d_trend,
                 strat_c_resonance = excluded.strat_c_resonance,
                 legacy_signal = excluded.legacy_signal,
@@ -310,6 +340,12 @@ def insert_scan_result(result_dict):
             result_dict.get('Volatility'),
             result_dict.get('Is_Heima'),
             result_dict.get('Is_Juedi') if 'Is_Juedi' in result_dict else result_dict.get('Is_Heima'),
+            result_dict.get('Heima_Daily', False),
+            result_dict.get('Heima_Weekly', False),
+            result_dict.get('Heima_Monthly', False),
+            result_dict.get('Juedi_Daily', False),
+            result_dict.get('Juedi_Weekly', False),
+            result_dict.get('Juedi_Monthly', False),
             result_dict.get('Strat_D_Trend'),
             result_dict.get('Strat_C_Resonance'),
             result_dict.get('Legacy_Signal'),
@@ -328,7 +364,7 @@ def insert_scan_result(result_dict):
             result_dict.get('Stop_Loss'),
             result_dict.get('Shares_Rec'),
             result_dict.get('Risk_Reward_Score'),
-            result_dict.get('Market', 'US')  # 默认 US
+            result_dict.get('Market', 'US')
         ))
 
 
