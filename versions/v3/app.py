@@ -9580,6 +9580,47 @@ def _run_simple_backtest(df, data, strategy, initial_capital=100000):
 def render_paper_trading_page():
     """💰 模拟盘交易页面"""
     st.subheader("💰 模拟盘交易")
+
+    def _env_float(name: str, default: float) -> float:
+        try:
+            return float(os.environ.get(name, default))
+        except (TypeError, ValueError):
+            return default
+
+    def _show_trade_error(err: Exception) -> None:
+        msg = str(err)
+        if "风控拦截" in msg:
+            st.warning(f"🛡️ {msg}")
+        else:
+            st.error(f"❌ 下单失败: {msg}")
+
+    def _upsert_env_values(file_path: str, values: dict) -> None:
+        lines = []
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
+                lines = f.read().splitlines()
+
+        updated = {k: False for k in values}
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                new_lines.append(line)
+                continue
+
+            key = stripped.split("=", 1)[0].strip()
+            if key in values:
+                new_lines.append(f"{key}={values[key]}")
+                updated[key] = True
+            else:
+                new_lines.append(line)
+
+        for key, done in updated.items():
+            if not done:
+                new_lines.append(f"{key}={values[key]}")
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(new_lines) + "\n")
     
     # 检查 Alpaca SDK
     try:
@@ -9622,6 +9663,7 @@ def render_paper_trading_page():
     import os
     api_key = os.environ.get('ALPACA_API_KEY')
     secret_key = os.environ.get('ALPACA_SECRET_KEY')
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
     
     if not api_key or not secret_key:
         st.warning("⚠️ 未配置 Alpaca API Keys")
@@ -9635,10 +9677,23 @@ def render_paper_trading_page():
         if not api_key or not secret_key:
             st.info("请输入 Alpaca API Keys 或在 .env 文件中配置")
             return
+
+    enable_hard_risk_guards = os.environ.get("ALPACA_ENABLE_HARD_RISK_GUARDS", "true").lower() == "true"
+    max_single_position_pct = _env_float("ALPACA_MAX_SINGLE_POSITION_PCT", 0.20)
+    max_daily_loss_pct = _env_float("ALPACA_MAX_DAILY_LOSS_PCT", 0.03)
+    max_portfolio_drawdown_pct = _env_float("ALPACA_MAX_PORTFOLIO_DRAWDOWN_PCT", 0.15)
     
     # 连接
     try:
-        trader = AlpacaTrader(api_key=api_key, secret_key=secret_key, paper=True)
+        trader = AlpacaTrader(
+            api_key=api_key,
+            secret_key=secret_key,
+            paper=True,
+            enable_hard_risk_guards=enable_hard_risk_guards,
+            max_single_position_pct=max_single_position_pct,
+            max_daily_loss_pct=max_daily_loss_pct,
+            max_portfolio_drawdown_pct=max_portfolio_drawdown_pct
+        )
         account = trader.get_account()
     except Exception as e:
         st.error(f"❌ 连接失败: {e}")
@@ -9653,6 +9708,44 @@ def render_paper_trading_page():
     market = trader.get_market_hours()
     status = "🟢 开盘中" if market['is_open'] else "🔴 休市"
     col4.metric("市场状态", status)
+
+    st.caption("当前生效风控参数")
+    risk_col1, risk_col2, risk_col3, risk_col4 = st.columns(4)
+    risk_col1.metric("硬风控", "开启" if enable_hard_risk_guards else "关闭")
+    risk_col2.metric("单票上限", f"{max_single_position_pct * 100:.1f}%")
+    risk_col3.metric("日亏损上限", f"{max_daily_loss_pct * 100:.1f}%")
+    risk_col4.metric("回撤上限", f"{max_portfolio_drawdown_pct * 100:.1f}%")
+
+    with st.expander("🛡️ 风控参数（执行层）", expanded=False):
+        risk_enable = st.checkbox("启用硬风控", value=enable_hard_risk_guards, key="alpaca_risk_enable_main")
+        risk_single = st.slider(
+            "单票最大仓位 (%)", min_value=5, max_value=50,
+            value=int(round(max_single_position_pct * 100)),
+            key="alpaca_risk_single_main"
+        )
+        risk_daily = st.slider(
+            "当日最大亏损 (%)", min_value=1, max_value=20,
+            value=int(round(max_daily_loss_pct * 100)),
+            key="alpaca_risk_daily_main"
+        )
+        risk_dd = st.slider(
+            "组合最大回撤 (%)", min_value=5, max_value=50,
+            value=int(round(max_portfolio_drawdown_pct * 100)),
+            key="alpaca_risk_dd_main"
+        )
+
+        if st.button("💾 保存风控参数", key="alpaca_risk_save_main"):
+            updates = {
+                "ALPACA_ENABLE_HARD_RISK_GUARDS": str(risk_enable).lower(),
+                "ALPACA_MAX_SINGLE_POSITION_PCT": f"{risk_single / 100:.4f}",
+                "ALPACA_MAX_DAILY_LOSS_PCT": f"{risk_daily / 100:.4f}",
+                "ALPACA_MAX_PORTFOLIO_DRAWDOWN_PCT": f"{risk_dd / 100:.4f}",
+            }
+            _upsert_env_values(env_path, updates)
+            for k, v in updates.items():
+                os.environ[k] = v
+            st.success("✅ 风控参数已保存，重新加载后生效")
+            st.rerun()
     
     st.markdown("---")
     
@@ -9697,14 +9790,14 @@ def render_paper_trading_page():
                 order = trader.buy_market(symbol, qty)
                 st.success(f"✅ 买入订单已提交: {order['id'][:8]}...")
             except Exception as e:
-                st.error(f"❌ 下单失败: {e}")
+                _show_trade_error(e)
     with col4:
         if st.button("🔴 卖出", type="secondary"):
             try:
                 order = trader.sell_market(symbol, qty)
                 st.success(f"✅ 卖出订单已提交: {order['id'][:8]}...")
             except Exception as e:
-                st.error(f"❌ 下单失败: {e}")
+                _show_trade_error(e)
 
 
 
@@ -10706,4 +10799,3 @@ elif page == "🧪 策略实验室":
     render_strategy_lab_page()
 elif page == "🤖 AI中心":
     render_ai_center_page()
-

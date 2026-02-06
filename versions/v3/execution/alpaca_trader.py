@@ -104,7 +104,11 @@ class AlpacaTrader:
     支持模拟盘和实盘交易
     """
     
-    def __init__(self, api_key: str = None, secret_key: str = None, paper: bool = True):
+    def __init__(self, api_key: str = None, secret_key: str = None, paper: bool = True,
+                 enable_hard_risk_guards: bool = True,
+                 max_single_position_pct: float = 0.20,
+                 max_daily_loss_pct: float = 0.03,
+                 max_portfolio_drawdown_pct: float = 0.15):
         """
         初始化交易客户端
         
@@ -122,6 +126,23 @@ class AlpacaTrader:
         self.api_key = api_key or os.environ.get('ALPACA_API_KEY')
         self.secret_key = secret_key or os.environ.get('ALPACA_SECRET_KEY')
         self.paper = paper if paper is not None else os.environ.get('ALPACA_PAPER', 'true').lower() == 'true'
+
+        # 风控开关（可由环境变量覆盖）
+        self.enable_hard_risk_guards = (
+            os.environ.get('ALPACA_ENABLE_HARD_RISK_GUARDS', str(enable_hard_risk_guards)).lower() == 'true'
+        )
+        self.max_single_position_pct = float(
+            os.environ.get('ALPACA_MAX_SINGLE_POSITION_PCT', max_single_position_pct)
+        )
+        self.max_daily_loss_pct = float(
+            os.environ.get('ALPACA_MAX_DAILY_LOSS_PCT', max_daily_loss_pct)
+        )
+        self.max_portfolio_drawdown_pct = float(
+            os.environ.get('ALPACA_MAX_PORTFOLIO_DRAWDOWN_PCT', max_portfolio_drawdown_pct)
+        )
+
+        # 运行态峰值净值（用于回撤风控）
+        self._peak_equity = None
         
         if not self.api_key or not self.secret_key:
             raise ValueError(
@@ -141,6 +162,75 @@ class AlpacaTrader:
             api_key=self.api_key,
             secret_key=self.secret_key
         )
+
+    def _update_peak_equity(self, equity: float) -> None:
+        """更新会话内峰值净值"""
+        if equity <= 0:
+            return
+        if self._peak_equity is None:
+            self._peak_equity = equity
+        else:
+            self._peak_equity = max(self._peak_equity, equity)
+
+    def _validate_buy_order(self, symbol: str, qty: float, ref_price: Optional[float] = None) -> None:
+        """
+        买单硬风控校验。
+        触发风险限制时抛出 ValueError，调用方直接显示错误即可。
+        """
+        if not self.enable_hard_risk_guards:
+            return
+
+        if qty <= 0:
+            raise ValueError("风控拦截：下单数量必须大于 0")
+
+        account = self.client.get_account()
+        equity = float(account.equity)
+        if equity <= 0:
+            raise ValueError("风控拦截：账户净值异常，禁止开新仓")
+
+        self._update_peak_equity(equity)
+
+        # 1) 组合最大回撤限制（基于会话内峰值）
+        if self._peak_equity and self._peak_equity > 0:
+            drawdown = (self._peak_equity - equity) / self._peak_equity
+            if drawdown >= self.max_portfolio_drawdown_pct:
+                raise ValueError(
+                    f"风控拦截：组合回撤 {drawdown:.2%} 超过阈值 {self.max_portfolio_drawdown_pct:.2%}，禁止开新仓"
+                )
+
+        # 2) 当日亏损限制（使用 Alpaca last_equity）
+        last_equity_raw = getattr(account, 'last_equity', None)
+        try:
+            last_equity = float(last_equity_raw) if last_equity_raw is not None else 0.0
+        except (TypeError, ValueError):
+            last_equity = 0.0
+
+        if last_equity > 0:
+            daily_loss = (last_equity - equity) / last_equity
+            if daily_loss >= self.max_daily_loss_pct:
+                raise ValueError(
+                    f"风控拦截：当日亏损 {daily_loss:.2%} 超过阈值 {self.max_daily_loss_pct:.2%}，禁止开新仓"
+                )
+
+        # 3) 单票最大仓位限制
+        price = ref_price if ref_price and ref_price > 0 else self.get_latest_price(symbol)
+        if price <= 0:
+            raise ValueError(f"风控拦截：无法获取 {symbol} 价格，禁止开新仓")
+
+        new_order_value = float(qty) * float(price)
+        current_position_value = 0.0
+        try:
+            pos = self.client.get_open_position(symbol)
+            current_position_value = float(pos.market_value)
+        except Exception:
+            current_position_value = 0.0
+
+        post_trade_position_value = current_position_value + new_order_value
+        position_limit_value = equity * self.max_single_position_pct
+        if post_trade_position_value > position_limit_value:
+            raise ValueError(
+                f"风控拦截：{symbol} 下单后仓位 ${post_trade_position_value:,.2f} 超过上限 ${position_limit_value:,.2f}"
+            )
     
     # ============================================================================
     # 账户信息
@@ -211,6 +301,7 @@ class AlpacaTrader:
         Returns:
             订单信息
         """
+        self._validate_buy_order(symbol, qty)
         tif = getattr(TimeInForce, time_in_force.upper(), TimeInForce.DAY)
         
         order_request = MarketOrderRequest(
@@ -240,6 +331,7 @@ class AlpacaTrader:
     def buy_limit(self, symbol: str, qty: float, limit_price: float, 
                   time_in_force: str = "day") -> Dict:
         """限价买入"""
+        self._validate_buy_order(symbol, qty, ref_price=limit_price)
         tif = getattr(TimeInForce, time_in_force.upper(), TimeInForce.DAY)
         
         order_request = LimitOrderRequest(
@@ -272,6 +364,7 @@ class AlpacaTrader:
     def buy_stop(self, symbol: str, qty: float, stop_price: float,
                  time_in_force: str = "day") -> Dict:
         """止损买入 (突破买入)"""
+        self._validate_buy_order(symbol, qty, ref_price=stop_price)
         tif = getattr(TimeInForce, time_in_force.upper(), TimeInForce.DAY)
         
         order_request = StopOrderRequest(

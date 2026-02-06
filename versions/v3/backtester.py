@@ -55,11 +55,15 @@ class SimpleBacktester:
     - 在日线回测中，使用 shift(1) + ffill，确保下周一才能看到上周的周线 BLUE
     """
     
-    def __init__(self, symbol, market='US', initial_capital=100000, days=1095, 
-                 commission_rate=0.001, blue_threshold=100, require_heima=False, 
-                 require_week_blue=False, require_vp_filter=False, 
+    def __init__(self, symbol, market='US', initial_capital=100000, days=1095,
+                 commission_rate=0.001, blue_threshold=100, require_heima=False,
+                 require_week_blue=False, require_vp_filter=False,
                  use_risk_management=True, strategy_mode='C',
-                 strict_mode=True):  # 新增：严格模式
+                 strict_mode=True,
+                 enable_hard_risk_guards=True,
+                 max_single_position_pct=0.20,
+                 max_daily_loss_pct=0.03,
+                 max_portfolio_drawdown_pct=0.15):
         """
         Args:
             strict_mode: 如果为 True，强制执行信号延迟验证
@@ -76,6 +80,10 @@ class SimpleBacktester:
         self.use_risk_management = use_risk_management
         self.strategy_mode = strategy_mode
         self.strict_mode = strict_mode
+        self.enable_hard_risk_guards = enable_hard_risk_guards
+        self.max_single_position_pct = max_single_position_pct
+        self.max_daily_loss_pct = max_daily_loss_pct
+        self.max_portfolio_drawdown_pct = max_portfolio_drawdown_pct
         
         self.stop_atr_multiple = 2.0
         self.risk_per_trade_pct = 0.02
@@ -194,6 +202,10 @@ class SimpleBacktester:
         capital = self.initial_capital
         position = 0 
         portfolio_values = []
+        peak_equity = self.initial_capital
+        current_day = None
+        day_start_equity = self.initial_capital
+        drawdown_halt_triggered = False
         
         dates = self.df.index
         opens = self.df['Open'].values
@@ -232,6 +244,34 @@ class SimpleBacktester:
             close_price = closes[i]
             low_price = lows[i]
             next_open = opens[i+1]
+            trade_date = pd.Timestamp(dates[i]).date()
+
+            # --- 硬风控状态评估（只阻止新开仓，不阻止卖出） ---
+            pre_trade_equity = capital + position * close_price
+            if current_day != trade_date:
+                current_day = trade_date
+                day_start_equity = pre_trade_equity
+
+            peak_equity = max(peak_equity, pre_trade_equity)
+            current_drawdown_pct = (peak_equity - pre_trade_equity) / peak_equity if peak_equity > 0 else 0
+            daily_loss_pct = (day_start_equity - pre_trade_equity) / day_start_equity if day_start_equity > 0 else 0
+
+            block_new_entries = False
+            block_reason = ""
+            if self.enable_hard_risk_guards:
+                if current_drawdown_pct >= self.max_portfolio_drawdown_pct:
+                    block_new_entries = True
+                    block_reason = f"Hard Risk Halt: Drawdown {current_drawdown_pct:.2%}"
+                    if not drawdown_halt_triggered:
+                        drawdown_halt_triggered = True
+                        self.rejected_trades.append({
+                            'type': 'RISK_HALT',
+                            'date': dates[i],
+                            'reason': block_reason
+                        })
+                elif daily_loss_pct >= self.max_daily_loss_pct:
+                    block_new_entries = True
+                    block_reason = f"Daily Loss Limit: {daily_loss_pct:.2%}"
             
             signal = 0 
             sell_reason = ""
@@ -265,7 +305,7 @@ class SimpleBacktester:
                         sell_reason = "Break Below MA5"
 
             # --- 买入逻辑 (多策略核心) ---
-            elif position == 0:
+            elif position == 0 and not block_new_entries:
                 buy_candidate = False
                 trigger_source = ""
                 
@@ -321,6 +361,12 @@ class SimpleBacktester:
 
                 if buy_candidate:
                     signal = 1
+            elif position == 0 and block_new_entries:
+                self.rejected_trades.append({
+                    'type': 'REJECTED_BUY',
+                    'date': dates[i],
+                    'reason': block_reason
+                })
             
             # --- 执行 ---
             if signal == 1:
@@ -331,12 +377,15 @@ class SimpleBacktester:
                     risk_per_trade = capital * self.risk_per_trade_pct
                     stop_distance = self.stop_atr_multiple * atr
                     calculated_shares = int(risk_per_trade / stop_distance)
-                    max_capital_shares = int((capital * 0.6) / next_open)
-                    shares = min(calculated_shares, max_capital_shares)
+                    total_equity = capital + position * close_price
+                    max_single_position_shares = int((total_equity * self.max_single_position_pct) / next_open)
+                    shares = min(calculated_shares, max_single_position_shares)
                     stop_loss_price = next_open - stop_distance
                 else:
                     max_cost = capital / (1 + self.commission_rate)
-                    shares = int(max_cost / next_open)
+                    total_equity = capital + position * close_price
+                    max_single_position_shares = int((total_equity * self.max_single_position_pct) / next_open)
+                    shares = min(int(max_cost / next_open), max_single_position_shares)
                 
                 if shares > 0:
                     cost = shares * next_open
@@ -404,6 +453,12 @@ class SimpleBacktester:
             'Max Drawdown': max_drawdown,
             'Total Trades': total_closed_trades,
             'Win Rate': win_rate,
+            'Hard Guards Enabled': self.enable_hard_risk_guards,
+            'Max Single Position Pct': self.max_single_position_pct,
+            'Max Daily Loss Pct': self.max_daily_loss_pct,
+            'Max Portfolio Drawdown Pct': self.max_portfolio_drawdown_pct,
+            'Rejected Entries': len([t for t in self.rejected_trades if t.get('type') == 'REJECTED_BUY']),
+            'Risk Halts': len([t for t in self.rejected_trades if t.get('type') == 'RISK_HALT']),
             'Adaptive Info': self.adaptive_info,
             'Yearly Returns': self.yearly_returns
         }

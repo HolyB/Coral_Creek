@@ -8,6 +8,15 @@ import pandas as pd
 import os
 
 
+def _show_trade_error(err: Exception):
+    """统一展示交易错误"""
+    msg = str(err)
+    if "风控拦截" in msg:
+        st.warning(f"🛡️ {msg}")
+    else:
+        st.error(f"❌ 交易失败: {msg}")
+
+
 def get_alpaca_trader():
     """获取 Alpaca Trader 实例 (缓存)"""
     try:
@@ -268,7 +277,7 @@ def render_alpaca_quick_trade(symbol: str = None, suggested_price: float = None)
                             st.success(f"✅ 订单已提交: {order['id'][:8]}...")
                             st.rerun()
                         except Exception as e:
-                            st.error(f"❌ 交易失败: {e}")
+                            _show_trade_error(e)
                 else:
                     st.warning("请输入股票代码")
         
