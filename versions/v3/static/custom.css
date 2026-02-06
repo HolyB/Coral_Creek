@@ -935,3 +935,53 @@ td:has(.chip-normal) {
         display: none;
     }
 }
+
+/* ==========================================================================
+   STOCK COMPARISON CARDS
+   ========================================================================== */
+/* Compare mode columns get subtle borders */
+div[data-testid="column"]:has(h3) {
+    background: rgba(22, 27, 34, 0.5);
+    border: 1px solid var(--cc-border);
+    border-radius: 12px;
+    padding: 12px !important;
+    margin: 4px;
+    transition: all 0.3s ease;
+}
+
+div[data-testid="column"]:has(h3):hover {
+    border-color: var(--cc-accent-blue);
+    box-shadow: 0 4px 16px rgba(88, 166, 255, 0.1);
+}
+
+/* ==========================================================================
+   TOOLBAR ROW - Sort controls inline
+   ========================================================================== */
+.stSelectbox {
+    min-width: 120px;
+}
+
+/* Toggle switch prettier */
+div[data-testid="stToggle"] {
+    margin-top: 4px;
+}
+
+/* ==========================================================================
+   ACTION TABS - Buy/Calculator/Watchlist
+   ========================================================================== */
+.stTabs [data-baseweb="tab-panel"] {
+    padding: 16px 8px !important;
+}
+
+/* Number input compact in calculator */
+.stNumberInput label {
+    font-size: 0.85rem !important;
+    color: var(--cc-text-secondary);
+}
+
+/* Success/Error in P&L calculator */
+div[data-testid="stNotificationContentSuccess"] p,
+div[data-testid="stNotificationContentError"] p {
+    font-size: 1.1rem !important;
+    font-weight: 600;
+}

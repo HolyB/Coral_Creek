@@ -68,6 +68,30 @@ def inject_secrets():
 inject_secrets()
 
 
+# --- 数据缓存层 (Performance Optimization) ---
+# 全局缓存高频数据查询，避免每次交互都重新加载
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_scan_results(scan_date, market, limit=1000):
+    """缓存扫描结果 (5分钟TTL)"""
+    return query_scan_results(scan_date=scan_date, market=market, limit=limit)
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _cached_stock_data(symbol, market='US', days=365):
+    """缓存股票历史数据 (10分钟TTL)"""
+    return get_stock_data(symbol, market=market, days=days)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_scanned_dates(market=None):
+    """缓存可用扫描日期列表 (5分钟TTL)"""
+    return get_scanned_dates(market=market)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cached_db_stats():
+    """缓存数据库统计信息 (1小时TTL)"""
+    return get_db_stats()
+
+
 # --- 后台调度器 (In-App Scheduler) ---
 # 替代 GitHub Actions，直接在应用内运行监控
 # 避免支付问题和数据同步问题
@@ -274,13 +298,13 @@ def load_scan_results_from_db(scan_date=None, market=None):
     try:
         # 如果没有指定日期，获取最新日期
         if scan_date is None:
-            dates = get_scanned_dates()
+            dates = _cached_scanned_dates()
             if not dates:
                 return None, None
             scan_date = dates[0]  # 最新日期
         
-        # 查询数据 - 传入 market 参数
-        results = query_scan_results(scan_date=scan_date, market=market)
+        # 查询数据 - 传入 market 参数 (使用缓存)
+        results = _cached_scan_results(scan_date=scan_date, market=market)
         if not results:
             return None, scan_date
         
@@ -1146,13 +1170,13 @@ def render_todays_picks_page():
     # ============================================
     # 📊 顶部: 行动摘要卡片
     # ============================================
-    dates = get_scanned_dates(market=market)
+    dates = _cached_scanned_dates(market=market)
     if not dates:
         st.warning(f"暂无 {market} 市场数据")
         return
     
     latest_date = dates[0]
-    results = query_scan_results(scan_date=latest_date, market=market, limit=500)
+    results = _cached_scan_results(scan_date=latest_date, market=market, limit=500)
     df = pd.DataFrame(results) if results else pd.DataFrame()
     
     # 获取持仓数据
@@ -1836,6 +1860,141 @@ def render_todays_picks_page():
 
 
 # Legacy code removed - all functionality is now in the 4 redesigned tabs above
+
+def _render_stock_comparison(tickers: list, market: str, key_prefix: str = ""):
+    """并排对比2-4只股票的核心指标"""
+    from data_fetcher import get_stock_data
+    from indicator_utils import calculate_blue_signal_series, calculate_adx_series, calculate_heima_signal_series
+    
+    price_symbol = "¥" if market == "CN" else "$"
+    n = len(tickers)
+    cols = st.columns(n)
+    
+    for i, ticker in enumerate(tickers):
+        with cols[i]:
+            with st.spinner(f"加载 {ticker}..."):
+                try:
+                    hist = get_stock_data(ticker, market=market, days=365)
+                    if hist is None or hist.empty:
+                        st.error(f"❌ {ticker} 无数据")
+                        continue
+                    
+                    # 计算指标
+                    close = float(hist['Close'].iloc[-1])
+                    prev_close = float(hist['Close'].iloc[-2]) if len(hist) > 1 else close
+                    change_pct = (close / prev_close - 1) * 100
+                    
+                    # BLUE
+                    try:
+                        blue_vals = calculate_blue_signal_series(
+                            hist['Open'].values, hist['High'].values,
+                            hist['Low'].values, hist['Close'].values
+                        )
+                        blue = float(blue_vals[-1]) if len(blue_vals) > 0 else 0
+                    except:
+                        blue = 0
+                    
+                    # ADX
+                    try:
+                        adx_vals = calculate_adx_series(
+                            hist['High'].values, hist['Low'].values, hist['Close'].values
+                        )
+                        adx = float(adx_vals[-1]) if len(adx_vals) > 0 else 0
+                    except:
+                        adx = 0
+                    
+                    # 黑马/掘地
+                    try:
+                        heima_result = calculate_heima_signal_series(
+                            hist['Open'].values, hist['High'].values,
+                            hist['Low'].values, hist['Close'].values, hist['Volume'].values
+                        )
+                        is_heima = bool(heima_result.get('is_heima', False))
+                        is_juedi = bool(heima_result.get('is_juedi', False))
+                    except:
+                        is_heima, is_juedi = False, False
+                    
+                    # 近期表现
+                    perf_5d = (close / float(hist['Close'].iloc[-6]) - 1) * 100 if len(hist) > 6 else 0
+                    perf_20d = (close / float(hist['Close'].iloc[-21]) - 1) * 100 if len(hist) > 21 else 0
+                    
+                    # 波动率
+                    if len(hist) > 20:
+                        returns = hist['Close'].pct_change().dropna().tail(20)
+                        volatility = float(returns.std() * (252 ** 0.5) * 100)
+                    else:
+                        volatility = 0
+                    
+                    # 成交量比
+                    vol_avg = float(hist['Volume'].tail(20).mean()) if len(hist) > 20 else 0
+                    vol_today = float(hist['Volume'].iloc[-1])
+                    vol_ratio = vol_today / vol_avg if vol_avg > 0 else 0
+                    
+                    # 卡片展示
+                    st.markdown(f"### {ticker}")
+                    
+                    # 价格 & 涨跌
+                    delta_str = f"{change_pct:+.2f}%"
+                    st.metric("价格", f"{price_symbol}{close:.2f}", delta_str)
+                    
+                    # 核心信号
+                    blue_color = "🟢" if blue > 70 else "🟡" if blue > 50 else "🔴"
+                    adx_color = "🟢" if adx > 25 else "🟡" if adx > 15 else "⚪"
+                    st.markdown(f"{blue_color} **BLUE** {blue:.0f} &nbsp;&nbsp; {adx_color} **ADX** {adx:.0f}")
+                    
+                    signals = []
+                    if is_heima: signals.append("🐴黑马")
+                    if is_juedi: signals.append("⛏️掘地")
+                    if signals:
+                        st.markdown(" ".join(signals))
+                    
+                    # 表现对比
+                    st.caption(f"5日: {perf_5d:+.1f}% | 20日: {perf_20d:+.1f}%")
+                    st.caption(f"波动率: {volatility:.1f}% | 量比: {vol_ratio:.1f}")
+                    
+                    # 迷你K线 (最近30天收盘价走势)
+                    import plotly.graph_objects as go
+                    fig = go.Figure()
+                    recent = hist.tail(30)
+                    fig.add_trace(go.Scatter(
+                        x=recent.index, y=recent['Close'],
+                        mode='lines', line=dict(width=2, color='#00d4aa'),
+                        fill='tozeroy', fillcolor='rgba(0,212,170,0.1)'
+                    ))
+                    fig.update_layout(
+                        height=120, margin=dict(l=0, r=0, t=0, b=0),
+                        xaxis=dict(visible=False), yaxis=dict(visible=False),
+                        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
+                    )
+                    st.plotly_chart(fig, use_container_width=True, key=f"compare_chart_{key_prefix}_{ticker}")
+                    
+                    # 操作按钮
+                    if st.button(f"🔍 详情", key=f"compare_detail_{key_prefix}_{ticker}", use_container_width=True):
+                        st.session_state[f'compare_detail_{key_prefix}'] = ticker
+                        st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"{ticker}: {e}")
+    
+    # 对比总结
+    st.divider()
+    st.markdown("**📊 对比总结**: 选中多只股票可快速比较核心指标。点击「详情」深入分析单只股票。")
+    
+    # 如果点了详情按钮，展开该股票
+    detail_key = f'compare_detail_{key_prefix}'
+    if detail_key in st.session_state and st.session_state[detail_key]:
+        detail_ticker = st.session_state[detail_key]
+        st.divider()
+        render_unified_stock_detail(
+            symbol=detail_ticker,
+            market=market,
+            key_prefix=f"compare_{key_prefix}"
+        )
+        if st.button("← 返回对比", key=f"back_compare_{key_prefix}"):
+            del st.session_state[detail_key]
+            st.rerun()
+
+
 def render_scan_page():
     st.header("🦅 每日机会扫描 (Opportunity Scanner)")
     
@@ -1866,7 +2025,7 @@ def render_scan_page():
         # 检查数据库状态
         try:
             init_db()
-            stats = get_db_stats()
+            stats = _cached_db_stats()
             use_db = stats and stats['total_records'] > 0
         except:
             use_db = False
@@ -1878,7 +2037,7 @@ def render_scan_page():
             st.caption(f"📅 日期范围: {stats['min_date']} ~ {stats['max_date']}")
             
             # 日期选择器 - 按所选市场过滤
-            available_dates = get_scanned_dates(market=selected_market)
+            available_dates = _cached_scanned_dates(market=selected_market)
             if available_dates:
                 # 转换为 datetime 对象用于 selectbox
                 date_options = available_dates[:30]  # 最近30天
@@ -2635,16 +2794,13 @@ def render_scan_page():
     has_month = df['Month BLUE'] > 0 if 'Month BLUE' in df.columns else False
     
     # 1. 只日BLUE: Day > 0, Week = 0
-    sort_col_day = 'Rank_Score' if 'Rank_Score' in df.columns else 'Day BLUE'
-    df_day_only = df[has_day & ~has_week].sort_values(sort_col_day, ascending=False) if 'Day BLUE' in df.columns else df.head(0)
+    df_day_only = df[has_day & ~has_week] if 'Day BLUE' in df.columns else df.head(0)
     
     # 2. 日周/只周: (Day > 0 AND Week > 0) OR (Day = 0 AND Week > 0)
-    sort_col_week = 'Rank_Score' if 'Rank_Score' in df.columns else 'Week BLUE'
-    df_day_week = df[(has_day & has_week) | (~has_day & has_week)].sort_values(sort_col_week, ascending=False) if 'Week BLUE' in df.columns else df.head(0)
+    df_day_week = df[(has_day & has_week) | (~has_day & has_week)] if 'Week BLUE' in df.columns else df.head(0)
     
     # 3. 日周月/只月: (Day > 0 AND Week > 0 AND Month > 0) OR (Month > 0)
-    sort_col_month = 'Rank_Score' if 'Rank_Score' in df.columns else 'Month BLUE'
-    df_month = df[(has_day & has_week & has_month) | has_month].sort_values(sort_col_month, ascending=False) if 'Month BLUE' in df.columns else df.head(0)
+    df_month = df[(has_day & has_week & has_month) | has_month] if 'Month BLUE' in df.columns else df.head(0)
     
     # 4. 特殊信号 (黑马/掘地) - 只要有黑马或掘地就显示，不管日周月
     heima_cache_key = f"heima_cache_{selected_date}_{selected_market}"
@@ -2662,15 +2818,41 @@ def render_scan_page():
     count_month = len(df_month)
     count_special = len(df_special)
     
-    # === 信号筛选状态 ===
+    # === 信号筛选状态 + 排序工具栏 ===
     st.markdown("---")
-    if heima_filter != "全部":
-        if len(df) == 0:
-            st.warning(f"⚠️ **{heima_filter}**: 当天无符合条件的股票")
+    toolbar_col1, toolbar_col2, toolbar_col3 = st.columns([2, 1, 1])
+    
+    with toolbar_col1:
+        if heima_filter != "全部":
+            if len(df) == 0:
+                st.warning(f"⚠️ **{heima_filter}**: 当天无符合条件的股票")
+            else:
+                st.success(f"✅ **{heima_filter}** (共 {len(df)} 只)")
         else:
-            st.success(f"✅ 当前筛选: **{heima_filter}** (共 {len(df)} 只) — 左侧边栏切换")
-    else:
-        st.caption(f"🐴 黑马: 日{day_heima_count} 周{week_heima_count} 月{month_heima_count} | ⛏️ 掘地: 日{day_juedi_count} 周{week_juedi_count} 月{month_juedi_count}")
+            st.caption(f"🐴 黑马: 日{day_heima_count} 周{week_heima_count} 月{month_heima_count} | ⛏️ 掘地: 日{day_juedi_count} 周{week_juedi_count} 月{month_juedi_count}")
+    
+    with toolbar_col2:
+        sort_options = {
+            "综合评分": "Rank_Score",
+            "日 BLUE": "Day BLUE",
+            "周 BLUE": "Week BLUE",
+            "月 BLUE": "Month BLUE",
+            "ADX": "ADX",
+            "成交额": "Turnover",
+            "市值": "Mkt Cap",
+            "价格": "Price"
+        }
+        available_sort = {k: v for k, v in sort_options.items() if v in df.columns}
+        user_sort = st.selectbox("排序", list(available_sort.keys()), index=0, key="scan_sort_by",
+                                 label_visibility="collapsed")
+    
+    with toolbar_col3:
+        sort_asc = st.toggle("升序", value=False, key="scan_sort_asc")
+    
+    # 全局排序
+    sort_col_name = available_sort.get(user_sort, "Day BLUE")
+    if sort_col_name in df.columns:
+        df = df.sort_values(sort_col_name, ascending=sort_asc, na_position='last')
     
     # 创建标签页 (增加板块热度)
     tab_day_only, tab_day_week, tab_month, tab_special, tab_sector = st.tabs([
@@ -2684,11 +2866,23 @@ def render_scan_page():
     # 用于存储各标签页选择的行 (用于深度透视)
     selected_ticker = None
     selected_row_data = None
+    compare_tickers = []  # 多选时用于对比
+    
+    def _handle_table_selection(event, df_source):
+        """处理表格选择事件，返回 (单选ticker, 单选row, 对比ticker列表)"""
+        if event and hasattr(event, 'selection') and event.selection.rows:
+            rows = event.selection.rows
+            valid_rows = [r for r in rows if r < len(df_source)]
+            if len(valid_rows) == 1:
+                return df_source.iloc[valid_rows[0]]['Ticker'], df_source.iloc[valid_rows[0]], []
+            elif len(valid_rows) > 1:
+                tickers = [df_source.iloc[r]['Ticker'] for r in valid_rows[:4]]  # 最多4只
+                return None, None, tickers
+        return None, None, []
     
     with tab_day_only:
-        st.caption("💡 只有日线信号，尚未形成周线共振，适合短线")
+        st.caption("💡 只有日线信号，尚未形成周线共振，适合短线。选1行=详情，选多行=对比")
         if len(df_day_only) > 0:
-            df_day_only = df_day_only.sort_values(sort_col_day, ascending=False)
             event1 = st.dataframe(
                 df_day_only[existing_cols],
                 column_config=column_config,
@@ -2698,18 +2892,15 @@ def render_scan_page():
                 on_select="rerun",
                 key="df_day_only"
             )
-            if event1 and hasattr(event1, 'selection') and event1.selection.rows:
-                idx = event1.selection.rows[0]
-                if idx < len(df_day_only):
-                    selected_ticker = df_day_only.iloc[idx]['Ticker']
-                    selected_row_data = df_day_only.iloc[idx]
+            t, r, c = _handle_table_selection(event1, df_day_only)
+            if t: selected_ticker, selected_row_data = t, r
+            if c: compare_tickers = c
         else:
             st.info("暂无只有日线信号的股票")
     
     with tab_day_week:
-        st.caption("💡 日周双信号共振 或 周线独立信号，中期趋势确认")
+        st.caption("💡 日周双信号共振 或 周线独立信号，中期趋势确认。选1行=详情，选多行=对比")
         if len(df_day_week) > 0:
-            df_day_week = df_day_week.sort_values(sort_col_week, ascending=False)
             event2 = st.dataframe(
                 df_day_week[existing_cols],
                 column_config=column_config,
@@ -2719,18 +2910,15 @@ def render_scan_page():
                 on_select="rerun",
                 key="df_day_week"
             )
-            if event2 and hasattr(event2, 'selection') and event2.selection.rows:
-                idx = event2.selection.rows[0]
-                if idx < len(df_day_week):
-                    selected_ticker = df_day_week.iloc[idx]['Ticker']
-                    selected_row_data = df_day_week.iloc[idx]
+            t, r, c = _handle_table_selection(event2, df_day_week)
+            if t: selected_ticker, selected_row_data = t, r
+            if c: compare_tickers = c
         else:
             st.info("暂无日周共振或周线信号的股票")
     
     with tab_month:
-        st.caption("💡 日周月三重共振 或 月线信号，大级别底部机会")
+        st.caption("💡 日周月三重共振 或 月线信号，大级别底部机会。选1行=详情，选多行=对比")
         if len(df_month) > 0:
-            df_month = df_month.sort_values(sort_col_month, ascending=False)
             event3 = st.dataframe(
                 df_month[existing_cols],
                 column_config=column_config,
@@ -2740,11 +2928,9 @@ def render_scan_page():
                 on_select="rerun",
                 key="df_month"
             )
-            if event3 and hasattr(event3, 'selection') and event3.selection.rows:
-                idx = event3.selection.rows[0]
-                if idx < len(df_month):
-                    selected_ticker = df_month.iloc[idx]['Ticker']
-                    selected_row_data = df_month.iloc[idx]
+            t, r, c = _handle_table_selection(event3, df_month)
+            if t: selected_ticker, selected_row_data = t, r
+            if c: compare_tickers = c
         else:
             st.info("暂无含月线信号的股票")
     
@@ -3354,8 +3540,13 @@ def render_scan_page():
                 st.error(f"结果展示出错: {e}")
             st.divider()
 
-    # 4. 深度透视 (使用统一组件)
-    if selected_ticker is not None and selected_row_data is not None:
+    # 4. 深度透视 / 对比模式
+    if compare_tickers and len(compare_tickers) >= 2:
+        st.divider()
+        st.markdown(f"### ⚖️ 股票对比 ({len(compare_tickers)} 只)")
+        _render_stock_comparison(compare_tickers, selected_market, f"scan_{selected_date}")
+        st.warning("⚠️ **免责声明**: 以上仅为量化模型生成的参考信号，不构成投资建议。请结合大盘环境自主决策。")
+    elif selected_ticker is not None and selected_row_data is not None:
         st.divider()
         
         # 使用统一的股票详情组件
@@ -3367,7 +3558,7 @@ def render_scan_page():
         
         st.warning("⚠️ **免责声明**: 以上仅为量化模型生成的参考信号，不构成投资建议。请结合大盘环境自主决策。")
     else:
-        st.info("👈 请在上方表格中点击一行，查看该股票的详细图表和分析。")
+        st.info("👈 点击1行=详情分析 | 选中多行=并排对比")
 
     # === 旧代码已被统一组件替代 (render_unified_stock_detail) ===
     # 原有功能包括: 全面智能诊断、大师分析、舆情分析、筹码分析等
@@ -3734,7 +3925,7 @@ def render_signal_performance_tab():
         market_code = "US" if "美股" in market else "CN"
         
         # 获取历史扫描日期
-        dates = get_scanned_dates(market=market_code)
+        dates = _cached_scanned_dates(market=market_code)
         
         if not dates:
             st.warning(f"暂无 {market} 的历史扫描数据")
@@ -3777,7 +3968,7 @@ def render_signal_performance_tab():
             # 获取每个日期的信号数量
             date_info = []
             for d in dates[:10]:
-                count = len(query_scan_results(scan_date=d, market=market_code, limit=1000))
+                count = len(_cached_scan_results(scan_date=d, market=market_code, limit=1000))
                 date_info.append({'日期': d, '信号数': count})
             
             if date_info:
@@ -3787,7 +3978,7 @@ def render_signal_performance_tab():
     # 执行计算
     with st.spinner(f"正在计算 {selected_date} 的信号表现..."):
         # 获取该天的扫描结果
-        scan_results = query_scan_results(scan_date=selected_date, market=market_code, limit=100)
+        scan_results = _cached_scan_results(scan_date=selected_date, market=market_code, limit=100)
         
         if not scan_results:
             st.error("该日期没有扫描结果")
@@ -5054,7 +5245,7 @@ def render_parameter_lab():
             position_pct = 0.1
         
         # 获取可用日期
-        available_dates = get_scanned_dates(market=market)
+        available_dates = _cached_scanned_dates(market=market)
         if available_dates:
             date_options = ["所有日期"] + available_dates[:30]
             selected_date = st.selectbox("指定日期 (可选)", date_options, key="param_lab_date")
@@ -5691,7 +5882,7 @@ def render_historical_review():
         market = st.selectbox("市场", ["US", "CN"], index=0, key="review_market")
     
     with col2:
-        dates = get_scanned_dates(market=market)
+        dates = _cached_scanned_dates(market=market)
         if not dates:
             st.warning("暂无扫描数据")
             return
@@ -6003,7 +6194,7 @@ def render_baseline_comparison_page():
         market_code = "US" if "US" in market else "CN"
         
         # 获取可用日期
-        dates = get_scanned_dates(market=market_code)
+        dates = _cached_scanned_dates(market=market_code)
         if not dates:
             st.warning("暂无扫描数据")
             return
@@ -7371,13 +7562,12 @@ def render_watchlist_tracking_tab():
     st.markdown("### 📋 观察列表详情")
     
     # 获取最新扫描数据
-    from db.database import query_scan_results, get_scanned_dates
-    dates = get_scanned_dates(market=market)
+    dates = _cached_scanned_dates(market=market)
     latest_date = dates[0] if dates else None
     latest_scan = {}
     
     if latest_date:
-        scan_results = query_scan_results(scan_date=latest_date, market=market, limit=1000)
+        scan_results = _cached_scan_results(scan_date=latest_date, market=market, limit=1000)
         for r in scan_results:
             latest_scan[r['symbol']] = r
     
@@ -7612,7 +7802,7 @@ def render_historical_tracking_tab():
     from data_fetcher import get_stock_data
     
     with st.spinner("获取历史信号..."):
-        dates = get_scanned_dates(market=market)
+        dates = _cached_scanned_dates(market=market)
         if not dates:
             st.error("没有找到扫描数据")
             return

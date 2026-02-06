@@ -80,16 +80,16 @@ def render_unified_stock_detail(
     
     # === 1. 获取数据 ===
     with st.spinner(f"正在加载 {symbol} 数据..."):
-        # 历史数据
+        # 历史数据 (带缓存)
         if hist_data is None:
-            hist_data = get_stock_data(symbol, market=market, days=3650)  # 10年
+            hist_data = _cached_get_stock_data(symbol, market=market, days=3650)  # 10年
         
         if hist_data is None or hist_data.empty:
             st.error(f"❌ 无法获取 {symbol} 的数据")
             return
         
-        # 获取yfinance信息 (公司基本面)
-        yf_info = _get_yfinance_info(symbol) if show_ask_ai or show_indicators else {}
+        # 获取yfinance信息 (公司基本面, 带缓存)
+        yf_info = _cached_yfinance_info(symbol) if show_ask_ai or show_indicators else {}
         
         # 计算各周期数据
         df_daily = hist_data.copy()
@@ -268,6 +268,17 @@ def render_unified_stock_detail(
 
 
 # ==================== 辅助函数 ====================
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _cached_get_stock_data(symbol: str, market: str = 'US', days: int = 3650):
+    """缓存股票历史数据 (10分钟TTL)"""
+    from data_fetcher import get_stock_data
+    return get_stock_data(symbol, market=market, days=days)
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _cached_yfinance_info(symbol: str) -> Dict:
+    """缓存yfinance股票信息 (1小时TTL)"""
+    return _get_yfinance_info(symbol)
 
 def _get_yfinance_info(symbol: str) -> Dict:
     """获取yfinance股票信息"""
@@ -872,41 +883,41 @@ def _render_news_tab(symbol, company_name, market, unique_key):
 
 
 def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly, market, unique_key):
-    """渲染操作区"""
+    """渲染操作区 - 快速交易工具"""
     
-    st.markdown("### 💰 操作")
+    st.markdown("### 💰 快速操作")
     
-    act_col1, act_col2 = st.columns(2)
+    tab_buy, tab_calc, tab_watch = st.tabs(["🛒 模拟买入", "📐 仓位/P&L 计算器", "📋 观察列表"])
     
-    with act_col1:
-        st.markdown("**📋 加入观察列表**")
-        if st.button("➕ 加入观察", key=f"watch_{unique_key}", use_container_width=True):
-            try:
-                from services.signal_tracker import add_to_watchlist
-                add_to_watchlist(
-                    symbol=symbol,
-                    market=market,
-                    entry_price=current_price,
-                    target_price=current_price * 1.15,
-                    stop_loss=current_price * 0.92,
-                    signal_type='manual',
-                    signal_score=blue_daily,
-                    notes=f"手动添加 | 日BLUE:{blue_daily:.0f} 周BLUE:{blue_weekly:.0f}"
-                )
-                st.success(f"✅ {symbol} 已加入观察列表")
-            except Exception as e:
-                st.error(f"添加失败: {e}")
-    
-    with act_col2:
-        st.markdown("**💰 模拟买入**")
+    with tab_buy:
+        col_buy1, col_buy2 = st.columns([2, 1])
         
-        suggested_shares = max(1, int(1000 / current_price)) if current_price > 0 else 10
-        shares = st.number_input("买入股数", min_value=1, value=suggested_shares, key=f"shares_{unique_key}")
+        with col_buy1:
+            suggested_shares = max(1, int(1000 / current_price)) if current_price > 0 else 10
+            shares = st.number_input("买入股数", min_value=1, value=suggested_shares, key=f"shares_{unique_key}")
+            
+            buy_cost = shares * current_price
+            
+            # 快速股数选择
+            quick_cols = st.columns(4)
+            amounts = [1000, 5000, 10000, 50000]
+            for i, amt in enumerate(amounts):
+                with quick_cols[i]:
+                    quick_shares = max(1, int(amt / current_price)) if current_price > 0 else 1
+                    if st.button(f"{price_symbol}{amt:,}", key=f"quick_{amt}_{unique_key}", use_container_width=True):
+                        st.session_state[f"shares_{unique_key}"] = quick_shares
+                        st.rerun()
         
-        buy_cost = shares * current_price
-        st.caption(f"预计花费: {price_symbol}{buy_cost:,.2f}")
+        with col_buy2:
+            st.metric("买入成本", f"{price_symbol}{buy_cost:,.2f}")
+            stop_price = current_price * 0.92
+            target_price = current_price * 1.15
+            st.caption(f"🛑 建议止损: {price_symbol}{stop_price:.2f} (-8%)")
+            st.caption(f"🎯 建议目标: {price_symbol}{target_price:.2f} (+15%)")
+            max_loss = shares * (current_price - stop_price)
+            st.caption(f"⚠️ 最大亏损: {price_symbol}{max_loss:.2f}")
         
-        if st.button("✅ 确认买入", key=f"buy_{unique_key}", type="primary", use_container_width=True):
+        if st.button("✅ 确认模拟买入", key=f"buy_{unique_key}", type="primary", use_container_width=True):
             try:
                 from services.portfolio_service import paper_buy
                 result = paper_buy(symbol, shares, current_price, market)
@@ -918,6 +929,82 @@ def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly
                     st.error(f"❌ {result.get('error', '未知错误')}")
             except Exception as e:
                 st.error(f"❌ 买入异常: {e}")
+    
+    with tab_calc:
+        calc_col1, calc_col2 = st.columns(2)
+        
+        with calc_col1:
+            st.markdown("**📐 仓位计算器**")
+            account_size = st.number_input("账户总资金", min_value=1000, value=100000, step=10000, 
+                                           key=f"acct_{unique_key}", format="%d")
+            risk_pct = st.slider("单笔风险 (%)", 0.5, 5.0, 2.0, 0.5, key=f"risk_{unique_key}")
+            stop_pct = st.slider("止损幅度 (%)", 2.0, 15.0, 8.0, 1.0, key=f"stop_{unique_key}")
+            
+            risk_amount = account_size * risk_pct / 100
+            stop_distance = current_price * stop_pct / 100
+            calc_shares = int(risk_amount / stop_distance) if stop_distance > 0 else 0
+            position_size = calc_shares * current_price
+            position_pct = position_size / account_size * 100 if account_size > 0 else 0
+            
+            st.success(f"**建议买入: {calc_shares} 股**")
+            st.caption(f"仓位金额: {price_symbol}{position_size:,.0f} ({position_pct:.1f}%)")
+            st.caption(f"风险金额: {price_symbol}{risk_amount:,.0f}")
+            st.caption(f"止损价: {price_symbol}{current_price * (1 - stop_pct/100):.2f}")
+        
+        with calc_col2:
+            st.markdown("**💹 P&L 计算器**")
+            entry_p = st.number_input("买入价", value=round(current_price, 2), step=0.01, 
+                                      key=f"entry_{unique_key}", format="%.2f")
+            exit_p = st.number_input("卖出价", value=round(current_price * 1.10, 2), step=0.01, 
+                                     key=f"exit_{unique_key}", format="%.2f")
+            pl_shares = st.number_input("股数", min_value=1, value=100, key=f"pl_shares_{unique_key}")
+            
+            profit = (exit_p - entry_p) * pl_shares
+            profit_pct = (exit_p / entry_p - 1) * 100 if entry_p > 0 else 0
+            
+            if profit >= 0:
+                st.success(f"**盈利: {price_symbol}{profit:,.2f} (+{profit_pct:.1f}%)**")
+            else:
+                st.error(f"**亏损: {price_symbol}{profit:,.2f} ({profit_pct:.1f}%)**")
+            
+            # 风险回报比
+            rr_stop = current_price * 0.92
+            rr_target = exit_p
+            risk = entry_p - rr_stop
+            reward = rr_target - entry_p
+            rr_ratio = reward / risk if risk > 0 else 0
+            st.caption(f"风险回报比: **{rr_ratio:.1f}:1**" + (" ✅" if rr_ratio >= 2 else " ⚠️"))
+    
+    with tab_watch:
+        st.markdown("**📋 加入观察列表**")
+        
+        watch_cols = st.columns([2, 1, 1])
+        with watch_cols[0]:
+            watch_note = st.text_input("备注", value=f"日BLUE:{blue_daily:.0f} 周BLUE:{blue_weekly:.0f}", 
+                                       key=f"watch_note_{unique_key}")
+        with watch_cols[1]:
+            watch_target = st.number_input("目标价", value=round(current_price * 1.15, 2), 
+                                           key=f"watch_target_{unique_key}", format="%.2f")
+        with watch_cols[2]:
+            watch_stop = st.number_input("止损价", value=round(current_price * 0.92, 2), 
+                                         key=f"watch_stop_{unique_key}", format="%.2f")
+        
+        if st.button("➕ 加入观察", key=f"watch_{unique_key}", use_container_width=True, type="primary"):
+            try:
+                from services.signal_tracker import add_to_watchlist
+                add_to_watchlist(
+                    symbol=symbol,
+                    market=market,
+                    entry_price=current_price,
+                    target_price=watch_target,
+                    stop_loss=watch_stop,
+                    signal_type='manual',
+                    signal_score=blue_daily,
+                    notes=watch_note
+                )
+                st.success(f"✅ {symbol} 已加入观察列表")
+            except Exception as e:
+                st.error(f"添加失败: {e}")
 
 
 def _render_ml_prediction_tab(
