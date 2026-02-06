@@ -3686,46 +3686,195 @@ def render_scan_page():
 
 
 def render_stock_lookup_page():
-    """个股查询页面 - 输入任意股票代码，使用统一组件生成详情"""
-    st.header("🔍 个股查询")
-    st.info("输入任意股票代码，系统将自动获取数据并生成完整的技术分析报告。")
+    """个股深度分析 - 输入任意代码获取完整分析 (扫描数据+排名+ML预测+图表+新闻)"""
+    st.header("🔍 个股深度分析")
     
-    # 输入区域
-    col1, col2, col3 = st.columns([1, 0.5, 2.5])
-    with col1:
-        symbol_input = st.text_input("股票代码", value="", placeholder="例如: AAPL, 600519")
-        symbol = symbol_input.upper().strip() if symbol_input else ""
-        
-        search_btn = st.button("🔍 查询", type="primary", use_container_width=True)
-    
-    with col2:
-        # 市场选择（自动检测）
-        market_options = {"🇺🇸 美股": "US", "🇨🇳 A股": "CN"}
-        # 自动检测：6位数字 = A股
-        default_market = "🇨🇳 A股" if (symbol and symbol.isdigit() and len(symbol) == 6) else "🇺🇸 美股"
-        lookup_market = st.radio("市场", options=list(market_options.keys()), index=0 if default_market == "🇺🇸 美股" else 1)
-        selected_lookup_market = market_options[lookup_market]
-    
-    with col3:
-        st.markdown("""
-        **支持的股票类型:**
-        - 美股 (NYSE, NASDAQ): AAPL, NVDA, TSLA, GOOGL...
-        - A股 (沪深): 600519, 000001, 300750...
-        - ETF: SPY, QQQ, 510300...
-        """)
-    
-    if search_btn and symbol:
-        # 使用统一股票详情组件
-        st.divider()
-        render_unified_stock_detail(
-            symbol=symbol,
-            market=selected_lookup_market,
-            key_prefix=f"lookup_{symbol}"
+    # --- 搜索栏 ---
+    search_col1, search_col2, search_col3 = st.columns([2, 1, 1])
+    with search_col1:
+        symbol_input = st.text_input(
+            "股票代码", value=st.session_state.get('lookup_symbol', ''), 
+            placeholder="AAPL, NVDA, 600519, 000001...",
+            key="lookup_input"
         )
-        st.warning("⚠️ **免责声明**: 以上仅为量化模型生成的参考信号，不构成投资建议。")
+        symbol = symbol_input.upper().strip() if symbol_input else ""
     
-    elif search_btn and not symbol:
-        st.warning("请输入股票代码")
+    with search_col2:
+        # 自动检测市场
+        is_cn = symbol and (symbol.isdigit() and len(symbol) == 6) or symbol.endswith(('.SH', '.SZ'))
+        market_options = {"🇺🇸 美股": "US", "🇨🇳 A股": "CN"}
+        default_idx = 1 if is_cn else 0
+        lookup_market = st.radio("市场", options=list(market_options.keys()), 
+                                 index=default_idx, horizontal=True, key="lookup_market")
+        market = market_options[lookup_market]
+    
+    with search_col3:
+        search_btn = st.button("🔍 开始分析", type="primary", use_container_width=True)
+        # 热门快捷
+        hot_col1, hot_col2 = st.columns(2)
+        with hot_col1:
+            if st.button("NVDA", key="hot_nvda", use_container_width=True):
+                st.session_state['lookup_symbol'] = 'NVDA'
+                st.rerun()
+        with hot_col2:
+            if st.button("AAPL", key="hot_aapl", use_container_width=True):
+                st.session_state['lookup_symbol'] = 'AAPL'
+                st.rerun()
+    
+    # 保存搜索
+    if search_btn and symbol:
+        st.session_state['lookup_symbol'] = symbol
+    
+    # --- 主分析区 ---
+    active_symbol = st.session_state.get('lookup_symbol', '')
+    if not active_symbol:
+        st.info("👆 输入股票代码并点击「开始分析」，获取完整的个股深度报告。")
+        
+        # 最近搜索历史
+        search_history = st.session_state.get('lookup_history', [])
+        if search_history:
+            st.markdown("**最近搜索:**")
+            hist_cols = st.columns(min(len(search_history), 6))
+            for i, h in enumerate(search_history[:6]):
+                with hist_cols[i]:
+                    if st.button(h, key=f"hist_{h}", use_container_width=True):
+                        st.session_state['lookup_symbol'] = h
+                        st.rerun()
+        return
+    
+    # 更新搜索历史
+    history = st.session_state.get('lookup_history', [])
+    if active_symbol not in history:
+        history.insert(0, active_symbol)
+        st.session_state['lookup_history'] = history[:10]
+    
+    st.divider()
+    
+    # --- 1. 扫描数据概览 (如果该股票在最近扫描中) ---
+    scan_info = _get_scan_info_for_symbol(active_symbol, market)
+    
+    if scan_info:
+        st.markdown("### 📋 扫描数据")
+        info_cols = st.columns(7)
+        with info_cols[0]:
+            st.metric("扫描日期", scan_info.get('scan_date', 'N/A'))
+        with info_cols[1]:
+            blue_d = scan_info.get('blue_daily', 0) or 0
+            st.metric("日BLUE", f"{float(blue_d):.0f}")
+        with info_cols[2]:
+            blue_w = scan_info.get('blue_weekly', 0) or 0
+            st.metric("周BLUE", f"{float(blue_w):.0f}")
+        with info_cols[3]:
+            blue_m = scan_info.get('blue_monthly', 0) or 0
+            st.metric("月BLUE", f"{float(blue_m):.0f}")
+        with info_cols[4]:
+            adx = scan_info.get('adx', 0) or 0
+            st.metric("ADX", f"{float(adx):.1f}")
+        with info_cols[5]:
+            rank = scan_info.get('rank_score', 0) or 0
+            st.metric("综合评分", f"{float(rank):.1f}")
+        with info_cols[6]:
+            signals = []
+            if scan_info.get('heima_daily'): signals.append("🐴日")
+            if scan_info.get('heima_weekly'): signals.append("🐴周")
+            if scan_info.get('heima_monthly'): signals.append("🐴月")
+            if scan_info.get('juedi_daily'): signals.append("⛏️日")
+            if scan_info.get('juedi_weekly'): signals.append("⛏️周")
+            if scan_info.get('juedi_monthly'): signals.append("⛏️月")
+            st.metric("特殊信号", " ".join(signals) if signals else "无")
+        
+        # 策略标签
+        strategy = scan_info.get('strategy', '')
+        if strategy:
+            st.caption(f"策略: {strategy} | 市值: {scan_info.get('cap_category', 'N/A')} | 波动: {scan_info.get('regime', 'N/A')}")
+        st.divider()
+    else:
+        st.caption(f"ℹ️ {active_symbol} 不在最近的扫描结果中 (非信号股或未被扫描)")
+    
+    # --- 2. 历史信号轨迹 ---
+    _render_signal_history(active_symbol, market)
+    
+    # --- 3. 统一详情组件 (图表/筹码/指标/AI/ML/新闻/操作) ---
+    render_unified_stock_detail(
+        symbol=active_symbol,
+        market=market,
+        key_prefix=f"lookup_{active_symbol}"
+    )
+    
+    st.warning("⚠️ **免责声明**: 以上仅为量化模型生成的参考信号，不构成投资建议。")
+
+
+def _get_scan_info_for_symbol(symbol: str, market: str) -> dict:
+    """获取某只股票在最近扫描中的数据"""
+    try:
+        dates = _cached_scanned_dates(market=market)
+        if not dates:
+            return {}
+        
+        # 查最近3天的扫描结果
+        for d in dates[:3]:
+            results = _cached_scan_results(scan_date=d, market=market, limit=1000)
+            for r in results:
+                if r.get('symbol', '').upper() == symbol.upper():
+                    r['scan_date'] = d
+                    return r
+        return {}
+    except:
+        return {}
+
+
+def _render_signal_history(symbol: str, market: str):
+    """渲染该股票的历史信号轨迹 (最近30天)"""
+    try:
+        dates = _cached_scanned_dates(market=market)
+        if not dates or len(dates) < 2:
+            return
+        
+        history_data = []
+        for d in dates[:30]:
+            results = _cached_scan_results(scan_date=d, market=market, limit=1000)
+            for r in results:
+                if r.get('symbol', '').upper() == symbol.upper():
+                    history_data.append({
+                        '日期': d,
+                        '日BLUE': float(r.get('blue_daily', 0) or 0),
+                        '周BLUE': float(r.get('blue_weekly', 0) or 0),
+                        '月BLUE': float(r.get('blue_monthly', 0) or 0),
+                        'ADX': float(r.get('adx', 0) or 0),
+                        '评分': float(r.get('rank_score', 0) or 0),
+                    })
+                    break
+        
+        if not history_data:
+            return
+        
+        with st.expander(f"📈 历史信号轨迹 ({len(history_data)} 天)", expanded=False):
+            hist_df = pd.DataFrame(history_data)
+            
+            import plotly.graph_objects as go
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=hist_df['日期'], y=hist_df['日BLUE'], name='日BLUE', 
+                                     line=dict(color='#58a6ff', width=2)))
+            fig.add_trace(go.Scatter(x=hist_df['日期'], y=hist_df['周BLUE'], name='周BLUE', 
+                                     line=dict(color='#a371f7', width=2)))
+            fig.add_trace(go.Scatter(x=hist_df['日期'], y=hist_df['月BLUE'], name='月BLUE', 
+                                     line=dict(color='#3fb950', width=2)))
+            fig.add_trace(go.Scatter(x=hist_df['日期'], y=hist_df['ADX'], name='ADX', 
+                                     line=dict(color='#d29922', width=1, dash='dot')))
+            fig.update_layout(
+                height=250, margin=dict(l=0, r=0, t=30, b=0),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02),
+                xaxis_title="", yaxis_title="信号强度",
+                template="plotly_dark"
+            )
+            st.plotly_chart(fig, use_container_width=True, key=f"signal_hist_{symbol}")
+            
+            # 出现天数统计
+            total_days = len(dates[:30])
+            signal_days = len(history_data)
+            st.caption(f"最近 {total_days} 个交易日中，{symbol} 出现在扫描信号中 **{signal_days} 天** ({signal_days/total_days*100:.0f}%)")
+    except Exception as e:
+        pass  # 静默失败
 
 
 
@@ -8148,10 +8297,10 @@ def render_signal_health_monitor():
 
 
 def render_portfolio_management_page():
-    """💼 组合管理 - 合并: 持仓管理 + 风控仪表盘 + 模拟交易"""
+    """💼 组合管理 - 合并: 持仓管理 + 风控仪表盘 + 模拟交易 + 观察追踪"""
     st.header("💼 组合管理")
     
-    tab1, tab2, tab3 = st.tabs(["🛡️ 风控仪表盘", "💰 持仓管理", "🎮 模拟交易"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🛡️ 风控仪表盘", "💰 持仓管理", "🎮 模拟交易", "👁️ 观察追踪"])
     
     with tab1:
         render_risk_dashboard()
@@ -8161,6 +8310,9 @@ def render_portfolio_management_page():
     
     with tab3:
         render_paper_trading_tab()
+    
+    with tab4:
+        render_watchlist_tracking_tab()
 
 
 def render_risk_dashboard():
@@ -9904,22 +10056,20 @@ st.sidebar.title("Coral Creek V3 🦅")
 st.sidebar.caption("ML量化交易系统")
 
 page = st.sidebar.radio("功能导航", [
-    "🎯 今日精选",       # 多策略选股仪表板
-    "📊 每日扫描", 
-    "🔍 个股查询", 
-    "💰 每日买卖点",    # 每日买卖信号推荐
-    "📰 新闻中心",      # 事件驱动新闻分析
-    "📈 信号中心",      # 信号追踪 + 验证 + Baseline对比
-    "💼 组合管理",      # 持仓 + 风控仪表盘 + 模拟交易
-    "🧪 策略实验室",    # 回测 + 研究工具
-    "🤖 AI中心"         # AI决策 + 博主追踪
+    "🎯 每日工作台",     # 行动中心 + 发现新股 + 策略精选 + 持仓
+    "📊 每日扫描",       # 全量机会扫描
+    "🔍 个股分析",       # 个股深度分析 (含扫描数据/排名/新闻/ML)
+    "💰 每日买卖点",     # 买卖信号推荐
+    "💼 组合管理",       # 持仓 + 风控 + 观察列表
+    "🧪 策略实验室",     # 回测 + 研究工具
+    "🤖 AI中心"          # AI选股 + 博主追踪
 ])
 
-if page == "🎯 今日精选":
+if page == "🎯 每日工作台":
     render_todays_picks_page()
 elif page == "📊 每日扫描":
     render_scan_page()
-elif page == "🔍 个股查询":
+elif page == "🔍 个股分析":
     render_stock_lookup_page()
 elif page == "💰 每日买卖点":
     try:
@@ -9929,15 +10079,6 @@ elif page == "💰 每日买卖点":
         st.error(f"买卖点页面加载失败: {e}")
         import traceback
         st.code(traceback.format_exc())
-elif page == "📰 新闻中心":
-    try:
-        from pages.news_center import render_news_center_page
-        render_news_center_page()
-    except Exception as e:
-        st.error(f"新闻中心加载失败: {e}")
-        st.info("请确保 news 模块正确安装")
-elif page == "📈 信号中心":
-    render_signal_center_page()
 elif page == "💼 组合管理":
     render_portfolio_management_page()
 elif page == "🧪 策略实验室":
