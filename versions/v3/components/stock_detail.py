@@ -1043,17 +1043,17 @@ def _render_ml_prediction_tab(
             'company_name': ''
         })
         
-        # 分析三个周期
+        # 分析三个周期 (skip_prefilter=True: 用户已主动选择该股票，不需要预过滤)
         results = {}
         for horizon in ['short', 'medium', 'long']:
             picker = SmartPicker(market=market, horizon=horizon)
-            pick = picker._analyze_stock(signal_data, hist_data)
+            pick = picker._analyze_stock(signal_data, hist_data, skip_prefilter=True)
             if pick:
                 results[horizon] = pick
         
         if not results:
-            st.warning("⚠️ 无法生成预测 (数据不足或模型未训练)")
-            st.info("💡 请确保已训练 ML 模型，或数据至少有 60 天历史")
+            st.warning("⚠️ 无法生成预测 (模型未加载或数据异常)")
+            st.caption("可能原因: 1) ML 依赖未安装 2) 模型文件缺失 3) 价格数据异常")
             return
         
         # === 选择默认周期 ===

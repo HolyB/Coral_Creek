@@ -207,8 +207,14 @@ class SmartPicker:
         # 返回 Top N
         return picks[:max_picks]
     
-    def _analyze_stock(self, signal: pd.Series, history: pd.DataFrame) -> Optional[StockPick]:
-        """分析单只股票"""
+    def _analyze_stock(self, signal: pd.Series, history: pd.DataFrame, skip_prefilter: bool = False) -> Optional[StockPick]:
+        """分析单只股票
+        
+        Args:
+            signal: 信号数据
+            history: 历史价格数据
+            skip_prefilter: 跳过预过滤 (用于个股详情页，用户已主动选择该股票)
+        """
         symbol = signal.get('symbol', '')
         price = float(signal.get('price', 0))
         
@@ -225,7 +231,7 @@ class SmartPicker:
         )
         
         # === Stage 1: Pre-Filter ===
-        if not self._pass_prefilter(signal, history):
+        if not skip_prefilter and not self._pass_prefilter(signal, history):
             return None
         
         # === Stage 2: ML Prediction (收益预测) ===
