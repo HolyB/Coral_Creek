@@ -9286,19 +9286,410 @@ def render_paper_trading_tab():
 
 
 def render_strategy_lab_page():
-    """🧪 策略实验室 - 合并: 回测 + 研究工具"""
+    """🧪 策略实验室 - 合并: 回测 + 研究工具 + 模拟盘"""
     st.header("🧪 策略实验室")
     
-    tab1, tab2, tab3 = st.tabs(["📊 策略回测", "🔬 因子研究", "📐 组合优化"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📊 策略回测", 
+        "🎛️ 策略组合", 
+        "💰 模拟盘", 
+        "🔬 因子研究", 
+        "📐 组合优化"
+    ])
     
     with tab1:
         render_backtest_page()
     
     with tab2:
-        render_research_page()
+        render_strategy_component_page()
     
     with tab3:
+        render_paper_trading_page()
+    
+    with tab4:
+        render_research_page()
+    
+    with tab5:
         render_portfolio_optimizer_page()
+
+
+def render_strategy_component_page():
+    """🎛️ 策略组合 - 自由组合买卖条件回测"""
+    import numpy as np
+    import pandas as pd
+    from datetime import datetime
+    
+    st.subheader("🎛️ 策略组合回测")
+    st.markdown("自由组合买入/卖出条件，测试策略表现")
+    
+    # 尝试导入策略组件
+    try:
+        from strategies.strategy_components import (
+            StrategyBuilder,
+            BUY_CONDITIONS,
+            SELL_CONDITIONS,
+        )
+        from indicator_utils import (
+            calculate_blue_signal_series, 
+            calculate_heima_signal_series, 
+            calculate_kdj_series
+        )
+    except ImportError as e:
+        st.error(f"无法加载策略组件: {e}")
+        return
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### 🟢 买入条件 (满足任一)")
+        buy_options = {
+            'blue_heima': 'BLUE≥100 + 黑马共振',
+            'strong_blue': '强BLUE≥150 + 黑马',
+            'double_blue': '日周双BLUE≥150',
+            'bottom_peak': '底部筹码顶格峰',
+            'blue_only': '超强BLUE≥200',
+            'heima_only': '纯黑马/掘地',
+        }
+        selected_buy = []
+        for key, label in buy_options.items():
+            if st.checkbox(label, value=(key == 'blue_heima'), key=f"comp_buy_{key}"):
+                selected_buy.append(key)
+    
+    with col2:
+        st.markdown("#### 🔴 卖出条件 (满足任一)")
+        sell_options = {
+            'kdj_overbought': 'KDJ J>90 超买',
+            'chip_distribution': '筹码顶部堆积',
+            'chip_with_ma': '跌破MA5+筹码异常',
+            'ma_break': '跌破MA5',
+            'profit_target_20': '止盈20%',
+            'stop_loss_8': '止损-8%',
+        }
+        selected_sell = []
+        for key, label in sell_options.items():
+            default = key in ['kdj_overbought', 'chip_distribution']
+            if st.checkbox(label, value=default, key=f"comp_sell_{key}"):
+                selected_sell.append(key)
+    
+    st.markdown("---")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        symbols_input = st.text_input("股票代码 (逗号分隔)", "AAPL, MSFT, GOOGL")
+    with col2:
+        days = st.slider("回测天数", 180, 1095, 730)
+    with col3:
+        run_btn = st.button("🚀 运行回测", type="primary")
+    
+    if run_btn and selected_buy and selected_sell:
+        symbols = [s.strip() for s in symbols_input.split(",") if s.strip()]
+        
+        strategy = StrategyBuilder("自定义策略")
+        for cond in selected_buy:
+            strategy.add_buy_condition(cond)
+        for cond in selected_sell:
+            strategy.add_sell_condition(cond)
+        
+        st.info(f"**买入**: {', '.join([buy_options[k] for k in selected_buy])}")
+        st.info(f"**卖出**: {', '.join([sell_options[k] for k in selected_sell])}")
+        
+        progress = st.progress(0)
+        results = []
+        
+        for idx, symbol in enumerate(symbols):
+            progress.progress((idx + 1) / len(symbols))
+            try:
+                df = get_stock_data(symbol, 'US', days=days)
+                if df is None or len(df) < 100:
+                    continue
+                
+                # 简化回测
+                data = _prepare_backtest_data(df)
+                result = _run_simple_backtest(df, data, strategy)
+                result['symbol'] = symbol
+                results.append(result)
+            except Exception as e:
+                st.warning(f"{symbol}: {e}")
+        
+        progress.empty()
+        
+        if results:
+            df_results = pd.DataFrame([{
+                '股票': r['symbol'],
+                '年化收益%': f"{r['annual_return']:.1f}%",
+                '最大回撤%': f"{r['max_drawdown']:.1f}%",
+                '胜率%': f"{r['win_rate']:.1f}%",
+                '交易次数': r['trades']
+            } for r in results])
+            
+            st.dataframe(df_results, use_container_width=True, hide_index=True)
+            
+            col1, col2, col3 = st.columns(3)
+            col1.metric("平均年化", f"{np.mean([r['annual_return'] for r in results]):.1f}%")
+            col2.metric("平均胜率", f"{np.mean([r['win_rate'] for r in results]):.1f}%")
+            col3.metric("平均回撤", f"{np.mean([r['max_drawdown'] for r in results]):.1f}%")
+    
+    elif run_btn:
+        st.warning("请至少选择一个买入条件和一个卖出条件")
+
+
+def _prepare_backtest_data(df):
+    """准备回测数据"""
+    from indicator_utils import (
+        calculate_blue_signal_series, 
+        calculate_heima_signal_series, 
+        calculate_kdj_series
+    )
+    import numpy as np
+    
+    blue = calculate_blue_signal_series(
+        df['Open'].values, df['High'].values,
+        df['Low'].values, df['Close'].values
+    )
+    heima, juedi = calculate_heima_signal_series(
+        df['High'].values, df['Low'].values,
+        df['Close'].values, df['Open'].values
+    )
+    _, _, j = calculate_kdj_series(
+        df['High'].values, df['Low'].values, df['Close'].values
+    )
+    
+    # 周线
+    df_weekly = df.resample('W-FRI').agg({
+        'Open': 'first', 'High': 'max', 'Low': 'min', 
+        'Close': 'last', 'Volume': 'sum'
+    }).dropna()
+    
+    if len(df_weekly) >= 5:
+        week_blue = calculate_blue_signal_series(
+            df_weekly['Open'].values, df_weekly['High'].values,
+            df_weekly['Low'].values, df_weekly['Close'].values
+        )
+        week_heima, week_juedi = calculate_heima_signal_series(
+            df_weekly['High'].values, df_weekly['Low'].values,
+            df_weekly['Close'].values, df_weekly['Open'].values
+        )
+        df_weekly['Week_BLUE'] = week_blue
+        df_weekly['Week_Heima'] = week_heima
+        df_weekly['Week_Juedi'] = week_juedi
+        
+        week_blue_ref = df_weekly['Week_BLUE'].shift(1).reindex(
+            df.index, method='ffill'
+        ).fillna(0).values
+        week_heima_ref = df_weekly['Week_Heima'].shift(1).reindex(
+            df.index, method='ffill'
+        ).fillna(False).values
+        week_juedi_ref = df_weekly['Week_Juedi'].shift(1).reindex(
+            df.index, method='ffill'
+        ).fillna(False).values
+    else:
+        week_blue_ref = np.zeros(len(df))
+        week_heima_ref = np.zeros(len(df), dtype=bool)
+        week_juedi_ref = np.zeros(len(df), dtype=bool)
+    
+    ma5 = df['Close'].rolling(5).mean().values
+    
+    return {
+        'blue': blue, 'heima': heima, 'juedi': juedi, 'kdj_j': j,
+        'week_blue': week_blue_ref, 'week_heima': week_heima_ref, 
+        'week_juedi': week_juedi_ref, 'ma5': ma5,
+        'close': df['Close'].values, 'low': df['Low'].values,
+    }
+
+
+def _run_simple_backtest(df, data, strategy, initial_capital=100000):
+    """运行简化回测"""
+    import numpy as np
+    
+    cash = initial_capital
+    shares = 0
+    position = 0
+    trades = 0
+    wins = 0
+    entry_price = 0
+    equity = [initial_capital]
+    
+    for i in range(50, len(df) - 1):
+        close = data['close'][i]
+        next_open = df['Open'].iloc[i + 1]
+        
+        if position == 1:
+            strategy.update_peak_price(close)
+            should_sell, reason = strategy.check_sell(data, i, df)
+            if should_sell:
+                revenue = shares * close
+                pnl = revenue - entry_price * shares
+                if pnl > 0:
+                    wins += 1
+                trades += 1
+                cash += revenue
+                shares = 0
+                position = 0
+                strategy.reset_position()
+        
+        elif position == 0:
+            should_buy, reason = strategy.check_buy(data, i, df)
+            if should_buy and cash > 0:
+                shares = int(cash / next_open)
+                if shares > 0:
+                    cash -= shares * next_open
+                    position = 1
+                    entry_price = next_open
+                    strategy.set_entry_price(next_open)
+        
+        equity.append(cash + shares * close)
+    
+    equity = np.array(equity)
+    final = equity[-1]
+    days = len(df)
+    
+    total_return = (final / initial_capital - 1) * 100
+    annual_return = ((final / initial_capital) ** (252 / days) - 1) * 100
+    
+    peak = np.maximum.accumulate(equity)
+    drawdown = (peak - equity) / peak * 100
+    max_drawdown = np.max(drawdown)
+    
+    win_rate = (wins / trades * 100) if trades > 0 else 0
+    
+    return {
+        'annual_return': annual_return,
+        'max_drawdown': max_drawdown,
+        'win_rate': win_rate,
+        'trades': trades,
+    }
+
+
+def render_paper_trading_page():
+    """💰 模拟盘交易页面"""
+    st.subheader("💰 模拟盘交易")
+    
+    # 检查 Alpaca SDK
+    try:
+        from execution.alpaca_trader import (
+            AlpacaTrader, 
+            SignalTrader,
+            ALPACA_SDK_AVAILABLE
+        )
+    except ImportError:
+        ALPACA_SDK_AVAILABLE = False
+    
+    if not ALPACA_SDK_AVAILABLE:
+        st.warning("⚠️ Alpaca SDK 未安装")
+        st.code("pip install alpaca-py", language="bash")
+        
+        st.markdown("""
+        ### 设置步骤
+        
+        1. **注册 Alpaca 账号** (免费): [https://alpaca.markets/](https://alpaca.markets/)
+        
+        2. **获取 API Keys**:
+           - 登录后点击 "Paper Trading"
+           - 点击 "Your API Keys"
+           - 复制 API Key 和 Secret Key
+        
+        3. **配置环境变量** (在 `.env` 文件中添加):
+           ```
+           ALPACA_API_KEY=your_api_key_here
+           ALPACA_SECRET_KEY=your_secret_key_here
+           ALPACA_PAPER=true
+           ```
+        
+        4. **安装 SDK**: `pip install alpaca-py`
+        
+        5. **重启应用**
+        """)
+        return
+    
+    # 检查 API Keys
+    import os
+    api_key = os.environ.get('ALPACA_API_KEY')
+    secret_key = os.environ.get('ALPACA_SECRET_KEY')
+    
+    if not api_key or not secret_key:
+        st.warning("⚠️ 未配置 Alpaca API Keys")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            api_key = st.text_input("API Key", type="password", key="alpaca_api")
+        with col2:
+            secret_key = st.text_input("Secret Key", type="password", key="alpaca_secret")
+        
+        if not api_key or not secret_key:
+            st.info("请输入 Alpaca API Keys 或在 .env 文件中配置")
+            return
+    
+    # 连接
+    try:
+        trader = AlpacaTrader(api_key=api_key, secret_key=secret_key, paper=True)
+        account = trader.get_account()
+    except Exception as e:
+        st.error(f"❌ 连接失败: {e}")
+        return
+    
+    # 账户信息
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("账户净值", f"${account.equity:,.2f}")
+    col2.metric("可用现金", f"${account.cash:,.2f}")
+    col3.metric("购买力", f"${account.buying_power:,.2f}")
+    
+    market = trader.get_market_hours()
+    status = "🟢 开盘中" if market['is_open'] else "🔴 休市"
+    col4.metric("市场状态", status)
+    
+    st.markdown("---")
+    
+    # 持仓
+    st.markdown("#### 当前持仓")
+    positions = trader.get_positions()
+    
+    if not positions:
+        st.info("暂无持仓")
+    else:
+        pos_data = []
+        total_pnl = 0
+        for pos in positions:
+            total_pnl += pos.unrealized_pl
+            pos_data.append({
+                '股票': pos.symbol,
+                '数量': int(pos.qty),
+                '成本价': f"${pos.avg_entry_price:.2f}",
+                '现价': f"${pos.current_price:.2f}",
+                '盈亏%': f"{pos.unrealized_plpc:+.2f}%"
+            })
+        
+        st.dataframe(pd.DataFrame(pos_data), use_container_width=True, hide_index=True)
+        
+        color = "green" if total_pnl >= 0 else "red"
+        st.markdown(f"**总浮动盈亏:** <span style='color:{color}'>${total_pnl:+,.2f}</span>", 
+                    unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # 快速下单
+    st.markdown("#### 快速下单")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        symbol = st.text_input("股票代码", "AAPL", key="trade_symbol").upper()
+    with col2:
+        qty = st.number_input("数量", min_value=1, value=10, key="trade_qty")
+    with col3:
+        if st.button("🟢 买入", type="primary"):
+            try:
+                order = trader.buy_market(symbol, qty)
+                st.success(f"✅ 买入订单已提交: {order['id'][:8]}...")
+            except Exception as e:
+                st.error(f"❌ 下单失败: {e}")
+    with col4:
+        if st.button("🔴 卖出", type="secondary"):
+            try:
+                order = trader.sell_market(symbol, qty)
+                st.success(f"✅ 卖出订单已提交: {order['id'][:8]}...")
+            except Exception as e:
+                st.error(f"❌ 下单失败: {e}")
+
+
 
 
 def render_ai_center_page():
