@@ -140,27 +140,85 @@ def render_unified_stock_detail(
         if company_name == symbol:
             company_name = yf_info.get('shortName', yf_info.get('longName', symbol))
     
-    # === 2. 顶部概览 ===
-    st.subheader(f"🔍 {symbol} - {company_name}")
+    # === 2. 综合判断面板 ===
+    verdict = _compute_verdict(
+        blue_daily, blue_weekly, blue_monthly, adx_val,
+        heima_daily, heima_weekly, heima_monthly,
+        juedi_daily, juedi_weekly, juedi_monthly,
+        df_daily, current_price
+    )
     
-    # 指标卡片
-    m1, m2, m3, m4, m5, m6 = st.columns(6)
-    with m1:
-        st.metric("当前价格", f"{price_symbol}{current_price:.2f}")
-    with m2:
-        st.metric("日BLUE", f"{blue_daily:.0f}", delta="信号" if blue_daily > 100 else None)
-    with m3:
-        st.metric("周BLUE", f"{blue_weekly:.0f}", delta="信号" if blue_weekly > 100 else None)
-    with m4:
-        st.metric("月BLUE", f"{blue_monthly:.0f}", delta="信号" if blue_monthly > 100 else None)
-    with m5:
-        st.metric("ADX", f"{adx_val:.1f}", delta="强趋势" if adx_val > 25 else None)
-    with m6:
-        signals = []
-        if heima_daily: signals.append("日🐴")
-        if heima_weekly: signals.append("周🐴")
-        if heima_monthly: signals.append("月🐴")
-        st.metric("黑马信号", " ".join(signals) if signals else "无")
+    # 判断面板 + 指标
+    verdict_col, metrics_col = st.columns([1, 2])
+    
+    with verdict_col:
+        v_color = verdict['color']
+        v_bg = verdict['bg']
+        v_action = verdict['action']
+        v_score = verdict['score']
+        v_label = verdict['label']
+        
+        st.markdown(f"""
+        <div style="background: {v_bg}; border-left: 5px solid {v_color}; 
+                    border-radius: 12px; padding: 20px; text-align: center;">
+            <div style="font-size: 0.85rem; color: #8b949e; margin-bottom: 4px;">{company_name}</div>
+            <div style="font-size: 2.2rem; font-weight: 800; color: {v_color}; line-height: 1.1;">
+                {v_action}
+            </div>
+            <div style="font-size: 1.1rem; color: {v_color}; margin: 4px 0;">
+                {v_label} ({v_score}/100)
+            </div>
+            <div style="font-size: 1.4rem; font-weight: 600; color: #c9d1d9; margin-top: 8px;">
+                {price_symbol}{current_price:.2f}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # 关键理由
+        for reason in verdict['reasons'][:3]:
+            st.caption(reason)
+    
+    with metrics_col:
+        # 指标卡片 (2 行 x 4 列)
+        r1c1, r1c2, r1c3, r1c4 = st.columns(4)
+        with r1c1:
+            st.metric("日BLUE", f"{blue_daily:.0f}", delta="信号" if blue_daily > 100 else None)
+        with r1c2:
+            st.metric("周BLUE", f"{blue_weekly:.0f}", delta="信号" if blue_weekly > 100 else None)
+        with r1c3:
+            st.metric("月BLUE", f"{blue_monthly:.0f}", delta="信号" if blue_monthly > 100 else None)
+        with r1c4:
+            st.metric("ADX", f"{adx_val:.1f}", delta="强趋势" if adx_val > 25 else None)
+        
+        r2c1, r2c2, r2c3, r2c4 = st.columns(4)
+        with r2c1:
+            heima_list = []
+            if heima_daily: heima_list.append("日🐴")
+            if heima_weekly: heima_list.append("周🐴")
+            if heima_monthly: heima_list.append("月🐴")
+            st.metric("黑马", " ".join(heima_list) if heima_list else "无")
+        with r2c2:
+            juedi_list = []
+            if juedi_daily: juedi_list.append("日⛏️")
+            if juedi_weekly: juedi_list.append("周⛏️")
+            if juedi_monthly: juedi_list.append("月⛏️")
+            st.metric("掘地", " ".join(juedi_list) if juedi_list else "无")
+        with r2c3:
+            # 近5日涨跌
+            if len(df_daily) > 5:
+                chg5 = (current_price / float(df_daily['Close'].iloc[-6]) - 1) * 100
+                st.metric("5日涨跌", f"{chg5:+.1f}%")
+            else:
+                st.metric("5日涨跌", "N/A")
+        with r2c4:
+            # 量比
+            if len(df_daily) > 20:
+                vol_today = float(df_daily['Volume'].iloc[-1])
+                vol_avg = float(df_daily['Volume'].iloc[-20:].mean())
+                vol_ratio = vol_today / vol_avg if vol_avg > 0 else 0
+                st.metric("量比", f"{vol_ratio:.1f}x")
+            else:
+                st.metric("量比", "N/A")
     
     st.divider()
     
@@ -274,6 +332,188 @@ def _cached_get_stock_data(symbol: str, market: str = 'US', days: int = 3650):
     """缓存股票历史数据 (10分钟TTL)"""
     from data_fetcher import get_stock_data
     return get_stock_data(symbol, market=market, days=days)
+
+def _compute_verdict(
+    blue_daily, blue_weekly, blue_monthly, adx,
+    heima_daily, heima_weekly, heima_monthly,
+    juedi_daily, juedi_weekly, juedi_monthly,
+    df_daily, current_price
+) -> Dict:
+    """
+    综合所有信号计算买卖判断
+    
+    评分体系 (0-100):
+    - BLUE信号 (0-40): 日线+周线+月线共振
+    - 趋势确认 (0-20): ADX趋势强度
+    - 特殊信号 (0-20): 黑马+掘地加分
+    - 价量形态 (0-20): 量价配合、均线支撑
+    
+    Returns:
+        {'action': '买入', 'score': 75, 'label': '看多', 'color': '#00C853',
+         'bg': 'rgba(0,200,83,0.1)', 'reasons': ['日BLUE>100...', ...]}
+    """
+    score = 0
+    reasons = []
+    
+    # === 1. BLUE 信号评分 (0-40) ===
+    blue_score = 0
+    
+    # 日线 (0-15)
+    if blue_daily >= 150:
+        blue_score += 15
+        reasons.append(f"✅ 日BLUE {blue_daily:.0f} 极强信号")
+    elif blue_daily >= 100:
+        blue_score += 12
+        reasons.append(f"✅ 日BLUE {blue_daily:.0f} 强信号")
+    elif blue_daily >= 50:
+        blue_score += 7
+        reasons.append(f"🟡 日BLUE {blue_daily:.0f} 中等信号")
+    elif blue_daily > 0:
+        blue_score += 3
+    
+    # 周线 (0-15) - 共振加分更多
+    if blue_weekly >= 100:
+        blue_score += 15
+        reasons.append(f"✅ 周BLUE {blue_weekly:.0f} 周线共振确认")
+    elif blue_weekly >= 50:
+        blue_score += 10
+    elif blue_weekly > 0:
+        blue_score += 4
+    
+    # 月线 (0-10) - 大级别
+    if blue_monthly >= 100:
+        blue_score += 10
+        reasons.append(f"✅ 月BLUE {blue_monthly:.0f} 月线大级别底部")
+    elif blue_monthly >= 50:
+        blue_score += 6
+    elif blue_monthly > 0:
+        blue_score += 2
+    
+    score += min(blue_score, 40)
+    
+    # === 2. 趋势确认 (0-20) ===
+    if adx >= 40:
+        score += 20
+        reasons.append(f"✅ ADX {adx:.0f} 强趋势")
+    elif adx >= 25:
+        score += 14
+        reasons.append(f"✅ ADX {adx:.0f} 趋势确认")
+    elif adx >= 15:
+        score += 8
+    else:
+        score += 3
+        reasons.append(f"⚠️ ADX {adx:.0f} 趋势不明")
+    
+    # === 3. 特殊信号 (0-20) ===
+    special_score = 0
+    special_signals = []
+    
+    if heima_daily:
+        special_score += 5
+        special_signals.append("日黑马🐴")
+    if heima_weekly:
+        special_score += 5
+        special_signals.append("周黑马🐴")
+    if heima_monthly:
+        special_score += 4
+        special_signals.append("月黑马🐴")
+    if juedi_daily:
+        special_score += 3
+        special_signals.append("日掘地⛏️")
+    if juedi_weekly:
+        special_score += 3
+        special_signals.append("周掘地⛏️")
+    if juedi_monthly:
+        special_score += 2
+        special_signals.append("月掘地⛏️")
+    
+    if special_signals:
+        reasons.append(f"✅ 特殊信号: {' '.join(special_signals)}")
+    
+    score += min(special_score, 20)
+    
+    # === 4. 价量形态 (0-20) ===
+    volume_score = 0
+    try:
+        if len(df_daily) >= 20:
+            # 均线支撑
+            sma5 = float(df_daily['Close'].rolling(5).mean().iloc[-1])
+            sma20 = float(df_daily['Close'].rolling(20).mean().iloc[-1])
+            
+            if current_price > sma5 > sma20:
+                volume_score += 8
+                reasons.append("✅ 价格在5日/20日均线上方，多头排列")
+            elif current_price > sma20:
+                volume_score += 4
+            elif current_price < sma20:
+                volume_score += 0
+                reasons.append("⚠️ 价格低于20日均线")
+            
+            # 量价配合
+            vol_today = float(df_daily['Volume'].iloc[-1])
+            vol_avg20 = float(df_daily['Volume'].iloc[-20:].mean())
+            vol_ratio = vol_today / vol_avg20 if vol_avg20 > 0 else 1
+            
+            if vol_ratio > 1.5:
+                volume_score += 6
+                reasons.append(f"✅ 放量 {vol_ratio:.1f}x (量价配合)")
+            elif vol_ratio > 0.8:
+                volume_score += 4
+            else:
+                volume_score += 1
+                reasons.append(f"⚠️ 缩量 {vol_ratio:.1f}x")
+            
+            # 近期走势
+            chg5 = (current_price / float(df_daily['Close'].iloc[-6]) - 1) * 100 if len(df_daily) > 5 else 0
+            if chg5 > 5:
+                volume_score += 6
+            elif chg5 > 0:
+                volume_score += 4
+            elif chg5 > -5:
+                volume_score += 2
+            else:
+                reasons.append(f"⚠️ 近5日跌 {chg5:.1f}%")
+    except:
+        volume_score = 5  # 数据异常给个基础分
+    
+    score += min(volume_score, 20)
+    
+    # === 生成判断 ===
+    score = min(score, 100)
+    
+    if score >= 80:
+        action, label = "强烈买入", "极度看多"
+        color, bg = "#00E676", "rgba(0,230,118,0.12)"
+    elif score >= 65:
+        action, label = "买入", "看多"
+        color, bg = "#00C853", "rgba(0,200,83,0.10)"
+    elif score >= 50:
+        action, label = "偏多观望", "中性偏多"
+        color, bg = "#FFD600", "rgba(255,214,0,0.10)"
+    elif score >= 35:
+        action, label = "观望", "中性"
+        color, bg = "#8b949e", "rgba(139,148,158,0.10)"
+    elif score >= 20:
+        action, label = "偏空", "谨慎"
+        color, bg = "#FF6D00", "rgba(255,109,0,0.10)"
+    else:
+        action, label = "回避", "看空"
+        color, bg = "#FF1744", "rgba(255,23,68,0.10)"
+    
+    # 只保留最相关的理由
+    reasons = [r for r in reasons if r.startswith("✅") or r.startswith("⚠️")][:5]
+    if not reasons:
+        reasons = ["ℹ️ 暂无明确信号"]
+    
+    return {
+        'action': action,
+        'label': label,
+        'score': score,
+        'color': color,
+        'bg': bg,
+        'reasons': reasons
+    }
+
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _cached_yfinance_info(symbol: str) -> Dict:
