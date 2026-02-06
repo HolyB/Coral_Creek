@@ -2065,19 +2065,19 @@ def render_scan_page():
         # === 5. 黑马信号筛选 ===
         st.subheader("🐴 黑马信号")
         
-        # 从 session_state 获取当前筛选值
+        # 初始化 session_state
+        if 'heima_filter' not in st.session_state:
+            st.session_state['heima_filter'] = '全部'
+        
         heima_options = ["全部", "有日黑马", "有周黑马", "有月黑马", "有任意黑马"]
-        current_heima = st.session_state.get('heima_filter', '全部')
-        current_index = heima_options.index(current_heima) if current_heima in heima_options else 0
         
         heima_filter = st.radio(
             "黑马筛选",
             options=heima_options,
-            index=current_index,
             horizontal=True,
-            help="筛选出有黑马信号的股票"
+            help="筛选出有黑马信号的股票",
+            key="heima_filter"
         )
-        st.session_state['heima_filter'] = heima_filter
         
         # === 6. 高级筛选 (折叠) ===
         with st.expander("🔬 高级筛选", expanded=False):
@@ -2576,47 +2576,7 @@ def render_scan_page():
     week_heima_count = df['周黑马'].sum()
     month_heima_count = df['月黑马'].sum()
     
-    # === 调试: 检查黑马数据类型和值 ===
-    with st.expander("🔍 黑马调试信息", expanded=False):
-        st.write(f"**当前筛选**: {heima_filter}")
-        st.write(f"**数据来源**: {data_source}")
-        st.write(f"**总记录数**: {len(df)}")
-        st.write(f"**Heima_Daily 列存在**: {heima_daily_col}")
-        
-        if heima_daily_col:
-            sample_values = df[heima_daily_col].head(10).tolist()
-            sample_types = [type(v).__name__ for v in sample_values]
-            unique_values = df[heima_daily_col].unique().tolist()[:10]  # 前10个唯一值
-            st.write(f"**{heima_daily_col} 样本值**: {sample_values}")
-            st.write(f"**样本类型**: {sample_types}")
-            st.write(f"**唯一值 (前10)**: {unique_values}")
-            st.write(f"**列 dtype**: {df[heima_daily_col].dtype}")
-            
-            # 统计各类型值的数量
-            true_count = len(df[df[heima_daily_col] == True])
-            false_count = len(df[df[heima_daily_col] == False])
-            one_count = len(df[df[heima_daily_col] == 1])
-            zero_count = len(df[df[heima_daily_col] == 0])
-            none_count = df[heima_daily_col].isna().sum()
-            st.write(f"**值统计**: True={true_count}, False={false_count}, 1={one_count}, 0={zero_count}, None/NaN={none_count}")
-        else:
-            st.warning(f"⚠️ Heima_Daily 列不存在！可用列: {list(df.columns)[:20]}...")
-            # 检查 Is_Heima
-            if 'Is_Heima' in df.columns:
-                is_heima_true = df['Is_Heima'].sum()
-                st.write(f"**Is_Heima True 数量**: {is_heima_true}/{len(df)}")
-        
-        st.write("---")
-        st.write(f"**日黑马 样本值**: {df['日黑马'].head(10).tolist()}")
-        st.write(f"**日黑马 dtype**: {df['日黑马'].dtype}")
-        st.write(f"**日黑马 True 数量**: {day_heima_count}/{len(df)}")
-        
-        # 检查 🐴 列
-        emoji_sample = df['日🐴'].head(10).tolist()
-        emoji_non_empty = len([x for x in df['日🐴'].tolist() if x])
-        st.write(f"**日🐴 样本值**: {emoji_sample}")
-        st.write(f"**日🐴 非空数量**: {emoji_non_empty}/{len(df)}")
-    
+    # === 应用黑马筛选 ===
     if heima_filter == "有日黑马":
         df = df[df['日黑马'] == True]
     elif heima_filter == "有周黑马":
@@ -2625,16 +2585,6 @@ def render_scan_page():
         df = df[df['月黑马'] == True]
     elif heima_filter == "有任意黑马":
         df = df[(df['日黑马'] == True) | (df['周黑马'] == True) | (df['月黑马'] == True)]
-    
-    # 显示筛选结果
-    if heima_filter != "全部":
-        if len(df) == 0:
-            st.warning(f"⚠️ 黑马筛选 [{heima_filter}]: 当天无符合条件的股票！请切换到其他日期（如 2026-02-02 有 56 只日黑马）")
-        else:
-            st.success(f"🐴 黑马筛选 [{heima_filter}]: {before_heima_count} → {len(df)} 只")
-    else:
-        # 在"全部"模式下显示各类黑马统计
-        st.caption(f"🐴 黑马统计: 日{day_heima_count} | 周{week_heima_count} | 月{month_heima_count}")
 
     # 显示列顺序
     display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
@@ -2674,41 +2624,12 @@ def render_scan_page():
     count_month = len(df_month)
     count_special = len(df_special)
     
-    # === 🐴 黑马快捷筛选 (在表格上方，更明显) ===
+    # === 🐴 黑马筛选状态 ===
     st.markdown("---")
-    heima_col1, heima_col2, heima_col3, heima_col4, heima_col5 = st.columns(5)
-    with heima_col1:
-        show_all = st.button("🔄 全部", key="heima_all", use_container_width=True)
-        if show_all:
-            st.session_state['heima_filter'] = '全部'
-            st.rerun()
-    with heima_col2:
-        show_daily = st.button("🐴 日黑马", key="heima_d", use_container_width=True)
-        if show_daily:
-            st.session_state['heima_filter'] = '有日黑马'
-            st.rerun()
-    with heima_col3:
-        show_weekly = st.button("🐴 周黑马", key="heima_w", use_container_width=True)
-        if show_weekly:
-            st.session_state['heima_filter'] = '有周黑马'
-            st.rerun()
-    with heima_col4:
-        show_monthly = st.button("🐴 月黑马", key="heima_m", use_container_width=True)
-        if show_monthly:
-            st.session_state['heima_filter'] = '有月黑马'
-            st.rerun()
-    with heima_col5:
-        show_any = st.button("🐴 任意黑马", key="heima_any", use_container_width=True)
-        if show_any:
-            st.session_state['heima_filter'] = '有任意黑马'
-            st.rerun()
-    
-    # 显示当前黑马筛选状态
-    current_filter = st.session_state.get('heima_filter', '全部')
-    if current_filter != '全部':
-        st.success(f"✅ 当前筛选: **{current_filter}** (共 {len(df)} 只)")
+    if heima_filter != "全部":
+        st.success(f"✅ 当前筛选: **{heima_filter}** (共 {len(df)} 只) — 可在左侧边栏切换")
     else:
-        st.caption(f"💡 点击上方按钮筛选黑马股票 | 当前日期黑马数: 日{day_heima_count} 周{week_heima_count} 月{month_heima_count}")
+        st.caption(f"🐴 黑马统计: 日{day_heima_count} | 周{week_heima_count} | 月{month_heima_count} — 可在左侧边栏 \"黑马信号\" 切换筛选")
     
     # 创建标签页 (增加板块热度)
     tab_day_only, tab_day_week, tab_month, tab_special, tab_sector = st.tabs([

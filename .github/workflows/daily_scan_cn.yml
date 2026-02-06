@@ -146,6 +146,16 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
       
+      # 同步到 Supabase 云数据库
+      - name: Sync to Supabase
+        working-directory: versions/v2
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          pip install supabase
+          python scripts/sync_to_supabase.py --days 3
+      
       # 发送通知 (Telegram + Email)
       - name: Send notifications
         working-directory: versions/v2
