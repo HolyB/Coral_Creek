@@ -1152,7 +1152,7 @@ def _render_ml_prediction_tab(
                 max_value=10000000,
                 value=100000,
                 step=10000,
-                key=f"capital_{unique_key}"
+                key=f"ml_capital_{unique_key}"
             )
         
         with pos_cols[1]:
@@ -1162,7 +1162,7 @@ def _render_ml_prediction_tab(
                 max_value=5.0,
                 value=2.0,
                 step=0.5,
-                key=f"risk_{unique_key}"
+                key=f"ml_risk_{unique_key}"
             ) / 100
         
         with pos_cols[2]:
