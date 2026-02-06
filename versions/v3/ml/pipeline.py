@@ -89,39 +89,49 @@ class MLPipeline:
             feature_names: 特征名称
             df: 原始数据
         """
-        from db.database import get_connection
+        from db.database import query_scan_results, get_scanned_dates, init_db
         from db.stock_history import get_stock_history, save_stock_history
         from ml.features.feature_calculator import FeatureCalculator, FEATURE_COLUMNS
         
         print(f"\n📊 准备数据集...")
         
-        # 1. 获取有信号的股票
-        conn = get_connection()
+        # 初始化数据库 (确保表存在)
+        try:
+            init_db()
+        except:
+            pass
         
-        # 使用数据库中的实际日期范围
-        cursor = conn.cursor()
-        cursor.execute("SELECT MAX(scan_date) FROM scan_results WHERE market = ?", (self.market,))
-        max_date_row = cursor.fetchone()
-        if max_date_row and max_date_row[0]:
-            db_max_date = datetime.strptime(max_date_row[0], '%Y-%m-%d').date()
-            end_date = db_max_date - timedelta(days=5)  # 留5天给标签计算
-        else:
-            end_date = date.today() - timedelta(days=5)
+        # 1. 获取有信号的股票 (自动选择 Supabase 或 SQLite)
+        dates = get_scanned_dates(market=self.market)
+        if not dates:
+            print("❌ 无扫描日期数据")
+            return None, None, None, None, None, None
         
+        db_max_date = datetime.strptime(dates[0], '%Y-%m-%d').date()
+        end_date = db_max_date - timedelta(days=5)  # 留5天给标签计算
         start_date = end_date - timedelta(days=self.days_back)
         
-        print(f"   查询范围: {start_date} ~ {end_date}")
+        print(f"   最新扫描: {dates[0]}, 查询范围: {start_date} ~ {end_date}")
         
-        query = """
-            SELECT DISTINCT symbol, scan_date, price, blue_daily, blue_weekly, blue_monthly, is_heima
-            FROM scan_results
-            WHERE market = ? AND scan_date >= ? AND scan_date <= ?
-            ORDER BY scan_date, symbol
-        """
-        signals_df = pd.read_sql_query(query, conn, params=(
-            self.market, start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
-        ))
-        conn.close()
+        # 收集多天的扫描结果
+        all_signals = []
+        target_dates = [d for d in dates if start_date.strftime('%Y-%m-%d') <= d <= end_date.strftime('%Y-%m-%d')]
+        print(f"   目标日期: {len(target_dates)} 天")
+        
+        for d in target_dates:
+            results = query_scan_results(scan_date=d, market=self.market, limit=1000)
+            for r in results:
+                all_signals.append({
+                    'symbol': r.get('symbol', ''),
+                    'scan_date': d,
+                    'price': float(r.get('price', 0) or 0),
+                    'blue_daily': float(r.get('blue_daily', 0) or 0),
+                    'blue_weekly': float(r.get('blue_weekly', 0) or 0),
+                    'blue_monthly': float(r.get('blue_monthly', 0) or 0),
+                    'is_heima': bool(r.get('is_heima', False) or r.get('heima_daily', False)),
+                })
+        
+        signals_df = pd.DataFrame(all_signals)
         
         if signals_df.empty:
             print("❌ 无信号数据")
@@ -357,20 +367,26 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
+    # 初始化数据库
+    from db.database import init_db, query_scan_results, get_scanned_dates
+    try:
+        init_db()
+        print("✅ 历史数据库初始化完成")
+    except Exception as e:
+        print(f"⚠️ 数据库初始化: {e}")
+    
     pipeline = MLPipeline(market=args.market, days_back=args.days)
     
     if args.fetch:
-        # 获取信号股票列表
-        from db.database import get_connection
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT DISTINCT symbol FROM scan_results 
-            WHERE market = ? 
-            ORDER BY symbol
-        """, (args.market,))
-        symbols = [row['symbol'] for row in cursor.fetchall()]
-        conn.close()
+        # 获取信号股票列表 (从 Supabase 或 SQLite)
+        dates = get_scanned_dates(market=args.market)
+        symbols = set()
+        for d in dates[:30]:  # 最近30天
+            results = query_scan_results(scan_date=d, market=args.market, limit=1000)
+            for r in results:
+                symbols.add(r.get('symbol', ''))
+        symbols = sorted([s for s in symbols if s])
+        print(f"   找到 {len(symbols)} 只股票")
         
         pipeline.fetch_and_store_history(symbols)
     

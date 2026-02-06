@@ -30,12 +30,15 @@ jobs:
           pip install --upgrade pip
           pip install xgboost lightgbm scikit-learn pandas numpy joblib
           pip install polygon-api-client requests yfinance tqdm
+          pip install supabase
       
       - name: Train SmartPicker Models (pipeline.py)
         working-directory: versions/v3
         env:
           PYTHONPATH: ${{ github.workspace }}/versions/v3
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           echo "🚀 Training SmartPicker models via ml/pipeline.py"
           echo "   This trains ReturnPredictor + SignalRanker (101 features)"
