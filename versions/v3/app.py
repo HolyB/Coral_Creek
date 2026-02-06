@@ -2062,20 +2062,21 @@ def render_scan_page():
             if selected_strategies:
                 df = df[df['Strategy'].isin(selected_strategies)]
         
-        # === 5. 黑马信号筛选 ===
-        st.subheader("🐴 黑马信号")
+        # === 5. 黑马/掘地信号筛选 ===
+        st.subheader("🐴⛏️ 信号筛选")
         
         # 初始化 session_state
         if 'heima_filter' not in st.session_state:
             st.session_state['heima_filter'] = '全部'
         
-        heima_options = ["全部", "有日黑马", "有周黑马", "有月黑马", "有任意黑马"]
+        signal_options = ["全部", "有日黑马", "有周黑马", "有月黑马", "有任意黑马",
+                          "有日掘地", "有周掘地", "有月掘地", "有任意掘地"]
         
         heima_filter = st.radio(
-            "黑马筛选",
-            options=heima_options,
+            "信号筛选",
+            options=signal_options,
             horizontal=True,
-            help="筛选出有黑马信号的股票",
+            help="筛选出有黑马🐴或掘地⛏️信号的股票",
             key="heima_filter"
         )
         
@@ -2533,9 +2534,12 @@ def render_scan_page():
     heima_weekly_col = get_col(df, ['Heima_Weekly', 'heima_weekly'])
     heima_monthly_col = get_col(df, ['Heima_Monthly', 'heima_monthly'])
     heima_any_col = get_col(df, ['Is_Heima', 'is_heima'])  # 兼容旧数据
+    juedi_daily_col = get_col(df, ['Juedi_Daily', 'juedi_daily'])
+    juedi_weekly_col = get_col(df, ['Juedi_Weekly', 'juedi_weekly'])
+    juedi_monthly_col = get_col(df, ['Juedi_Monthly', 'juedi_monthly'])
+    juedi_any_col = get_col(df, ['Is_Juedi', 'is_juedi'])
     
-    # 创建黑马布尔列 (用于过滤) - 使用安全转换
-    # 日黑马: 优先使用 heima_daily, 回退到 is_heima
+    # === 黑马布尔列 ===
     if heima_daily_col:
         df['日黑马'] = safe_bool_convert(df[heima_daily_col])
     elif heima_any_col:
@@ -2543,40 +2547,65 @@ def render_scan_page():
     else:
         df['日黑马'] = False
     
-    # 周黑马: 只使用 heima_weekly
     if heima_weekly_col:
         df['周黑马'] = safe_bool_convert(df[heima_weekly_col])
     else:
         df['周黑马'] = False
     
-    # 月黑马: 只使用 heima_monthly
     if heima_monthly_col:
         df['月黑马'] = safe_bool_convert(df[heima_monthly_col])
     else:
         df['月黑马'] = False
     
-    # 显示列 (🐴 图标)
+    # === 掘地布尔列 ===
+    if juedi_daily_col:
+        df['日掘地'] = safe_bool_convert(df[juedi_daily_col])
+    elif juedi_any_col:
+        df['日掘地'] = safe_bool_convert(df[juedi_any_col])
+    else:
+        df['日掘地'] = False
+    
+    if juedi_weekly_col:
+        df['周掘地'] = safe_bool_convert(df[juedi_weekly_col])
+    else:
+        df['周掘地'] = False
+    
+    if juedi_monthly_col:
+        df['月掘地'] = safe_bool_convert(df[juedi_monthly_col])
+    else:
+        df['月掘地'] = False
+    
+    # 显示列 (图标)
     df['日🐴'] = df['日黑马'].apply(lambda x: '🐴' if x else '')
     df['周🐴'] = df['周黑马'].apply(lambda x: '🐴' if x else '')
     df['月🐴'] = df['月黑马'].apply(lambda x: '🐴' if x else '')
+    df['日⛏️'] = df['日掘地'].apply(lambda x: '⛏️' if x else '')
+    df['周⛏️'] = df['周掘地'].apply(lambda x: '⛏️' if x else '')
+    df['月⛏️'] = df['月掘地'].apply(lambda x: '⛏️' if x else '')
     
     # 更新列配置
     column_config.update({
         "日🐴": st.column_config.TextColumn("日🐴", width="small", help="日线黑马"),
         "周🐴": st.column_config.TextColumn("周🐴", width="small", help="周线黑马"),
         "月🐴": st.column_config.TextColumn("月🐴", width="small", help="月线黑马"),
+        "日⛏️": st.column_config.TextColumn("日⛏️", width="small", help="日线掘地"),
+        "周⛏️": st.column_config.TextColumn("周⛏️", width="small", help="周线掘地"),
+        "月⛏️": st.column_config.TextColumn("月⛏️", width="small", help="月线掘地"),
     })
     
-    # === 应用黑马筛选 ===
+    # === 应用信号筛选 ===
     heima_filter = st.session_state.get('heima_filter', '全部')
     before_heima_count = len(df)
     
-    # 统计黑马数量 (调试用)
+    # 统计
     day_heima_count = df['日黑马'].sum()
     week_heima_count = df['周黑马'].sum()
     month_heima_count = df['月黑马'].sum()
+    day_juedi_count = df['日掘地'].sum()
+    week_juedi_count = df['周掘地'].sum()
+    month_juedi_count = df['月掘地'].sum()
     
-    # === 应用黑马筛选 ===
+    # 黑马筛选
     if heima_filter == "有日黑马":
         df = df[df['日黑马'] == True]
     elif heima_filter == "有周黑马":
@@ -2585,9 +2614,18 @@ def render_scan_page():
         df = df[df['月黑马'] == True]
     elif heima_filter == "有任意黑马":
         df = df[(df['日黑马'] == True) | (df['周黑马'] == True) | (df['月黑马'] == True)]
+    # 掘地筛选
+    elif heima_filter == "有日掘地":
+        df = df[df['日掘地'] == True]
+    elif heima_filter == "有周掘地":
+        df = df[df['周掘地'] == True]
+    elif heima_filter == "有月掘地":
+        df = df[df['月掘地'] == True]
+    elif heima_filter == "有任意掘地":
+        df = df[(df['日掘地'] == True) | (df['周掘地'] == True) | (df['月掘地'] == True)]
 
     # 显示列顺序
-    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
@@ -2624,12 +2662,15 @@ def render_scan_page():
     count_month = len(df_month)
     count_special = len(df_special)
     
-    # === 🐴 黑马筛选状态 ===
+    # === 信号筛选状态 ===
     st.markdown("---")
     if heima_filter != "全部":
-        st.success(f"✅ 当前筛选: **{heima_filter}** (共 {len(df)} 只) — 可在左侧边栏切换")
+        if len(df) == 0:
+            st.warning(f"⚠️ **{heima_filter}**: 当天无符合条件的股票")
+        else:
+            st.success(f"✅ 当前筛选: **{heima_filter}** (共 {len(df)} 只) — 左侧边栏切换")
     else:
-        st.caption(f"🐴 黑马统计: 日{day_heima_count} | 周{week_heima_count} | 月{month_heima_count} — 可在左侧边栏 \"黑马信号\" 切换筛选")
+        st.caption(f"🐴 黑马: 日{day_heima_count} 周{week_heima_count} 月{month_heima_count} | ⛏️ 掘地: 日{day_juedi_count} 周{week_juedi_count} 月{month_juedi_count}")
     
     # 创建标签页 (增加板块热度)
     tab_day_only, tab_day_week, tab_month, tab_special, tab_sector = st.tabs([
@@ -9672,14 +9713,15 @@ st.sidebar.title("Coral Creek V3 🦅")
 st.sidebar.caption("ML量化交易系统")
 
 page = st.sidebar.radio("功能导航", [
-    "🎯 今日精选",       # 新增: 多策略选股仪表板
+    "🎯 今日精选",       # 多策略选股仪表板
     "📊 每日扫描", 
     "🔍 个股查询", 
-    "📰 新闻中心",      # 新增: 事件驱动新闻分析
-    "📈 信号中心",      # 合并: 信号追踪 + 验证 + Baseline对比
-    "💼 组合管理",      # 合并: 持仓 + 风控仪表盘 + 模拟交易
-    "🧪 策略实验室",    # 合并: 回测 + 研究工具
-    "🤖 AI中心"         # 合并: AI决策 + 博主追踪
+    "💰 每日买卖点",    # 每日买卖信号推荐
+    "📰 新闻中心",      # 事件驱动新闻分析
+    "📈 信号中心",      # 信号追踪 + 验证 + Baseline对比
+    "💼 组合管理",      # 持仓 + 风控仪表盘 + 模拟交易
+    "🧪 策略实验室",    # 回测 + 研究工具
+    "🤖 AI中心"         # AI决策 + 博主追踪
 ])
 
 if page == "🎯 今日精选":
@@ -9688,6 +9730,14 @@ elif page == "📊 每日扫描":
     render_scan_page()
 elif page == "🔍 个股查询":
     render_stock_lookup_page()
+elif page == "💰 每日买卖点":
+    try:
+        from pages.daily_signals import render_daily_signals_page
+        render_daily_signals_page()
+    except Exception as e:
+        st.error(f"买卖点页面加载失败: {e}")
+        import traceback
+        st.code(traceback.format_exc())
 elif page == "📰 新闻中心":
     try:
         from pages.news_center import render_news_center_page
