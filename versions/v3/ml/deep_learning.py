@@ -19,6 +19,11 @@ try:
     TORCH_AVAILABLE = True
 except ImportError:
     TORCH_AVAILABLE = False
+    # 创建占位符，避免 NameError
+    Dataset = object
+    nn = None
+    torch = None
+    DataLoader = None
 
 # 添加父目录
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,10 +36,16 @@ def check_torch_available() -> bool:
     return TORCH_AVAILABLE
 
 
+# ============================================================================
+# PyTorch 模型类 - 只有 PyTorch 可用时才有效
+# ============================================================================
+
 class StockDataset(Dataset):
     """股票时序数据集"""
     
     def __init__(self, X: np.ndarray, y: np.ndarray):
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch is not installed")
         self.X = torch.FloatTensor(X)
         self.y = torch.FloatTensor(y)
     
@@ -45,74 +56,119 @@ class StockDataset(Dataset):
         return self.X[idx], self.y[idx]
 
 
-class LSTMModel(nn.Module):
+class LSTMModel:
     """LSTM 价格预测模型"""
     
     def __init__(self, input_size: int, hidden_size: int = 64, 
                  num_layers: int = 2, dropout: float = 0.2,
                  output_size: int = 1):
-        super(LSTMModel, self).__init__()
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch is not installed")
         
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
+        # 动态创建真正的模型
+        class _LSTMModule(nn.Module):
+            def __init__(inner_self, input_size, hidden_size, num_layers, dropout, output_size):
+                super(_LSTMModule, inner_self).__init__()
+                
+                inner_self.hidden_size = hidden_size
+                inner_self.num_layers = num_layers
+                
+                inner_self.lstm = nn.LSTM(
+                    input_size=input_size,
+                    hidden_size=hidden_size,
+                    num_layers=num_layers,
+                    batch_first=True,
+                    dropout=dropout if num_layers > 1 else 0
+                )
+                
+                inner_self.fc = nn.Sequential(
+                    nn.Linear(hidden_size, 32),
+                    nn.ReLU(),
+                    nn.Dropout(dropout),
+                    nn.Linear(32, output_size)
+                )
+            
+            def forward(inner_self, x):
+                lstm_out, (h_n, c_n) = inner_self.lstm(x)
+                last_output = lstm_out[:, -1, :]
+                out = inner_self.fc(last_output)
+                return out
         
-        self.lstm = nn.LSTM(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=dropout if num_layers > 1 else 0
-        )
-        
-        self.fc = nn.Sequential(
-            nn.Linear(hidden_size, 32),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(32, output_size)
-        )
+        self._module = _LSTMModule(input_size, hidden_size, num_layers, dropout, output_size)
     
-    def forward(self, x):
-        # x: (batch, seq_len, features)
-        lstm_out, (h_n, c_n) = self.lstm(x)
-        # 取最后一个时间步的输出
-        last_output = lstm_out[:, -1, :]
-        out = self.fc(last_output)
-        return out
+    def to(self, device):
+        self._module.to(device)
+        return self
+    
+    def __call__(self, x):
+        return self._module(x)
+    
+    def train(self, mode=True):
+        self._module.train(mode)
+    
+    def eval(self):
+        self._module.eval()
+    
+    def parameters(self):
+        return self._module.parameters()
 
 
-class GRUModel(nn.Module):
+class GRUModel:
     """GRU 价格预测模型"""
     
     def __init__(self, input_size: int, hidden_size: int = 64,
                  num_layers: int = 2, dropout: float = 0.2,
                  output_size: int = 1):
-        super(GRUModel, self).__init__()
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch is not installed")
         
-        self.gru = nn.GRU(
-            input_size=input_size,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=dropout if num_layers > 1 else 0
-        )
+        class _GRUModule(nn.Module):
+            def __init__(inner_self, input_size, hidden_size, num_layers, dropout, output_size):
+                super(_GRUModule, inner_self).__init__()
+                
+                inner_self.gru = nn.GRU(
+                    input_size=input_size,
+                    hidden_size=hidden_size,
+                    num_layers=num_layers,
+                    batch_first=True,
+                    dropout=dropout if num_layers > 1 else 0
+                )
+                
+                inner_self.fc = nn.Sequential(
+                    nn.Linear(hidden_size, 32),
+                    nn.ReLU(),
+                    nn.Dropout(dropout),
+                    nn.Linear(32, output_size)
+                )
+            
+            def forward(inner_self, x):
+                gru_out, h_n = inner_self.gru(x)
+                last_output = gru_out[:, -1, :]
+                out = inner_self.fc(last_output)
+                return out
         
-        self.fc = nn.Sequential(
-            nn.Linear(hidden_size, 32),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(32, output_size)
-        )
+        self._module = _GRUModule(input_size, hidden_size, num_layers, dropout, output_size)
     
-    def forward(self, x):
-        gru_out, h_n = self.gru(x)
-        last_output = gru_out[:, -1, :]
-        out = self.fc(last_output)
-        return out
+    def to(self, device):
+        self._module.to(device)
+        return self
+    
+    def __call__(self, x):
+        return self._module(x)
+    
+    def train(self, mode=True):
+        self._module.train(mode)
+    
+    def eval(self):
+        self._module.eval()
+    
+    def parameters(self):
+        return self._module.parameters()
 
 
 def prepare_sequence_data(df: pd.DataFrame, seq_length: int = 20, 
                           target_col: str = 'Close', 
-                          feature_cols: List[str] = None) -> Tuple[np.ndarray, np.ndarray]:
+                          feature_cols: List[str] = None) -> Tuple[np.ndarray, np.ndarray, any]:
     """
     准备时序训练数据
     
@@ -123,7 +179,7 @@ def prepare_sequence_data(df: pd.DataFrame, seq_length: int = 20,
         feature_cols: 特征列列表
     
     Returns:
-        (X, y): 训练数据
+        (X, y, scaler): 训练数据和缩放器
     """
     if feature_cols is None:
         feature_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
@@ -155,6 +211,9 @@ class DeepLearningTrainer:
     
     def __init__(self, model_type: str = 'LSTM', 
                  hidden_size: int = 64, num_layers: int = 2):
+        if not TORCH_AVAILABLE:
+            raise ImportError("PyTorch is not installed. Run: pip install torch")
+        
         self.model_type = model_type
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -285,6 +344,9 @@ def train_price_predictor(symbol: str, days: int = 100,
     Returns:
         训练结果
     """
+    if not TORCH_AVAILABLE:
+        return {'error': 'PyTorch is not installed'}
+    
     from data_fetcher import get_us_stock_data
     from sklearn.model_selection import train_test_split
     
