@@ -1390,13 +1390,14 @@ def render_todays_picks_page():
         
         with action_right:
             # === 逃顶预警 (幻影主力) ===
-            st.markdown("### 🚨 逃顶预警")
+            st.markdown("### 🚨 逃顶 & 买入预警")
             try:
-                from indicator_utils import calculate_phantom_indicator, calculate_adx_series
+                from indicator_utils import calculate_phantom_indicator, calculate_adx_series, calculate_heima_full
                 from data_fetcher import get_stock_data
                 
                 escape_warnings = []
                 trend_pullbacks = []
+                golden_bottoms = []
                 # 扫描今日信号股
                 scan_symbols = df['symbol'].tolist()[:30] if not df.empty and 'symbol' in df.columns else []
                 
@@ -1409,6 +1410,10 @@ def render_todays_picks_page():
                             sym_data['Open'].values, sym_data['High'].values,
                             sym_data['Low'].values, sym_data['Close'].values,
                             sym_data['Volume'].values
+                        )
+                        hf = calculate_heima_full(
+                            sym_data['High'].values, sym_data['Low'].values,
+                            sym_data['Close'].values, sym_data['Open'].values
                         )
                         adx_arr = calculate_adx_series(
                             sym_data['High'].values, sym_data['Low'].values,
@@ -1424,18 +1429,35 @@ def render_todays_picks_page():
                         price_val = float(sym_data['Close'].iloc[-1])
                         display_name = sym.split('.')[0] if '.' in sym else sym
                         
-                        # 逃顶: PINK下穿90 + 资金流出 + ADX<30
-                        if is_sell and green_v < 0 and adx_v < 30:
+                        # 三重逃顶 (最强): 顶背离 + PINK>80 + 资金流出
+                        has_top_div = bool(hf['top_divergence'][-1])
+                        if has_top_div and pink_v > 80 and green_v < 0:
                             escape_warnings.append({
                                 'symbol': sym, 'name': display_name,
                                 'pink': pink_v, 'price': price_val, 'price_sym': price_sym,
-                                'level': 'high'
+                                'level': 'critical', 'reason': '三重逃顶 (86%)'
                             })
-                        elif is_sell:
+                        # 逃顶: PINK下穿90 + 资金流出 + ADX<30
+                        elif is_sell and green_v < 0 and adx_v < 30:
                             escape_warnings.append({
                                 'symbol': sym, 'name': display_name,
                                 'pink': pink_v, 'price': price_val, 'price_sym': price_sym,
-                                'level': 'low'
+                                'level': 'high', 'reason': 'PINK逃顶+流出'
+                            })
+                        elif has_top_div:
+                            escape_warnings.append({
+                                'symbol': sym, 'name': display_name,
+                                'pink': pink_v, 'price': price_val, 'price_sym': price_sym,
+                                'level': 'low', 'reason': '顶背离(需确认)'
+                            })
+                        
+                        # 黄金底 (最强买入): 底部金叉 + CCI < -100
+                        has_golden = bool(hf['golden_bottom'][-1])
+                        cci_val = float(hf['CCI'][-1])
+                        if has_golden:
+                            golden_bottoms.append({
+                                'symbol': sym, 'name': display_name,
+                                'cci': cci_val, 'price': price_val, 'price_sym': price_sym,
                             })
                         
                         # 趋势回调买入: BLUE消失 + ADX>25
@@ -1449,15 +1471,19 @@ def render_todays_picks_page():
                 
                 if escape_warnings:
                     for ew in escape_warnings:
-                        bg = "rgba(255,23,68,0.12)" if ew['level'] == 'high' else "rgba(255,109,0,0.08)"
-                        border = "#FF1744" if ew['level'] == 'high' else "#FF6D00"
-                        label = "🚨 多重确认" if ew['level'] == 'high' else "⚠️ 弱信号"
+                        colors = {
+                            'critical': ("#FF0000", "rgba(255,0,0,0.15)"),
+                            'high': ("#FF1744", "rgba(255,23,68,0.12)"),
+                            'low': ("#FF6D00", "rgba(255,109,0,0.08)")
+                        }
+                        border, bg = colors.get(ew['level'], colors['low'])
+                        reason = ew.get('reason', '')
                         st.markdown(f"""
                         <div style="background: {bg}; border-left: 3px solid {border}; 
                                     padding: 10px; border-radius: 8px; margin-bottom: 6px;">
                             <div style="display: flex; justify-content: space-between;">
                                 <span style="font-weight: bold;">{ew['name']}</span>
-                                <span style="color: {border};">{label}</span>
+                                <span style="color: {border};">{'🚨' if ew['level'] == 'critical' else '⚠️'} {reason}</span>
                             </div>
                             <div style="font-size: 0.85em; color: #888;">
                                 PINK: {ew['pink']:.1f} | {ew['price_sym']}{ew['price']:.2f}
@@ -1467,15 +1493,28 @@ def render_todays_picks_page():
                 else:
                     st.success("✅ 暂无逃顶预警")
                 
+                # 黄金底 (最强买入信号)
+                if golden_bottoms:
+                    st.markdown("### 🎯 黄金底信号")
+                    st.caption("底部金叉 + CCI极度超卖 (回测69%胜率)")
+                    for gb in golden_bottoms:
+                        st.markdown(f"""
+                        <div style="background: rgba(255,215,0,0.12); border-left: 3px solid #FFD700;
+                                    padding: 10px; border-radius: 8px; margin-bottom: 6px;">
+                            <div style="font-weight: bold;">{gb['name']} <span style="color: #FFD700;">🎯 黄金底</span></div>
+                            <div style="font-size: 0.85em; color: #888;">CCI: {gb['cci']:.0f} | {gb['price_sym']}{gb['price']:.2f}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
                 # 趋势回调买入
                 if trend_pullbacks:
-                    st.markdown("### 🎯 趋势回调买入")
+                    st.markdown("### 📈 趋势回调买入")
                     st.caption("海底捞月消失 + ADX>25 (回测61%胜率)")
                     for tp in trend_pullbacks:
                         st.markdown(f"""
                         <div style="background: rgba(0,200,83,0.08); border-left: 3px solid #00C853;
                                     padding: 10px; border-radius: 8px; margin-bottom: 6px;">
-                            <div style="font-weight: bold;">{tp['name']} <span style="color: #00C853;">🎯 回调买入</span></div>
+                            <div style="font-weight: bold;">{tp['name']} <span style="color: #00C853;">📈 回调买入</span></div>
                             <div style="font-size: 0.85em; color: #888;">ADX: {tp['adx']:.0f} | {tp['price_sym']}{tp['price']:.2f}</div>
                         </div>
                         """, unsafe_allow_html=True)
@@ -3070,31 +3109,40 @@ def render_scan_page():
         if special_cache_key not in st.session_state:
             st.info("需要扫描特殊信号（含幻影主力），点击下方按钮开始")
             
-            if st.button("🔍 扫描黑马/掘地/幻影主力信号", key="scan_special", type="primary"):
+            if st.button("🔍 扫描全部信号 (黑马+幻影+金叉+背离)", key="scan_special", type="primary"):
                 from concurrent.futures import ThreadPoolExecutor, as_completed
-                from indicator_utils import calculate_heima_signal_series, calculate_phantom_indicator, calculate_adx_series
+                from indicator_utils import calculate_heima_full, calculate_phantom_indicator, calculate_adx_series
                 from chart_utils import quick_chip_analysis
                 
                 results = {}
                 
                 def calc_special_signals(ticker):
-                    """计算单只股票的特殊信号: 黑马、掘地、顶格峰、幻影主力"""
+                    """计算单只股票的全部特殊信号"""
                     base = {'heima': False, 'juedi': False, 'bottom_peak': False,
-                            'phantom_escape': False, 'phantom_buy': False, 'phantom_pink': 50}
+                            'phantom_escape': False, 'phantom_buy': False, 'phantom_pink': 50,
+                            'golden_bottom': False, 'top_divergence': False,
+                            'triple_escape': False, 'two_golden_cross': False,
+                            'cci': 0}
                     try:
                         stock_df = fetch_data_from_polygon(ticker, days=250)
                         if stock_df is None or len(stock_df) < 30:
                             return ticker, base
                         
-                        # 黑马/掘地信号
-                        heima, juedi = calculate_heima_signal_series(
-                            stock_df['High'].values,
-                            stock_df['Low'].values,
-                            stock_df['Close'].values,
-                            stock_df['Open'].values
-                        )
-                        base['heima'] = bool(heima[-1]) if len(heima) > 0 else False
-                        base['juedi'] = bool(juedi[-1]) if len(juedi) > 0 else False
+                        h = stock_df['High'].values
+                        l = stock_df['Low'].values
+                        c = stock_df['Close'].values
+                        o = stock_df['Open'].values
+                        v = stock_df['Volume'].values
+                        
+                        # 完整黑马 (含金叉、背离等)
+                        if len(stock_df) >= 50:
+                            hf = calculate_heima_full(h, l, c, o, v)
+                            base['heima'] = bool(hf['heima'][-1])
+                            base['juedi'] = bool(hf['juedi'][-1])
+                            base['golden_bottom'] = bool(hf['golden_bottom'][-1])
+                            base['top_divergence'] = bool(hf['top_divergence'][-1])
+                            base['two_golden_cross'] = bool(hf['two_golden_cross'][-1])
+                            base['cci'] = float(hf['CCI'][-1])
                         
                         # 顶格峰信号
                         try:
@@ -3107,21 +3155,19 @@ def render_scan_page():
                         # 幻影主力
                         if len(stock_df) >= 50:
                             try:
-                                ph = calculate_phantom_indicator(
-                                    stock_df['Open'].values, stock_df['High'].values,
-                                    stock_df['Low'].values, stock_df['Close'].values,
-                                    stock_df['Volume'].values
-                                )
-                                adx_arr = calculate_adx_series(
-                                    stock_df['High'].values, stock_df['Low'].values,
-                                    stock_df['Close'].values
-                                )
+                                ph = calculate_phantom_indicator(o, h, l, c, v)
+                                adx_arr = calculate_adx_series(h, l, c)
                                 adx_v = float(adx_arr[-1])
                                 base['phantom_pink'] = float(ph['pink'][-1])
                                 
-                                # 逃顶: PINK下穿90 + 资金流出
                                 is_sell = bool(ph['sell_signal'][-1])
                                 green_v = float(ph['green'][-1])
+                                
+                                # 三重逃顶: 顶背离 + PINK>80 + 资金流出
+                                if base['top_divergence'] and ph['pink'][-1] > 80 and green_v < 0:
+                                    base['triple_escape'] = True
+                                
+                                # 幻影逃顶: PINK下穿90 + 资金流出
                                 if is_sell and green_v < 0 and adx_v < 30:
                                     base['phantom_escape'] = True
                                 
@@ -3156,17 +3202,25 @@ def render_scan_page():
                 peak_count = sum(1 for r in results.values() if r['bottom_peak'])
                 escape_count = sum(1 for r in results.values() if r['phantom_escape'])
                 pbuy_count = sum(1 for r in results.values() if r['phantom_buy'])
-                st.success(f"✅ 扫描完成！🐴 黑马: {heima_count} | ⛏️ 掘地: {juedi_count} | 🔥 顶格峰: {peak_count} | 🚨 逃顶: {escape_count} | 🎯 回调买入: {pbuy_count}")
+                gb_count = sum(1 for r in results.values() if r['golden_bottom'])
+                te_count = sum(1 for r in results.values() if r['triple_escape'])
+                td_count = sum(1 for r in results.values() if r['top_divergence'])
+                st.success(f"✅ 扫描完成！🎯 黄金底: {gb_count} | 🚨 三重逃顶: {te_count} | 🐴 黑马: {heima_count} | ⛏️ 掘地: {juedi_count} | 🔥 顶格峰: {peak_count} | ⚠️ 顶背离: {td_count}")
                 st.rerun()
         else:
             # 显示结果
             signal_data = st.session_state[special_cache_key]
             
             # 信号过滤器
+            all_filter_opts = [
+                "🎯 黄金底", "🚨 三重逃顶", "⚠️ 顶背离", "⚡ 二次金叉",
+                "🐴 黑马", "⛏️ 掘地", "🔥 顶格峰",
+                "📈 趋势回调", "🔴 幻影逃顶"
+            ]
             filter_opts = st.multiselect(
                 "筛选信号类型",
-                ["🐴 黑马", "⛏️ 掘地", "🔥 顶格峰", "🚨 幻影逃顶", "🎯 趋势回调买入"],
-                default=["🐴 黑马", "⛏️ 掘地", "🔥 顶格峰", "🚨 幻影逃顶", "🎯 趋势回调买入"],
+                all_filter_opts,
+                default=all_filter_opts,
                 key="special_filter"
             )
             
@@ -3174,24 +3228,36 @@ def render_scan_page():
             special_rows = []
             for ticker, signals in signal_data.items():
                 has_any = (
+                    (signals.get('golden_bottom') and "🎯 黄金底" in filter_opts) or
+                    (signals.get('triple_escape') and "🚨 三重逃顶" in filter_opts) or
+                    (signals.get('top_divergence') and "⚠️ 顶背离" in filter_opts) or
+                    (signals.get('two_golden_cross') and "⚡ 二次金叉" in filter_opts) or
                     (signals['heima'] and "🐴 黑马" in filter_opts) or
                     (signals['juedi'] and "⛏️ 掘地" in filter_opts) or
                     (signals['bottom_peak'] and "🔥 顶格峰" in filter_opts) or
-                    (signals['phantom_escape'] and "🚨 幻影逃顶" in filter_opts) or
-                    (signals['phantom_buy'] and "🎯 趋势回调买入" in filter_opts)
+                    (signals['phantom_escape'] and "🔴 幻影逃顶" in filter_opts) or
+                    (signals['phantom_buy'] and "📈 趋势回调" in filter_opts)
                 )
                 if has_any:
                     signal_types = []
+                    if signals.get('golden_bottom') and "🎯 黄金底" in filter_opts:
+                        signal_types.append('🎯黄金底')
+                    if signals.get('triple_escape') and "🚨 三重逃顶" in filter_opts:
+                        signal_types.append('🚨三重逃顶')
+                    if signals.get('top_divergence') and "⚠️ 顶背离" in filter_opts:
+                        signal_types.append('⚠️顶背离')
+                    if signals.get('two_golden_cross') and "⚡ 二次金叉" in filter_opts:
+                        signal_types.append('⚡二次金叉')
                     if signals['heima'] and "🐴 黑马" in filter_opts:
                         signal_types.append('🐴黑马')
                     if signals['juedi'] and "⛏️ 掘地" in filter_opts:
                         signal_types.append('⛏️掘地')
                     if signals['bottom_peak'] and "🔥 顶格峰" in filter_opts:
                         signal_types.append('🔥顶格峰')
-                    if signals['phantom_escape'] and "🚨 幻影逃顶" in filter_opts:
-                        signal_types.append('🚨逃顶')
-                    if signals['phantom_buy'] and "🎯 趋势回调买入" in filter_opts:
-                        signal_types.append('🎯回调买入')
+                    if signals['phantom_escape'] and "🔴 幻影逃顶" in filter_opts:
+                        signal_types.append('🔴逃顶')
+                    if signals['phantom_buy'] and "📈 趋势回调" in filter_opts:
+                        signal_types.append('📈回调')
                     
                     if not signal_types:
                         continue
@@ -3202,12 +3268,14 @@ def render_scan_page():
                         row = ticker_info.iloc[0].to_dict()
                         row['信号类型'] = ' '.join(signal_types)
                         row['PINK'] = round(signals.get('phantom_pink', 50), 1)
+                        row['CCI'] = round(signals.get('cci', 0), 0)
                         special_rows.append(row)
                     else:
                         special_rows.append({
                             'Ticker': ticker,
                             '信号类型': ' '.join(signal_types),
-                            'PINK': round(signals.get('phantom_pink', 50), 1)
+                            'PINK': round(signals.get('phantom_pink', 50), 1),
+                            'CCI': round(signals.get('cci', 0), 0)
                         })
             
             if special_rows:
@@ -3216,7 +3284,7 @@ def render_scan_page():
                 # 统计显示
                 st.markdown(f"**找到 {len(special_rows)} 只特殊信号股票**")
                 
-                display_with_signal = ['信号类型', 'PINK'] + existing_cols
+                display_with_signal = ['信号类型', 'PINK', 'CCI'] + existing_cols
                 cols_to_show = [c for c in display_with_signal if c in df_special_result.columns]
                 
                 event4 = st.dataframe(

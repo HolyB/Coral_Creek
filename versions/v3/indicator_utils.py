@@ -249,49 +249,242 @@ def calculate_blue_signal_series(open_p, high, low, close):
 
 def calculate_heima_signal_series(high, low, close, open_p):
     """
-    计算黑马信号序列
+    计算黑马信号序列 (兼容旧接口)
     返回: heima_signal (bool array), juedi_signal (bool array)
     """
-    # VAR1 = (HIGH + LOW + CLOSE) / 3
-    VAR1 = (high + low + close) / 3
+    result = calculate_heima_full(high, low, close, open_p)
+    return result['heima'], result['juedi']
+
+
+def _calc_zig(close, deviation_pct=22):
+    """
+    计算ZIG指标序列 (通达信 ZIG(3, deviation_pct))
+    ZIG(3,X) = 基于收盘价, X%偏离的ZigZag线
+    返回: zig_values (numpy array, 连接各转折点的线性插值)
+    """
+    n = len(close)
+    zig = np.full(n, np.nan)
+    dev = deviation_pct / 100.0
     
-    # VAR2 = (VAR1 - MA(VAR1, 14)) / (0.015 * AVEDEV(VAR1, 14))
-    ma_var1 = MA(VAR1, 14)
-    avedev_var1 = AVEDEV(VAR1, 14)
-    avedev_var1 = np.where(avedev_var1 == 0, 0.0001, avedev_var1)
-    VAR2 = (VAR1 - ma_var1) / (0.015 * avedev_var1)
+    if n < 5:
+        return np.zeros(n)
     
-    # VAR3: 检测局部低点且有一定振幅
-    low_series = pd.Series(low)
-    is_local_low = (low_series == low_series.rolling(window=16, min_periods=1, center=True).min())
+    # 寻找转折点
+    pivots = []  # (index, price)
+    trend = 0  # 0=unknown, 1=up, -1=down
+    last_high = close[0]
+    last_high_idx = 0
+    last_low = close[0]
+    last_low_idx = 0
+    
+    for i in range(n):
+        c = close[i]
+        if trend == 0:
+            if c > last_high:
+                last_high = c
+                last_high_idx = i
+            if c < last_low:
+                last_low = c
+                last_low_idx = i
+            if last_high > 0 and (last_high - c) / last_high > dev:
+                pivots.append((last_high_idx, last_high))
+                trend = -1
+                last_low = c
+                last_low_idx = i
+            elif last_low > 0 and (c - last_low) / last_low > dev:
+                pivots.append((last_low_idx, last_low))
+                trend = 1
+                last_high = c
+                last_high_idx = i
+        elif trend == 1:
+            if c > last_high:
+                last_high = c
+                last_high_idx = i
+            elif last_high > 0 and (last_high - c) / last_high > dev:
+                pivots.append((last_high_idx, last_high))
+                trend = -1
+                last_low = c
+                last_low_idx = i
+        elif trend == -1:
+            if c < last_low:
+                last_low = c
+                last_low_idx = i
+            elif last_low > 0 and (c - last_low) / last_low > dev:
+                pivots.append((last_low_idx, last_low))
+                trend = 1
+                last_high = c
+                last_high_idx = i
+    
+    # 添加最后一个点
+    if trend == 1:
+        pivots.append((last_high_idx, last_high))
+    elif trend == -1:
+        pivots.append((last_low_idx, last_low))
+    else:
+        pivots.append((n - 1, close[-1]))
+    
+    if len(pivots) < 2:
+        return close.copy()
+    
+    # 线性插值
+    for k in range(len(pivots) - 1):
+        i1, p1 = pivots[k]
+        i2, p2 = pivots[k + 1]
+        if i2 == i1:
+            zig[i1] = p1
+        else:
+            for j in range(i1, i2 + 1):
+                zig[j] = p1 + (p2 - p1) * (j - i1) / (i2 - i1)
+    
+    # 前面没有覆盖到的用第一个pivot填
+    first_idx = pivots[0][0]
+    zig[:first_idx] = pivots[0][1]
+    
+    return np.nan_to_num(zig, nan=close[-1])
+
+
+def _calc_troughbars(close, deviation_pct=16):
+    """
+    简化版 TROUGHBARS(3, deviation_pct, 1):
+    返回距离最近一个ZIG谷底的K线数，0 = 当前就是谷底
+    """
+    n = len(close)
+    zig = _calc_zig(close, deviation_pct)
+    result = np.full(n, 999, dtype=int)
+    
+    # 找谷底: ZIG从下降转为上升
+    for i in range(1, n - 1):
+        if zig[i] <= zig[i - 1] and zig[i] <= zig[i + 1] and (i < 2 or zig[i] < zig[i - 2]):
+            result[i] = 0
+    
+    # 向前传播距离
+    last_trough = -999
+    for i in range(n):
+        if result[i] == 0:
+            last_trough = i
+        elif last_trough >= 0:
+            result[i] = i - last_trough
+    
+    return result
+
+
+def calculate_heima_full(high, low, close, open_p, volume=None):
+    """
+    完整黑马指标计算 (含所有源码信号)
+    
+    Args:
+        high, low, close, open_p: OHLC arrays
+        volume: 可选, 成交量
+    
+    Returns:
+        dict with:
+        - 'heima': 黑马信号 (bool) - CCI极度超卖 + ZIG底部反转
+        - 'juedi': 掘底买点 (bool) - CCI极度超卖 + TROUGHBARS谷底
+        - 'K', 'D', 'J': KDJ值
+        - 'CCI': CCI值
+        - 'bot_golden_cross': 底部金叉 (K穿D且K<30)
+        - 'two_golden_cross': 二次金叉 (K穿D且D<30且30根内第二次)
+        - 'top_divergence': KDJ顶背离
+        - 'golden_bottom': 黄金底 (底部金叉+CCI<-100, 69%胜率)
+        - 'triple_escape': 三重逃顶 (顶背离+其他确认)
+        - 'main_force_enter': 主力进场 (海底捞月VAR50递增)
+        - 'washing': 洗盘 (VAR50递减但有值)
+    """
+    high = np.asarray(high, dtype=float)
+    low = np.asarray(low, dtype=float)
+    close = np.asarray(close, dtype=float)
+    open_p = np.asarray(open_p, dtype=float)
+    n = len(close)
+    
+    # === 1. KDJ (N=9, M1=3, M2=3) ===
+    llv9 = LLV(low, 9)
+    hhv9 = HHV(high, 9)
+    denom_kdj = hhv9 - llv9
+    denom_kdj = np.where(denom_kdj == 0, 1e-10, denom_kdj)
+    RSV = (close - llv9) / denom_kdj * 100
+    K = SMA(RSV, 3, 1)
+    D = SMA(K, 3, 1)
+    J = 3 * K - 2 * D
+    
+    # === 2. CCI (14期) ===
+    var1 = (high + low + close) / 3
+    ma14 = MA(var1, 14)
+    av14 = AVEDEV(var1, 14)
+    av14 = np.where(av14 == 0, 0.0001, av14)
+    CCI = (var1 - ma14) / (0.015 * av14)
+    
+    # === 3. VAR3: TROUGHBARS 谷底检测 ===
+    troughbars = _calc_troughbars(close, deviation_pct=16)
     has_amplitude = (high - low) > 0.04
-    VAR3 = np.where(is_local_low & has_amplitude, 80, 0)
+    VAR3 = (troughbars == 0) & has_amplitude
     
-    # VAR4: 检测价格从下降转为上升的拐点
-    close_series = pd.Series(close)
-    rolling_min = close_series.rolling(window=22, min_periods=1).min()
-    rolling_max = close_series.rolling(window=22, min_periods=1).max()
+    # === 4. VAR4: ZIG(3,22) 底部反转 ===
+    zig22 = _calc_zig(close, deviation_pct=22)
+    zig_ref1 = REF(zig22, 1)
+    zig_ref2 = REF(zig22, 2)
+    zig_ref3 = REF(zig22, 3)
+    VAR4 = (zig22 > zig_ref1) & (zig_ref1 <= zig_ref2) & (zig_ref2 <= zig_ref3)
     
-    pct_change = close_series.pct_change()
-    is_rising = pct_change > 0
-    was_falling_1 = pct_change.shift(1) <= 0
-    was_falling_2 = pct_change.shift(2) <= 0
-    was_falling_3 = pct_change.shift(3) <= 0
+    # === 5. 黑马/掘底 ===
+    heima = (CCI < -110) & VAR4
+    juedi = (CCI < -110) & VAR3
     
-    with np.errstate(divide='ignore', invalid='ignore'):
-        denom = rolling_max - rolling_min
-        denom = np.where(denom == 0, 0.0001, denom)
-        near_low = (close_series - rolling_min) / denom < 0.2
-        
-    VAR4 = np.where(is_rising & was_falling_1 & was_falling_2 & was_falling_3 & near_low, 50, 0)
+    # === 6. 底部金叉 (K穿D且K<30) ===
+    bot_gc = CROSS(K, D) & (K < 30)
     
-    # 黑马信号: VAR2 < -110 AND VAR4 > 0
-    heima_signal = (VAR2 < -110) & (VAR4 > 0)
+    # === 7. 二次金叉 (K穿D, D<30, 30根K线内第二次) ===
+    kd_cross = CROSS(K, D)
+    cross_count = pd.Series(kd_cross.astype(int)).rolling(30, min_periods=1).sum().values
+    two_gc = kd_cross & (D < 30) & (cross_count >= 2)
     
-    # 掘底买点: VAR2 < -110 AND VAR3 > 0
-    juedi_signal = (VAR2 < -110) & (VAR3 > 0)
+    # === 8. KDJ 顶背离 ===
+    # 源码用两个周期 (N=6 和 N=3) 检测K线高点回落
+    # 我们用 N=6 的版本 (更稳健)
+    top_div = np.zeros(n, dtype=bool)
+    for i in range(20, n):
+        k_window = K[max(0, i - 20):i + 1]
+        c_window = close[max(0, i - 20):i + 1]
+        if len(k_window) < 15:
+            continue
+        k_max_recent = np.max(k_window[-7:])
+        k_max_prev = np.max(k_window[:10])
+        c_max_recent = np.max(c_window[-7:])
+        c_max_prev = np.max(c_window[:10])
+        # 价格新高但K未新高 + K在高位
+        if c_max_recent > c_max_prev and k_max_recent < k_max_prev and K[i] > 70:
+            top_div[i] = True
     
-    return heima_signal, juedi_signal
+    # === 9. 黄金底 (底部金叉 + CCI < -100, 回测69%) ===
+    golden_bottom = bot_gc & (CCI < -100)
+    
+    # === 10. 海底捞月 (主力进场/洗盘) ===
+    var10 = REF((low + open_p + close + high) / 4, 1)
+    var20_num = SMA(np.abs(low - var10), 13, 1)
+    var20_den = SMA(np.maximum(low - var10, 0), 10, 1)
+    var20_den = np.where(var20_den == 0, 1e-10, var20_den)
+    var20 = var20_num / var20_den
+    var30 = EMA(var20, 10)
+    var40 = LLV(low, 33)
+    var50 = EMA(IF(low <= var40, var30, 0), 3)
+    
+    main_force = var50 > REF(var50, 1)  # 主力进场
+    washing = (var50 < REF(var50, 1)) & (var50 > 0.01)  # 洗盘
+    
+    return {
+        'heima': heima,
+        'juedi': juedi,
+        'K': K,
+        'D': D,
+        'J': J,
+        'CCI': CCI,
+        'bot_golden_cross': bot_gc,
+        'two_golden_cross': two_gc,
+        'top_divergence': top_div,
+        'golden_bottom': golden_bottom,
+        'main_force_enter': main_force,
+        'washing': washing,
+        'var50': var50,  # 海底捞月原始值
+    }
 
 def calculate_kdj_series(high, low, close, N=9, M1=3, M2=3):
     """
