@@ -195,9 +195,17 @@ def is_admin():
 
 check_password()
 
-# --- 侧边栏: 系统状态与测试 ---
+# --- 侧边栏: Alpaca 持仓 + 系统工具 ---
 with st.sidebar:
+    # Alpaca 持仓小部件 (始终显示)
+    try:
+        from components.alpaca_widget import render_alpaca_sidebar_widget
+        render_alpaca_sidebar_widget()
+    except ImportError:
+        pass  # 组件未安装时静默跳过
+    
     st.markdown("---")
+
     st.caption("🔧 系统工具")
     if st.button("🔔 发送测试通知", help="点击此按钮测试 Telegram 连接"):
         from scripts.intraday_monitor import send_alert_telegram
@@ -1992,6 +2000,15 @@ def render_todays_picks_page():
         else:
             st.info("📭 暂无持仓")
             st.markdown("前往「发现新股」或「策略精选」寻找买入机会！")
+    
+    # ============================================
+    # 💼 浮动持仓栏 - Alpaca Paper Trading (页面底部)
+    # ============================================
+    try:
+        from components.alpaca_widget import render_alpaca_floating_bar
+        render_alpaca_floating_bar()
+    except ImportError:
+        pass  # 组件未安装时静默跳过
 
 
 # Legacy code removed - all functionality is now in the 4 redesigned tabs above

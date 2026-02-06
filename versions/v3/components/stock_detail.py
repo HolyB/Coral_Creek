@@ -1827,9 +1827,33 @@ def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly
     
     st.markdown("### 💰 快速操作")
     
-    tab_buy, tab_calc, tab_watch = st.tabs(["🛒 模拟买入", "📐 仓位/P&L 计算器", "📋 观察列表"])
+    tab_alpaca, tab_backtest, tab_buy, tab_calc, tab_watch = st.tabs([
+        "🚀 Alpaca交易", "📈 快速回测", "🛒 模拟买入", "📐 仓位计算", "📋 观察列表"
+    ])
+    
+    # === Alpaca 快速交易 ===
+    with tab_alpaca:
+        try:
+            from components.alpaca_widget import render_alpaca_quick_trade
+            render_alpaca_quick_trade(symbol=symbol, suggested_price=current_price)
+        except ImportError:
+            st.warning("⚠️ Alpaca 组件未安装")
+            st.info("请确保 components/alpaca_widget.py 存在")
+        except Exception as e:
+            st.error(f"Alpaca 组件加载失败: {e}")
+    
+    # === 快速回测 ===
+    with tab_backtest:
+        try:
+            from components.alpaca_widget import render_inline_backtest
+            render_inline_backtest(symbol=symbol, market=market, days=365)
+        except ImportError:
+            st.warning("⚠️ 回测组件未安装")
+        except Exception as e:
+            st.error(f"回测失败: {e}")
     
     with tab_buy:
+
         col_buy1, col_buy2 = st.columns([2, 1])
         
         with col_buy1:
