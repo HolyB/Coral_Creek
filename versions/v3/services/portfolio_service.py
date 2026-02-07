@@ -867,6 +867,85 @@ def get_realized_pnl_history(account_name: str = 'default') -> List[Dict]:
     return results
 
 
+def get_paper_account_performance(account_name: str = 'default') -> Dict:
+    """获取单个子账户绩效指标"""
+    account = get_paper_account(account_name)
+    if not account:
+        return {
+            'account_name': account_name,
+            'total_return_pct': 0.0,
+            'max_drawdown_pct': 0.0,
+            'win_rate_pct': 0.0,
+            'total_trades': 0,
+            'closed_trades': 0,
+            'profit_factor': 0.0,
+            'total_pnl': 0.0
+        }
+
+    trades = get_paper_trades(account_name, limit=5000)
+    total_trades = len(trades)
+    closed_trades = 0
+    wins = 0
+    gross_profit = 0.0
+    gross_loss = 0.0
+
+    for t in trades:
+        if (t.get('trade_type') or '').upper() != 'SELL':
+            continue
+        closed_trades += 1
+        notes = t.get('notes') or ''
+        pnl = 0.0
+        if 'P&L:' in notes:
+            try:
+                pnl_str = notes.split('P&L:')[1].strip().replace('$', '').replace(',', '')
+                pnl = float(pnl_str)
+            except Exception:
+                pnl = 0.0
+        if pnl > 0:
+            wins += 1
+            gross_profit += pnl
+        elif pnl < 0:
+            gross_loss += abs(pnl)
+
+    win_rate_pct = (wins / closed_trades * 100) if closed_trades > 0 else 0.0
+    profit_factor = (gross_profit / gross_loss) if gross_loss > 0 else (float('inf') if gross_profit > 0 else 0.0)
+
+    equity_curve = get_paper_equity_curve(account_name)
+    max_drawdown_pct = 0.0
+    if not equity_curve.empty and 'total_equity' in equity_curve.columns:
+        series = equity_curve['total_equity'].astype(float)
+        peak = series.cummax()
+        dd = (series - peak) / peak
+        if len(dd) > 0:
+            max_drawdown_pct = abs(float(dd.min())) * 100
+
+    return {
+        'account_name': account_name,
+        'total_return_pct': float(account.get('total_pnl_pct', 0.0)),
+        'max_drawdown_pct': max_drawdown_pct,
+        'win_rate_pct': win_rate_pct,
+        'total_trades': total_trades,
+        'closed_trades': closed_trades,
+        'profit_factor': float(profit_factor),
+        'total_pnl': float(account.get('total_pnl', 0.0)),
+        'total_equity': float(account.get('total_equity', 0.0)),
+        'initial_capital': float(account.get('initial_capital', 0.0)),
+    }
+
+
+def get_all_paper_accounts_performance() -> List[Dict]:
+    """获取全部子账户绩效指标"""
+    accounts = list_paper_accounts()
+    results = []
+    for a in accounts:
+        name = a.get('account_name')
+        if not name:
+            continue
+        perf = get_paper_account_performance(name)
+        results.append(perf)
+    return results
+
+
 def reset_paper_account(account_name: str = 'default'):
     """重置模拟账户"""
     init_paper_account()

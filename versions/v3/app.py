@@ -9306,7 +9306,8 @@ def render_paper_trading_tab():
             list_paper_accounts,
             create_paper_account,
             get_paper_account_config,
-            update_paper_account_config
+            update_paper_account_config,
+            get_all_paper_accounts_performance
         )
 
         sub_accounts = list_paper_accounts()
@@ -9465,6 +9466,71 @@ def render_paper_trading_tab():
                          annotation_text=f"初始资金 ${initial_cap:,.0f}")
             fig.update_layout(height=300)
             st.plotly_chart(fig, use_container_width=True)
+
+        # 子账户策略绩效对比
+        st.markdown("#### 🏁 子账户策略绩效对比")
+        perf_rows = get_all_paper_accounts_performance()
+        if perf_rows:
+            perf_df = pd.DataFrame(perf_rows)
+            if not perf_df.empty:
+                show_df = perf_df.copy()
+                show_df['总收益率'] = show_df['total_return_pct'].map(lambda x: f"{x:+.2f}%")
+                show_df['最大回撤'] = show_df['max_drawdown_pct'].map(lambda x: f"{x:.2f}%")
+                show_df['胜率'] = show_df['win_rate_pct'].map(lambda x: f"{x:.1f}%")
+                show_df['已平仓笔数'] = show_df['closed_trades']
+                show_df['总交易数'] = show_df['total_trades']
+                show_df['盈亏'] = show_df['total_pnl'].map(lambda x: f"${x:+,.2f}")
+                show_df['因子'] = show_df['profit_factor'].map(
+                    lambda x: "∞" if x == float('inf') else f"{x:.2f}"
+                )
+                show_df = show_df.rename(columns={'account_name': '子账户'})
+                st.dataframe(
+                    show_df[['子账户', '总收益率', '最大回撤', '胜率', '已平仓笔数', '总交易数', '因子', '盈亏']],
+                    use_container_width=True,
+                    hide_index=True
+                )
+        else:
+            st.info("暂无可对比的子账户绩效")
+
+        # 子账户权益曲线对比
+        st.markdown("#### 📊 子账户权益曲线对比")
+        curve_options = [a for a in sub_names]
+        default_compare = [selected_account] if selected_account in curve_options else curve_options[:1]
+        compare_accounts = st.multiselect(
+            "选择对比子账户",
+            options=curve_options,
+            default=default_compare,
+            key="paper_compare_accounts"
+        )
+        if compare_accounts:
+            import plotly.graph_objects as go
+            fig_compare = go.Figure()
+            plotted = 0
+            for acc_name in compare_accounts:
+                curve = get_paper_equity_curve(acc_name)
+                if curve.empty or 'date' not in curve.columns or 'total_equity' not in curve.columns:
+                    continue
+                fig_compare.add_trace(
+                    go.Scatter(
+                        x=curve['date'],
+                        y=curve['total_equity'],
+                        mode='lines',
+                        name=acc_name
+                    )
+                )
+                plotted += 1
+            if plotted > 0:
+                fig_compare.update_layout(
+                    height=320,
+                    xaxis_title="日期",
+                    yaxis_title="权益 ($)",
+                    legend_title="子账户"
+                )
+                st.plotly_chart(fig_compare, use_container_width=True)
+            else:
+                st.info("所选子账户暂无权益曲线数据")
+        else:
+            st.info("请选择至少一个子账户进行对比")
         
         # 重置按钮
         if st.button("🔄 重置模拟账户", type="secondary"):
