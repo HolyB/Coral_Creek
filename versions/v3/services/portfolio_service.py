@@ -969,6 +969,222 @@ def reset_paper_account(account_name: str = 'default'):
     conn.close()
 
 
+def delete_paper_account(account_name: str) -> Dict:
+    """
+    删除子账户及其所有数据
+    
+    Args:
+        account_name: 账户名 (不能删除 'default')
+    
+    Returns:
+        {'success': bool, 'error': str?}
+    """
+    if account_name == 'default':
+        return {'success': False, 'error': '默认账户不能删除'}
+    
+    if not account_name:
+        return {'success': False, 'error': '账户名为空'}
+    
+    init_paper_account()
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 检查账户是否存在
+        cursor.execute("SELECT 1 FROM paper_account WHERE account_name = ?", (account_name,))
+        if not cursor.fetchone():
+            return {'success': False, 'error': f'账户 {account_name} 不存在'}
+        
+        # 删除所有相关数据
+        cursor.execute("DELETE FROM paper_positions WHERE account_name = ?", (account_name,))
+        cursor.execute("DELETE FROM paper_trades WHERE account_name = ?", (account_name,))
+        cursor.execute("DELETE FROM paper_account_config WHERE account_name = ?", (account_name,))
+        cursor.execute("DELETE FROM paper_account WHERE account_name = ?", (account_name,))
+        
+        conn.commit()
+        return {'success': True, 'deleted': account_name}
+        
+    except Exception as e:
+        conn.rollback()
+        return {'success': False, 'error': str(e)}
+    finally:
+        conn.close()
+
+
+def export_paper_account(account_name: str) -> Dict:
+    """
+    导出子账户数据为 JSON 格式
+    
+    Args:
+        account_name: 账户名
+    
+    Returns:
+        {
+            'success': bool,
+            'data': {账户数据},
+            'error': str?
+        }
+    """
+    init_paper_account()
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # 获取账户基本信息
+        cursor.execute("""
+            SELECT account_name, initial_capital, cash_balance, created_at, updated_at
+            FROM paper_account WHERE account_name = ?
+        """, (account_name,))
+        account_row = cursor.fetchone()
+        
+        if not account_row:
+            return {'success': False, 'error': f'账户 {account_name} 不存在'}
+        
+        account_data = dict(account_row)
+        
+        # 获取配置
+        cursor.execute("""
+            SELECT strategy_note, max_single_position_pct, max_drawdown_pct
+            FROM paper_account_config WHERE account_name = ?
+        """, (account_name,))
+        config_row = cursor.fetchone()
+        config_data = dict(config_row) if config_row else {}
+        
+        # 获取持仓
+        cursor.execute("""
+            SELECT symbol, market, shares, avg_cost, created_at, updated_at
+            FROM paper_positions WHERE account_name = ?
+        """, (account_name,))
+        positions = [dict(r) for r in cursor.fetchall()]
+        
+        # 获取交易记录
+        cursor.execute("""
+            SELECT symbol, trade_type, price, shares, commission, market, notes, trade_date
+            FROM paper_trades WHERE account_name = ?
+            ORDER BY trade_date DESC LIMIT 500
+        """, (account_name,))
+        trades = [dict(r) for r in cursor.fetchall()]
+        
+        conn.close()
+        
+        export_data = {
+            'version': '1.0',
+            'export_time': datetime.now().isoformat(),
+            'account': account_data,
+            'config': config_data,
+            'positions': positions,
+            'trades': trades
+        }
+        
+        return {'success': True, 'data': export_data}
+        
+    except Exception as e:
+        conn.close()
+        return {'success': False, 'error': str(e)}
+
+
+def import_paper_account(data: Dict, new_account_name: str = None) -> Dict:
+    """
+    从 JSON 数据导入子账户
+    
+    Args:
+        data: 导出的账户数据
+        new_account_name: 新账户名 (可选，默认使用原名+_imported)
+    
+    Returns:
+        {'success': bool, 'account_name': str?, 'error': str?}
+    """
+    if not data or 'account' not in data:
+        return {'success': False, 'error': '无效的导入数据'}
+    
+    init_paper_account()
+    
+    original_name = data['account'].get('account_name', 'imported')
+    account_name = new_account_name or f"{original_name}_imported"
+    
+    # 确保账户名唯一
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT 1 FROM paper_account WHERE account_name = ?", (account_name,))
+    if cursor.fetchone():
+        # 自动生成新名字
+        import time
+        account_name = f"{original_name}_{int(time.time()) % 10000}"
+    
+    try:
+        # 创建账户
+        initial_capital = float(data['account'].get('initial_capital', PAPER_SUBACCOUNT_INITIAL))
+        cash_balance = float(data['account'].get('cash_balance', initial_capital))
+        
+        cursor.execute("""
+            INSERT INTO paper_account (account_name, initial_capital, cash_balance)
+            VALUES (?, ?, ?)
+        """, (account_name, initial_capital, cash_balance))
+        
+        # 导入配置
+        config = data.get('config', {})
+        cursor.execute("""
+            INSERT INTO paper_account_config (account_name, strategy_note, max_single_position_pct, max_drawdown_pct)
+            VALUES (?, ?, ?, ?)
+        """, (
+            account_name,
+            config.get('strategy_note', ''),
+            float(config.get('max_single_position_pct', DEFAULT_MAX_SINGLE_POSITION_PCT)),
+            float(config.get('max_drawdown_pct', DEFAULT_MAX_DRAWDOWN_PCT))
+        ))
+        
+        # 导入持仓
+        for pos in data.get('positions', []):
+            cursor.execute("""
+                INSERT INTO paper_positions (account_name, symbol, market, shares, avg_cost)
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                account_name,
+                pos.get('symbol'),
+                pos.get('market', 'US'),
+                int(pos.get('shares', 0)),
+                float(pos.get('avg_cost', 0))
+            ))
+        
+        # 导入交易记录 (最近100条)
+        for trade in data.get('trades', [])[:100]:
+            cursor.execute("""
+                INSERT INTO paper_trades (account_name, symbol, trade_type, price, shares, commission, market, notes, trade_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                account_name,
+                trade.get('symbol'),
+                trade.get('trade_type'),
+                float(trade.get('price', 0)),
+                int(trade.get('shares', 0)),
+                float(trade.get('commission', 0)),
+                trade.get('market', 'US'),
+                trade.get('notes', ''),
+                trade.get('trade_date')
+            ))
+        
+        conn.commit()
+        
+        positions_count = len(data.get('positions', []))
+        trades_count = min(len(data.get('trades', [])), 100)
+        
+        return {
+            'success': True,
+            'account_name': account_name,
+            'imported_positions': positions_count,
+            'imported_trades': trades_count
+        }
+        
+    except Exception as e:
+        conn.rollback()
+        return {'success': False, 'error': str(e)}
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     # 测试
     print("测试模拟交易...")
@@ -987,3 +1203,4 @@ if __name__ == "__main__":
     # 查看账户
     account = get_paper_account()
     print(f"买入后账户: {account}")
+

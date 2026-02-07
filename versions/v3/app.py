@@ -9588,8 +9588,107 @@ def render_paper_trading_tab():
                 else:
                     st.error(f"❌ {saved.get('error', '保存失败')}")
         
+        # ==========================================
+        # 子账户管理工具
+        # ==========================================
+        with st.expander("🔧 子账户工具", expanded=False):
+            tool_tab1, tool_tab2, tool_tab3 = st.tabs(["📤 导出", "📥 导入", "🗑️ 删除"])
+            
+            with tool_tab1:
+                st.markdown("**导出当前子账户数据为 JSON**")
+                st.caption(f"将导出: 账户设置、持仓、交易记录")
+                
+                if st.button("📤 导出 JSON", key="export_account_btn"):
+                    try:
+                        from services.portfolio_service import export_paper_account
+                        import json
+                        
+                        result = export_paper_account(selected_account)
+                        if result.get('success'):
+                            json_data = json.dumps(result['data'], indent=2, ensure_ascii=False, default=str)
+                            
+                            st.download_button(
+                                label="💾 下载 JSON 文件",
+                                data=json_data,
+                                file_name=f"paper_account_{selected_account}_{datetime.now().strftime('%Y%m%d')}.json",
+                                mime="application/json",
+                                key="download_json_btn"
+                            )
+                            
+                            positions_count = len(result['data'].get('positions', []))
+                            trades_count = len(result['data'].get('trades', []))
+                            st.success(f"✅ 已准备导出: {positions_count} 个持仓, {trades_count} 条交易记录")
+                        else:
+                            st.error(f"❌ 导出失败: {result.get('error')}")
+                    except Exception as e:
+                        st.error(f"导出错误: {e}")
+            
+            with tool_tab2:
+                st.markdown("**从 JSON 文件导入子账户**")
+                
+                uploaded_file = st.file_uploader(
+                    "选择 JSON 文件",
+                    type=['json'],
+                    key="import_json_uploader"
+                )
+                
+                import_new_name = st.text_input(
+                    "新账户名 (留空自动生成)",
+                    placeholder="my_strategy",
+                    key="import_new_name"
+                )
+                
+                if uploaded_file is not None:
+                    if st.button("📥 开始导入", key="import_account_btn"):
+                        try:
+                            import json
+                            from services.portfolio_service import import_paper_account
+                            
+                            data = json.load(uploaded_file)
+                            result = import_paper_account(data, import_new_name.strip() if import_new_name else None)
+                            
+                            if result.get('success'):
+                                st.success(f"✅ 导入成功!")
+                                st.info(f"新账户: **{result['account_name']}** | 持仓: {result['imported_positions']} | 交易记录: {result['imported_trades']}")
+                                st.rerun()
+                            else:
+                                st.error(f"❌ 导入失败: {result.get('error')}")
+                        except json.JSONDecodeError:
+                            st.error("❌ JSON 格式错误")
+                        except Exception as e:
+                            st.error(f"导入错误: {e}")
+            
+            with tool_tab3:
+                st.markdown("**删除子账户**")
+                st.warning("⚠️ 删除后无法恢复，建议先导出备份")
+                
+                if selected_account == 'default':
+                    st.info("默认账户不能删除")
+                else:
+                    st.markdown(f"即将删除: **{selected_account}**")
+                    
+                    confirm_delete = st.checkbox(
+                        f"我确认要删除 {selected_account} 及其所有数据",
+                        key="confirm_delete_account"
+                    )
+                    
+                    if st.button("🗑️ 永久删除", type="primary", disabled=not confirm_delete, key="delete_account_btn"):
+                        try:
+                            from services.portfolio_service import delete_paper_account
+                            
+                            result = delete_paper_account(selected_account)
+                            if result.get('success'):
+                                st.success(f"✅ 已删除子账户: {selected_account}")
+                                st.session_state['global_paper_account_name'] = 'default'
+                                st.rerun()
+                            else:
+                                st.error(f"❌ 删除失败: {result.get('error')}")
+                        except Exception as e:
+                            st.error(f"删除错误: {e}")
+        
         # 获取账户信息
         account = get_paper_account(selected_account)
+
         
         # 账户概览
         if account is None:
