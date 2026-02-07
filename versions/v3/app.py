@@ -56,6 +56,13 @@ def inject_secrets():
                     if key not in os.environ or not os.environ[key]:
                         os.environ[key] = value
                         print(f"✅ Injected secret: {key}")
+                # 支持分组配置（如 [alpaca]）
+                elif isinstance(value, dict):
+                    for sub_key, sub_value in value.items():
+                        if isinstance(sub_value, str):
+                            env_key = f"{key}_{sub_key}".upper()
+                            if env_key not in os.environ or not os.environ[env_key]:
+                                os.environ[env_key] = sub_value
             
             # 特别检查 Supabase
             if 'SUPABASE_URL' in os.environ:
@@ -9621,6 +9628,29 @@ def render_paper_trading_page():
 
         with open(file_path, "w", encoding="utf-8") as f:
             f.write("\n".join(new_lines) + "\n")
+
+    def _resolve_alpaca_keys():
+        """优先读取环境变量，其次读取 Streamlit secrets（含 [alpaca] 分组）"""
+        api = os.environ.get('ALPACA_API_KEY')
+        secret = os.environ.get('ALPACA_SECRET_KEY')
+        if api and secret:
+            return api, secret
+
+        try:
+            if hasattr(st, "secrets"):
+                # 顶层键
+                api = api or st.secrets.get("ALPACA_API_KEY") or st.secrets.get("alpaca_api_key")
+                secret = secret or st.secrets.get("ALPACA_SECRET_KEY") or st.secrets.get("alpaca_secret_key")
+
+                # [alpaca] 分组键
+                alpaca_group = st.secrets.get("alpaca")
+                if isinstance(alpaca_group, dict):
+                    api = api or alpaca_group.get("api_key") or alpaca_group.get("ALPACA_API_KEY")
+                    secret = secret or alpaca_group.get("secret_key") or alpaca_group.get("ALPACA_SECRET_KEY")
+        except Exception:
+            pass
+
+        return api, secret
     
     # 检查 Alpaca SDK
     try:
@@ -9661,8 +9691,7 @@ def render_paper_trading_page():
     
     # 检查 API Keys
     import os
-    api_key = os.environ.get('ALPACA_API_KEY')
-    secret_key = os.environ.get('ALPACA_SECRET_KEY')
+    api_key, secret_key = _resolve_alpaca_keys()
     env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
     
     if not api_key or not secret_key:

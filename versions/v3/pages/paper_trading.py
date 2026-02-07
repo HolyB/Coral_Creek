@@ -58,6 +58,28 @@ def _show_trade_error(err: Exception) -> None:
     else:
         st.error(f"❌ 下单失败: {msg}")
 
+
+def _resolve_alpaca_keys():
+    """优先读取环境变量，其次读取 Streamlit secrets（含 [alpaca] 分组）"""
+    api = os.environ.get("ALPACA_API_KEY")
+    secret = os.environ.get("ALPACA_SECRET_KEY")
+    if api and secret:
+        return api, secret
+
+    try:
+        if hasattr(st, "secrets"):
+            api = api or st.secrets.get("ALPACA_API_KEY") or st.secrets.get("alpaca_api_key")
+            secret = secret or st.secrets.get("ALPACA_SECRET_KEY") or st.secrets.get("alpaca_secret_key")
+
+            alpaca_group = st.secrets.get("alpaca")
+            if isinstance(alpaca_group, dict):
+                api = api or alpaca_group.get("api_key") or alpaca_group.get("ALPACA_API_KEY")
+                secret = secret or alpaca_group.get("secret_key") or alpaca_group.get("ALPACA_SECRET_KEY")
+    except Exception:
+        pass
+
+    return api, secret
+
 st.set_page_config(
     page_title="模拟盘交易",
     page_icon="💰",
@@ -84,8 +106,7 @@ if not ALPACA_SDK_AVAILABLE:
     st.stop()
 
 # 检查 API Keys
-api_key = os.environ.get('ALPACA_API_KEY')
-secret_key = os.environ.get('ALPACA_SECRET_KEY')
+api_key, secret_key = _resolve_alpaca_keys()
 
 if not api_key or not secret_key:
     st.warning("⚠️ 未配置 Alpaca API Keys")
