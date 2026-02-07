@@ -75,6 +75,16 @@ def inject_secrets():
 inject_secrets()
 
 
+def _get_global_paper_account_name() -> str:
+    """获取全局模拟盘子账户名"""
+    return st.session_state.get("global_paper_account_name", "default")
+
+
+def _set_global_paper_account_name(name: str):
+    """设置全局模拟盘子账户名"""
+    st.session_state["global_paper_account_name"] = (name or "default")
+
+
 # --- 数据缓存层 (Performance Optimization) ---
 # 全局缓存高频数据查询，避免每次交互都重新加载
 
@@ -211,6 +221,24 @@ with st.sidebar:
     except ImportError:
         pass  # 组件未安装时静默跳过
     
+    st.markdown("---")
+    st.caption("🎮 模拟盘")
+    try:
+        from services.portfolio_service import list_paper_accounts
+        sidebar_accounts = list_paper_accounts()
+        sidebar_names = [a['account_name'] for a in sidebar_accounts] if sidebar_accounts else ['default']
+        current_global_account = _get_global_paper_account_name()
+        sidebar_index = sidebar_names.index(current_global_account) if current_global_account in sidebar_names else 0
+        selected_global_account = st.selectbox(
+            "全局子账户",
+            sidebar_names,
+            index=sidebar_index,
+            key="sidebar_global_paper_account"
+        )
+        _set_global_paper_account_name(selected_global_account)
+    except Exception:
+        st.caption("⚠️ 模拟盘子账户加载失败")
+
     st.markdown("---")
 
     st.caption("🔧 系统工具")
@@ -4763,7 +4791,15 @@ def render_portfolio_tab():
         # 策略子账户选择
         sub_accounts = list_paper_accounts()
         sub_names = [a['account_name'] for a in sub_accounts] if sub_accounts else ['default']
-        selected_account = st.selectbox("策略子账户", sub_names, key="portfolio_paper_account_name")
+        default_account = _get_global_paper_account_name()
+        default_index = sub_names.index(default_account) if default_account in sub_names else 0
+        selected_account = st.selectbox(
+            "策略子账户",
+            sub_names,
+            index=default_index,
+            key="portfolio_paper_account_name"
+        )
+        _set_global_paper_account_name(selected_account)
         account_cfg = get_paper_account_config(selected_account)
         st.caption(
             f"当前风控: 单票≤{float(account_cfg.get('max_single_position_pct', 0.30))*100:.1f}% | "
@@ -9275,7 +9311,15 @@ def render_paper_trading_tab():
 
         sub_accounts = list_paper_accounts()
         sub_names = [a['account_name'] for a in sub_accounts] if sub_accounts else ['default']
-        selected_account = st.selectbox("策略子账户", sub_names, key="strategy_lab_paper_account_name")
+        default_account = _get_global_paper_account_name()
+        default_index = sub_names.index(default_account) if default_account in sub_names else 0
+        selected_account = st.selectbox(
+            "策略子账户",
+            sub_names,
+            index=default_index,
+            key="strategy_lab_paper_account_name"
+        )
+        _set_global_paper_account_name(selected_account)
         account_cfg = get_paper_account_config(selected_account)
         st.caption(
             f"当前风控: 单票≤{float(account_cfg.get('max_single_position_pct', 0.30))*100:.1f}% | "
