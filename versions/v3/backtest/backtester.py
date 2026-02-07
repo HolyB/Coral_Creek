@@ -17,16 +17,18 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class Backtester:
     """回测引擎核心类"""
     
-    def __init__(self, initial_capital: float = 100000, commission: float = 0.001):
+    def __init__(self, initial_capital: float = 100000, commission: float = 0.0005, slippage: float = 0.001):
         """
         初始化回测引擎
         
         Args:
             initial_capital: 初始资金
-            commission: 交易佣金率 (双边)
+            commission: 单边交易佣金率
+            slippage: 单边交易滑点率
         """
         self.initial_capital = initial_capital
         self.commission = commission
+        self.slippage = slippage
         self.trades = []
         self.equity_curve = []
         self.results = {}
@@ -76,8 +78,10 @@ class Backtester:
                 if len(df) > holding_days:
                     exit_price = df.iloc[-1]['Close']
                     
-                    # 计算收益
-                    pnl = (exit_price - entry_price) / entry_price * 100
+                    # 计算净收益（统一口径：双边佣金 + 双边滑点）
+                    gross = (exit_price - entry_price) / entry_price * 100
+                    round_trip_cost = 2.0 * (self.commission + self.slippage) * 100
+                    pnl = gross - round_trip_cost
                     
                     self.trades.append({
                         'symbol': symbol,
@@ -192,6 +196,8 @@ class Backtester:
             'profit_factor': round(profit_factor, 2),
             'avg_win': round(avg_win, 2),
             'avg_loss': round(avg_loss, 2),
+            'commission_pct_one_side': round(self.commission * 100, 4),
+            'slippage_pct_one_side': round(self.slippage * 100, 4),
             'trades': self.trades
         }
     

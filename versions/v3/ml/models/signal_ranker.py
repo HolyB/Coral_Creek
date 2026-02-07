@@ -43,27 +43,27 @@ class HorizonConfig:
 # 专业交易者的周期配置
 HORIZON_CONFIGS = {
     TradingHorizon.SHORT: HorizonConfig(
-        name="短线 (1-5天)",
-        days=[1, 3, 5],
+        name="短线 (5天)",
+        days=[5],
         target_return=3.0,    # 3% 目标
         stop_loss=-3.0,       # 3% 止损
         weight_return=0.7,    # 更看重快速收益
         weight_risk=0.3
     ),
     TradingHorizon.MEDIUM: HorizonConfig(
-        name="中线 (10-30天)",
-        days=[10, 20, 30],
+        name="中线 (20天)",
+        days=[20],
         target_return=10.0,   # 10% 目标
         stop_loss=-5.0,       # 5% 止损
-        weight_return=0.5,
-        weight_risk=0.5
+        weight_return=0.45,
+        weight_risk=0.55
     ),
     TradingHorizon.LONG: HorizonConfig(
-        name="长线 (60天+)",
-        days=[30, 60],
+        name="长线 (60天)",
+        days=[60],
         target_return=25.0,   # 25% 目标
         stop_loss=-8.0,       # 8% 止损
-        weight_return=0.4,
+        weight_return=0.35,
         weight_risk=0.6       # 更看重风险控制
     )
 }

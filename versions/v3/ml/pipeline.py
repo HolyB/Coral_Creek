@@ -41,6 +41,35 @@ class MLPipeline:
         self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}"
         self.model_dir.mkdir(parents=True, exist_ok=True)
         self.label_cost_profile: Dict[str, Dict] = {}
+        # 统一目标口径: 中长线优先 + 超额收益 + 回撤惩罚
+        self.objective_config = {
+            "primary_horizons": ["20d", "60d"],
+            "excess_baseline": "cross_sectional_median_by_scan_date",
+            "risk_penalty_lambda": {
+                "20d": 0.35,
+                "60d": 0.45,
+            },
+        }
+
+    @staticmethod
+    def _compute_group_excess(returns: np.ndarray, groups: np.ndarray) -> np.ndarray:
+        """
+        计算按 scan_date 分组的超额收益:
+        excess = stock_return - group_median_return
+        """
+        excess = np.full_like(returns, np.nan, dtype=float)
+        unique_groups = np.unique(groups)
+        for g in unique_groups:
+            mask = groups == g
+            vals = returns[mask]
+            valid = ~np.isnan(vals)
+            if valid.sum() == 0:
+                continue
+            median_val = np.nanmedian(vals)
+            tmp = np.full(vals.shape, np.nan, dtype=float)
+            tmp[valid] = vals[valid] - median_val
+            excess[mask] = tmp
+        return excess
     
     def fetch_and_store_history(self, symbols: List[str], 
                                  days: int = 365,
@@ -152,9 +181,9 @@ class MLPipeline:
         calculator = FeatureCalculator()
         
         all_features = []
-        all_returns_gross = {f'{d}d': [] for d in [1, 5, 10, 30, 60]}
-        all_returns_net = {f'{d}d': [] for d in [1, 5, 10, 30, 60]}
-        all_drawdowns = {f'{d}d': [] for d in [5, 30, 60]}
+        all_returns_gross = {f'{d}d': [] for d in [1, 5, 10, 20, 30, 60]}
+        all_returns_net = {f'{d}d': [] for d in [1, 5, 10, 20, 30, 60]}
+        all_drawdowns = {f'{d}d': [] for d in [5, 20, 30, 60]}
         all_groups = []
         all_info = []
         
@@ -240,7 +269,7 @@ class MLPipeline:
                 if pd.isna(entry_price) or float(entry_price) <= 0:
                     continue
                 
-                for days in [1, 5, 10, 30, 60]:
+                for days in [1, 5, 10, 20, 30, 60]:
                     # 以入场日为 t0，持有 N 天后按收盘价离场
                     future_idx = entry_idx + days
                     if future_idx < len(features_df):
@@ -258,7 +287,7 @@ class MLPipeline:
                         all_returns_net[f'{days}d'].append(np.nan)
                 
                 # 计算未来最大回撤
-                for days in [5, 30, 60]:
+                for days in [5, 20, 30, 60]:
                     future_end = min(entry_idx + days, len(features_df) - 1)
                     if future_end > entry_idx:
                         future_prices = features_df.loc[entry_idx:future_end, 'Close'].values
@@ -303,6 +332,18 @@ class MLPipeline:
         gross_returns_dict = {k: np.array(v) for k, v in all_returns_gross.items()}
         drawdowns_dict = {k: np.array(v) for k, v in all_drawdowns.items()}
         groups = np.array(all_groups)
+
+        # 统一训练目标:
+        # 1) 对 20d/60d 使用按日横截面超额收益
+        # 2) 加入最大回撤惩罚，降低“高收益高波动”样本排名
+        if len(groups) > 0:
+            for horizon in ["20d", "60d"]:
+                if horizon in returns_dict:
+                    excess = self._compute_group_excess(returns_dict[horizon], groups)
+                    dd = drawdowns_dict.get(horizon, np.full_like(excess, np.nan))
+                    lam = float(self.objective_config["risk_penalty_lambda"].get(horizon, 0.0))
+                    adj = excess - lam * np.nan_to_num(dd, nan=0.0)
+                    returns_dict[horizon] = adj
         
         info_df = pd.DataFrame(all_info)
         
@@ -318,6 +359,7 @@ class MLPipeline:
             'commission_bps': self.commission_bps,
             'slippage_bps': self.slippage_bps,
             'round_trip_cost_pct': self.round_trip_cost_pct,
+            'objective': self.objective_config,
             'horizons': {}
         }
         for k in gross_returns_dict.keys():
@@ -389,6 +431,8 @@ class MLPipeline:
         if self.label_cost_profile:
             with open(self.model_dir / "training_cost_profile.json", 'w') as f:
                 json.dump(self.label_cost_profile, f, indent=2)
+        with open(self.model_dir / "training_objective.json", 'w') as f:
+            json.dump(self.objective_config, f, indent=2)
         
         print(f"\n{'='*60}")
         print("✅ 训练完成!")
