@@ -83,6 +83,7 @@ class ReturnPredictor:
               X: np.ndarray, 
               y_dict: Dict[str, np.ndarray],
               feature_names: List[str],
+              groups: Optional[np.ndarray] = None,
               test_size: float = 0.2) -> Dict:
         """
         训练所有周期的模型
@@ -123,10 +124,31 @@ class ReturnPredictor:
                 print(f"⚠️ 跳过 {horizon_name}: 样本不足 ({len(X_valid)})")
                 continue
             
-            # 划分训练/测试集
-            X_train, X_test, y_train, y_test = train_test_split(
-                X_valid, y_valid, test_size=test_size, random_state=42
-            )
+            # 划分训练/测试集 (优先使用时序切分，避免未来信息泄漏)
+            if groups is not None:
+                groups_valid = groups[valid_mask]
+                unique_groups = np.unique(groups_valid)
+                unique_groups = np.sort(unique_groups)
+
+                if len(unique_groups) >= 10:
+                    split_idx = max(1, int(len(unique_groups) * (1 - test_size)))
+                    split_idx = min(split_idx, len(unique_groups) - 1)
+                    train_groups = unique_groups[:split_idx]
+                    test_groups = unique_groups[split_idx:]
+
+                    train_mask = np.isin(groups_valid, train_groups)
+                    test_mask = np.isin(groups_valid, test_groups)
+
+                    X_train, X_test = X_valid[train_mask], X_valid[test_mask]
+                    y_train, y_test = y_valid[train_mask], y_valid[test_mask]
+                else:
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X_valid, y_valid, test_size=test_size, random_state=42
+                    )
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X_valid, y_valid, test_size=test_size, random_state=42
+                )
             
             # 获取参数 (优先用调优后的)
             params = self._get_params(horizon_name)

@@ -186,8 +186,36 @@ class SignalRanker:
             if len(X_valid) < 100:
                 print(f"   ⚠️ 跳过: 样本不足")
                 continue
-            
-            # 训练 XGBoost Ranker
+
+            # 时序切分 (按日期组)，先做 OOS 评估再训练最终模型
+            unique_groups = np.unique(groups_valid)
+            unique_groups = np.sort(unique_groups)
+            if len(unique_groups) < 10:
+                print(f"   ⚠️ 跳过: 分组不足 ({len(unique_groups)})")
+                continue
+
+            split_idx = max(1, int(len(unique_groups) * 0.8))
+            split_idx = min(split_idx, len(unique_groups) - 1)
+            train_groups = unique_groups[:split_idx]
+            test_groups = unique_groups[split_idx:]
+
+            train_mask = np.isin(groups_valid, train_groups)
+            test_mask = np.isin(groups_valid, test_groups)
+
+            X_train = X_valid[train_mask]
+            y_train = y_valid[train_mask]
+            groups_train = groups_valid[train_mask]
+
+            X_test = X_valid[test_mask]
+            y_test = y_valid[test_mask]
+            groups_test = groups_valid[test_mask]
+            returns_test = avg_returns[valid_mask][test_mask]
+
+            if len(X_train) < 100 or len(X_test) < 30:
+                print(f"   ⚠️ 跳过: 训练/测试样本不足")
+                continue
+
+            # 训练 XGBoost Ranker (仅训练窗口)
             model = xgb.XGBRanker(
                 objective='rank:pairwise',
                 n_estimators=200,
@@ -199,26 +227,44 @@ class SignalRanker:
             )
             
             model.fit(
+                X_train, y_train,
+                group=self._get_group_sizes(groups_train),
+                verbose=False
+            )
+            
+            # OOS 评估: NDCG@10 + Top10 平均收益
+            scores_test = model.predict(X_test)
+            ndcg = self._calculate_ndcg(y_test, scores_test, groups_test, k=10)
+            
+            # OOS 评估: Top 10 平均收益
+            top10_return = self._calculate_top_k_return(
+                returns_test, scores_test, groups_test, k=10
+            )
+
+            # 最终模型: 用全部样本训练，用于线上推理
+            final_model = xgb.XGBRanker(
+                objective='rank:pairwise',
+                n_estimators=200,
+                max_depth=5,
+                learning_rate=0.05,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                random_state=42
+            )
+            final_model.fit(
                 X_valid, y_valid,
                 group=self._get_group_sizes(groups_valid),
                 verbose=False
             )
             
-            # 评估: NDCG@10
-            scores = model.predict(X_valid)
-            ndcg = self._calculate_ndcg(y_valid, scores, groups_valid, k=10)
-            
-            # 评估: Top 10 平均收益
-            top10_return = self._calculate_top_k_return(
-                avg_returns[valid_mask], scores, groups_valid, k=10
-            )
-            
-            self.models[horizon] = model
+            self.models[horizon] = final_model
             self.metrics[horizon] = {
                 'ndcg@10': ndcg,
                 'top10_avg_return': top10_return,
-                'train_samples': len(X_valid),
-                'n_groups': len(np.unique(groups_valid))
+                'train_samples': len(X_train),
+                'test_samples': len(X_test),
+                'n_train_groups': len(np.unique(groups_train)),
+                'n_test_groups': len(np.unique(groups_test))
             }
             
             print(f"   NDCG@10: {ndcg:.3f}")

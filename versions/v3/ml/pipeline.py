@@ -210,16 +210,14 @@ class MLPipeline:
             for _, signal in symbol_signals.iterrows():
                 signal_date = pd.to_datetime(signal['scan_date'])
                 
-                # 找到信号日期在历史数据中的位置
-                date_mask = features_df['Date'] == signal_date
-                if not date_mask.any():
-                    # 尝试找最近的日期
-                    features_df['date_diff'] = abs(features_df['Date'] - signal_date)
-                    closest_idx = features_df['date_diff'].idxmin()
-                    if features_df.loc[closest_idx, 'date_diff'].days > 3:
-                        continue
-                else:
-                    closest_idx = features_df[date_mask].index[0]
+                # 防止未来泄漏: 仅使用 signal_date 当天或之前最近交易日
+                eligible_idx = features_df.index[features_df['Date'] <= signal_date]
+                if len(eligible_idx) == 0:
+                    continue
+                closest_idx = int(eligible_idx[-1])
+                ref_date = features_df.loc[closest_idx, 'Date']
+                if (signal_date - ref_date).days > 3:
+                    continue
                 
                 # 提取特征
                 feature_row = features_df.loc[closest_idx]
@@ -233,13 +231,24 @@ class MLPipeline:
                 feature_dict['is_heima'] = signal.get('is_heima', 0)
                 
                 # 计算未来收益 (标签)
-                entry_price = feature_row['Close']
+                # 入场口径: 信号后的下一交易日开盘价，更接近真实执行
                 signal_idx = closest_idx
+                entry_idx = signal_idx + 1
+                if entry_idx >= len(features_df):
+                    continue
+                entry_price = features_df.loc[entry_idx, 'Open']
+                if pd.isna(entry_price) or float(entry_price) <= 0:
+                    continue
                 
                 for days in [1, 5, 10, 30, 60]:
-                    future_idx = signal_idx + days
+                    # 以入场日为 t0，持有 N 天后按收盘价离场
+                    future_idx = entry_idx + days
                     if future_idx < len(features_df):
                         future_price = features_df.loc[future_idx, 'Close']
+                        if pd.isna(future_price) or float(future_price) <= 0:
+                            all_returns_gross[f'{days}d'].append(np.nan)
+                            all_returns_net[f'{days}d'].append(np.nan)
+                            continue
                         gross_return_pct = (future_price - entry_price) / entry_price * 100
                         net_return_pct = gross_return_pct - self.round_trip_cost_pct
                         all_returns_gross[f'{days}d'].append(gross_return_pct)
@@ -250,9 +259,14 @@ class MLPipeline:
                 
                 # 计算未来最大回撤
                 for days in [5, 30, 60]:
-                    future_end = min(signal_idx + days, len(features_df) - 1)
-                    if future_end > signal_idx:
-                        future_prices = features_df.loc[signal_idx:future_end, 'Close'].values
+                    future_end = min(entry_idx + days, len(features_df) - 1)
+                    if future_end > entry_idx:
+                        future_prices = features_df.loc[entry_idx:future_end, 'Close'].values
+                        future_prices = np.asarray(future_prices, dtype=float)
+                        future_prices = future_prices[~np.isnan(future_prices)]
+                        if len(future_prices) == 0:
+                            all_drawdowns[f'{days}d'].append(np.nan)
+                            continue
                         cummax = np.maximum.accumulate(future_prices)
                         drawdown = (cummax - future_prices) / cummax * 100
                         max_dd = np.max(drawdown)
@@ -356,7 +370,7 @@ class MLPipeline:
         # 2. 训练收益预测模型
         print("\n" + "="*60)
         return_predictor = ReturnPredictor()
-        return_metrics = return_predictor.train(X, returns_dict, feature_names)
+        return_metrics = return_predictor.train(X, returns_dict, feature_names, groups=groups)
         return_predictor.save(str(self.model_dir))
         results['return_predictor'] = return_metrics
         results['label_cost_profile'] = self.label_cost_profile

@@ -11114,12 +11114,17 @@ def render_ml_prediction_page():
             horizon_labels = {'short': '短线 (1-5天)', 'medium': '中线 (10-30天)', 'long': '长线 (60+天)'}
             
             for h, m in ranker_meta.get('metrics', {}).items():
+                group_display = m.get('n_groups')
+                if group_display is None:
+                    n_train_g = m.get('n_train_groups', 0)
+                    n_test_g = m.get('n_test_groups', 0)
+                    group_display = f"{n_train_g}/{n_test_g}"
                 ranker_data.append({
                     '周期': horizon_labels.get(h, h),
                     'NDCG@10': f"{m.get('ndcg@10', 0):.3f}",
                     'Top10平均收益': f"{m.get('top10_avg_return', 0):+.2f}%",
                     '训练样本': m.get('train_samples', 0),
-                    '分组数': m.get('n_groups', 0)
+                    '分组数': group_display
                 })
             
             ranker_df = pd.DataFrame(ranker_data)
