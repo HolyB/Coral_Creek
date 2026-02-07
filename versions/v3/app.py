@@ -2332,8 +2332,22 @@ def render_todays_picks_page():
             st.info("暂无可用主题数据，请点击刷新或检查行情数据源。")
         else:
             themes = radar.get("themes", [])
+            radar_meta = radar.get("meta", {})
+            social_meta = radar_meta.get("social", {})
             if radar.get("errors"):
                 st.caption(f"⚠️ 数据抓取异常 {len(radar['errors'])} 条（已自动跳过异常股票）")
+
+            # 社交热度状态看板
+            if include_social:
+                reason = social_meta.get("reason", "unknown")
+                if social_meta.get("enabled"):
+                    st.success("✅ 社交热度已启用：数据来自 Reddit/X (DDG 搜索聚合)")
+                elif reason == "missing_duckduckgo_search":
+                    st.warning("⚠️ 社交热度未生效：缺少依赖 `duckduckgo-search`（Cloud 安装后可用）")
+                else:
+                    st.warning("⚠️ 社交热度未生效：运行时异常，已回退到纯行情模式")
+            else:
+                st.caption("社交热度当前未开启。勾选上方「叠加社交热度 (Reddit/X)」可启用。")
 
             # 主题总览
             summary_rows = []
@@ -2351,6 +2365,28 @@ def render_todays_picks_page():
 
             st.markdown("### 🧭 主题强度排行")
             st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+
+            if include_social:
+                social_rows = []
+                for idx, t in enumerate(themes, start=1):
+                    social = t.get("social")
+                    if not social:
+                        continue
+                    leaders = [x.get("symbol", "") for x in t.get("leaders", [])[:2]]
+                    social_rows.append({
+                        "排名": idx,
+                        "主题": t.get("theme", "-"),
+                        "跟踪龙头": ", ".join([s for s in leaders if s]),
+                        "帖子数": social.get("total_posts", 0),
+                        "Bull": social.get("bullish_count", 0),
+                        "Bear": social.get("bearish_count", 0),
+                        "情绪分": f"{social.get('avg_sentiment', 0):+.2f}",
+                    })
+                if social_rows:
+                    st.markdown("### 📣 社交热度榜")
+                    st.dataframe(pd.DataFrame(social_rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("社交热度已开启，但当前主题暂无可用帖子样本。")
 
             # 龙头明细
             st.markdown("### 🏆 主题龙头明细")

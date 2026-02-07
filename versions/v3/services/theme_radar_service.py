@@ -166,12 +166,32 @@ def build_theme_radar(
 
     theme_rows.sort(key=lambda x: x["theme_score"], reverse=True)
     selected = theme_rows[: max(1, top_themes)]
+    social_meta = {
+        "requested": bool(include_social),
+        "enabled": False,
+        "reason": "disabled",
+    }
 
     if include_social:
         try:
-            from services.social_monitor import get_social_service
+            from services.social_monitor import HAS_DDGS, get_social_service
+
+            if not HAS_DDGS:
+                social_meta["reason"] = "missing_duckduckgo_search"
+                return {
+                    "market": mkt,
+                    "themes": selected,
+                    "errors": errors,
+                    "meta": {
+                        "top_themes": top_themes,
+                        "leaders_per_theme": leaders_per_theme,
+                        "social": social_meta,
+                    },
+                }
 
             social_service = get_social_service()
+            social_meta["enabled"] = True
+            social_meta["reason"] = "ok"
             for theme in selected:
                 leaders = theme.get("leaders", [])[:2]
                 sentiment_scores: List[float] = []
@@ -199,12 +219,17 @@ def build_theme_radar(
                     }
         except Exception as exc:
             errors.append(f"social:{str(exc)[:120]}")
+            social_meta["reason"] = "runtime_error"
 
     return {
         "market": mkt,
         "themes": selected,
         "errors": errors,
-        "meta": {"top_themes": top_themes, "leaders_per_theme": leaders_per_theme},
+        "meta": {
+            "top_themes": top_themes,
+            "leaders_per_theme": leaders_per_theme,
+            "social": social_meta,
+        },
     }
 
 
