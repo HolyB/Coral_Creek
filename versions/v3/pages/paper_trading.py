@@ -487,6 +487,7 @@ with tab4:
                             st.dataframe(df_preview, use_container_width=True, hide_index=True)
                         else:
                             st.warning(f"没有符合条件的信号 (BLUE >= {auto_min_blue}, 成交额 >= ${auto_min_turnover}M)")
+
                     else:
                         st.error("没有扫描数据")
                         

@@ -1333,12 +1333,14 @@ def render_todays_picks_page():
     # ============================================
     # 📋 核心工作区 (Tabs) - 重新设计的用户体验
     # ============================================
-    work_tab1, work_tab2, work_tab3, work_tab4 = st.tabs([
+    work_tab1, work_tab2, work_tab3, work_tab4, work_tab5 = st.tabs([
         "⚡ 今日行动",
         "🔎 发现新股", 
         "🎯 策略精选",
-        "💼 我的持仓"
+        "💼 我的持仓",
+        "📊 买卖信号"  # 新增: 整合原「每日买卖点」
     ])
+
     
     # === Tab 1: 今日行动 (重新设计 - 行动导向) ===
     with work_tab1:
@@ -2035,6 +2037,103 @@ def render_todays_picks_page():
         else:
             st.info("📭 暂无持仓")
             st.markdown("前往「发现新股」或「策略精选」寻找买入机会！")
+    
+    # === Tab 5: 买卖信号 (整合原每日买卖点页面) ===
+    with work_tab5:
+        st.subheader("📊 今日买卖信号")
+        st.caption("基于多策略分析的买入/卖出建议")
+        
+        try:
+            from strategies.signal_system import get_signal_manager
+            
+            signal_manager = get_signal_manager()
+            
+            # 市场选择
+            sig_market_choice = st.radio("市场", ["🇺🇸 美股", "🇨🇳 A股"], horizontal=True, key="daily_sig_tab_market")
+            sig_market = "US" if "美股" in sig_market_choice else "CN"
+            
+            col_refresh, col_filter = st.columns([1, 3])
+            with col_refresh:
+                if st.button("🔄 刷新信号", key="refresh_signals_tab"):
+                    with st.spinner("生成交易信号..."):
+                        result = signal_manager.generate_daily_signals(market=sig_market)
+                        if 'error' not in result:
+                            st.success(f"✅ {result.get('buy_signals', 0)}买入, {result.get('sell_signals', 0)}卖出")
+                        else:
+                            st.error(result['error'])
+            
+            with col_filter:
+                min_confidence = st.slider("最低信心度", 30, 90, 50, key="sig_tab_confidence")
+            
+            # 获取并显示信号
+            signals = signal_manager.get_todays_signals(market=sig_market)
+            
+            if signals:
+                signals = [s for s in signals if s.get('confidence', 0) >= min_confidence]
+            
+            if not signals:
+                st.info("👋 暂无今日信号，请点击「刷新信号」按钮生成")
+            else:
+                buy_signals = [s for s in signals if s['signal_type'] == '买入']
+                sell_signals = [s for s in signals if s['signal_type'] != '买入']
+                price_sym = "¥" if sig_market == "CN" else "$"
+                
+                # 买卖信号并排显示
+                col_buy, col_sell = st.columns(2)
+                
+                with col_buy:
+                    st.markdown(f"### 🟢 买入 ({len(buy_signals)})")
+                    for sig in buy_signals[:8]:
+                        strength_icon = "🔥" if sig['strength'] == '强烈' else "⚡" if sig['strength'] == '中等' else "💧"
+                        confidence_color = "#00C853" if sig['confidence'] >= 70 else "#FFD600" if sig['confidence'] >= 50 else "#888"
+                        
+                        st.markdown(f"""
+                        <div style="background: rgba(0,200,83,0.1); border-left: 3px solid #00C853; 
+                                    padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="font-weight: bold;">{sig['symbol']}</span>
+                                <span style="color: {confidence_color};">{sig['confidence']:.0f}% {strength_icon}</span>
+                            </div>
+                            <div style="font-size: 0.85em; color: #888;">{price_sym}{sig['price']:.2f} | {sig['strategy']}</div>
+                            <div style="font-size: 0.8em; color: #aaa; margin-top: 4px;">💡 {sig['reason'][:50]}...</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                with col_sell:
+                    st.markdown(f"### 🔴 卖出 ({len(sell_signals)})")
+                    for sig in sell_signals[:8]:
+                        signal_icon = {'止损': '🛑', '止盈': '🎯', '卖出': '🔴'}.get(sig['signal_type'], '📊')
+                        
+                        st.markdown(f"""
+                        <div style="background: rgba(255,82,82,0.1); border-left: 3px solid #FF5252; 
+                                    padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between;">
+                                <span style="font-weight: bold;">{sig['symbol']}</span>
+                                <span style="color: #FF5252;">{signal_icon} {sig['signal_type']}</span>
+                            </div>
+                            <div style="font-size: 0.85em; color: #888;">{price_sym}{sig['price']:.2f}</div>
+                            <div style="font-size: 0.8em; color: #aaa; margin-top: 4px;">⚠️ {sig['reason'][:50]}...</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # 统计
+                st.divider()
+                s1, s2, s3, s4 = st.columns(4)
+                with s1:
+                    st.metric("买入信号", len(buy_signals))
+                with s2:
+                    st.metric("卖出信号", len(sell_signals))
+                with s3:
+                    avg_conf = sum([s['confidence'] for s in buy_signals]) / len(buy_signals) if buy_signals else 0
+                    st.metric("平均信心度", f"{avg_conf:.0f}%")
+                with s4:
+                    strong = len([s for s in buy_signals if s['strength'] == '强烈'])
+                    st.metric("强烈信号", strong)
+                    
+        except ImportError as e:
+            st.warning(f"信号系统模块未加载: {e}")
+        except Exception as e:
+            st.error(f"信号加载失败: {e}")
     
     # ============================================
     # 💼 浮动持仓栏 - Alpaca Paper Trading (页面底部)
@@ -11095,38 +11194,36 @@ def render_ml_prediction_page():
         st.caption("💡 数据来源: Polygon API (优先) / yfinance (备用)")
 
 
-# --- V3 主导航 (精简版 8 Tabs) ---
+# --- V3 主导航 (精简版 4 入口) ---
 
 st.sidebar.title("Coral Creek V3 🦅")
 st.sidebar.caption("ML量化交易系统")
 
 page = st.sidebar.radio("功能导航", [
-    "🎯 每日工作台",     # 行动中心 + 发现新股 + 策略精选 + 持仓
-    "📊 每日扫描",       # 全量机会扫描
-    "🔍 个股分析",       # 个股深度分析 (含扫描数据/排名/新闻/ML)
-    "💰 每日买卖点",     # 买卖信号推荐
-    "💼 组合管理",       # 持仓 + 风控 + 观察列表
-    "🧪 策略实验室",     # 回测 + 研究工具
-    "🤖 AI中心"          # AI选股 + 博主追踪
+    "🎯 每日机会",      # 原 每日工作台 + 买卖点 (行动中心)
+    "📊 全量扫描",      # 原 每日扫描 (数据表)
+    "🔬 个股研究",      # 原 个股分析 + 策略回测 (深度分析)
+    "💰 交易执行",      # 原 组合管理 + 策略实验室模拟盘 (Alpaca+Paper)
 ])
 
-if page == "🎯 每日工作台":
+st.sidebar.markdown("---")
+st.sidebar.caption("💡 Alpaca 持仓始终可见于左侧栏")
+
+if page == "🎯 每日机会":
+    # 整合: 每日工作台 + 买卖点信号
     render_todays_picks_page()
-elif page == "📊 每日扫描":
+elif page == "📊 全量扫描":
     render_scan_page()
-elif page == "🔍 个股分析":
-    render_stock_lookup_page()
-elif page == "💰 每日买卖点":
-    try:
-        from pages.daily_signals import render_daily_signals_page
-        render_daily_signals_page()
-    except Exception as e:
-        st.error(f"买卖点页面加载失败: {e}")
-        import traceback
-        st.code(traceback.format_exc())
-elif page == "💼 组合管理":
+elif page == "🔬 个股研究":
+    # 整合: 个股分析 + 策略回测 + AI中心(今日精选)
+    st.header("🔬 个股研究")
+    research_tab = st.tabs(["🔍 个股分析", "🧪 策略回测", "🤖 AI选股"])
+    with research_tab[0]:
+        render_stock_lookup_page()
+    with research_tab[1]:
+        render_strategy_lab_page()
+    with research_tab[2]:
+        render_ai_center_page()
+elif page == "💰 交易执行":
+    # 整合: 组合管理 (持仓+风控) + Paper Trading + Alpaca Trading
     render_portfolio_management_page()
-elif page == "🧪 策略实验室":
-    render_strategy_lab_page()
-elif page == "🤖 AI中心":
-    render_ai_center_page()

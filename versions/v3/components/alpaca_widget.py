@@ -134,27 +134,68 @@ def render_alpaca_floating_bar():
         with col3:
             expand = st.checkbox("展开详情", value=False, key="alpaca_bar_expand")
         
-        # 持仓卡片 (简略)
+        # 持仓卡片 (简略 - 但带快速卖出)
         if not expand:
-            cols = st.columns(min(len(positions), 6) + 1)
-            for i, pos in enumerate(positions[:6]):
+            # 初始化卖出确认状态
+            if 'floating_confirm_sell' not in st.session_state:
+                st.session_state['floating_confirm_sell'] = None
+            
+            cols = st.columns(min(len(positions), 5) + 1)
+            for i, pos in enumerate(positions[:5]):
                 with cols[i]:
                     pnl_pct = pos.unrealized_plpc
-                    emoji = "🟢" if pnl_pct >= 0 else "🔴"
-                    st.markdown(f"""
-                    <div style="background: rgba(255,255,255,0.05); border-radius: 8px; 
-                                padding: 8px; text-align: center;">
-                        <div style="font-weight: bold;">{pos.symbol}</div>
-                        <div style="color: {'#00C853' if pnl_pct >= 0 else '#FF5252'}; font-size: 0.9em;">
-                            {pnl_pct:+.1f}%
+                    pnl_color = '#00C853' if pnl_pct >= 0 else '#FF5252'
+                    
+                    # 检查是否正在确认卖出这只股票
+                    confirming = st.session_state.get('floating_confirm_sell') == pos.symbol
+                    
+                    if confirming:
+                        # 确认卖出模式
+                        st.markdown(f"""
+                        <div style="background: rgba(255,82,82,0.15); border-radius: 8px; 
+                                    padding: 8px; text-align: center; border: 1px solid #FF5252;">
+                            <div style="font-weight: bold; color: #FF5252;">{pos.symbol}</div>
+                            <div style="font-size: 0.75em; color: #888;">确认平仓?</div>
                         </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
+                        
+                        btn_col1, btn_col2 = st.columns(2)
+                        with btn_col1:
+                            if st.button("✅", key=f"confirm_yes_{pos.symbol}", help="确认"):
+                                try:
+                                    trader.close_position(pos.symbol)
+                                    st.session_state['floating_confirm_sell'] = None
+                                    st.success(f"✅ {pos.symbol} 已平仓")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ {e}")
+                        with btn_col2:
+                            if st.button("❌", key=f"confirm_no_{pos.symbol}", help="取消"):
+                                st.session_state['floating_confirm_sell'] = None
+                                st.rerun()
+                    else:
+                        # 正常显示模式
+                        st.markdown(f"""
+                        <div style="background: rgba(255,255,255,0.05); border-radius: 8px; 
+                                    padding: 8px; text-align: center;">
+                            <div style="font-weight: bold;">{pos.symbol}</div>
+                            <div style="color: {pnl_color}; font-size: 0.9em;">
+                                {pnl_pct:+.1f}%
+                            </div>
+                            <div style="color: #888; font-size: 0.7em;">${pos.market_value:,.0f}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # 快速卖出按钮
+                        if st.button("📤", key=f"quick_sell_{pos.symbol}", help=f"平仓 {pos.symbol}"):
+                            st.session_state['floating_confirm_sell'] = pos.symbol
+                            st.rerun()
             
-            if len(positions) > 6:
-                with cols[6]:
-                    st.markdown(f"<div style='padding-top: 12px; color: #888;'>+{len(positions)-6} 更多</div>", 
+            if len(positions) > 5:
+                with cols[5]:
+                    st.markdown(f"<div style='padding-top: 12px; color: #888;'>+{len(positions)-5} 更多</div>", 
                                unsafe_allow_html=True)
+
         
         # 展开详情
         else:
