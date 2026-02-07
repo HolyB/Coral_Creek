@@ -2078,7 +2078,123 @@ def render_todays_picks_page():
                 sell_signals = [s for s in signals if s['signal_type'] != '买入']
                 price_sym = "¥" if sig_market == "CN" else "$"
                 
+                # ==========================================
+                # 批量交易控制面板
+                # ==========================================
+                with st.expander("🚀 批量交易", expanded=False):
+                    st.markdown("**选择信号 → 选择子账户 → 一键批量买入**")
+                    
+                    # 获取子账户列表
+                    try:
+                        from services.portfolio_service import list_paper_accounts, paper_buy
+                        batch_accounts = list_paper_accounts()
+                        batch_account_names = [a['account_name'] for a in batch_accounts] if batch_accounts else ['default']
+                    except Exception:
+                        batch_account_names = ['default']
+                    
+                    batch_col1, batch_col2, batch_col3 = st.columns([2, 1, 1])
+                    
+                    with batch_col1:
+                        # 多选买入信号
+                        buy_options = [f"{s['symbol']} ({s['confidence']:.0f}%)" for s in buy_signals]
+                        selected_signals = st.multiselect(
+                            "选择买入信号",
+                            options=buy_options,
+                            default=[],
+                            key="batch_signal_select",
+                            help="按住 Cmd/Ctrl 多选"
+                        )
+                    
+                    with batch_col2:
+                        # 目标子账户
+                        target_account = st.selectbox(
+                            "目标子账户",
+                            options=batch_account_names,
+                            key="batch_target_account"
+                        )
+                        
+                        # 每只股票投资金额
+                        per_stock_amount = st.number_input(
+                            "每只投资金额",
+                            min_value=500,
+                            max_value=50000,
+                            value=2000,
+                            step=500,
+                            key="batch_per_stock_amount"
+                        )
+                    
+                    with batch_col3:
+                        st.write("")  # 占位
+                        total_cost = len(selected_signals) * per_stock_amount
+                        st.markdown(f"""
+                        <div style="background: rgba(0,200,83,0.1); padding: 10px; border-radius: 8px; text-align: center;">
+                            <div style="font-size: 0.8em; color: #888;">预估总投资</div>
+                            <div style="font-size: 1.3em; font-weight: bold; color: #00C853;">
+                                {price_sym}{total_cost:,.0f}
+                            </div>
+                            <div style="font-size: 0.75em; color: #888;">{len(selected_signals)} 只股票</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # 执行批量买入按钮
+                    if st.button("🚀 批量模拟买入", type="primary", disabled=len(selected_signals) == 0, key="batch_buy_btn"):
+                        if selected_signals:
+                            success_count = 0
+                            fail_results = []
+                            
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
+                            
+                            for i, sig_label in enumerate(selected_signals):
+                                symbol = sig_label.split(" ")[0]  # 提取股票代码
+                                
+                                # 找到对应的信号获取价格
+                                matching_sig = next((s for s in buy_signals if s['symbol'] == symbol), None)
+                                if not matching_sig:
+                                    fail_results.append(f"{symbol}: 信号未找到")
+                                    continue
+                                
+                                price = matching_sig['price']
+                                shares = max(1, int(per_stock_amount / price))
+                                
+                                status_text.text(f"正在买入 {symbol}... ({i+1}/{len(selected_signals)})")
+                                
+                                try:
+                                    result = paper_buy(
+                                        symbol=symbol,
+                                        shares=shares,
+                                        price=price,
+                                        market=sig_market,
+                                        account_name=target_account
+                                    )
+                                    
+                                    if result.get('success'):
+                                        success_count += 1
+                                    else:
+                                        fail_results.append(f"{symbol}: {result.get('error', '未知错误')}")
+                                        
+                                except Exception as e:
+                                    fail_results.append(f"{symbol}: {str(e)[:30]}")
+                                
+                                progress_bar.progress((i + 1) / len(selected_signals))
+                            
+                            status_text.empty()
+                            progress_bar.empty()
+                            
+                            # 显示结果
+                            if success_count > 0:
+                                st.success(f"✅ 成功买入 {success_count} 只股票到【{target_account}】子账户")
+                            
+                            if fail_results:
+                                st.warning(f"⚠️ {len(fail_results)} 只失败:")
+                                for fr in fail_results[:5]:
+                                    st.caption(f"  • {fr}")
+                        else:
+                            st.warning("请先选择要买入的信号")
+                
+                # ==========================================
                 # 买卖信号并排显示
+                # ==========================================
                 col_buy, col_sell = st.columns(2)
                 
                 with col_buy:
@@ -2134,6 +2250,7 @@ def render_todays_picks_page():
             st.warning(f"信号系统模块未加载: {e}")
         except Exception as e:
             st.error(f"信号加载失败: {e}")
+
     
     # ============================================
     # 💼 浮动持仓栏 - Alpaca Paper Trading (页面底部)
