@@ -152,6 +152,21 @@ def _cached_db_stats():
     return get_db_stats()
 
 
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_theme_radar(market, top_themes, leaders_per_theme, include_social, latest_date):
+    """缓存主题雷达，减少重复计算（15分钟TTL）"""
+    from services.theme_radar_service import build_theme_radar
+    results = _cached_scan_results(scan_date=latest_date, market=market, limit=500)
+    scan_df = pd.DataFrame(results) if results else pd.DataFrame()
+    return build_theme_radar(
+        market=market,
+        top_themes=top_themes,
+        leaders_per_theme=leaders_per_theme,
+        scan_df=scan_df,
+        include_social=include_social,
+    )
+
+
 # --- 后台调度器 (In-App Scheduler) ---
 # 替代 GitHub Actions，直接在应用内运行监控
 # 避免支付问题和数据同步问题
@@ -2314,14 +2329,12 @@ def render_todays_picks_page():
         if trigger_refresh or radar_state_key not in st.session_state:
             with st.spinner("计算主题热度与龙头强度..."):
                 try:
-                    from services.theme_radar_service import build_theme_radar
-
-                    st.session_state[radar_state_key] = build_theme_radar(
+                    st.session_state[radar_state_key] = _cached_theme_radar(
                         market=market,
                         top_themes=top_themes,
                         leaders_per_theme=leaders_per_theme,
-                        scan_df=df,
                         include_social=include_social,
+                        latest_date=latest_date,
                     )
                 except Exception as e:
                     st.error(f"主题雷达加载失败: {e}")

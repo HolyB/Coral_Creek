@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import lru_cache
 from typing import Dict, List, Optional, Any
 
 import numpy as np
@@ -27,6 +29,12 @@ DEFAULT_THEME_BASKETS: Dict[str, Dict[str, List[str]]] = {
         "工业自动化": ["300124.SZ", "002747.SZ", "002508.SZ", "688017.SH", "603290.SH"],
     },
 }
+
+
+@lru_cache(maxsize=1024)
+def _get_stock_data_cached(symbol: str, market: str, days: int) -> Optional[pd.DataFrame]:
+    """缓存历史行情，避免重复网络请求"""
+    return get_stock_data(symbol, market=market, days=days)
 
 
 def get_theme_baskets(market: str = "US") -> Dict[str, List[str]]:
@@ -63,7 +71,7 @@ def _calc_leader_metrics(
     market: str,
     scan_lookup: Dict[str, Dict[str, Any]],
 ) -> Optional[Dict[str, Any]]:
-    hist = get_stock_data(symbol, market=market, days=140)
+    hist = _get_stock_data_cached(symbol, market, 140)
     if hist is None or hist.empty or "Close" not in hist.columns:
         return None
 
@@ -126,14 +134,21 @@ def build_theme_radar(
 
     for theme_name, symbols in baskets.items():
         per_symbol: List[Dict[str, Any]] = []
-        for sym in symbols:
-            try:
-                metrics = _calc_leader_metrics(sym, mkt, scan_lookup)
-                if metrics:
-                    metrics["leader_score"] = _score_row(pd.Series(metrics))
-                    per_symbol.append(metrics)
-            except Exception as exc:
-                errors.append(f"{theme_name}:{sym}:{str(exc)[:80]}")
+        # 并行抓取每个主题的成分股行情，明显降低等待时间
+        max_workers = min(8, max(2, len(symbols)))
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            future_map = {
+                ex.submit(_calc_leader_metrics, sym, mkt, scan_lookup): sym for sym in symbols
+            }
+            for fut in as_completed(future_map):
+                sym = future_map[fut]
+                try:
+                    metrics = fut.result()
+                    if metrics:
+                        metrics["leader_score"] = _score_row(pd.Series(metrics))
+                        per_symbol.append(metrics)
+                except Exception as exc:
+                    errors.append(f"{theme_name}:{sym}:{str(exc)[:80]}")
 
         if not per_symbol:
             continue
@@ -198,17 +213,21 @@ def build_theme_radar(
                 bull_count = 0
                 bear_count = 0
                 total_posts = 0
-                for leader in leaders:
-                    sym = leader.get("symbol")
-                    if not sym:
-                        continue
-                    report = social_service.get_social_report(sym, market=mkt)
-                    if not report:
-                        continue
-                    sentiment_scores.append(float(report.get("sentiment_score", 0)))
-                    bull_count += int(report.get("bullish_count", 0))
-                    bear_count += int(report.get("bearish_count", 0))
-                    total_posts += int(report.get("total_posts", 0))
+                with ThreadPoolExecutor(max_workers=min(4, max(1, len(leaders)))) as ex:
+                    future_map = {}
+                    for leader in leaders:
+                        sym = leader.get("symbol")
+                        if sym:
+                            future_map[ex.submit(social_service.get_social_report, sym, mkt)] = sym
+
+                    for fut in as_completed(future_map):
+                        report = fut.result()
+                        if not report:
+                            continue
+                        sentiment_scores.append(float(report.get("sentiment_score", 0)))
+                        bull_count += int(report.get("bullish_count", 0))
+                        bear_count += int(report.get("bearish_count", 0))
+                        total_posts += int(report.get("total_posts", 0))
 
                 if sentiment_scores:
                     theme["social"] = {
