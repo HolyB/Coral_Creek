@@ -3,6 +3,8 @@ import pandas as pd
 import glob
 import os
 import sys
+import socket
+import urllib.request
 import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
@@ -165,6 +167,48 @@ def _cached_theme_radar(market, top_themes, leaders_per_theme, include_social, l
         scan_df=scan_df,
         include_social=include_social,
     )
+
+
+def _run_network_diagnostics():
+    """基础网络连通性诊断（DNS + HTTP）"""
+    targets = [
+        ("Polygon", "api.polygon.io", "https://api.polygon.io"),
+        ("Reddit", "www.reddit.com", "https://www.reddit.com"),
+        ("X", "x.com", "https://x.com"),
+    ]
+    rows = []
+    for name, host, url in targets:
+        dns_ok = False
+        http_ok = False
+        dns_msg = ""
+        http_msg = ""
+        try:
+            socket.gethostbyname(host)
+            dns_ok = True
+            dns_msg = "OK"
+        except Exception as e:
+            dns_msg = str(e)[:120]
+
+        if dns_ok:
+            try:
+                req = urllib.request.Request(url, method="HEAD")
+                with urllib.request.urlopen(req, timeout=6) as resp:
+                    code = getattr(resp, "status", 200)
+                http_ok = 200 <= int(code) < 500
+                http_msg = f"HTTP {code}"
+            except Exception as e:
+                http_msg = str(e)[:120]
+        else:
+            http_msg = "skip (dns failed)"
+
+        rows.append({
+            "服务": name,
+            "主机": host,
+            "DNS": "✅" if dns_ok else "❌",
+            "HTTP": "✅" if http_ok else "❌",
+            "详情": f"DNS: {dns_msg} | HTTP: {http_msg}",
+        })
+    return pd.DataFrame(rows)
 
 
 # --- 后台调度器 (In-App Scheduler) ---
@@ -2322,6 +2366,13 @@ def render_todays_picks_page():
             leaders_per_theme = st.slider("每个主题龙头数", min_value=2, max_value=6, value=4, key=f"theme_leaders_{market}")
         with ctrl3:
             include_social = st.checkbox("叠加社交热度 (Reddit/X)", value=False, key=f"theme_social_{market}")
+
+        with st.expander("🛠️ 网络连通性自检", expanded=False):
+            st.caption("用于排查：为何拿不到 Polygon 行情或社交帖子")
+            if st.button("🔍 运行自检", key=f"theme_net_diag_{market}"):
+                with st.spinner("检测网络连通性..."):
+                    diag_df = _run_network_diagnostics()
+                    st.dataframe(diag_df, use_container_width=True, hide_index=True)
 
         radar_state_key = f"theme_radar_cache_{market}"
         trigger_refresh = st.button("🔄 刷新主题雷达", key=f"refresh_theme_radar_{market}")
