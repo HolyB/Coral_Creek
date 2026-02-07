@@ -40,6 +40,23 @@ class SocialMonitorService:
             '卖出', '看空', '暴跌', '崩盘', '高估', '阻力', '泡沫', '离场'
         ]
 
+    def _search_text(self, query: str, limit: int = 10):
+        """统一搜索入口：优先使用常驻实例，失败时回退到临时实例"""
+        if not HAS_DDGS:
+            return []
+        try:
+            if self.ddgs:
+                return list(self.ddgs.text(query, max_results=limit) or [])
+        except Exception:
+            pass
+
+        try:
+            with DDGS() as ddgs:
+                return list(ddgs.text(query, max_results=limit) or [])
+        except Exception as e:
+            logger.error(f"DDGS search error for query [{query}]: {e}")
+            return []
+
     def _analyze_sentiment(self, text: str) -> str:
         """简单的基于规则的情绪分析"""
         text = text.lower()
@@ -55,57 +72,58 @@ class SocialMonitorService:
 
     def search_reddit(self, symbol: str, limit: int = 10) -> List[SocialPost]:
         """搜索 Reddit 讨论"""
-        if not self.ddgs:
+        if not HAS_DDGS:
             return []
             
         posts = []
         try:
-            # 搜索查询：股票代码 + site:reddit.com
-            # 排除一些非股票板块可能更好，但先全局搜
-            query = f"{symbol} stock site:reddit.com"
-            
-            # 使用 text 搜索 (v4+ API)
-            results = self.ddgs.text(query, max_results=limit)
-            
-            if results:
+            queries = [
+                f"{symbol} stock site:reddit.com",
+                f"${symbol} site:reddit.com/r/stocks",
+                f"{symbol} earnings site:reddit.com",
+            ]
+
+            for q in queries:
+                results = self._search_text(q, limit=max(4, limit // 2))
                 for res in results:
                     title = res.get('title', '')
                     body = res.get('body', '')
-                    
-                    # 尝试从 body 提取日期 (DDG 有时不返回日期)
-                    # 简单处理：假设都是近期的
-                    
                     posts.append(SocialPost(
                         platform="Reddit",
                         title=title,
                         snippet=body,
                         url=res.get('href', ''),
-                        date="Recent", # DDG 不一定返回准确日期
+                        date="Recent",
                         sentiment=self._analyze_sentiment(title + " " + body)
                     ))
                     
         except Exception as e:
             logger.error(f"Reddit search error for {symbol}: {e}")
             
-        return posts
+        # 去重（按URL）
+        uniq = {}
+        for p in posts:
+            if p.url and p.url not in uniq:
+                uniq[p.url] = p
+        return list(uniq.values())[:limit]
 
     def search_twitter(self, symbol: str, limit: int = 10) -> List[SocialPost]:
         """搜索 Twitter/X 讨论"""
-        if not self.ddgs:
+        if not HAS_DDGS:
             return []
             
         posts = []
         try:
-            # 搜索查询
-            query = f"${symbol} stock site:twitter.com"
-            
-            results = self.ddgs.text(query, max_results=limit)
-            
-            if results:
+            queries = [
+                f"${symbol} stock site:x.com",
+                f"${symbol} stock site:twitter.com",
+                f"{symbol} stocktwits site:stocktwits.com",
+            ]
+
+            for q in queries:
+                results = self._search_text(q, limit=max(4, limit // 2))
                 for res in results:
                     title = res.get('title', '')
-                    # Twitter 标题通常是 "Name (@handle) on X: '...'"
-                    # 清洗标题
                     if " on X: " in title:
                         parts = title.split(" on X: ", 1)
                         author = parts[0]
@@ -113,26 +131,30 @@ class SocialMonitorService:
                         display_title = f"{author}: {content[:50]}..."
                     else:
                         display_title = title
-                        
+
                     body = res.get('body', '')
-                    
+                    platform = "Stocktwits" if "stocktwits.com" in (res.get('href', '') or '') else "Twitter/X"
                     posts.append(SocialPost(
-                        platform="Twitter",
+                        platform=platform,
                         title=display_title,
                         snippet=body,
                         url=res.get('href', ''),
                         date="Recent",
-                        sentiment=self._analyze_sentiment(body)
+                        sentiment=self._analyze_sentiment((title or "") + " " + (body or ""))
                     ))
                     
         except Exception as e:
             logger.error(f"Twitter search error for {symbol}: {e}")
             
-        return posts
+        uniq = {}
+        for p in posts:
+            if p.url and p.url not in uniq:
+                uniq[p.url] = p
+        return list(uniq.values())[:limit]
     
     def search_guba(self, symbol: str, limit: int = 10) -> List[SocialPost]:
         """搜索东方财富股吧 (针对 A股)"""
-        if not self.ddgs:
+        if not HAS_DDGS:
             return []
         
         posts = []
@@ -141,7 +163,7 @@ class SocialMonitorService:
             code = symbol.split('.')[0]
             query = f"{code} 股吧 site:guba.eastmoney.com"
             
-            results = self.ddgs.text(query, max_results=limit)
+            results = self._search_text(query, limit=limit)
             
             if results:
                 for res in results:
@@ -178,8 +200,8 @@ class SocialMonitorService:
             all_posts.extend(self.search_guba(symbol, limit=10))
             # 也可以搜雪球 site:xueqiu.com
             try:
-                if self.ddgs:
-                    xq_results = self.ddgs.text(f"{symbol} site:xueqiu.com", max_results=5)
+                if HAS_DDGS:
+                    xq_results = self._search_text(f"{symbol} site:xueqiu.com", limit=5)
                     for res in xq_results:
                         all_posts.append(SocialPost(
                             platform="雪球",
