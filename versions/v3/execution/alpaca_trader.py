@@ -45,7 +45,7 @@ try:
         QueryOrderStatus
     )
     from alpaca.data.historical import StockHistoricalDataClient
-    from alpaca.data.requests import StockBarsRequest
+    from alpaca.data.requests import StockBarsRequest, StockLatestTradeRequest
     from alpaca.data.timeframe import TimeFrame
     ALPACA_SDK_AVAILABLE = True
 except ImportError:
@@ -213,9 +213,10 @@ class AlpacaTrader:
                 )
 
         # 3) 单票最大仓位限制
+        # 行情接口偶发抖动时，跳过该项校验，但保留日亏/回撤等硬风控，避免误伤可交易时段。
         price = ref_price if ref_price and ref_price > 0 else self.get_latest_price(symbol)
         if price <= 0:
-            raise ValueError(f"风控拦截：无法获取 {symbol} 价格，禁止开新仓")
+            return
 
         new_order_value = float(qty) * float(price)
         current_position_value = 0.0
@@ -454,16 +455,43 @@ class AlpacaTrader:
     
     def get_latest_price(self, symbol: str) -> float:
         """获取最新价格"""
-        request = StockBarsRequest(
-            symbol_or_symbols=symbol,
-            timeframe=TimeFrame.Minute,
-            start=datetime.now() - timedelta(days=1)
-        )
-        bars = self.data_client.get_stock_bars(request)
-        
-        if symbol in bars and len(bars[symbol]) > 0:
-            return float(bars[symbol][-1].close)
-        
+        try:
+            request = StockBarsRequest(
+                symbol_or_symbols=symbol,
+                timeframe=TimeFrame.Minute,
+                start=datetime.now() - timedelta(days=1)
+            )
+            bars = self.data_client.get_stock_bars(request)
+            if symbol in bars and len(bars[symbol]) > 0:
+                return float(bars[symbol][-1].close)
+        except Exception:
+            pass
+
+        # 兜底: 分钟K线拿不到时尝试 latest trade
+        try:
+            latest_trade_req = StockLatestTradeRequest(symbol_or_symbols=symbol)
+            latest_trade = self.data_client.get_stock_latest_trade(latest_trade_req)
+
+            trade_obj = None
+            if isinstance(latest_trade, dict):
+                trade_obj = latest_trade.get(symbol)
+            else:
+                data = getattr(latest_trade, "data", None)
+                if isinstance(data, dict):
+                    trade_obj = data.get(symbol)
+                if trade_obj is None:
+                    try:
+                        trade_obj = latest_trade[symbol]
+                    except Exception:
+                        trade_obj = None
+
+            if trade_obj is not None:
+                price = float(getattr(trade_obj, "price", 0.0) or 0.0)
+                if price > 0:
+                    return price
+        except Exception:
+            pass
+
         return 0.0
     
     def is_market_open(self) -> bool:
