@@ -2325,6 +2325,11 @@ def render_todays_picks_page():
 
         radar_state_key = f"theme_radar_cache_{market}"
         trigger_refresh = st.button("🔄 刷新主题雷达", key=f"refresh_theme_radar_{market}")
+        if trigger_refresh:
+            try:
+                _cached_theme_radar.clear()
+            except Exception:
+                pass
 
         if trigger_refresh or radar_state_key not in st.session_state:
             with st.spinner("计算主题热度与龙头强度..."):
@@ -2361,6 +2366,10 @@ def render_todays_picks_page():
                     st.warning("⚠️ 社交热度未生效：运行时异常，已回退到纯行情模式")
                     if social_meta.get("error"):
                         st.caption(f"异常信息: {social_meta.get('error')}")
+                    else:
+                        social_errs = [e for e in (radar.get("errors", []) or []) if str(e).startswith("social")]
+                        if social_errs:
+                            st.caption(f"异常信息: {social_errs[0]}")
             else:
                 st.caption("社交热度当前未开启。勾选上方「叠加社交热度 (Reddit/X)」可启用。")
 
