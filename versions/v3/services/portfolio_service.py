@@ -25,6 +25,8 @@ from data_fetcher import get_stock_data
 
 PAPER_ACCOUNT_INITIAL = 100000.0  # 模拟账户初始资金
 PAPER_SUBACCOUNT_INITIAL = 20000.0  # 子账户默认初始资金
+DEFAULT_MAX_SINGLE_POSITION_PCT = 0.30  # 子账户默认单票上限
+DEFAULT_MAX_DRAWDOWN_PCT = 0.20  # 子账户默认最大回撤
 
 
 def get_current_price(symbol: str, market: str = 'US') -> Optional[float]:
@@ -198,6 +200,17 @@ def init_paper_account():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS paper_account_config (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_name VARCHAR(50) NOT NULL,
+            strategy_note TEXT DEFAULT '',
+            max_single_position_pct REAL DEFAULT 0.30,
+            max_drawdown_pct REAL DEFAULT 0.20,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(account_name)
+        )
+    """)
     
     # 检查是否已有默认账户
     cursor.execute("SELECT COUNT(*) FROM paper_account WHERE account_name = 'default'")
@@ -206,6 +219,12 @@ def init_paper_account():
             INSERT INTO paper_account (account_name, initial_capital, cash_balance)
             VALUES ('default', ?, ?)
         """, (PAPER_ACCOUNT_INITIAL, PAPER_ACCOUNT_INITIAL))
+    cursor.execute("SELECT COUNT(*) FROM paper_account_config WHERE account_name = 'default'")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO paper_account_config (account_name, strategy_note, max_single_position_pct, max_drawdown_pct)
+            VALUES ('default', '', ?, ?)
+        """, (DEFAULT_MAX_SINGLE_POSITION_PCT, DEFAULT_MAX_DRAWDOWN_PCT))
     
     conn.commit()
     conn.close()
@@ -248,6 +267,10 @@ def create_paper_account(account_name: str, initial_capital: float = PAPER_SUBAC
             INSERT INTO paper_account (account_name, initial_capital, cash_balance)
             VALUES (?, ?, ?)
         """, (account_name, float(initial_capital), float(initial_capital)))
+        cursor.execute("""
+            INSERT INTO paper_account_config (account_name, strategy_note, max_single_position_pct, max_drawdown_pct)
+            VALUES (?, '', ?, ?)
+        """, (account_name, DEFAULT_MAX_SINGLE_POSITION_PCT, DEFAULT_MAX_DRAWDOWN_PCT))
         conn.commit()
         return {'success': True, 'account_name': account_name, 'initial_capital': float(initial_capital)}
     except Exception as e:
@@ -294,6 +317,21 @@ def get_paper_account(account_name: str = 'default') -> Dict:
         SELECT * FROM paper_positions WHERE account_name = ?
     """, (account_name,))
     positions = [dict(r) for r in cursor.fetchall()]
+
+    # 获取账户风控配置
+    cursor.execute("""
+        SELECT strategy_note, max_single_position_pct, max_drawdown_pct
+        FROM paper_account_config WHERE account_name = ?
+    """, (account_name,))
+    cfg_row = cursor.fetchone()
+    if cfg_row:
+        account_config = dict(cfg_row)
+    else:
+        account_config = {
+            'strategy_note': '',
+            'max_single_position_pct': DEFAULT_MAX_SINGLE_POSITION_PCT,
+            'max_drawdown_pct': DEFAULT_MAX_DRAWDOWN_PCT
+        }
     
     conn.close()
     
@@ -339,8 +377,66 @@ def get_paper_account(account_name: str = 'default') -> Dict:
         'total_equity': total_equity,
         'total_pnl': total_pnl,
         'total_pnl_pct': total_pnl_pct,
-        'positions': enriched_positions
+        'positions': enriched_positions,
+        'config': account_config
     }
+
+
+def get_paper_account_config(account_name: str = 'default') -> Dict:
+    """获取子账户配置"""
+    init_paper_account()
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT strategy_note, max_single_position_pct, max_drawdown_pct
+        FROM paper_account_config WHERE account_name = ?
+    """, (account_name,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return {
+        'strategy_note': '',
+        'max_single_position_pct': DEFAULT_MAX_SINGLE_POSITION_PCT,
+        'max_drawdown_pct': DEFAULT_MAX_DRAWDOWN_PCT
+    }
+
+
+def update_paper_account_config(account_name: str,
+                                strategy_note: str = '',
+                                max_single_position_pct: float = DEFAULT_MAX_SINGLE_POSITION_PCT,
+                                max_drawdown_pct: float = DEFAULT_MAX_DRAWDOWN_PCT) -> Dict:
+    """更新子账户配置"""
+    init_paper_account()
+    max_single_position_pct = max(0.05, min(1.0, float(max_single_position_pct)))
+    max_drawdown_pct = max(0.05, min(1.0, float(max_drawdown_pct)))
+    strategy_note = (strategy_note or '').strip()
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT 1 FROM paper_account WHERE account_name = ?", (account_name,))
+        if not cursor.fetchone():
+            created = create_paper_account(account_name, PAPER_SUBACCOUNT_INITIAL)
+            if not created.get('success'):
+                return {'success': False, 'error': f'账户不存在且创建失败: {account_name}'}
+
+        cursor.execute("""
+            INSERT INTO paper_account_config (account_name, strategy_note, max_single_position_pct, max_drawdown_pct, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(account_name) DO UPDATE SET
+                strategy_note=excluded.strategy_note,
+                max_single_position_pct=excluded.max_single_position_pct,
+                max_drawdown_pct=excluded.max_drawdown_pct,
+                updated_at=CURRENT_TIMESTAMP
+        """, (account_name, strategy_note, max_single_position_pct, max_drawdown_pct))
+        conn.commit()
+        return {'success': True}
+    except Exception as e:
+        conn.rollback()
+        return {'success': False, 'error': str(e)}
+    finally:
+        conn.close()
 
 
 def paper_buy(symbol: str, shares: int, price: float = None, 
@@ -374,14 +470,68 @@ def paper_buy(symbol: str, shares: int, price: float = None,
     cursor = conn.cursor()
     
     try:
-        # 检查现金余额
-        cursor.execute("SELECT cash_balance FROM paper_account WHERE account_name = ?", 
+        # 检查账户与现金余额
+        cursor.execute("SELECT initial_capital, cash_balance FROM paper_account WHERE account_name = ?",
                       (account_name,))
         row = cursor.fetchone()
         if not row:
             return {'success': False, 'error': '账户不存在'}
         
+        initial_capital = float(row['initial_capital'])
         cash_balance = row['cash_balance']
+
+        # 读取子账户配置（默认值兜底）
+        cursor.execute("""
+            SELECT strategy_note, max_single_position_pct, max_drawdown_pct
+            FROM paper_account_config
+            WHERE account_name = ?
+        """, (account_name,))
+        cfg = cursor.fetchone()
+        max_single_position_pct = float(cfg['max_single_position_pct']) if cfg and cfg['max_single_position_pct'] else DEFAULT_MAX_SINGLE_POSITION_PCT
+        max_drawdown_pct = float(cfg['max_drawdown_pct']) if cfg and cfg['max_drawdown_pct'] else DEFAULT_MAX_DRAWDOWN_PCT
+
+        # 估算当前权益和仓位（用持仓成本估值，避免依赖外部行情）
+        cursor.execute("""
+            SELECT COALESCE(SUM(shares * avg_cost), 0) AS pos_value
+            FROM paper_positions
+            WHERE account_name = ?
+        """, (account_name,))
+        total_position_value = float(cursor.fetchone()['pos_value'] or 0.0)
+        current_equity = float(cash_balance) + total_position_value
+
+        # 风险限制1：单票仓位上限
+        cursor.execute("""
+            SELECT COALESCE(SUM(shares * avg_cost), 0) AS symbol_value
+            FROM paper_positions
+            WHERE account_name = ? AND symbol = ? AND market = ?
+        """, (account_name, symbol, market))
+        existing_symbol_value = float(cursor.fetchone()['symbol_value'] or 0.0)
+        post_trade_symbol_value = existing_symbol_value + cost
+        position_limit_value = current_equity * max_single_position_pct
+        if position_limit_value > 0 and post_trade_symbol_value > position_limit_value:
+            return {
+                'success': False,
+                'error': (
+                    f'策略风控拦截: {symbol} 仓位将达 ${post_trade_symbol_value:,.2f}, '
+                    f'超过单票上限 ${position_limit_value:,.2f} ({max_single_position_pct*100:.1f}%)'
+                )
+            }
+
+        # 风险限制2：最大回撤上限（基于子账户权益曲线）
+        equity_curve = get_paper_equity_curve(account_name)
+        peak_equity = initial_capital
+        if not equity_curve.empty and 'total_equity' in equity_curve.columns:
+            peak_equity = max(float(equity_curve['total_equity'].max()), peak_equity)
+        peak_equity = max(peak_equity, current_equity)
+        drawdown_pct = (peak_equity - current_equity) / peak_equity if peak_equity > 0 else 0
+        if drawdown_pct >= max_drawdown_pct:
+            return {
+                'success': False,
+                'error': (
+                    f'策略风控拦截: 当前回撤 {drawdown_pct*100:.2f}% '
+                    f'已超过阈值 {max_drawdown_pct*100:.2f}%，禁止开新仓'
+                )
+            }
         
         if cash_balance < total_cost:
             return {'success': False, 'error': f'现金不足: 需要 ${total_cost:.2f}, 余额 ${cash_balance:.2f}'}

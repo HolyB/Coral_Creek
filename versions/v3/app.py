@@ -4607,7 +4607,8 @@ def render_portfolio_tab():
         get_paper_account, paper_buy, paper_sell, 
         get_paper_trades, reset_paper_account,
         get_paper_equity_curve, get_paper_monthly_returns, get_realized_pnl_history,
-        list_paper_accounts, create_paper_account
+        list_paper_accounts, create_paper_account,
+        get_paper_account_config, update_paper_account_config
     )
     
     # 选择模式
@@ -4763,6 +4764,11 @@ def render_portfolio_tab():
         sub_accounts = list_paper_accounts()
         sub_names = [a['account_name'] for a in sub_accounts] if sub_accounts else ['default']
         selected_account = st.selectbox("策略子账户", sub_names, key="portfolio_paper_account_name")
+        account_cfg = get_paper_account_config(selected_account)
+        st.caption(
+            f"当前风控: 单票≤{float(account_cfg.get('max_single_position_pct', 0.30))*100:.1f}% | "
+            f"最大回撤≤{float(account_cfg.get('max_drawdown_pct', 0.20))*100:.1f}%"
+        )
 
         with st.expander("➕ 新建策略子账户", expanded=False):
             new_sub_name = st.text_input("子账户名称", placeholder="trend_us / meanrev_cn", key="new_paper_subaccount")
@@ -4774,6 +4780,40 @@ def render_portfolio_tab():
                     st.rerun()
                 else:
                     st.error(f"❌ {created.get('error', '创建失败')}")
+
+        with st.expander("🛡️ 子账户风控设置", expanded=False):
+            strategy_note = st.text_area(
+                "策略说明",
+                value=account_cfg.get('strategy_note', ''),
+                height=80,
+                key="paper_account_strategy_note"
+            )
+            single_pos_limit = st.slider(
+                "单票仓位上限 (%)",
+                min_value=5,
+                max_value=80,
+                value=int(round(float(account_cfg.get('max_single_position_pct', 0.30)) * 100)),
+                key="paper_account_single_pos_limit"
+            )
+            max_dd_limit = st.slider(
+                "最大回撤阈值 (%)",
+                min_value=5,
+                max_value=80,
+                value=int(round(float(account_cfg.get('max_drawdown_pct', 0.20)) * 100)),
+                key="paper_account_max_dd_limit"
+            )
+            if st.button("保存风控设置", key="save_paper_account_config_btn"):
+                saved = update_paper_account_config(
+                    selected_account,
+                    strategy_note=strategy_note,
+                    max_single_position_pct=single_pos_limit / 100.0,
+                    max_drawdown_pct=max_dd_limit / 100.0
+                )
+                if saved.get('success'):
+                    st.success("✅ 已保存")
+                    st.rerun()
+                else:
+                    st.error(f"❌ {saved.get('error', '保存失败')}")
         
         # 获取模拟账户
         with st.spinner("加载模拟账户..."):
@@ -9228,12 +9268,19 @@ def render_paper_trading_tab():
             get_paper_equity_curve,
             get_paper_monthly_returns,
             list_paper_accounts,
-            create_paper_account
+            create_paper_account,
+            get_paper_account_config,
+            update_paper_account_config
         )
 
         sub_accounts = list_paper_accounts()
         sub_names = [a['account_name'] for a in sub_accounts] if sub_accounts else ['default']
         selected_account = st.selectbox("策略子账户", sub_names, key="strategy_lab_paper_account_name")
+        account_cfg = get_paper_account_config(selected_account)
+        st.caption(
+            f"当前风控: 单票≤{float(account_cfg.get('max_single_position_pct', 0.30))*100:.1f}% | "
+            f"最大回撤≤{float(account_cfg.get('max_drawdown_pct', 0.20))*100:.1f}%"
+        )
 
         with st.expander("➕ 新建策略子账户", expanded=False):
             new_sub_name = st.text_input("子账户名称", placeholder="breakout_us / swing_cn", key="strategy_lab_new_sub_name")
@@ -9245,6 +9292,40 @@ def render_paper_trading_tab():
                     st.rerun()
                 else:
                     st.error(f"❌ {created.get('error', '创建失败')}")
+
+        with st.expander("🛡️ 子账户风控设置", expanded=False):
+            strategy_note = st.text_area(
+                "策略说明",
+                value=account_cfg.get('strategy_note', ''),
+                height=80,
+                key="strategy_lab_paper_strategy_note"
+            )
+            single_pos_limit = st.slider(
+                "单票仓位上限 (%)",
+                min_value=5,
+                max_value=80,
+                value=int(round(float(account_cfg.get('max_single_position_pct', 0.30)) * 100)),
+                key="strategy_lab_paper_single_pos_limit"
+            )
+            max_dd_limit = st.slider(
+                "最大回撤阈值 (%)",
+                min_value=5,
+                max_value=80,
+                value=int(round(float(account_cfg.get('max_drawdown_pct', 0.20)) * 100)),
+                key="strategy_lab_paper_max_dd_limit"
+            )
+            if st.button("保存风控设置", key="strategy_lab_save_paper_config_btn"):
+                saved = update_paper_account_config(
+                    selected_account,
+                    strategy_note=strategy_note,
+                    max_single_position_pct=single_pos_limit / 100.0,
+                    max_drawdown_pct=max_dd_limit / 100.0
+                )
+                if saved.get('success'):
+                    st.success("✅ 已保存")
+                    st.rerun()
+                else:
+                    st.error(f"❌ {saved.get('error', '保存失败')}")
         
         # 获取账户信息
         account = get_paper_account(selected_account)
