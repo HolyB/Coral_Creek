@@ -10513,6 +10513,82 @@ def render_paper_trading_page():
                     else:
                         st.error("❌ 全部撤单失败")
 
+    # 轻量成交质量面板（近 50 条已结束订单）
+    with st.expander("📈 成交质量（简版）", expanded=False):
+        try:
+            closed_orders = trader.get_orders("closed")[:50]
+        except Exception as e:
+            st.warning(f"获取成交数据失败: {e}")
+            closed_orders = []
+
+        if not closed_orders:
+            st.info("暂无已结束订单，成交后这里会显示质量指标。")
+        else:
+            filled_orders = [o for o in closed_orders if o.get("status") == "filled"]
+
+            def _fill_minutes(order: dict):
+                submitted_at = order.get("submitted_at") or order.get("created_at")
+                filled_at = order.get("filled_at")
+                if not submitted_at or not filled_at:
+                    return None
+                t_submit = pd.to_datetime(submitted_at, utc=True, errors="coerce")
+                t_fill = pd.to_datetime(filled_at, utc=True, errors="coerce")
+                if pd.isna(t_submit) or pd.isna(t_fill):
+                    return None
+                minutes = (t_fill - t_submit).total_seconds() / 60.0
+                return minutes if minutes >= 0 else None
+
+            def _slippage_pct(order: dict):
+                if order.get("status") != "filled":
+                    return None
+                order_type = str(order.get("type", "")).lower()
+                if order_type != "limit":
+                    return None
+                limit_price = order.get("limit_price")
+                fill_price = order.get("filled_avg_price")
+                if not limit_price or not fill_price:
+                    return None
+                try:
+                    limit_price = float(limit_price)
+                    fill_price = float(fill_price)
+                    if limit_price <= 0:
+                        return None
+                    side = str(order.get("side", "")).lower()
+                    # 正数=更差成交，负数=更优成交
+                    if side == "buy":
+                        return (fill_price - limit_price) / limit_price * 100
+                    return (limit_price - fill_price) / limit_price * 100
+                except Exception:
+                    return None
+
+            fill_minutes = [m for m in (_fill_minutes(o) for o in filled_orders) if m is not None]
+            slip_values = [s for s in (_slippage_pct(o) for o in filled_orders) if s is not None]
+
+            m1, m2, m3 = st.columns(3)
+            m1.metric("已成交笔数", len(filled_orders))
+            m2.metric("成交率", f"{(len(filled_orders) / len(closed_orders) * 100):.1f}%")
+            m3.metric("平均成交耗时", f"{(sum(fill_minutes) / len(fill_minutes)):.1f} 分钟" if fill_minutes else "-")
+
+            st.caption("限价滑点: 正数=吃亏，负数=优于限价")
+            m4, m5 = st.columns(2)
+            m4.metric("平均限价滑点", f"{(sum(slip_values) / len(slip_values)):+.2f}%" if slip_values else "-")
+            m5.metric("最差限价滑点", f"{max(slip_values):+.2f}%" if slip_values else "-")
+
+            detail_rows = []
+            for o in closed_orders[:15]:
+                mins = _fill_minutes(o)
+                slip = _slippage_pct(o)
+                detail_rows.append({
+                    "订单ID": str(o.get("id", ""))[:8] + "...",
+                    "股票": o.get("symbol", ""),
+                    "方向": "买入" if o.get("side") == "buy" else "卖出",
+                    "类型": o.get("type", ""),
+                    "状态": o.get("status", ""),
+                    "成交耗时": f"{mins:.1f}m" if mins is not None else "-",
+                    "限价滑点": f"{slip:+.2f}%" if slip is not None else "-"
+                })
+            st.dataframe(pd.DataFrame(detail_rows), use_container_width=True, hide_index=True)
+
 
 
 
