@@ -10466,9 +10466,30 @@ def render_paper_trading_page():
         label_map = {"open": "待成交", "closed": "已结束", "all": ""}
         st.info(f"暂无{label_map[order_status]}订单")
     else:
+        stale_threshold_min = 30
+        if order_status == "open":
+            stale_threshold_min = st.number_input(
+                "挂单超时阈值 (分钟)",
+                min_value=5,
+                max_value=240,
+                value=30,
+                step=5,
+                key="alpaca_open_order_stale_threshold_main"
+            )
+
         order_data = []
+        stale_open_orders = []
         for order in orders:
             created_at = order.get("created_at") or ""
+            submitted_at = order.get("submitted_at") or created_at
+            age_min = None
+            if order_status == "open" and submitted_at:
+                ts = pd.to_datetime(submitted_at, utc=True, errors="coerce")
+                if not pd.isna(ts):
+                    age_min = max(0.0, (pd.Timestamp.now(tz="UTC") - ts).total_seconds() / 60.0)
+                    if age_min >= stale_threshold_min:
+                        stale_open_orders.append(order)
+
             order_data.append({
                 "订单ID": str(order.get("id", ""))[:8] + "...",
                 "股票": order.get("symbol", ""),
@@ -10477,6 +10498,7 @@ def render_paper_trading_page():
                 "数量": order.get("qty", ""),
                 "已成交": order.get("filled_qty", 0),
                 "状态": order.get("status", ""),
+                "挂单时长": f"{age_min:.1f}m" if age_min is not None else "-",
                 "均价": f"${float(order.get('filled_avg_price')):.2f}" if order.get("filled_avg_price") else "-",
                 "创建时间": created_at[:19] if created_at else ""
             })
@@ -10484,6 +10506,12 @@ def render_paper_trading_page():
         st.dataframe(pd.DataFrame(order_data), use_container_width=True, hide_index=True)
 
         if order_status == "open":
+            if stale_open_orders:
+                stale_symbols = ", ".join(sorted({o.get("symbol", "") for o in stale_open_orders if o.get("symbol")}))
+                st.warning(
+                    f"⚠️ 发现 {len(stale_open_orders)} 笔挂单超过 {int(stale_threshold_min)} 分钟"
+                    + (f"（{stale_symbols}）" if stale_symbols else "")
+                )
             st.caption("可对待成交订单执行撤单")
             col_o1, col_o2, col_o3 = st.columns([3, 1, 1])
             with col_o1:
