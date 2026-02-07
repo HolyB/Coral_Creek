@@ -191,6 +191,7 @@ def build_theme_radar(
         "requested": bool(include_social),
         "enabled": False,
         "reason": "disabled",
+        "error": "",
     }
 
     if include_social:
@@ -219,21 +220,23 @@ def build_theme_radar(
                 bull_count = 0
                 bear_count = 0
                 total_posts = 0
-                with ThreadPoolExecutor(max_workers=min(4, max(1, len(leaders)))) as ex:
-                    future_map = {}
-                    for leader in leaders:
-                        sym = leader.get("symbol")
-                        if sym:
-                            future_map[ex.submit(social_service.get_social_report, sym, mkt)] = sym
+                # DDGS 客户端在并发下偶发异常，社交抓取采用串行+单条容错
+                for leader in leaders:
+                    sym = leader.get("symbol")
+                    if not sym:
+                        continue
+                    try:
+                        report = social_service.get_social_report(sym, market=mkt)
+                    except Exception as sym_exc:
+                        errors.append(f"social_symbol:{sym}:{str(sym_exc)[:120]}")
+                        continue
 
-                    for fut in as_completed(future_map):
-                        report = fut.result()
-                        if not report:
-                            continue
-                        sentiment_scores.append(float(report.get("sentiment_score", 0)))
-                        bull_count += int(report.get("bullish_count", 0))
-                        bear_count += int(report.get("bearish_count", 0))
-                        total_posts += int(report.get("total_posts", 0))
+                    if not report:
+                        continue
+                    sentiment_scores.append(float(report.get("sentiment_score", 0)))
+                    bull_count += int(report.get("bullish_count", 0))
+                    bear_count += int(report.get("bearish_count", 0))
+                    total_posts += int(report.get("total_posts", 0))
 
                 if sentiment_scores:
                     theme["social"] = {
@@ -245,6 +248,7 @@ def build_theme_radar(
         except Exception as exc:
             errors.append(f"social:{str(exc)[:120]}")
             social_meta["reason"] = "runtime_error"
+            social_meta["error"] = str(exc)[:200]
 
     return {
         "market": mkt,

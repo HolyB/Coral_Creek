@@ -2359,6 +2359,8 @@ def render_todays_picks_page():
                     st.warning("⚠️ 社交热度未生效：缺少依赖 `duckduckgo-search`（Cloud 安装后可用）")
                 else:
                     st.warning("⚠️ 社交热度未生效：运行时异常，已回退到纯行情模式")
+                    if social_meta.get("error"):
+                        st.caption(f"异常信息: {social_meta.get('error')}")
             else:
                 st.caption("社交热度当前未开启。勾选上方「叠加社交热度 (Reddit/X)」可启用。")
 
