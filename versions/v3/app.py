@@ -2348,12 +2348,23 @@ def render_todays_picks_page():
         radar = st.session_state.get(radar_state_key)
         if not radar or not radar.get("themes"):
             st.info("暂无可用主题数据，请点击刷新或检查行情数据源。")
+            try:
+                from data_fetcher import get_recent_fetch_errors
+                recent_errs = get_recent_fetch_errors(limit=10)
+                if recent_errs:
+                    st.markdown("#### 🧪 数据源诊断（最近错误）")
+                    st.dataframe(pd.DataFrame(recent_errs), use_container_width=True, hide_index=True)
+            except Exception:
+                pass
         else:
             themes = radar.get("themes", [])
             radar_meta = radar.get("meta", {})
             social_meta = radar_meta.get("social", {})
             if radar.get("errors"):
                 st.caption(f"⚠️ 数据抓取异常 {len(radar['errors'])} 条（已自动跳过异常股票）")
+                with st.expander("查看异常明细", expanded=False):
+                    err_df = pd.DataFrame({"error": radar.get("errors", [])[:30]})
+                    st.dataframe(err_df, use_container_width=True, hide_index=True)
 
             # 社交热度状态看板
             if include_social:

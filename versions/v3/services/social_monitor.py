@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import re
 
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
     HAS_DDGS = True
 except ImportError:
     HAS_DDGS = False
@@ -26,7 +26,8 @@ class SocialMonitorService:
     """社交媒体舆情监控服务"""
     
     def __init__(self):
-        self.ddgs = DDGS() if HAS_DDGS else None
+        # 避免在初始化阶段触发底层网络库问题，查询时再临时创建客户端
+        self.ddgs = None
         
         # 简单情绪词典
         self.bullish_keywords = [
@@ -44,11 +45,6 @@ class SocialMonitorService:
         """统一搜索入口：优先使用常驻实例，失败时回退到临时实例"""
         if not HAS_DDGS:
             return []
-        try:
-            if self.ddgs:
-                return list(self.ddgs.text(query, max_results=limit) or [])
-        except Exception:
-            pass
 
         try:
             with DDGS() as ddgs:

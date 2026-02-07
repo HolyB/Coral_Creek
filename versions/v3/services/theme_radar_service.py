@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Any
 import numpy as np
 import pandas as pd
 
-from data_fetcher import get_stock_data
+from data_fetcher import get_recent_fetch_errors, get_stock_data
 
 
 DEFAULT_THEME_BASKETS: Dict[str, Dict[str, List[str]]] = {
@@ -79,6 +79,15 @@ def _calc_leader_metrics(
 ) -> Optional[Dict[str, Any]]:
     hist = _get_stock_data_cached(symbol, market, 140)
     if hist is None or hist.empty or "Close" not in hist.columns:
+        # 拉不到行情时，抛出最近错误用于上层展示
+        recent = get_recent_fetch_errors(limit=10)
+        msg = ""
+        for e in recent:
+            if e.get("symbol", "").upper() == symbol.upper() and e.get("market", "").upper() == market.upper():
+                msg = e.get("message", "")
+                break
+        if msg:
+            raise RuntimeError(msg)
         return None
 
     close = hist["Close"].dropna()

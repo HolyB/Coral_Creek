@@ -7,6 +7,11 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import time
+from collections import deque
+
+
+# 最近数据抓取错误（用于UI诊断）
+_RECENT_FETCH_ERRORS = deque(maxlen=50)
 
 # 加载 .env 文件
 try:
@@ -40,6 +45,22 @@ def _get_polygon_api_key():
             "Get your key at: https://polygon.io/dashboard/api-keys"
         )
     return api_key
+
+
+def _record_fetch_error(symbol: str, market: str, message: str):
+    _RECENT_FETCH_ERRORS.appendleft({
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "symbol": (symbol or "").upper(),
+        "market": (market or "").upper(),
+        "message": message[:220],
+    })
+
+
+def get_recent_fetch_errors(limit: int = 20):
+    """获取最近行情抓取错误，供页面调试展示"""
+    if limit <= 0:
+        return []
+    return list(_RECENT_FETCH_ERRORS)[:limit]
 
 def get_all_us_tickers():
     """从Polygon API获取所有活跃美股代码"""
@@ -235,10 +256,11 @@ def get_us_stock_data(symbol, days=365):
                     'Volume': a.volume,
                 })
         except Exception as e:
-            # print(f"Error fetching data for {symbol}: {e}")
+            _record_fetch_error(symbol, "US", f"Polygon list_aggs failed: {str(e)}")
             return None
         
         if not aggs:
+            _record_fetch_error(symbol, "US", "Polygon returned empty aggregates")
             return None
         
         df = pd.DataFrame(aggs)
@@ -247,7 +269,7 @@ def get_us_stock_data(symbol, days=365):
         
         return df
     except Exception as e:
-        # print(f"Error in get_us_stock_data: {e}")
+        _record_fetch_error(symbol, "US", f"get_us_stock_data exception: {str(e)}")
         return None
 
 def get_ticker_details(symbol):

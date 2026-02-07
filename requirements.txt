@@ -14,7 +14,7 @@ openai>=1.0.0
 google-generativeai>=0.3.0
 yfinance>=0.2.36
 APScheduler>=3.10.0
-duckduckgo-search>=6.0.0
+ddgs>=9.0.0
 
 # ML Dependencies
 scikit-learn>=1.3.0
@@ -26,4 +26,3 @@ pyarrow>=14.0.0
 
 # Paper Trading
 alpaca-py>=0.40.0  # Alpaca paper trading API
-
