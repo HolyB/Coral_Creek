@@ -5,11 +5,14 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import re
 
+DDGS_IMPORT_ERROR = ""
 try:
     from ddgs import DDGS
     HAS_DDGS = True
-except ImportError:
+except Exception as e:
+    DDGS = None
     HAS_DDGS = False
+    DDGS_IMPORT_ERROR = str(e)[:240]
 
 logger = logging.getLogger(__name__)
 

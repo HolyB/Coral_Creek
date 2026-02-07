@@ -205,10 +205,11 @@ def build_theme_radar(
 
     if include_social:
         try:
-            from services.social_monitor import HAS_DDGS, get_social_service
+            from services.social_monitor import DDGS_IMPORT_ERROR, HAS_DDGS, get_social_service
 
             if not HAS_DDGS:
-                social_meta["reason"] = "missing_duckduckgo_search"
+                social_meta["reason"] = "missing_or_broken_ddgs"
+                social_meta["error"] = DDGS_IMPORT_ERROR or "ddgs not installed"
                 return {
                     "market": mkt,
                     "themes": selected,
@@ -254,10 +255,27 @@ def build_theme_radar(
                         "bearish_count": bear_count,
                         "total_posts": total_posts,
                     }
+
+            # 没有任何样本且出现明显拦截错误时，标记为源站限制而非代码异常
+            any_social = any(t.get("social") for t in selected)
+            social_errs = [str(e).lower() for e in errors if str(e).startswith("social")]
+            blocked_hits = [
+                e for e in social_errs
+                if ("403" in e) or ("forbidden" in e) or ("blocked" in e) or ("429" in e) or ("rate" in e)
+            ]
+            if (not any_social) and blocked_hits:
+                social_meta["enabled"] = False
+                social_meta["reason"] = "source_blocked"
+                social_meta["error"] = "social providers blocked or rate-limited this environment"
         except Exception as exc:
-            errors.append(f"social:{str(exc)[:120]}")
-            social_meta["reason"] = "runtime_error"
-            social_meta["error"] = str(exc)[:200]
+            exc_msg = str(exc)
+            errors.append(f"social:{exc_msg[:120]}")
+            low = exc_msg.lower()
+            if ("403" in low) or ("forbidden" in low) or ("blocked" in low) or ("429" in low) or ("rate" in low):
+                social_meta["reason"] = "source_blocked"
+            else:
+                social_meta["reason"] = "runtime_error"
+            social_meta["error"] = exc_msg[:200]
 
     return {
         "market": mkt,

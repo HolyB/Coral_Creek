@@ -4,6 +4,7 @@ import glob
 import os
 import sys
 import socket
+import urllib.error
 import urllib.request
 import numpy as np
 import plotly.graph_objects as go
@@ -196,6 +197,18 @@ def _run_network_diagnostics():
                     code = getattr(resp, "status", 200)
                 http_ok = 200 <= int(code) < 500
                 http_msg = f"HTTP {code}"
+            except urllib.error.HTTPError as e:
+                code = int(getattr(e, "code", 0) or 0)
+                # 403/404 说明目标可达，只是被拒绝或路径不对
+                http_ok = code in (401, 403, 404, 429)
+                if code == 404:
+                    http_msg = "HTTP 404 (reachable, endpoint not found)"
+                elif code == 403:
+                    http_msg = "HTTP 403 (reachable, blocked/forbidden)"
+                elif code == 429:
+                    http_msg = "HTTP 429 (reachable, rate limited)"
+                else:
+                    http_msg = f"HTTP {code}"
             except Exception as e:
                 http_msg = str(e)[:120]
         else:
@@ -2421,9 +2434,15 @@ def render_todays_picks_page():
             if include_social:
                 reason = social_meta.get("reason", "unknown")
                 if social_meta.get("enabled"):
-                    st.success("✅ 社交热度已启用：数据来自 Reddit/X (DDG 搜索聚合)")
-                elif reason == "missing_duckduckgo_search":
-                    st.warning("⚠️ 社交热度未生效：缺少依赖 `duckduckgo-search`（Cloud 安装后可用）")
+                    st.success("✅ 社交热度已启用：数据来自 Reddit/X (ddgs 搜索聚合)")
+                elif reason == "missing_or_broken_ddgs":
+                    st.warning("⚠️ 社交热度未生效：`ddgs` 不可用（未安装或导入失败）")
+                    if social_meta.get("error"):
+                        st.caption(f"异常信息: {social_meta.get('error')}")
+                elif reason == "source_blocked":
+                    st.warning("⚠️ 社交热度受限：网络可达，但被源站拦截或限流（常见于云端IP）")
+                    if social_meta.get("error"):
+                        st.caption(f"异常信息: {social_meta.get('error')}")
                 else:
                     st.warning("⚠️ 社交热度未生效：运行时异常，已回退到纯行情模式")
                     if social_meta.get("error"):
