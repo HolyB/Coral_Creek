@@ -115,6 +115,8 @@ class SmartPicker:
         self.market = market
         self.horizon = horizon
         self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}"
+        self.ranker_meta = {}
+        self.rank_weights = self._default_rank_weights()
         
         # 收益预测模型
         self.return_model = None
@@ -124,6 +126,62 @@ class SmartPicker:
         self.ranker_models = {}  # {'short': model, 'medium': model, 'long': model}
         
         self._load_models()
+        self.rank_weights = self._compute_dynamic_rank_weights()
+
+    def _default_rank_weights(self) -> Dict[str, float]:
+        """按当前交易偏好给出保守默认权重"""
+        if self.horizon == 'medium':
+            return {'short': 0.25, 'medium': 0.55, 'long': 0.20}
+        if self.horizon == 'long':
+            return {'short': 0.20, 'medium': 0.30, 'long': 0.50}
+        return {'short': 0.55, 'medium': 0.30, 'long': 0.15}
+
+    def _compute_dynamic_rank_weights(self) -> Dict[str, float]:
+        """
+        基于 ranker 历史表现动态配权 short/medium/long。
+        使用 top10_avg_return + ndcg@10 + 样本规模三者融合。
+        """
+        metrics = (self.ranker_meta or {}).get('metrics', {})
+        if not metrics:
+            return self._default_rank_weights()
+
+        raw = {}
+        for horizon in ['short', 'medium', 'long']:
+            m = metrics.get(horizon)
+            if not isinstance(m, dict):
+                raw[horizon] = -5.0
+                continue
+
+            top10 = float(m.get('top10_avg_return', 0.0) or 0.0)
+            ndcg = float(m.get('ndcg@10', 0.0) or 0.0)
+            sample_n = float(
+                m.get('test_samples', 0)
+                or m.get('train_samples', 0)
+                or 0
+            )
+
+            # OOS收益为主，排序质量次之；样本不足则降权
+            performance = (0.75 * top10) + (0.25 * ((ndcg - 0.5) * 10.0))
+            sample_factor = min(max(sample_n / 300.0, 0.30), 1.00)
+            raw[horizon] = performance * sample_factor
+
+        values = np.array([raw[h] for h in ['short', 'medium', 'long']], dtype=float)
+        values = np.clip(values, -8.0, 8.0)
+
+        exp_vals = np.exp(values - np.max(values))
+        if not np.isfinite(exp_vals).all() or exp_vals.sum() <= 0:
+            return self._default_rank_weights()
+
+        # 保底每个周期 10%，避免单周期过拟合独占
+        min_w = 0.10
+        soft = exp_vals / exp_vals.sum()
+        alloc = min_w + (1 - 3 * min_w) * soft
+
+        return {
+            'short': float(alloc[0]),
+            'medium': float(alloc[1]),
+            'long': float(alloc[2]),
+        }
     
     def _load_models(self):
         """加载所有ML模型"""
@@ -636,16 +694,15 @@ class SmartPicker:
         """
         score = 0.0
         
-        # 1. 排序模型分 (25%) - 基于 horizon
-        # 排序模型输出通常是0-4的标签分数，需要归一化
-        rank_score = pick.rank_score_short  # 默认用短线
-        if self.horizon == 'medium':
-            rank_score = pick.rank_score_medium
-        elif self.horizon == 'long':
-            rank_score = pick.rank_score_long
-        
-        # 归一化到0-25分 (假设排序分在0-100范围)
-        normalized_rank = min(rank_score, 100) / 100 * 25
+        # 1. 排序模型分 (25%) - short/medium/long 动态融合
+        w = self.rank_weights
+        rank_score = (
+            w.get('short', 0.0) * pick.rank_score_short +
+            w.get('medium', 0.0) * pick.rank_score_medium +
+            w.get('long', 0.0) * pick.rank_score_long
+        )
+        # 排序分归一化到 0~25
+        normalized_rank = min(max(rank_score, 0.0), 100.0) / 100.0 * 25.0
         score += normalized_rank
         
         # 2. ML预测分 (20%)
