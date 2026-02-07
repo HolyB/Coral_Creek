@@ -1376,12 +1376,13 @@ def render_todays_picks_page():
     # ============================================
     # 📋 核心工作区 (Tabs) - 重新设计的用户体验
     # ============================================
-    work_tab1, work_tab2, work_tab3, work_tab4, work_tab5 = st.tabs([
+    work_tab1, work_tab2, work_tab3, work_tab4, work_tab5, work_tab6 = st.tabs([
         "⚡ 今日行动",
         "🔎 发现新股", 
         "🎯 策略精选",
         "💼 我的持仓",
-        "📊 买卖信号"  # 新增: 整合原「每日买卖点」
+        "📊 买卖信号",  # 新增: 整合原「每日买卖点」
+        "🔥 热点板块"
     ])
 
     
@@ -2293,6 +2294,116 @@ def render_todays_picks_page():
             st.warning(f"信号系统模块未加载: {e}")
         except Exception as e:
             st.error(f"信号加载失败: {e}")
+
+    # === Tab 6: 热点板块 (主题篮子 + 龙头追踪 + 社交热度) ===
+    with work_tab6:
+        st.subheader("🔥 热点板块雷达")
+        st.caption("先看主题强弱，再盯龙头，支持一键加入观察列表")
+
+        ctrl1, ctrl2, ctrl3 = st.columns(3)
+        with ctrl1:
+            top_themes = st.slider("主题数量", min_value=3, max_value=10, value=5, key=f"theme_top_{market}")
+        with ctrl2:
+            leaders_per_theme = st.slider("每个主题龙头数", min_value=2, max_value=6, value=4, key=f"theme_leaders_{market}")
+        with ctrl3:
+            include_social = st.checkbox("叠加社交热度 (Reddit/X)", value=False, key=f"theme_social_{market}")
+
+        radar_state_key = f"theme_radar_cache_{market}"
+        trigger_refresh = st.button("🔄 刷新主题雷达", key=f"refresh_theme_radar_{market}")
+
+        if trigger_refresh or radar_state_key not in st.session_state:
+            with st.spinner("计算主题热度与龙头强度..."):
+                try:
+                    from services.theme_radar_service import build_theme_radar
+
+                    st.session_state[radar_state_key] = build_theme_radar(
+                        market=market,
+                        top_themes=top_themes,
+                        leaders_per_theme=leaders_per_theme,
+                        scan_df=df,
+                        include_social=include_social,
+                    )
+                except Exception as e:
+                    st.error(f"主题雷达加载失败: {e}")
+                    st.session_state[radar_state_key] = None
+
+        radar = st.session_state.get(radar_state_key)
+        if not radar or not radar.get("themes"):
+            st.info("暂无可用主题数据，请点击刷新或检查行情数据源。")
+        else:
+            themes = radar.get("themes", [])
+            if radar.get("errors"):
+                st.caption(f"⚠️ 数据抓取异常 {len(radar['errors'])} 条（已自动跳过异常股票）")
+
+            # 主题总览
+            summary_rows = []
+            for idx, t in enumerate(themes, start=1):
+                social = t.get("social")
+                summary_rows.append({
+                    "排名": idx,
+                    "主题": t.get("theme", "-"),
+                    "热度分": t.get("theme_score", 0),
+                    "20日均涨幅": f"{t.get('avg_ret20', 0):+.1f}%",
+                    "60日均涨幅": f"{t.get('avg_ret60', 0):+.1f}%",
+                    "正收益占比": f"{t.get('positive_ratio', 0):.0f}%",
+                    "社交情绪": f"{social.get('avg_sentiment', 0):+.2f}" if social else "-",
+                })
+
+            st.markdown("### 🧭 主题强度排行")
+            st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+
+            # 龙头明细
+            st.markdown("### 🏆 主题龙头明细")
+            for idx, theme in enumerate(themes, start=1):
+                leaders = theme.get("leaders", [])
+                if not leaders:
+                    continue
+
+                social = theme.get("social")
+                social_text = ""
+                if social:
+                    social_text = (
+                        f" | 社交: 情绪 {social.get('avg_sentiment', 0):+.2f}"
+                        f" (Bull {social.get('bullish_count', 0)} / Bear {social.get('bearish_count', 0)})"
+                    )
+
+                with st.expander(
+                    f"#{idx} {theme.get('theme', '-')}"
+                    f" | 热度 {theme.get('theme_score', 0):.1f}"
+                    f"{social_text}",
+                    expanded=(idx == 1),
+                ):
+                    leader_df = pd.DataFrame([{
+                        "代码": x.get("symbol", ""),
+                        "现价": f"{x.get('price', 0):.2f}",
+                        "20日涨幅": f"{x.get('ret20', 0):+.1f}%",
+                        "60日涨幅": f"{x.get('ret60', 0):+.1f}%",
+                        "量比(5/20)": f"{x.get('vol_ratio', 0):.2f}" if pd.notna(x.get("vol_ratio")) else "-",
+                        "BLUE(日)": f"{x.get('blue_daily', 0):.0f}" if pd.notna(x.get("blue_daily")) else "-",
+                        "龙头分": f"{x.get('leader_score', 0):.1f}",
+                    } for x in leaders])
+
+                    st.dataframe(leader_df, use_container_width=True, hide_index=True)
+
+                    a1, a2 = st.columns([2, 1])
+                    with a1:
+                        st.caption("可直接把该主题Top龙头加入观察列表，做每日跟踪。")
+                    with a2:
+                        if st.button(f"⭐ 关注Top{min(3, len(leaders))}", key=f"watch_theme_{market}_{idx}"):
+                            try:
+                                from services.theme_radar_service import add_theme_leaders_to_watchlist
+
+                                ret = add_theme_leaders_to_watchlist(
+                                    theme_data=theme,
+                                    market=market,
+                                    top_n=min(3, len(leaders)),
+                                )
+                                if ret.get("added", 0) > 0:
+                                    st.success(f"✅ 已加入 {ret['added']} 只：{ret.get('theme', '')}")
+                                if ret.get("failed"):
+                                    st.warning(f"⚠️ 加入失败: {', '.join(ret['failed'])}")
+                            except Exception as e:
+                                st.error(f"加入观察失败: {e}")
 
     
     # ============================================
