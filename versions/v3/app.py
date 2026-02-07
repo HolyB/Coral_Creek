@@ -10061,6 +10061,75 @@ def render_paper_trading_page():
             except Exception as e:
                 _show_trade_error(e)
 
+    st.markdown("---")
+
+    # 订单管理
+    st.markdown("#### 订单管理")
+    order_status = st.radio(
+        "订单状态",
+        ["open", "closed", "all"],
+        horizontal=True,
+        format_func=lambda x: {"open": "待成交", "closed": "已结束", "all": "全部"}[x],
+        key="alpaca_order_status_main"
+    )
+
+    try:
+        orders = trader.get_orders(order_status)
+    except Exception as e:
+        st.error(f"❌ 获取订单失败: {e}")
+        orders = []
+
+    if not orders:
+        label_map = {"open": "待成交", "closed": "已结束", "all": ""}
+        st.info(f"暂无{label_map[order_status]}订单")
+    else:
+        order_data = []
+        for order in orders:
+            created_at = order.get("created_at") or ""
+            order_data.append({
+                "订单ID": str(order.get("id", ""))[:8] + "...",
+                "股票": order.get("symbol", ""),
+                "方向": "买入" if order.get("side") == "buy" else "卖出",
+                "类型": order.get("type", ""),
+                "数量": order.get("qty", ""),
+                "已成交": order.get("filled_qty", 0),
+                "状态": order.get("status", ""),
+                "均价": f"${float(order.get('filled_avg_price')):.2f}" if order.get("filled_avg_price") else "-",
+                "创建时间": created_at[:19] if created_at else ""
+            })
+
+        st.dataframe(pd.DataFrame(order_data), use_container_width=True, hide_index=True)
+
+        if order_status == "open":
+            st.caption("可对待成交订单执行撤单")
+            col_o1, col_o2, col_o3 = st.columns([3, 1, 1])
+            with col_o1:
+                selected_open_order = st.selectbox(
+                    "选择订单",
+                    options=orders,
+                    format_func=lambda x: (
+                        f"{x.get('symbol', '')} | {x.get('side', '')} {x.get('qty', '')}股"
+                        f" | 状态: {x.get('status', '')}"
+                    ),
+                    key="alpaca_open_order_select_main"
+                )
+            with col_o2:
+                if st.button("撤销订单", key="alpaca_cancel_order_btn_main"):
+                    ok = trader.cancel_order(selected_open_order["id"])
+                    if ok:
+                        st.success("✅ 订单已撤销")
+                        st.rerun()
+                    else:
+                        st.error("❌ 撤销失败")
+            with col_o3:
+                if st.button("全部撤单", key="alpaca_cancel_all_orders_btn_main"):
+                    ok = trader.cancel_all_orders()
+                    if ok:
+                        st.success("✅ 已提交全部撤单")
+                        st.rerun()
+                    else:
+                        st.error("❌ 全部撤单失败")
+
 
 
 
