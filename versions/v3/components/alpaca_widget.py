@@ -395,13 +395,27 @@ def render_inline_backtest(symbol: str, market: str = 'US', days: int = 365):
         from indicator_utils import calculate_blue_signal_series, calculate_heima_signal_series
         import numpy as np
         
-        # 缓存键
-        cache_key = f"backtest_{symbol}_{market}_{days}"
-        
+        # 持仓周期选择
+        hold_options = [5, 10, 20]
+        col_title, col_period = st.columns([2, 1])
+        with col_title:
+            st.markdown("**📈 快速回测**")
+        with col_period:
+            hold_days = st.selectbox(
+                "持有天数",
+                hold_options,
+                index=1,
+                key=f"hold_days_{symbol}_{market}",
+                label_visibility="collapsed"
+            )
+
+        # 缓存键包含持仓周期，切换 5/10/20 天会触发重算
+        cache_key = f"backtest_{symbol}_{market}_{days}_{hold_days}"
+
         # 检查缓存 (session_state)
         if cache_key in st.session_state:
             cached = st.session_state[cache_key]
-            _render_backtest_results(cached['results'], cached['hold_days'])
+            _render_backtest_results(cached['results'], hold_days)
             return
         
         # 获取数据
@@ -449,22 +463,6 @@ def render_inline_backtest(symbol: str, market: str = 'US', days: int = 365):
             {'name': '量价齐升', 'signal': (blue > 100) & (vol_ratio > 1.5), 'color': '#E91E63'},
         ]
         
-        # 持仓周期选择
-        hold_options = [5, 10, 20]
-        
-        # 使用 columns 显示持仓周期选择
-        col_title, col_period = st.columns([2, 1])
-        with col_title:
-            st.markdown("**📈 快速回测**")
-        with col_period:
-            hold_days = st.selectbox(
-                "持有天数",
-                hold_options,
-                index=1,
-                key=f"hold_days_{symbol}_{market}",
-                label_visibility="collapsed"
-            )
-        
         # 执行回测
         results = []
         
@@ -502,7 +500,6 @@ def render_inline_backtest(symbol: str, market: str = 'US', days: int = 365):
         # 缓存结果
         st.session_state[cache_key] = {
             'results': results,
-            'hold_days': hold_days
         }
         
         _render_backtest_results(results, hold_days)
@@ -548,4 +545,3 @@ def _render_backtest_results(results: list, hold_days: int):
                 """, unsafe_allow_html=True)
     
     st.caption(f"📅 回测期间: 过去1年 | 持有 {hold_days} 天")
-
