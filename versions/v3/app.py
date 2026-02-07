@@ -31,13 +31,56 @@ st.set_page_config(
 )
 
 # --- 加载自定义 CSS ---
+# --- 加载自定义 CSS ---
 def load_custom_css():
-    """加载自定义 CSS 样式"""
-    css_path = os.path.join(current_dir, "static", "custom.css")
-    if os.path.exists(css_path):
-        with open(css_path, 'r', encoding='utf-8') as f:
-            css = f.read()
-        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+    """加载自定义 CSS 样式 (含移动端优化)"""
+    
+    # 基础样式
+    base_css = """
+    <style>
+        /* 移动端响应式优化 */
+        @media (max-width: 768px) {
+            /* 调整 tab 字体大小 */
+            .stTabs [data-baseweb="tab"] {
+                font-size: 0.85em;
+                padding: 4px 8px;
+                min-width: auto;
+            }
+            /* 调整指标卡片内边距 */
+            div[data-testid="metric-container"] {
+                padding: 4px;
+                min-height: auto;
+            }
+            div[data-testid="metric-container"] label {
+                font-size: 0.8em;
+            }
+            div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
+                font-size: 1.1em;
+            }
+            /* 侧边栏调整 */
+            section[data-testid="stSidebar"] {
+                width: 250px !important;
+            }
+            /* 按钮间距 */
+            .stButton button {
+                padding: 0.25rem 0.5rem;
+            }
+        }
+        
+        /* 浮动操作栏样式优化 */
+        .floating-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #1E1E1E;
+            z-index: 999;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+            border-top: 1px solid #333;
+        }
+    </style>
+    """
+    st.markdown(base_css, unsafe_allow_html=True)
 
 # 应用自定义样式
 load_custom_css()
@@ -9809,41 +9852,66 @@ def render_paper_trading_tab():
 
         # 子账户权益曲线对比
         st.markdown("#### 📊 子账户权益曲线对比")
-        curve_options = [a for a in sub_names]
-        default_compare = [selected_account] if selected_account in curve_options else curve_options[:1]
-        compare_accounts = st.multiselect(
-            "选择对比子账户",
-            options=curve_options,
-            default=default_compare,
-            key="paper_compare_accounts"
-        )
+        
+        col_curve_sel, col_curve_opt = st.columns([3, 1])
+        with col_curve_sel:
+            curve_options = [a for a in sub_names]
+            # 默认选中当前账户和表现最好的账户（如果有）
+            default_compare = [selected_account]
+            if len(sub_names) > 1 and sub_names[0] != selected_account:
+                default_compare.append(sub_names[0])
+                
+            compare_accounts = st.multiselect(
+                "选择对比子账户",
+                options=curve_options,
+                default=default_compare[:3], # 最多默认选3个
+                key="paper_compare_accounts"
+            )
+        
+        with col_curve_opt:
+            normalize_curve = st.checkbox("归一化 (起点=100)", value=True, help="将所有账户起始资金设为100，便于对比收益率走势")
+
         if compare_accounts:
-            import plotly.graph_objects as go
-            fig_compare = go.Figure()
-            plotted = 0
-            for acc_name in compare_accounts:
-                curve = get_paper_equity_curve(acc_name)
-                if curve.empty or 'date' not in curve.columns or 'total_equity' not in curve.columns:
-                    continue
-                fig_compare.add_trace(
-                    go.Scatter(
-                        x=curve['date'],
-                        y=curve['total_equity'],
-                        mode='lines',
-                        name=acc_name
+            try:
+                from services.portfolio_service import get_multi_account_equity_curves
+                df_curves = get_multi_account_equity_curves(compare_accounts, normalize=normalize_curve)
+                
+                if not df_curves.empty:
+                    import plotly.graph_objects as go
+                    fig_compare = go.Figure()
+                    
+                    for col in df_curves.columns:
+                        if col == 'date': 
+                            continue
+                            
+                        fig_compare.add_trace(go.Scatter(
+                            x=df_curves['date'],
+                            y=df_curves[col],
+                            mode='lines',
+                            name=col,
+                            hovertemplate='%{y:.2f}'
+                        ))
+                    
+                    y_title = "相对收益 (起点=100)" if normalize_curve else "总权益 ($)"
+                    
+                    fig_compare.update_layout(
+                        height=350,
+                        margin=dict(l=20, r=20, t=30, b=20),
+                        xaxis_title="日期",
+                        yaxis_title=y_title,
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                        hovermode="x unified"
                     )
-                )
-                plotted += 1
-            if plotted > 0:
-                fig_compare.update_layout(
-                    height=320,
-                    xaxis_title="日期",
-                    yaxis_title="权益 ($)",
-                    legend_title="子账户"
-                )
-                st.plotly_chart(fig_compare, use_container_width=True)
-            else:
-                st.info("所选子账户暂无权益曲线数据")
+                    
+                    # 如果是归一化，画一条 100 的基准线
+                    if normalize_curve:
+                        fig_compare.add_hline(y=100, line_dash="dot", line_color="gray", opacity=0.5)
+                        
+                    st.plotly_chart(fig_compare, use_container_width=True)
+                else:
+                    st.info("所选子账户暂无足够数据生成曲线")
+            except Exception as e:
+                st.error(f"生成图表失败: {e}")
         else:
             st.info("请选择至少一个子账户进行对比")
         

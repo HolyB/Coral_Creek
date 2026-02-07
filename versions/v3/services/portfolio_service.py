@@ -825,7 +825,117 @@ def get_paper_monthly_returns(account_name: str = 'default') -> pd.DataFrame:
     return monthly[['year', 'month', 'return_pct']]
 
 
+def get_multi_account_equity_curves(account_names: List[str] = None, normalize: bool = True) -> pd.DataFrame:
+    """
+    获取多个子账户的权益曲线（用于对比图表）
+    
+    Args:
+        account_names: 账户名列表，None 表示所有账户
+        normalize: 是否归一化到 100 起点（便于对比）
+    
+    Returns:
+        DataFrame with columns: date, account_1, account_2, ...
+        每列是该账户的权益值（或归一化后的值）
+    """
+    if account_names is None:
+        accounts = list_paper_accounts()
+        account_names = [a['account_name'] for a in accounts]
+    
+    if not account_names:
+        return pd.DataFrame()
+    
+    # 收集所有账户的权益曲线
+    all_curves = {}
+    all_dates = set()
+    
+    for name in account_names:
+        curve = get_paper_equity_curve(name)
+        if not curve.empty:
+            curve['date'] = pd.to_datetime(curve['date'])
+            curve = curve.set_index('date')
+            
+            if normalize:
+                # 归一化：初始值 = 100
+                initial_equity = curve['total_equity'].iloc[0]
+                if initial_equity > 0:
+                    curve['normalized'] = curve['total_equity'] / initial_equity * 100
+                else:
+                    curve['normalized'] = 100
+                all_curves[name] = curve['normalized']
+            else:
+                all_curves[name] = curve['total_equity']
+            
+            all_dates.update(curve.index.tolist())
+    
+    if not all_curves:
+        return pd.DataFrame()
+    
+    # 创建日期索引
+    date_index = pd.DatetimeIndex(sorted(all_dates))
+    
+    # 合并所有曲线
+    result = pd.DataFrame(index=date_index)
+    
+    for name, series in all_curves.items():
+        result[name] = series
+    
+    # 前向填充 + 后向填充缺失值
+    result = result.ffill().bfill()
+    
+    # 重置索引
+    result = result.reset_index()
+    result = result.rename(columns={'index': 'date'})
+    
+    return result
+
+
+def get_multi_account_performance_summary(account_names: List[str] = None) -> List[Dict]:
+    """
+    获取多个子账户的绩效摘要（用于对比表格）
+    
+    Returns:
+        List of dicts with: account_name, total_return, win_rate, max_drawdown, trade_count
+    """
+    if account_names is None:
+        accounts = list_paper_accounts()
+        account_names = [a['account_name'] for a in accounts]
+    
+    results = []
+    
+    for name in account_names:
+        perf = get_paper_account_performance(name)
+        
+        # 计算最大回撤
+        curve = get_paper_equity_curve(name)
+        max_dd = 0
+        if not curve.empty and len(curve) > 1:
+            equity = curve['total_equity'].values
+            peak = equity[0]
+            for e in equity:
+                if e > peak:
+                    peak = e
+                dd = (peak - e) / peak * 100
+                if dd > max_dd:
+                    max_dd = dd
+        
+        results.append({
+            'account_name': name,
+            'total_return': perf.get('total_return_pct', 0),
+            'win_rate': perf.get('win_rate', 0),
+            'max_drawdown': max_dd,
+            'trade_count': perf.get('total_trades', 0),
+            'position_count': perf.get('total_positions', 0),
+            'avg_position': perf.get('avg_position_size', 0)
+        })
+    
+    # 按收益排序
+    results.sort(key=lambda x: x['total_return'], reverse=True)
+    
+    return results
+
+
 def get_realized_pnl_history(account_name: str = 'default') -> List[Dict]:
+
     """
     获取已实现盈亏历史 (每笔卖出的盈亏)
     """
