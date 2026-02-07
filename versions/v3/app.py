@@ -3221,13 +3221,22 @@ def render_scan_page():
     master_cache_key = f"master_analysis_{selected_date}_{selected_market}"
     master_details_key = f"{master_cache_key}_details"
     
-    col_master1, col_master2 = st.columns([1, 4])
+    col_master1, col_master2, col_master3 = st.columns([1, 3, 2])
     with col_master1:
         analyze_master = st.button("🤖 大师深度分析", help="基于5位大师策略分析前20只股票 (需获取历史数据，较慢)")
     with col_master2:
         if master_cache_key in st.session_state:
             cached_master = len([v for v in st.session_state[master_cache_key].values() if v])
             st.caption(f"✅ 已生成 {cached_master} 份大师报告")
+    with col_master3:
+        master_profile = st.selectbox(
+            "策略偏好",
+            options=["short", "medium", "long"],
+            index=["short", "medium", "long"].index(st.session_state.get("master_profile", "medium")),
+            key="master_profile_selector_scan",
+            help="short=偏交易, medium=平衡, long=偏中长线稳健"
+        )
+        st.session_state["master_profile"] = master_profile
 
     if analyze_master and 'Ticker' in df.columns and len(df) > 0:
         try:
@@ -3301,7 +3310,10 @@ def render_scan_page():
                         )
                         
                         # 3. 汇总结果
-                        summary = get_master_summary_for_stock(analyses)
+                        summary = get_master_summary_for_stock(
+                            analyses,
+                            profile=st.session_state.get("master_profile", "medium")
+                        )
                         
                         # 存入结果
                         master_results[ticker] = summary['overall_action']
@@ -4234,7 +4246,10 @@ def render_scan_page():
                                 )
                                 
                                 # 汇总
-                                summary = get_master_summary_for_stock(analyses)
+                                summary = get_master_summary_for_stock(
+                                    analyses,
+                                    profile=st.session_state.get("master_profile", "medium")
+                                )
                                 master_res[ticker] = summary
                                 master_details[ticker] = analyses
                                 
@@ -4409,7 +4424,10 @@ def render_scan_page():
                     
                     # 1. 总体评价
                     from strategies.master_strategies import get_master_summary_for_stock
-                    summary = get_master_summary_for_stock(analyses)
+                    summary = get_master_summary_for_stock(
+                        analyses,
+                        profile=st.session_state.get("master_profile", "medium")
+                    )
                     
                     # 显示共识信号
                     signal = summary.get('overall_signal', 'HOLD')
@@ -11220,14 +11238,15 @@ def render_ml_prediction_page():
     col1, col2, col3 = st.columns([1, 1, 2])
     with col1:
         market = st.selectbox("市场", ["US", "CN"], key="ml_market")
-    with col2:
-        horizon = st.selectbox("预测周期", ["5d", "1d", "10d", "30d"], key="ml_horizon")
     
     # 检查模型是否存在
     model_dir = Path(__file__).parent / "ml" / "saved_models" / f"v2_{market.lower()}"
     meta_path = model_dir / "return_predictor_meta.json"
     ranker_meta_path = model_dir / "ranker_meta.json"
     cost_profile_path = model_dir / "training_cost_profile.json"
+    objective_path = model_dir / "training_objective.json"
+    stability_path = model_dir / "feature_stability_report.json"
+    walk_forward_path = model_dir / "walk_forward_report.json"
     
     if not meta_path.exists():
         st.warning("⚠️ 模型未训练")
@@ -11256,6 +11275,13 @@ def render_ml_prediction_page():
     # 加载模型元数据
     with open(meta_path) as f:
         meta = json.load(f)
+
+    available_horizons = meta.get('horizons') or list((meta.get('metrics') or {}).keys())
+    if not available_horizons:
+        available_horizons = ["5d"]
+    default_h = "20d" if "20d" in available_horizons else available_horizons[0]
+    with col2:
+        horizon = st.selectbox("预测周期", available_horizons, index=available_horizons.index(default_h), key="ml_horizon")
     
     # 加载排序模型元数据
     ranker_meta = {}
@@ -11271,18 +11297,42 @@ def render_ml_prediction_page():
                 cost_profile = json.load(f)
         except Exception:
             cost_profile = {}
+
+    objective_meta = {}
+    if objective_path.exists():
+        try:
+            with open(objective_path) as f:
+                objective_meta = json.load(f)
+        except Exception:
+            objective_meta = {}
+
+    stability_meta = {}
+    if stability_path.exists():
+        try:
+            with open(stability_path) as f:
+                stability_meta = json.load(f)
+        except Exception:
+            stability_meta = {}
+
+    walk_forward_meta = {}
+    if walk_forward_path.exists():
+        try:
+            with open(walk_forward_path) as f:
+                walk_forward_meta = json.load(f)
+        except Exception:
+            walk_forward_meta = {}
     
     # ==================================
     # 📊 模型概览 - 详细指标
     # ==================================
     st.markdown("### 📊 模型概览")
     
-    model_tab1, model_tab2, model_tab3, model_tab4, model_tab5 = st.tabs([
-        "📈 收益预测模型", "🏆 排序模型", "🔧 特征重要性", "⚙️ 超参数调优", "🔗 模型对比"
+    model_tab1, model_tab2, model_tab3, model_tab4, model_tab5, model_tab6 = st.tabs([
+        "📈 收益预测模型", "🏆 排序模型", "🔧 特征重要性", "⚙️ 超参数调优", "🔗 模型对比", "🧪 稳定性"
     ])
     
     with model_tab1:
-        st.markdown("**Return Predictor** - 预测 1/5/10/30 天收益率")
+        st.markdown("**Return Predictor** - 预测 5/20/60 天收益率（中长线优先）")
 
         if cost_profile:
             st.caption(
@@ -11290,6 +11340,9 @@ def render_ml_prediction_page():
                 f"滑点 {cost_profile.get('slippage_bps', 0):.1f}bps（单边），"
                 f"双边合计 {cost_profile.get('round_trip_cost_pct', 0):.2f}%"
             )
+        if objective_meta:
+            primary = ",".join(objective_meta.get("primary_horizons", []))
+            st.caption(f"训练目标: {primary} 超额收益 + 回撤惩罚")
 
             horizon_cost_rows = []
             for h, v in (cost_profile.get('horizons') or {}).items():
@@ -11363,7 +11416,7 @@ def render_ml_prediction_page():
         
         if ranker_meta.get('metrics'):
             ranker_data = []
-            horizon_labels = {'short': '短线 (1-5天)', 'medium': '中线 (10-30天)', 'long': '长线 (60+天)'}
+            horizon_labels = {'short': '短线 (5天)', 'medium': '中线 (20天)', 'long': '长线 (60天)'}
             
             for h, m in ranker_meta.get('metrics', {}).items():
                 group_display = m.get('n_groups')
@@ -11390,6 +11443,53 @@ def render_ml_prediction_page():
             """)
         else:
             st.info("排序模型未训练")
+
+    with model_tab6:
+        st.markdown("**稳健性验证** - 特征稳定性 + Walk-forward")
+
+        if stability_meta:
+            summary = stability_meta.get('summary', {})
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.metric("特征数", int(summary.get('feature_count', 0)))
+            with c2:
+                st.metric("平均缺失率", f"{summary.get('avg_missing_rate', 0)*100:.1f}%")
+            with c3:
+                st.metric("平均漂移分", f"{summary.get('avg_drift_score', 0):.2f}")
+            with c4:
+                st.metric("平均|IC20|", f"{summary.get('avg_abs_ic20', 0):.3f}")
+
+            stable_df = pd.DataFrame(stability_meta.get('top_stable_features', [])[:15])
+            unstable_df = pd.DataFrame(stability_meta.get('top_unstable_features', [])[:15])
+            lcol, rcol = st.columns(2)
+            with lcol:
+                st.caption("Top 稳定特征")
+                if not stable_df.empty:
+                    show = stable_df[['feature', 'stability_score', 'missing_rate', 'drift_score', 'ic_20d', 'ic_60d']]
+                    st.dataframe(show, hide_index=True, use_container_width=True)
+            with rcol:
+                st.caption("Top 不稳定特征")
+                if not unstable_df.empty:
+                    show = unstable_df[['feature', 'stability_score', 'missing_rate', 'drift_score', 'ic_20d', 'ic_60d']]
+                    st.dataframe(show, hide_index=True, use_container_width=True)
+        else:
+            st.info("暂无特征稳定性报告，请先训练一次模型。")
+
+        st.divider()
+        if walk_forward_meta:
+            status = walk_forward_meta.get('status')
+            if status == 'ok':
+                w1, w2, w3 = st.columns(3)
+                with w1:
+                    st.metric("Walk-forward 折数", int(walk_forward_meta.get('n_folds', 0)))
+                with w2:
+                    st.metric("平均Spearman IC", f"{walk_forward_meta.get('avg_spearman_ic', 0):.3f}")
+                with w3:
+                    st.metric("Top20平均收益", f"{walk_forward_meta.get('avg_top20_return', 0):+.2f}%")
+            else:
+                st.warning(f"Walk-forward 未运行: {walk_forward_meta.get('reason', 'unknown')}")
+        else:
+            st.info("暂无 Walk-forward 报告，请先训练一次模型。")
     
     with model_tab3:
         st.markdown("**特征重要性** - 哪些特征对预测最重要")

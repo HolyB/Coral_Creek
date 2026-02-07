@@ -18,6 +18,7 @@ from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 import time
+import json
 
 # 添加项目路径
 project_root = Path(__file__).parent.parent
@@ -41,6 +42,8 @@ class MLPipeline:
         self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}"
         self.model_dir.mkdir(parents=True, exist_ok=True)
         self.label_cost_profile: Dict[str, Dict] = {}
+        self.feature_stability_report: Dict[str, Dict] = {}
+        self.walk_forward_report: Dict[str, Dict] = {}
         # 统一目标口径: 中长线优先 + 超额收益 + 回撤惩罚
         self.objective_config = {
             "primary_horizons": ["20d", "60d"],
@@ -70,6 +73,180 @@ class MLPipeline:
             tmp[valid] = vals[valid] - median_val
             excess[mask] = tmp
         return excess
+
+    def _build_feature_stability_report(
+        self,
+        X_raw: np.ndarray,
+        feature_names: List[str],
+        groups: np.ndarray,
+        returns_dict: Dict[str, np.ndarray],
+    ) -> Dict:
+        """生成特征稳定性报告（缺失率/漂移/IC）"""
+        if X_raw is None or len(X_raw) == 0 or len(feature_names) == 0:
+            return {}
+
+        report_rows = []
+        n = len(X_raw)
+        split = int(n * 0.6)
+        split = min(max(split, 1), n - 1) if n > 1 else 1
+
+        y20 = returns_dict.get('20d', np.array([]))
+        y60 = returns_dict.get('60d', np.array([]))
+
+        for i, feat in enumerate(feature_names):
+            col = X_raw[:, i]
+            col = np.asarray(col, dtype=float)
+            missing_rate = float(np.isnan(col).mean()) if len(col) else 1.0
+
+            first = col[:split]
+            last = col[split:]
+            first_valid = first[~np.isnan(first)]
+            last_valid = last[~np.isnan(last)]
+
+            mean_first = float(np.mean(first_valid)) if len(first_valid) else 0.0
+            mean_last = float(np.mean(last_valid)) if len(last_valid) else 0.0
+            std_first = float(np.std(first_valid)) if len(first_valid) else 0.0
+            std_last = float(np.std(last_valid)) if len(last_valid) else 0.0
+
+            pooled_std = (std_first + std_last) / 2.0 if (std_first + std_last) > 0 else 1.0
+            drift_score = abs(mean_last - mean_first) / pooled_std
+
+            ic20 = np.nan
+            if len(y20) == len(col):
+                valid = ~np.isnan(col) & ~np.isnan(y20)
+                if valid.sum() > 20:
+                    ic20 = pd.Series(col[valid]).corr(pd.Series(y20[valid]), method='spearman')
+
+            ic60 = np.nan
+            if len(y60) == len(col):
+                valid = ~np.isnan(col) & ~np.isnan(y60)
+                if valid.sum() > 20:
+                    ic60 = pd.Series(col[valid]).corr(pd.Series(y60[valid]), method='spearman')
+
+            report_rows.append({
+                'feature': feat,
+                'missing_rate': float(missing_rate),
+                'drift_score': float(drift_score),
+                'ic_20d': float(ic20) if pd.notna(ic20) else np.nan,
+                'ic_60d': float(ic60) if pd.notna(ic60) else np.nan,
+            })
+
+        df = pd.DataFrame(report_rows)
+        if df.empty:
+            return {}
+
+        # 统一稳定性评分：低缺失、低漂移、高|IC|
+        ic_abs = (df['ic_20d'].abs().fillna(0) + df['ic_60d'].abs().fillna(0)) / 2.0
+        df['stability_score'] = (
+            (1.0 - df['missing_rate'].clip(0, 1)) * 0.35
+            + (1.0 / (1.0 + df['drift_score'].clip(lower=0))) * 0.30
+            + (ic_abs.clip(0, 1)) * 0.35
+        )
+
+        top_stable = df.sort_values('stability_score', ascending=False).head(30)
+        top_unstable = df.sort_values('stability_score', ascending=True).head(30)
+
+        summary = {
+            'feature_count': int(len(df)),
+            'avg_missing_rate': float(df['missing_rate'].mean()),
+            'avg_drift_score': float(df['drift_score'].mean()),
+            'avg_abs_ic20': float(df['ic_20d'].abs().mean(skipna=True)),
+            'avg_abs_ic60': float(df['ic_60d'].abs().mean(skipna=True)),
+        }
+
+        return {
+            'summary': summary,
+            'top_stable_features': top_stable.to_dict('records'),
+            'top_unstable_features': top_unstable.to_dict('records'),
+        }
+
+    def _run_walk_forward_eval(
+        self,
+        X: np.ndarray,
+        returns_dict: Dict[str, np.ndarray],
+        groups: np.ndarray,
+    ) -> Dict:
+        """滚动训练-测试评估，验证中长线目标稳健性"""
+        try:
+            import xgboost as xgb
+        except Exception:
+            return {'status': 'skipped', 'reason': 'xgboost_not_available'}
+
+        y = returns_dict.get('20d')
+        if y is None or len(y) != len(X):
+            return {'status': 'skipped', 'reason': 'missing_20d_target'}
+
+        unique_groups = np.array(sorted(np.unique(groups)))
+        if len(unique_groups) < 80:
+            return {'status': 'skipped', 'reason': f'not_enough_groups:{len(unique_groups)}'}
+
+        train_span = 50
+        test_span = 10
+        step = 10
+
+        folds = []
+        for start in range(0, len(unique_groups) - train_span - test_span + 1, step):
+            tr_g = unique_groups[start:start + train_span]
+            te_g = unique_groups[start + train_span:start + train_span + test_span]
+            tr_mask = np.isin(groups, tr_g)
+            te_mask = np.isin(groups, te_g)
+
+            X_tr, y_tr = X[tr_mask], y[tr_mask]
+            X_te, y_te = X[te_mask], y[te_mask]
+            g_te = groups[te_mask]
+
+            valid_tr = ~np.isnan(y_tr)
+            valid_te = ~np.isnan(y_te)
+            X_tr, y_tr = X_tr[valid_tr], y_tr[valid_tr]
+            X_te, y_te, g_te = X_te[valid_te], y_te[valid_te], g_te[valid_te]
+
+            if len(X_tr) < 200 or len(X_te) < 50:
+                continue
+
+            model = xgb.XGBRegressor(
+                n_estimators=180,
+                max_depth=5,
+                learning_rate=0.05,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                random_state=42,
+            )
+            model.fit(X_tr, y_tr, verbose=False)
+            pred = model.predict(X_te)
+
+            ic = pd.Series(pred).corr(pd.Series(y_te), method='spearman')
+            dir_acc = float(((pred > 0) == (y_te > 0)).mean())
+
+            top_returns = []
+            for g in np.unique(g_te):
+                m = g_te == g
+                if m.sum() < 5:
+                    continue
+                idx = np.argsort(-pred[m])
+                k = max(1, int(len(idx) * 0.2))
+                top_returns.append(float(np.mean(y_te[m][idx[:k]])))
+            top_ret = float(np.mean(top_returns)) if top_returns else np.nan
+
+            folds.append({
+                'train_groups': int(len(tr_g)),
+                'test_groups': int(len(te_g)),
+                'spearman_ic': float(ic) if pd.notna(ic) else np.nan,
+                'direction_acc': dir_acc,
+                'top20_avg_return': top_ret,
+            })
+
+        if not folds:
+            return {'status': 'skipped', 'reason': 'no_valid_folds'}
+
+        df = pd.DataFrame(folds)
+        return {
+            'status': 'ok',
+            'n_folds': int(len(df)),
+            'avg_spearman_ic': float(df['spearman_ic'].mean(skipna=True)),
+            'avg_direction_acc': float(df['direction_acc'].mean(skipna=True)),
+            'avg_top20_return': float(df['top20_avg_return'].mean(skipna=True)),
+            'folds': folds,
+        }
     
     def fetch_and_store_history(self, symbols: List[str], 
                                  days: int = 365,
@@ -322,7 +499,8 @@ class MLPipeline:
         numeric_cols = features_df.select_dtypes(include=[np.number]).columns.tolist()
         feature_names = [c for c in numeric_cols if c not in ['Date']]
         
-        X = features_df[feature_names].values
+        X_raw = features_df[feature_names].values.astype(float)
+        X = X_raw.copy()
         X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
         
         # 限制极端值
@@ -344,6 +522,14 @@ class MLPipeline:
                     lam = float(self.objective_config["risk_penalty_lambda"].get(horizon, 0.0))
                     adj = excess - lam * np.nan_to_num(dd, nan=0.0)
                     returns_dict[horizon] = adj
+
+        # 生成特征稳定性报告
+        self.feature_stability_report = self._build_feature_stability_report(
+            X_raw=X_raw,
+            feature_names=feature_names,
+            groups=groups,
+            returns_dict=returns_dict,
+        )
         
         info_df = pd.DataFrame(all_info)
         
@@ -433,6 +619,16 @@ class MLPipeline:
                 json.dump(self.label_cost_profile, f, indent=2)
         with open(self.model_dir / "training_objective.json", 'w') as f:
             json.dump(self.objective_config, f, indent=2)
+        if self.feature_stability_report:
+            with open(self.model_dir / "feature_stability_report.json", 'w') as f:
+                json.dump(self.feature_stability_report, f, indent=2)
+
+        # Walk-forward 稳健性验证
+        self.walk_forward_report = self._run_walk_forward_eval(X, returns_dict, groups)
+        with open(self.model_dir / "walk_forward_report.json", 'w') as f:
+            json.dump(self.walk_forward_report, f, indent=2)
+        results['feature_stability'] = self.feature_stability_report
+        results['walk_forward'] = self.walk_forward_report
         
         print(f"\n{'='*60}")
         print("✅ 训练完成!")

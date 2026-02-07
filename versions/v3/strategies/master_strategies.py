@@ -1031,7 +1031,7 @@ def _analyze_blue_indicator(blue_daily: float = None, blue_weekly: float = None,
         )
 
 
-def get_master_summary_for_stock(analyses: Dict[str, MasterAnalysis]) -> Dict:
+def get_master_summary_for_stock(analyses: Dict[str, MasterAnalysis], profile: str = "medium") -> Dict:
     """
     汇总各大师的分析，给出综合建议
     
@@ -1069,16 +1069,44 @@ def get_master_summary_for_stock(analyses: Dict[str, MasterAnalysis]) -> Dict:
     
     confidence_sum = 0
     
-    # 大师权重 (基于策略适用性)
-    # 趋势明确时: 蔡森、BLUE 权重高
-    # 震荡市: 萧明道、DeMark 权重高
-    default_weights = {
-        'cai_sen': 1.0,      # 量价突破
-        'td_sequential': 0.8, # 拐点捕捉
-        'xiao_mingdao': 1.0,  # 均线结构
-        'heima': 0.9,         # 爆发力
-        'blue': 1.2           # BLUE 趋势 (核心指标)
-    }
+    # 策略组合层：按交易偏好给不同大师动态配权
+    profile = (profile or "medium").lower()
+    if profile == "short":
+        default_weights = {
+            'cai_sen': 1.15,       # 量价突破更重要
+            'td_sequential': 1.00, # 短期拐点
+            'xiao_mingdao': 0.85,
+            'heima': 1.15,         # 爆发力
+            'blue': 0.95
+        }
+    elif profile == "long":
+        default_weights = {
+            'cai_sen': 0.90,
+            'td_sequential': 0.75,
+            'xiao_mingdao': 1.20,  # 结构稳定
+            'heima': 0.80,
+            'blue': 1.30           # 趋势优先
+        }
+    else:
+        # medium
+        default_weights = {
+            'cai_sen': 1.00,
+            'td_sequential': 0.85,
+            'xiao_mingdao': 1.05,
+            'heima': 0.90,
+            'blue': 1.20
+        }
+
+    # 根据 BLUE 强度做市场状态自适应，减少单一风格失效
+    blue_analysis = analyses.get('blue')
+    if blue_analysis:
+        action_text = str(blue_analysis.action)
+        if "强烈买入" in action_text:
+            default_weights['blue'] = default_weights.get('blue', 1.0) * 1.15
+            default_weights['cai_sen'] = default_weights.get('cai_sen', 1.0) * 1.08
+        elif "回避" in action_text:
+            default_weights['xiao_mingdao'] = default_weights.get('xiao_mingdao', 1.0) * 1.10
+            default_weights['td_sequential'] = default_weights.get('td_sequential', 1.0) * 1.10
     
     buy_masters = []
     sell_masters = []
@@ -1146,6 +1174,7 @@ def get_master_summary_for_stock(analyses: Dict[str, MasterAnalysis]) -> Dict:
     return {
         'overall_action': overall,
         'overall_signal': overall_signal,
+        'profile': profile,
         'consensus_score': round(consensus_score, 1),
         'buy_votes': buy_votes,
         'sell_votes': sell_votes,
@@ -1214,4 +1243,3 @@ if __name__ == "__main__":
     summary = get_master_summary_for_stock(analyses)
     print(f"\n综合: {summary['overall_action']}")
     print(f"买入票数: {summary['buy_votes']}")
-
