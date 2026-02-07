@@ -11321,6 +11321,62 @@ def render_ml_prediction_page():
                 walk_forward_meta = json.load(f)
         except Exception:
             walk_forward_meta = {}
+
+    # ==================================
+    # 🛡️ 风控参数（全局）
+    # ==================================
+    try:
+        from risk.trading_profile import load_trading_profile, save_trading_profile
+        risk_cfg = load_trading_profile()
+    except Exception:
+        risk_cfg = {}
+        save_trading_profile = None
+
+    with st.expander("🛡️ 风控参数", expanded=False):
+        st.caption("这些参数会影响 Smart Picker 的止损/止盈/仓位建议")
+
+        rc1, rc2, rc3 = st.columns(3)
+        with rc1:
+            atr_mult = st.slider("ATR止损倍数", 1.0, 4.0, float(risk_cfg.get("atr_stop_multiplier", 2.0)), 0.1, key="risk_atr_mult")
+            max_stop = st.slider("最大止损(%)", 3.0, 15.0, float(risk_cfg.get("max_stop_loss_pct", 8.0)), 0.5, key="risk_max_stop")
+            target_cap = st.slider("目标收益上限(%)", 5.0, 30.0, float(risk_cfg.get("target_cap_pct", 15.0)), 0.5, key="risk_target_cap")
+        with rc2:
+            rr_high = st.slider("高仓位RR阈值", 1.2, 3.0, float(risk_cfg.get("rr_high", 2.0)), 0.1, key="risk_rr_high")
+            rr_mid = st.slider("中仓位RR阈值", 1.0, 2.5, float(risk_cfg.get("rr_mid", 1.5)), 0.1, key="risk_rr_mid")
+            boost = st.slider("强信号目标放大", 1.0, 1.8, float(risk_cfg.get("strong_signal_target_boost", 1.2)), 0.05, key="risk_boost")
+        with rc3:
+            prob_high = st.slider("高仓位胜率阈值", 0.50, 0.70, float(risk_cfg.get("prob_high", 0.55)), 0.01, key="risk_prob_high")
+            prob_mid = st.slider("中仓位胜率阈值", 0.45, 0.65, float(risk_cfg.get("prob_mid", 0.52)), 0.01, key="risk_prob_mid")
+            pos_low = st.slider("保守仓位(%)", 1.0, 10.0, float(risk_cfg.get("position_low_pct", 5.0)), 0.5, key="risk_pos_low")
+
+        rc4, rc5 = st.columns(2)
+        with rc4:
+            pos_mid = st.slider("中仓位(%)", 5.0, 20.0, float(risk_cfg.get("position_mid_pct", 10.0)), 0.5, key="risk_pos_mid")
+        with rc5:
+            pos_high = st.slider("高仓位(%)", 8.0, 30.0, float(risk_cfg.get("position_high_pct", 15.0)), 0.5, key="risk_pos_high")
+
+        if st.button("💾 保存风控参数", key="save_risk_profile"):
+            if save_trading_profile is None:
+                st.error("风控配置模块不可用")
+            else:
+                payload = {
+                    "atr_stop_multiplier": atr_mult,
+                    "max_stop_loss_pct": max_stop,
+                    "target_cap_pct": target_cap,
+                    "strong_signal_target_boost": boost,
+                    "rr_high": rr_high,
+                    "rr_mid": rr_mid,
+                    "prob_high": prob_high,
+                    "prob_mid": prob_mid,
+                    "position_high_pct": pos_high,
+                    "position_mid_pct": pos_mid,
+                    "position_low_pct": pos_low,
+                }
+                ok = save_trading_profile(payload)
+                if ok:
+                    st.success("✅ 风控参数已保存，新的智能选股会自动生效")
+                else:
+                    st.error("保存失败")
     
     # ==================================
     # 📊 模型概览 - 详细指标

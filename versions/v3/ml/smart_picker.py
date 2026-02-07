@@ -117,6 +117,7 @@ class SmartPicker:
         self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}"
         self.ranker_meta = {}
         self.rank_weights = self._default_rank_weights()
+        self.risk_profile = {}
         
         # 收益预测模型
         self.return_model = None
@@ -127,6 +128,15 @@ class SmartPicker:
         
         self._load_models()
         self.rank_weights = self._compute_dynamic_rank_weights()
+        self._load_risk_profile()
+
+    def _load_risk_profile(self):
+        """加载全局风控参数"""
+        try:
+            from risk.trading_profile import load_trading_profile
+            self.risk_profile = load_trading_profile()
+        except Exception:
+            self.risk_profile = {}
 
     def _default_rank_weights(self) -> Dict[str, float]:
         """按当前交易偏好给出保守默认权重"""
@@ -606,6 +616,18 @@ class SmartPicker:
     def _assess_risk(self, pick: StockPick, history: pd.DataFrame) -> Dict:
         """风险评估"""
         price = pick.price
+        cfg = self.risk_profile or {}
+        atr_mult = float(cfg.get("atr_stop_multiplier", 2.0))
+        max_stop = float(cfg.get("max_stop_loss_pct", 8.0))
+        target_cap = float(cfg.get("target_cap_pct", 15.0))
+        strong_boost = float(cfg.get("strong_signal_target_boost", 1.2))
+        rr_high = float(cfg.get("rr_high", 2.0))
+        rr_mid = float(cfg.get("rr_mid", 1.5))
+        prob_high = float(cfg.get("prob_high", 0.55))
+        prob_mid = float(cfg.get("prob_mid", 0.52))
+        pos_high = float(cfg.get("position_high_pct", 15.0))
+        pos_mid = float(cfg.get("position_mid_pct", 10.0))
+        pos_low = float(cfg.get("position_low_pct", 5.0))
         
         # 默认止损止盈
         default_stop_pct = -5.0
@@ -630,8 +652,8 @@ class SmartPicker:
                 atr = np.mean(tr[-14:]) if len(tr) >= 14 else np.mean(tr)
                 atr_pct = atr / price * 100
                 
-                # 止损 = 2倍ATR
-                default_stop_pct = max(-2 * atr_pct, -8.0)  # 最大8%止损
+                # 止损 = ATR倍数，且受最大止损约束
+                default_stop_pct = max(-atr_mult * atr_pct, -max_stop)
                 
                 # 基于支撑位的止损
                 recent_low = np.min(low[-20:])
@@ -647,11 +669,11 @@ class SmartPicker:
                 resistance_target_pct = (recent_high - price) / price * 100
                 
                 if resistance_target_pct > 3:  # 至少3%空间
-                    default_target_pct = min(resistance_target_pct, 15.0)  # 最大15%
+                    default_target_pct = min(resistance_target_pct, target_cap)
         
         # 根据信号强度调整
         if pick.signal_score >= 4:
-            default_target_pct *= 1.2  # 强信号提高目标
+            default_target_pct *= strong_boost
         
         stop_loss_price = price * (1 + default_stop_pct / 100)
         target_price = price * (1 + default_target_pct / 100)
@@ -665,12 +687,12 @@ class SmartPicker:
         # 凯利比例 = (bp - q) / b
         # 简化: 置信度越高、风险收益比越好，仓位越大
         win_prob = pick.pred_direction_prob
-        if risk_reward_ratio >= 2 and win_prob >= 0.55:
-            position_pct = 15.0  # 高置信度大仓位
-        elif risk_reward_ratio >= 1.5 and win_prob >= 0.52:
-            position_pct = 10.0
+        if risk_reward_ratio >= rr_high and win_prob >= prob_high:
+            position_pct = pos_high
+        elif risk_reward_ratio >= rr_mid and win_prob >= prob_mid:
+            position_pct = pos_mid
         else:
-            position_pct = 5.0  # 保守仓位
+            position_pct = pos_low
         
         return {
             'stop_loss_price': round(stop_loss_price, 2),
