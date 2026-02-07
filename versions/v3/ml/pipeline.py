@@ -27,11 +27,20 @@ sys.path.insert(0, str(project_root))
 class MLPipeline:
     """ML 训练管道"""
     
-    def __init__(self, market: str = 'US', days_back: int = 180):
+    def __init__(self,
+                 market: str = 'US',
+                 days_back: int = 180,
+                 commission_bps: float = 5.0,
+                 slippage_bps: float = 10.0):
         self.market = market
         self.days_back = days_back
+        self.commission_bps = float(commission_bps)
+        self.slippage_bps = float(slippage_bps)
+        # 双边成本: 开仓 + 平仓
+        self.round_trip_cost_pct = 2.0 * (self.commission_bps + self.slippage_bps) / 100.0
         self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}"
         self.model_dir.mkdir(parents=True, exist_ok=True)
+        self.label_cost_profile: Dict[str, Dict] = {}
     
     def fetch_and_store_history(self, symbols: List[str], 
                                  days: int = 365,
@@ -143,7 +152,8 @@ class MLPipeline:
         calculator = FeatureCalculator()
         
         all_features = []
-        all_returns = {f'{d}d': [] for d in [1, 5, 10, 30, 60]}
+        all_returns_gross = {f'{d}d': [] for d in [1, 5, 10, 30, 60]}
+        all_returns_net = {f'{d}d': [] for d in [1, 5, 10, 30, 60]}
         all_drawdowns = {f'{d}d': [] for d in [5, 30, 60]}
         all_groups = []
         all_info = []
@@ -230,10 +240,13 @@ class MLPipeline:
                     future_idx = signal_idx + days
                     if future_idx < len(features_df):
                         future_price = features_df.loc[future_idx, 'Close']
-                        return_pct = (future_price - entry_price) / entry_price * 100
-                        all_returns[f'{days}d'].append(return_pct)
+                        gross_return_pct = (future_price - entry_price) / entry_price * 100
+                        net_return_pct = gross_return_pct - self.round_trip_cost_pct
+                        all_returns_gross[f'{days}d'].append(gross_return_pct)
+                        all_returns_net[f'{days}d'].append(net_return_pct)
                     else:
-                        all_returns[f'{days}d'].append(np.nan)
+                        all_returns_gross[f'{days}d'].append(np.nan)
+                        all_returns_net[f'{days}d'].append(np.nan)
                 
                 # 计算未来最大回撤
                 for days in [5, 30, 60]:
@@ -272,7 +285,8 @@ class MLPipeline:
         # 限制极端值
         X = np.clip(X, -1e6, 1e6)
         
-        returns_dict = {k: np.array(v) for k, v in all_returns.items()}
+        returns_dict = {k: np.array(v) for k, v in all_returns_net.items()}
+        gross_returns_dict = {k: np.array(v) for k, v in all_returns_gross.items()}
         drawdowns_dict = {k: np.array(v) for k, v in all_drawdowns.items()}
         groups = np.array(all_groups)
         
@@ -282,6 +296,33 @@ class MLPipeline:
         print(f"   样本数: {len(X)}")
         print(f"   特征数: {len(feature_names)}")
         print(f"   分组数: {len(np.unique(groups))}")
+        print(f"   训练标签: 净收益 (已扣双边成本 {self.round_trip_cost_pct:.2f}%)")
+
+        # 保存毛/净收益对比画像，供 UI 展示
+        profile = {
+            'market': self.market,
+            'commission_bps': self.commission_bps,
+            'slippage_bps': self.slippage_bps,
+            'round_trip_cost_pct': self.round_trip_cost_pct,
+            'horizons': {}
+        }
+        for k in gross_returns_dict.keys():
+            gross = gross_returns_dict[k]
+            net = returns_dict[k]
+            valid_mask = ~np.isnan(gross) & ~np.isnan(net)
+            if valid_mask.sum() == 0:
+                continue
+            gross_v = gross[valid_mask]
+            net_v = net[valid_mask]
+            profile['horizons'][k] = {
+                'samples': int(valid_mask.sum()),
+                'avg_gross_return_pct': float(np.mean(gross_v)),
+                'avg_net_return_pct': float(np.mean(net_v)),
+                'cost_drag_pct': float(np.mean(gross_v - net_v)),
+                'gross_win_rate_pct': float((gross_v > 0).mean() * 100),
+                'net_win_rate_pct': float((net_v > 0).mean() * 100),
+            }
+        self.label_cost_profile = profile
         
         return X, returns_dict, drawdowns_dict, groups, feature_names, info_df
     
@@ -318,6 +359,7 @@ class MLPipeline:
         return_metrics = return_predictor.train(X, returns_dict, feature_names)
         return_predictor.save(str(self.model_dir))
         results['return_predictor'] = return_metrics
+        results['label_cost_profile'] = self.label_cost_profile
         
         # 3. 训练排序模型
         print("\n" + "="*60)
@@ -330,6 +372,9 @@ class MLPipeline:
         import json
         with open(self.model_dir / "feature_names.json", 'w') as f:
             json.dump(feature_names, f)
+        if self.label_cost_profile:
+            with open(self.model_dir / "training_cost_profile.json", 'w') as f:
+                json.dump(self.label_cost_profile, f, indent=2)
         
         print(f"\n{'='*60}")
         print("✅ 训练完成!")
@@ -349,9 +394,18 @@ class MLPipeline:
         return results
 
 
-def train_pipeline(market: str = 'US', days_back: int = 180, upload: bool = False):
+def train_pipeline(market: str = 'US',
+                   days_back: int = 180,
+                   upload: bool = False,
+                   commission_bps: float = 5.0,
+                   slippage_bps: float = 10.0):
     """便捷训练函数"""
-    pipeline = MLPipeline(market=market, days_back=days_back)
+    pipeline = MLPipeline(
+        market=market,
+        days_back=days_back,
+        commission_bps=commission_bps,
+        slippage_bps=slippage_bps
+    )
     return pipeline.train_all(upload=upload)
 
 
@@ -364,6 +418,8 @@ if __name__ == "__main__":
     parser.add_argument('--days', type=int, default=180, help='数据天数')
     parser.add_argument('--upload', action='store_true', help='上传到 Hub')
     parser.add_argument('--fetch', action='store_true', help='先拉取历史数据')
+    parser.add_argument('--commission-bps', type=float, default=5.0, help='单边手续费 (bps)')
+    parser.add_argument('--slippage-bps', type=float, default=10.0, help='单边滑点 (bps)')
     
     args = parser.parse_args()
     
@@ -375,7 +431,12 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"⚠️ 数据库初始化: {e}")
     
-    pipeline = MLPipeline(market=args.market, days_back=args.days)
+    pipeline = MLPipeline(
+        market=args.market,
+        days_back=args.days,
+        commission_bps=args.commission_bps,
+        slippage_bps=args.slippage_bps
+    )
     
     if args.fetch:
         # 获取信号股票列表 (从 Supabase 或 SQLite)

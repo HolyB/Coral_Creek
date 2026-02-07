@@ -10975,6 +10975,7 @@ def render_ml_prediction_page():
     model_dir = Path(__file__).parent / "ml" / "saved_models" / f"v2_{market.lower()}"
     meta_path = model_dir / "return_predictor_meta.json"
     ranker_meta_path = model_dir / "ranker_meta.json"
+    cost_profile_path = model_dir / "training_cost_profile.json"
     
     if not meta_path.exists():
         st.warning("⚠️ 模型未训练")
@@ -11009,6 +11010,15 @@ def render_ml_prediction_page():
     if ranker_meta_path.exists():
         with open(ranker_meta_path) as f:
             ranker_meta = json.load(f)
+
+    # 加载训练成本画像（毛/净收益对比）
+    cost_profile = {}
+    if cost_profile_path.exists():
+        try:
+            with open(cost_profile_path) as f:
+                cost_profile = json.load(f)
+        except Exception:
+            cost_profile = {}
     
     # ==================================
     # 📊 模型概览 - 详细指标
@@ -11021,6 +11031,30 @@ def render_ml_prediction_page():
     
     with model_tab1:
         st.markdown("**Return Predictor** - 预测 1/5/10/30 天收益率")
+
+        if cost_profile:
+            st.caption(
+                f"训练标签已扣成本: 手续费 {cost_profile.get('commission_bps', 0):.1f}bps + "
+                f"滑点 {cost_profile.get('slippage_bps', 0):.1f}bps（单边），"
+                f"双边合计 {cost_profile.get('round_trip_cost_pct', 0):.2f}%"
+            )
+
+            horizon_cost_rows = []
+            for h, v in (cost_profile.get('horizons') or {}).items():
+                horizon_cost_rows.append({
+                    '周期': h,
+                    '毛收益': f"{v.get('avg_gross_return_pct', 0):+.2f}%",
+                    '净收益': f"{v.get('avg_net_return_pct', 0):+.2f}%",
+                    '成本拖累': f"{v.get('cost_drag_pct', 0):.2f}%",
+                    '毛胜率': f"{v.get('gross_win_rate_pct', 0):.1f}%",
+                    '净胜率': f"{v.get('net_win_rate_pct', 0):.1f}%",
+                    '样本': int(v.get('samples', 0)),
+                })
+            if horizon_cost_rows:
+                horizon_cost_df = pd.DataFrame(horizon_cost_rows)
+                horizon_cost_df = horizon_cost_df[['周期', '毛收益', '净收益', '成本拖累', '毛胜率', '净胜率', '样本']]
+                st.dataframe(horizon_cost_df, hide_index=True, use_container_width=True)
+                st.caption("毛/净对比用于衡量策略交易成本敏感度，净收益更接近真实可交易表现。")
         
         # 所有周期指标对比表
         metrics_data = []
