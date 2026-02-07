@@ -4606,7 +4606,8 @@ def render_portfolio_tab():
         get_portfolio_summary, calculate_portfolio_pnl,
         get_paper_account, paper_buy, paper_sell, 
         get_paper_trades, reset_paper_account,
-        get_paper_equity_curve, get_paper_monthly_returns, get_realized_pnl_history
+        get_paper_equity_curve, get_paper_monthly_returns, get_realized_pnl_history,
+        list_paper_accounts, create_paper_account
     )
     
     # 选择模式
@@ -4757,10 +4758,26 @@ def render_portfolio_tab():
     else:
         st.subheader("🎮 模拟交易账户")
         st.caption("使用虚拟资金测试交易策略，不用真金白银")
+
+        # 策略子账户选择
+        sub_accounts = list_paper_accounts()
+        sub_names = [a['account_name'] for a in sub_accounts] if sub_accounts else ['default']
+        selected_account = st.selectbox("策略子账户", sub_names, key="portfolio_paper_account_name")
+
+        with st.expander("➕ 新建策略子账户", expanded=False):
+            new_sub_name = st.text_input("子账户名称", placeholder="trend_us / meanrev_cn", key="new_paper_subaccount")
+            new_sub_cap = st.number_input("初始资金", min_value=1000.0, value=20000.0, step=1000.0, key="new_paper_sub_cap")
+            if st.button("创建子账户", key="create_paper_subaccount_btn"):
+                created = create_paper_account(new_sub_name.strip(), float(new_sub_cap))
+                if created.get('success'):
+                    st.success(f"✅ 子账户已创建: {created['account_name']}")
+                    st.rerun()
+                else:
+                    st.error(f"❌ {created.get('error', '创建失败')}")
         
         # 获取模拟账户
         with st.spinner("加载模拟账户..."):
-            account = get_paper_account()
+            account = get_paper_account(selected_account)
         
         if not account:
             st.error("模拟账户加载失败")
@@ -4792,7 +4809,7 @@ def render_portfolio_tab():
             if st.button("🛒 买入", type="primary", key="do_paper_buy"):
                 if buy_symbol:
                     price = buy_price if buy_price > 0 else None
-                    result = paper_buy(buy_symbol.upper(), buy_shares, price, buy_market)
+                    result = paper_buy(buy_symbol.upper(), buy_shares, price, buy_market, selected_account)
                     
                     if result['success']:
                         st.success(f"✅ 买入成功! {result['symbol']} {result['shares']}股 @ ${result['price']:.2f}")
@@ -4821,7 +4838,7 @@ def render_portfolio_tab():
                     
                     if st.button("💰 卖出", type="secondary", key="do_paper_sell"):
                         price = sell_price if sell_price > 0 else None
-                        result = paper_sell(sell_symbol, sell_shares, price, selected_position['market'])
+                        result = paper_sell(sell_symbol, sell_shares, price, selected_position['market'], selected_account)
                         
                         if result['success']:
                             st.success(f"✅ 卖出成功! 盈亏: ${result['realized_pnl']:+.2f}")
@@ -4855,7 +4872,7 @@ def render_portfolio_tab():
         
         # 交易记录
         with st.expander("📜 模拟交易记录", expanded=False):
-            paper_trades = get_paper_trades(limit=30)
+            paper_trades = get_paper_trades(selected_account, limit=30)
             if paper_trades:
                 trades_df = pd.DataFrame(paper_trades)
                 display_cols = ['symbol', 'trade_type', 'price', 'shares', 'commission', 'trade_date', 'notes']
@@ -4870,7 +4887,7 @@ def render_portfolio_tab():
         # 权益曲线图
         st.subheader("📈 权益曲线")
         
-        equity_curve = get_paper_equity_curve()
+        equity_curve = get_paper_equity_curve(selected_account)
         
         if not equity_curve.empty and len(equity_curve) > 1:
             import plotly.graph_objects as go
@@ -4923,7 +4940,7 @@ def render_portfolio_tab():
             
             with col_heat:
                 # 月度收益热力图
-                monthly = get_paper_monthly_returns()
+                monthly = get_paper_monthly_returns(selected_account)
                 if not monthly.empty:
                     import plotly.express as px
                     
@@ -4950,7 +4967,7 @@ def render_portfolio_tab():
         
         # 已实现盈亏统计
         with st.expander("💰 已实现盈亏", expanded=False):
-            realized = get_realized_pnl_history()
+            realized = get_realized_pnl_history(selected_account)
             if realized:
                 total_realized = sum(r['realized_pnl'] for r in realized)
                 wins = len([r for r in realized if r['realized_pnl'] > 0])
@@ -4972,7 +4989,7 @@ def render_portfolio_tab():
         # 重置账户
         st.divider()
         if st.button("🔄 重置模拟账户", help="清空所有模拟持仓和交易记录，重置为初始资金"):
-            reset_paper_account()
+            reset_paper_account(selected_account)
             st.success("✅ 模拟账户已重置")
             st.rerun()
 
@@ -9209,11 +9226,28 @@ def render_paper_trading_tab():
             get_paper_trades,
             reset_paper_account,
             get_paper_equity_curve,
-            get_paper_monthly_returns
+            get_paper_monthly_returns,
+            list_paper_accounts,
+            create_paper_account
         )
+
+        sub_accounts = list_paper_accounts()
+        sub_names = [a['account_name'] for a in sub_accounts] if sub_accounts else ['default']
+        selected_account = st.selectbox("策略子账户", sub_names, key="strategy_lab_paper_account_name")
+
+        with st.expander("➕ 新建策略子账户", expanded=False):
+            new_sub_name = st.text_input("子账户名称", placeholder="breakout_us / swing_cn", key="strategy_lab_new_sub_name")
+            new_sub_cap = st.number_input("初始资金", min_value=1000.0, value=20000.0, step=1000.0, key="strategy_lab_new_sub_cap")
+            if st.button("创建子账户", key="strategy_lab_create_sub_btn"):
+                created = create_paper_account(new_sub_name.strip(), float(new_sub_cap))
+                if created.get('success'):
+                    st.success(f"✅ 子账户已创建: {created['account_name']}")
+                    st.rerun()
+                else:
+                    st.error(f"❌ {created.get('error', '创建失败')}")
         
         # 获取账户信息
-        account = get_paper_account()
+        account = get_paper_account(selected_account)
         
         # 账户概览
         if account is None:
@@ -9253,7 +9287,7 @@ def render_paper_trading_tab():
                 
                 if st.form_submit_button("买入", type="primary"):
                     if symbol:
-                        result = paper_buy(symbol.upper(), shares, price if price > 0 else None, market)
+                        result = paper_buy(symbol.upper(), shares, price if price > 0 else None, market, selected_account)
                         if result.get('success'):
                             st.success(f"✅ 买入成功: {shares} 股 {symbol}")
                             st.rerun()
@@ -9272,7 +9306,15 @@ def render_paper_trading_tab():
                     
                     if st.form_submit_button("卖出", type="primary"):
                         symbol = selected.split(" ")[0]
-                        result = paper_sell(symbol, sell_shares, sell_price if sell_price > 0 else None)
+                        selected_pos = next((p for p in positions if p.get('symbol') == symbol), {})
+                        sell_market = selected_pos.get('market', 'US')
+                        result = paper_sell(
+                            symbol,
+                            sell_shares,
+                            sell_price if sell_price > 0 else None,
+                            sell_market,
+                            selected_account
+                        )
                         if result.get('success'):
                             st.success(f"✅ 卖出成功: {sell_shares} 股 {symbol}")
                             st.rerun()
@@ -9282,7 +9324,7 @@ def render_paper_trading_tab():
                 st.info("暂无持仓")
         
         # 权益曲线
-        equity_curve = get_paper_equity_curve()
+        equity_curve = get_paper_equity_curve(selected_account)
         if not equity_curve.empty and len(equity_curve) > 1:
             st.markdown("#### 📈 权益曲线")
             import plotly.graph_objects as go
@@ -9301,7 +9343,7 @@ def render_paper_trading_tab():
         
         # 重置按钮
         if st.button("🔄 重置模拟账户", type="secondary"):
-            reset_paper_account()
+            reset_paper_account(selected_account)
             st.success("账户已重置")
             st.rerun()
             

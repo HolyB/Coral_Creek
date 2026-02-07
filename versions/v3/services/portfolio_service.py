@@ -24,6 +24,7 @@ from data_fetcher import get_stock_data
 # ==================== 模拟账户配置 ====================
 
 PAPER_ACCOUNT_INITIAL = 100000.0  # 模拟账户初始资金
+PAPER_SUBACCOUNT_INITIAL = 20000.0  # 子账户默认初始资金
 
 
 def get_current_price(symbol: str, market: str = 'US') -> Optional[float]:
@@ -163,6 +164,10 @@ def init_paper_account():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    cursor.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_paper_account_name
+        ON paper_account(account_name)
+    """)
     
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS paper_positions (
@@ -206,6 +211,52 @@ def init_paper_account():
     conn.close()
 
 
+def list_paper_accounts() -> List[Dict]:
+    """获取所有模拟子账户"""
+    init_paper_account()
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT account_name, initial_capital, cash_balance, created_at, updated_at
+        FROM paper_account
+        ORDER BY CASE WHEN account_name = 'default' THEN 0 ELSE 1 END, account_name
+    """)
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+
+def create_paper_account(account_name: str, initial_capital: float = PAPER_SUBACCOUNT_INITIAL) -> Dict:
+    """创建策略子账户"""
+    init_paper_account()
+    account_name = (account_name or "").strip()
+    if not account_name:
+        return {'success': False, 'error': '账户名不能为空'}
+    if len(account_name) > 50:
+        return {'success': False, 'error': '账户名过长（最多50字符）'}
+    if initial_capital <= 0:
+        return {'success': False, 'error': '初始资金必须大于0'}
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT 1 FROM paper_account WHERE account_name = ?", (account_name,))
+        if cursor.fetchone():
+            return {'success': False, 'error': f'账户 {account_name} 已存在'}
+
+        cursor.execute("""
+            INSERT INTO paper_account (account_name, initial_capital, cash_balance)
+            VALUES (?, ?, ?)
+        """, (account_name, float(initial_capital), float(initial_capital)))
+        conn.commit()
+        return {'success': True, 'account_name': account_name, 'initial_capital': float(initial_capital)}
+    except Exception as e:
+        conn.rollback()
+        return {'success': False, 'error': str(e)}
+    finally:
+        conn.close()
+
+
 def get_paper_account(account_name: str = 'default') -> Dict:
     """获取模拟账户信息"""
     init_paper_account()
@@ -221,7 +272,20 @@ def get_paper_account(account_name: str = 'default') -> Dict:
     
     if not row:
         conn.close()
-        return None
+        seed_capital = PAPER_ACCOUNT_INITIAL if account_name == 'default' else PAPER_SUBACCOUNT_INITIAL
+        created = create_paper_account(account_name, seed_capital)
+        if not created.get('success'):
+            return None
+
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM paper_account WHERE account_name = ?
+        """, (account_name,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return None
     
     account = dict(row)
     
