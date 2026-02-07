@@ -281,17 +281,17 @@ paper = true
 
 ## 📋 待实现功能
 
-### 高优先级
-- [ ] 子账户权益曲线可视化 (每个子账户独立图表)
-- [ ] 子账户策略绩效对比 (哪个策略表现最好)
-- [ ] Alpaca Widget 支持子账户切换
-- [ ] 批量信号交易支持选择目标子账户
+### 高优先级 ✅ 已完成
+- [x] 子账户权益曲线可视化 (每个子账户独立图表)
+- [x] 子账户策略绩效对比 (哪个策略表现最好)
+- [x] 页面精简整合 (7 → 4 入口)
+- [x] 浮动持仓栏增加快速卖出按钮
 
-### 中优先级  
-- [ ] 页面精简整合 (7 → 4 入口)
-- [ ] 浮动持仓栏增加快速卖出按钮
-- [ ] 内联回测支持更多策略
-- [ ] 策略回测结果缓存
+### 中优先级 ✅ 部分完成
+- [x] 侧边栏同时显示 Alpaca + Paper 子账户状态
+- [x] 内联回测支持更多策略 (6个策略 + 持仓周期选择)
+- [x] 策略回测结果缓存 (session_state)
+- [ ] 批量信号交易支持选择目标子账户
 
 ### 低优先级
 - [ ] 子账户导入/导出 (JSON)
@@ -305,12 +305,13 @@ paper = true
 
 | 文件 | 功能 |
 |------|------|
-| `app.py` | 主应用，侧边栏子账户选择器 |
-| `services/portfolio_service.py` | 子账户 CRUD + 风控逻辑 |
+| `app.py` | 主应用，侧边栏子账户选择器，4入口导航 |
+| `services/portfolio_service.py` | 子账户 CRUD + 风控逻辑 + 绩效对比 |
 | `execution/alpaca_trader.py` | Alpaca 集成 + 硬风控 |
-| `components/alpaca_widget.py` | Alpaca UI 组件 |
+| `components/alpaca_widget.py` | Alpaca + Paper UI 组件，6策略回测 |
 | `components/stock_detail.py` | 股票详情 + 快速操作 |
 
 ---
 
 *最后更新: 2026-02-06*
+

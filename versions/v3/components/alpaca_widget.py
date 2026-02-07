@@ -38,55 +38,100 @@ def get_alpaca_trader():
 
 def render_alpaca_sidebar_widget():
     """
-    在侧边栏底部显示 Alpaca 持仓摘要
+    在侧边栏底部显示 Alpaca 持仓摘要 + Paper Trading 子账户状态
     """
     trader = get_alpaca_trader()
     
-    if not trader:
+    # 获取当前选中的 Paper 子账户
+    paper_account_name = st.session_state.get('global_paper_account_name', 'default')
+    
+    # Paper Trading 子账户信息
+    try:
+        from services.portfolio_service import get_paper_account, get_paper_account_config
+        paper_account = get_paper_account(paper_account_name)
+        paper_config = get_paper_account_config(paper_account_name)
+        paper_available = True
+    except Exception:
+        paper_account = None
+        paper_config = {}
+        paper_available = False
+    
+    # Alpaca 信息
+    if trader:
+        try:
+            account = trader.get_account()
+            positions = trader.get_positions()
+            market = trader.get_market_hours()
+            
+            # 计算总盈亏
+            total_pnl = sum(p.unrealized_pl for p in positions)
+            total_pnl_pct = (total_pnl / float(account.equity)) * 100 if float(account.equity) > 0 else 0
+            
+            # 市场状态
+            status_icon = "🟢" if market['is_open'] else "🔴"
+            
+            # Alpaca 摘要卡片
+            st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); 
+                        border-radius: 12px; padding: 12px; margin-top: 10px;
+                        border: 1px solid #2a3a5e;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: bold; color: #fff;">💰 Alpaca</span>
+                    <span style="font-size: 0.75em; color: #888;">{status_icon} Paper</span>
+                </div>
+                <div style="font-size: 1.3em; font-weight: bold; color: #00D4AA; margin: 6px 0;">
+                    ${float(account.equity):,.0f}
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85em;">
+                    <span style="color: {'#00C853' if total_pnl >= 0 else '#FF5252'};">
+                        {'+' if total_pnl >= 0 else ''}${total_pnl:,.0f} ({total_pnl_pct:+.2f}%)
+                    </span>
+                    <span style="color: #888;">{len(positions)} 持仓</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # 展开按钮
+            if st.button("📊 管理持仓", key="sidebar_alpaca_manage", use_container_width=True):
+                st.session_state['show_alpaca_panel'] = True
+                
+        except Exception as e:
+            st.caption(f"⚠️ {str(e)[:30]}")
+    else:
         st.caption("💰 Alpaca 未连接")
         if st.button("⚙️ 配置 API", key="sidebar_alpaca_config"):
             st.session_state['show_alpaca_config'] = True
-        return
     
-    try:
-        account = trader.get_account()
-        positions = trader.get_positions()
-        market = trader.get_market_hours()
+    # Paper Trading 子账户卡片
+    if paper_available and paper_account:
+        paper_equity = paper_account.get('total_equity', 0)
+        paper_pnl = paper_account.get('total_pnl', 0)
+        paper_pnl_pct = paper_account.get('total_pnl_pct', 0)
+        strategy_note = paper_config.get('strategy_note', '')[:30]
+        max_pos = float(paper_config.get('max_single_position_pct', 0.30)) * 100
+        max_dd = float(paper_config.get('max_drawdown_pct', 0.20)) * 100
         
-        # 计算总盈亏
-        total_pnl = sum(p.unrealized_pl for p in positions)
-        total_pnl_pct = (total_pnl / float(account.equity)) * 100 if float(account.equity) > 0 else 0
-        
-        # 市场状态
-        status_icon = "🟢" if market['is_open'] else "🔴"
-        
-        # 显示摘要卡片
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #1a1a2e, #16213e); 
-                    border-radius: 12px; padding: 12px; margin-top: 10px;
-                    border: 1px solid #2a3a5e;">
+        <div style="background: linear-gradient(135deg, #1e1e3f, #2a1a3e); 
+                    border-radius: 12px; padding: 10px; margin-top: 8px;
+                    border: 1px solid #3a2a5e;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: bold; color: #fff;">💰 Alpaca</span>
-                <span style="font-size: 0.75em; color: #888;">{status_icon} Paper</span>
+                <span style="font-weight: bold; color: #fff;">🎮 模拟盘</span>
+                <span style="font-size: 0.7em; color: #9C27B0;">{paper_account_name}</span>
             </div>
-            <div style="font-size: 1.3em; font-weight: bold; color: #00D4AA; margin: 6px 0;">
-                ${float(account.equity):,.0f}
+            <div style="font-size: 1.1em; font-weight: bold; color: #CE93D8; margin: 4px 0;">
+                ${paper_equity:,.0f}
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.85em;">
-                <span style="color: {'#00C853' if total_pnl >= 0 else '#FF5252'};">
-                    {'+' if total_pnl >= 0 else ''}${total_pnl:,.0f} ({total_pnl_pct:+.2f}%)
-                </span>
-                <span style="color: #888;">{len(positions)} 持仓</span>
+            <div style="font-size: 0.8em; color: {'#00C853' if paper_pnl >= 0 else '#FF5252'};">
+                {'+' if paper_pnl >= 0 else ''}${paper_pnl:,.0f} ({paper_pnl_pct:+.1f}%)
             </div>
+            <div style="font-size: 0.65em; color: #888; margin-top: 4px;">
+                🛡️ 单票≤{max_pos:.0f}% | 回撤≤{max_dd:.0f}%
+            </div>
+            {f'<div style="font-size: 0.6em; color: #666; margin-top: 2px;">📝 {strategy_note}...</div>' if strategy_note else ''}
         </div>
         """, unsafe_allow_html=True)
-        
-        # 展开按钮
-        if st.button("📊 管理持仓", key="sidebar_alpaca_manage", use_container_width=True):
-            st.session_state['show_alpaca_panel'] = True
-            
-    except Exception as e:
-        st.caption(f"⚠️ {str(e)[:30]}")
+
 
 
 def render_alpaca_floating_bar():
@@ -350,8 +395,18 @@ def render_inline_backtest(symbol: str, market: str = 'US', days: int = 365):
         from indicator_utils import calculate_blue_signal_series, calculate_heima_signal_series
         import numpy as np
         
+        # 缓存键
+        cache_key = f"backtest_{symbol}_{market}_{days}"
+        
+        # 检查缓存 (session_state)
+        if cache_key in st.session_state:
+            cached = st.session_state[cache_key]
+            _render_backtest_results(cached['results'], cached['hold_days'])
+            return
+        
         # 获取数据
-        df = get_stock_data(symbol, market=market, days=days)
+        with st.spinner(f"加载 {symbol} 历史数据..."):
+            df = get_stock_data(symbol, market=market, days=days)
         
         if df is None or len(df) < 100:
             st.caption("📊 历史数据不足，无法回测")
@@ -362,19 +417,56 @@ def render_inline_backtest(symbol: str, market: str = 'US', days: int = 365):
         highs = df['High'].values
         lows = df['Low'].values
         closes = df['Close'].values
+        volumes = df['Volume'].values
         
         blue = calculate_blue_signal_series(opens, highs, lows, closes)
-        heima, _ = calculate_heima_signal_series(highs, lows, closes, opens)
+        heima, juedi = calculate_heima_signal_series(highs, lows, closes, opens)
         
-        # 简单回测: BLUE > 100 买入
+        # 计算额外指标
+        vol_ma20 = np.convolve(volumes, np.ones(20)/20, mode='same')
+        vol_ratio = volumes / (vol_ma20 + 1e-10)
+        
+        # RSI
+        delta = np.diff(closes, prepend=closes[0])
+        gains = np.where(delta > 0, delta, 0)
+        losses = np.where(delta < 0, -delta, 0)
+        avg_gain = np.convolve(gains, np.ones(14)/14, mode='same')
+        avg_loss = np.convolve(losses, np.ones(14)/14, mode='same')
+        rsi = 100 - (100 / (1 + avg_gain / (avg_loss + 1e-10)))
+        
+        # MA
+        ma5 = np.convolve(closes, np.ones(5)/5, mode='same')
+        ma20 = np.convolve(closes, np.ones(20)/20, mode='same')
+        ma_cross = (ma5 > ma20) & (np.roll(ma5, 1) <= np.roll(ma20, 1))
+        
+        # 扩展策略列表 (6个策略)
         strategies = [
-            {'name': 'BLUE>100', 'signal': blue > 100},
-            {'name': 'BLUE>150', 'signal': blue > 150},
-            {'name': 'BLUE+黑马', 'signal': (blue > 100) & heima}
+            {'name': 'BLUE>100', 'signal': blue > 100, 'color': '#2196F3'},
+            {'name': 'BLUE>150', 'signal': blue > 150, 'color': '#4CAF50'},
+            {'name': 'BLUE+黑马', 'signal': (blue > 100) & heima, 'color': '#FF9800'},
+            {'name': '日周共振', 'signal': (blue > 120) & (np.roll(blue, 5) > 100), 'color': '#9C27B0'},
+            {'name': 'RSI超卖', 'signal': (rsi < 30) & (blue > 80), 'color': '#00BCD4'},
+            {'name': '量价齐升', 'signal': (blue > 100) & (vol_ratio > 1.5), 'color': '#E91E63'},
         ]
         
+        # 持仓周期选择
+        hold_options = [5, 10, 20]
+        
+        # 使用 columns 显示持仓周期选择
+        col_title, col_period = st.columns([2, 1])
+        with col_title:
+            st.markdown("**📈 快速回测**")
+        with col_period:
+            hold_days = st.selectbox(
+                "持有天数",
+                hold_options,
+                index=1,
+                key=f"hold_days_{symbol}_{market}",
+                label_visibility="collapsed"
+            )
+        
+        # 执行回测
         results = []
-        hold_days = 10
         
         for strat in strategies:
             signal = strat['signal']
@@ -392,31 +484,68 @@ def render_inline_backtest(symbol: str, market: str = 'US', days: int = 365):
                     i += 1
             
             if trades:
-                total_return = (1 + sum(trades)) - 1
+                total_return = sum(trades)  # 简单收益累加
                 win_rate = sum(1 for t in trades if t > 0) / len(trades)
+                avg_return = np.mean(trades)
+                max_dd = min(trades) if trades else 0
+                
                 results.append({
                     '策略': strat['name'],
-                    '收益': f"{total_return*100:+.0f}%",
-                    '胜率': f"{win_rate*100:.0f}%",
-                    '交易': len(trades)
+                    'color': strat['color'],
+                    '收益': total_return * 100,
+                    '胜率': win_rate * 100,
+                    '交易': len(trades),
+                    '平均': avg_return * 100,
+                    '最大亏': max_dd * 100
                 })
         
-        if results:
-            st.markdown("**📈 快速回测** (持有10天)")
-            
-            # 使用紧凑的卡片显示
-            cols = st.columns(len(results))
-            for i, r in enumerate(results):
-                with cols[i]:
-                    color = "#00C853" if "+" in r['收益'] else "#FF5252"
-                    st.markdown(f"""
-                    <div style="background: rgba(255,255,255,0.03); border-radius: 8px; 
-                                padding: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
-                        <div style="font-size: 0.8em; color: #888;">{r['策略']}</div>
-                        <div style="font-weight: bold; color: {color}; font-size: 1.1em;">{r['收益']}</div>
-                        <div style="font-size: 0.75em; color: #888;">胜率{r['胜率']} {r['交易']}笔</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+        # 缓存结果
+        st.session_state[cache_key] = {
+            'results': results,
+            'hold_days': hold_days
+        }
+        
+        _render_backtest_results(results, hold_days)
         
     except Exception as e:
         st.caption(f"回测失败: {e}")
+
+
+def _render_backtest_results(results: list, hold_days: int):
+    """渲染回测结果卡片"""
+    if not results:
+        st.caption("无有效回测结果")
+        return
+    
+    # 按收益排序
+    results = sorted(results, key=lambda x: x['收益'], reverse=True)
+    
+    # 使用紧凑的卡片显示 (3列2行)
+    cols_per_row = 3
+    for row_start in range(0, len(results), cols_per_row):
+        cols = st.columns(cols_per_row)
+        for i, r in enumerate(results[row_start:row_start + cols_per_row]):
+            with cols[i]:
+                ret = r['收益']
+                color = r.get('color', '#00C853' if ret > 0 else '#FF5252')
+                border_color = color if ret > 5 else 'rgba(255,255,255,0.1)'
+                
+                st.markdown(f"""
+                <div style="background: rgba(255,255,255,0.03); border-radius: 8px; 
+                            padding: 10px; text-align: center; border: 1px solid {border_color};
+                            margin-bottom: 8px;">
+                    <div style="font-size: 0.75em; color: {color}; font-weight: bold;">{r['策略']}</div>
+                    <div style="font-weight: bold; color: {'#00C853' if ret > 0 else '#FF5252'}; font-size: 1.2em;">
+                        {ret:+.0f}%
+                    </div>
+                    <div style="font-size: 0.7em; color: #888;">
+                        胜率 {r['胜率']:.0f}% | {r['交易']}笔
+                    </div>
+                    <div style="font-size: 0.65em; color: #666; margin-top: 2px;">
+                        平均 {r['平均']:+.1f}% | 最大亏 {r['最大亏']:.1f}%
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    st.caption(f"📅 回测期间: 过去1年 | 持有 {hold_days} 天")
+
