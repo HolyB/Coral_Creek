@@ -1,0 +1,40 @@
+{
+  "market": "US",
+  "commission_bps": 5.0,
+  "slippage_bps": 10.0,
+  "round_trip_cost_pct": 0.3,
+  "horizons": {
+    "1d": {
+      "samples": 2241,
+      "avg_gross_return_pct": -3.069741555801386,
+      "avg_net_return_pct": -3.369741555801386,
+      "cost_drag_pct": 0.30000000000000004,
+      "gross_win_rate_pct": 30.254350736278447,
+      "net_win_rate_pct": 27.80008924587238
+    },
+    "5d": {
+      "samples": 2236,
+      "avg_gross_return_pct": -8.676303455107432,
+      "avg_net_return_pct": -8.97630345510743,
+      "cost_drag_pct": 0.3,
+      "gross_win_rate_pct": 20.304114490161002,
+      "net_win_rate_pct": 18.962432915921287
+    },
+    "10d": {
+      "samples": 1529,
+      "avg_gross_return_pct": -15.452256040267992,
+      "avg_net_return_pct": -15.752256040267994,
+      "cost_drag_pct": 0.2999999999999998,
+      "gross_win_rate_pct": 12.557226945716154,
+      "net_win_rate_pct": 11.576193590582081
+    },
+    "30d": {
+      "samples": 49,
+      "avg_gross_return_pct": -26.449933296462373,
+      "avg_net_return_pct": -26.749933296462377,
+      "cost_drag_pct": 0.2999999999999988,
+      "gross_win_rate_pct": 26.53061224489796,
+      "net_win_rate_pct": 26.53061224489796
+    }
+  }
+}
