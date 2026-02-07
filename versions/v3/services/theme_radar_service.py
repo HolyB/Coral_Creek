@@ -20,6 +20,12 @@ DEFAULT_THEME_BASKETS: Dict[str, Dict[str, List[str]]] = {
         "半导体设备": ["ASML", "AMAT", "LRCX", "KLAC", "TER", "ONTO"],
         "网络安全": ["CRWD", "PANW", "FTNT", "ZS", "S", "CYBR"],
         "云与SaaS": ["AMZN", "GOOGL", "ORCL", "SNOW", "DDOG", "NOW"],
+        "数字医疗与减肥药生态": ["HIMS", "LLY", "NVO", "VKTX", "ALT", "AMWL"],
+        "工业与自动化": ["GE", "HON", "ETN", "PH", "ROK", "EMR"],
+        "核电与电网升级": ["SMR", "OKLO", "CEG", "VST", "ETR", "PWR"],
+        "国防军工": ["LMT", "NOC", "RTX", "GD", "LHX", "HII"],
+        "消费互联网": ["NFLX", "SPOT", "DUOL", "PINS", "RDDT", "UBER"],
+        "高Beta成长": ["HIMS", "APP", "PLTR", "CAVA", "RBLX", "SOFI"],
     },
     "CN": {
         "算力与AI": ["300308.SZ", "300502.SZ", "002230.SZ", "603019.SH", "688256.SH"],
