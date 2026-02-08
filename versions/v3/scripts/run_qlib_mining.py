@@ -88,7 +88,7 @@ def main():
                 if proc.returncode != 0:
                     raise RuntimeError(f"{seg} 分层运行失败: {(proc.stdout or '')[-200:]} {(proc.stderr or '')[-200:]}")
 
-                summary_path = out_dir / "qlib_mining_summary_latest.json"
+                summary_path = out_dir / f"qlib_mining_summary_{seg.lower()}_latest.json"
                 if not summary_path.exists():
                     continue
                 with open(summary_path, "r", encoding="utf-8") as f:
@@ -113,6 +113,8 @@ def main():
             batch_df = pd.DataFrame(rows)
             batch_path = out_dir / "segment_strategy_compare_latest.csv"
             batch_df.to_csv(batch_path, index=False)
+            if not batch_df.empty and batch_df["best_ann_return"].nunique() == 1 and batch_df["best_sharpe"].nunique() == 1:
+                print("⚠️ 提示: 三个分层结果完全一致，通常意味着样本覆盖不足或股票池在 Qlib 数据中重叠/缺失较多。")
             print("\n✅ 分层批量挖掘完成")
             print(f"分层对比: {batch_path}")
             print(batch_df.to_string(index=False))

@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-02-07T23:23:47.959399",
+  "created_at": "2026-02-08T13:09:44.002492",
   "market": "US",
   "segment": "SMALL",
   "symbols": [
@@ -152,7 +152,7 @@
     }
   ],
   "files": {
-    "factor_csv": "/Users/bertwang/Cursor/Coral_Creek/versions/v3/ml/saved_models/qlib_us/factor_mining_20260207_232347.csv",
-    "strategy_csv": "/Users/bertwang/Cursor/Coral_Creek/versions/v3/ml/saved_models/qlib_us/strategy_mining_20260207_232347.csv"
+    "factor_csv": "/Users/bertwang/Cursor/Coral_Creek/versions/v3/ml/saved_models/qlib_us/factor_mining_20260208_130943.csv",
+    "strategy_csv": "/Users/bertwang/Cursor/Coral_Creek/versions/v3/ml/saved_models/qlib_us/strategy_mining_20260208_130943.csv"
   }
 }

@@ -4734,6 +4734,81 @@ def render_stock_lookup_page():
                     )
     except Exception:
         pass
+
+    # --- 1.6 多维决策评分卡（Qlib 只是其中一维） ---
+    def _clip_score(x):
+        try:
+            v = float(x)
+        except Exception:
+            v = 0.0
+        return max(0.0, min(100.0, v))
+
+    # 维度1: 技术趋势 (BLUE/ADX)
+    blue_d = float((scan_info or {}).get("blue_daily", 0) or 0)
+    adx_v = float((scan_info or {}).get("adx", 0) or 0)
+    score_tech = _clip_score(blue_d * 0.55 + min(adx_v, 50) * 0.9)
+
+    # 维度2: 信号质量 (黑马/掘地/周月共振)
+    sig_cnt = 0
+    for k in ["heima_daily", "heima_weekly", "heima_monthly", "juedi_daily", "juedi_weekly", "juedi_monthly"]:
+        if (scan_info or {}).get(k):
+            sig_cnt += 1
+    score_signal = _clip_score(sig_cnt * 16 + (10 if float((scan_info or {}).get("blue_weekly", 0) or 0) > 100 else 0))
+
+    # 维度3: 流动性与可执行性
+    turnover_v = float((scan_info or {}).get("turnover_m", (scan_info or {}).get("turnover", 0)) or 0)
+    price_v = float((scan_info or {}).get("price", 0) or 0)
+    score_liquidity = _clip_score(min(turnover_v, 30) / 30 * 80 + (20 if price_v >= 1 else 0))
+
+    # 维度4: 风险收益结构（使用系统综合分近似）
+    rank_v = float((scan_info or {}).get("rank_score", 0) or 0)
+    score_risk_reward = _clip_score(rank_v)
+
+    # 维度5: Qlib 维度（分层匹配度）
+    qlib_dim = 50.0
+    try:
+        from pathlib import Path
+        qlib_dir = Path(current_dir) / "ml" / "saved_models" / f"qlib_{market.lower()}"
+        seg_path = qlib_dir / "segment_strategy_compare_latest.csv"
+        if seg_path.exists():
+            seg_df = pd.read_csv(seg_path)
+            if not seg_df.empty and "best_sharpe" in seg_df.columns:
+                top_seg = seg_df.sort_values("best_sharpe", ascending=False).iloc[0]
+                best_segment = str(top_seg.get("segment", "")).upper()
+                cap_cat = str((scan_info or {}).get("cap_category", "") or "")
+                if best_segment == "LARGE":
+                    qlib_dim = 85 if ("Large" in cap_cat or "Mega" in cap_cat) else 45
+                elif best_segment == "MID":
+                    qlib_dim = 85 if ("Mid" in cap_cat) else 45
+                elif best_segment == "SMALL":
+                    qlib_dim = 85 if ("Small" in cap_cat or "Micro" in cap_cat) else 45
+    except Exception:
+        pass
+
+    dim_df = pd.DataFrame(
+        [
+            {"维度": "技术趋势", "分数": round(score_tech, 1), "说明": "BLUE + ADX"},
+            {"维度": "信号质量", "分数": round(score_signal, 1), "说明": "黑马/掘地/共振"},
+            {"维度": "流动性", "分数": round(score_liquidity, 1), "说明": "成交额 + 价格"},
+            {"维度": "风险收益", "分数": round(score_risk_reward, 1), "说明": "综合评分近似"},
+            {"维度": "Qlib维度", "分数": round(qlib_dim, 1), "说明": "分层匹配度"},
+        ]
+    )
+    total_score = round(
+        score_tech * 0.30
+        + score_signal * 0.20
+        + score_liquidity * 0.15
+        + score_risk_reward * 0.20
+        + qlib_dim * 0.15,
+        1,
+    )
+    st.markdown("### 🧭 多维决策评分卡")
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        st.dataframe(dim_df, use_container_width=True, hide_index=True)
+    with c2:
+        st.metric("综合决策分", f"{total_score}")
+        st.caption("Qlib 仅占 15% 权重")
     
     # --- 2. 历史信号轨迹 ---
     _render_signal_history(active_symbol, market)

@@ -376,6 +376,8 @@ class QlibMiningPipeline:
 
     def _save_reports(self, factor_df: pd.DataFrame, strategy_df: pd.DataFrame) -> Dict:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        seg = (self.config.segment or "CUSTOM").upper()
+        seg_l = seg.lower()
 
         factor_csv = self.output_dir / f"factor_mining_{ts}.csv"
         strategy_csv = self.output_dir / f"strategy_mining_{ts}.csv"
@@ -409,10 +411,17 @@ class QlibMiningPipeline:
         latest_factor = self.output_dir / "factor_mining_latest.csv"
         latest_strategy = self.output_dir / "strategy_mining_latest.csv"
         latest_summary = self.output_dir / "qlib_mining_summary_latest.json"
+        latest_factor_seg = self.output_dir / f"factor_mining_{seg_l}_latest.csv"
+        latest_strategy_seg = self.output_dir / f"strategy_mining_{seg_l}_latest.csv"
+        latest_summary_seg = self.output_dir / f"qlib_mining_summary_{seg_l}_latest.json"
 
         factor_df.to_csv(latest_factor, index=False)
         strategy_df.to_csv(latest_strategy, index=False)
+        factor_df.to_csv(latest_factor_seg, index=False)
+        strategy_df.to_csv(latest_strategy_seg, index=False)
         with open(latest_summary, "w", encoding="utf-8") as f:
+            json.dump(summary, f, ensure_ascii=False, indent=2)
+        with open(latest_summary_seg, "w", encoding="utf-8") as f:
             json.dump(summary, f, ensure_ascii=False, indent=2)
 
         return summary
