@@ -183,6 +183,9 @@ def main():
                         help='股票池 (SP500_TOP50/TECH_TOP20/CSI300_SAMPLE 或逗号分隔的代码)')
     parser.add_argument('--days', type=int, default=730, help='训练数据天数')
     parser.add_argument('--upload', action='store_true', help='训练后上传到云存储')
+    parser.add_argument('--run-mining', action='store_true', help='训练后自动运行因子/策略挖掘')
+    parser.add_argument('--topk-grid', default='5,8,10,15', help='策略 topk 网格（挖掘模式）')
+    parser.add_argument('--drop-grid', default='1,2,3', help='策略 n_drop 网格（挖掘模式）')
     
     args = parser.parse_args()
     
@@ -208,7 +211,32 @@ def main():
         end_date=end_date,
         output_dir=output_dir
     )
-    
+
+    if success and args.run_mining:
+        try:
+            from ml.qlib_mining import (
+                MiningConfig,
+                QlibMiningPipeline,
+                parse_int_list,
+            )
+
+            print("\n开始运行 Qlib 因子/策略挖掘...")
+            config = MiningConfig(
+                market=args.market,
+                symbols=symbols,
+                start_date=start_date,
+                end_date=end_date,
+                topk_grid=parse_int_list(args.topk_grid, default=[5, 8, 10, 15]),
+                drop_grid=parse_int_list(args.drop_grid, default=[1, 2, 3]),
+            )
+            pipeline = QlibMiningPipeline(config=config, output_dir=output_dir)
+            summary = pipeline.run()
+            print("✅ 挖掘完成")
+            print(f"   因子结果: {summary['files']['factor_csv']}")
+            print(f"   策略结果: {summary['files']['strategy_csv']}")
+        except Exception as e:
+            print(f"⚠️ 挖掘执行失败: {e}")
+
     if success and args.upload:
         upload_to_cloud(output_dir)
     
