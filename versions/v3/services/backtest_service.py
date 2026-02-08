@@ -11,7 +11,7 @@ Signal Backtest Service - 信号回测验证服务
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 
@@ -167,7 +167,9 @@ def run_signal_backtest(
     market: str = 'US',
     min_blue: float = 100,
     forward_days: int = 10,
-    limit: int = 500
+    limit: int = 500,
+    forward_days_list: Optional[List[int]] = None,
+    cap_filter: str = "all"
 ) -> Dict:
     """
     运行完整的信号回测
@@ -191,14 +193,20 @@ def run_signal_backtest(
     
     print(f"📊 Running backtest: {start_date} to {end_date}, market={market}, min_blue={min_blue}")
     
+    horizons = sorted(set([int(forward_days)] + [int(x) for x in (forward_days_list or []) if int(x) > 0]))
+    if not horizons:
+        horizons = [10]
+    primary_horizon = horizons[0]
+
     # 获取历史扫描结果
-    signals = query_scan_results(
+    signals_all = query_scan_results(
         start_date=start_date,
         end_date=end_date,
         market=market,
         min_blue=min_blue,
         limit=limit
     )
+    signals = [s for s in (signals_all or []) if _cap_filter_match(s, cap_filter)]
     
     if not signals:
         return {
@@ -210,7 +218,9 @@ def run_signal_backtest(
                 'end_date': end_date,
                 'market': market,
                 'min_blue': min_blue,
-                'forward_days': forward_days
+                'forward_days': primary_horizon,
+                'horizons': horizons,
+                'cap_filter': cap_filter
             }
         }
     
@@ -218,7 +228,7 @@ def run_signal_backtest(
     
     # 计算每个信号的前向收益
     signal_results = []
-    returns_list = []
+    returns_by_h = {h: [] for h in horizons}
     spy_returns_cache = {}
     
     for i, signal in enumerate(signals):
@@ -229,49 +239,144 @@ def run_signal_backtest(
         signal_date = signal['scan_date']
         
         # 获取前向收益
-        fwd_returns = get_forward_returns(symbol, signal_date, [forward_days])
-        ret_key = f'{forward_days}d'
-        ret = fwd_returns.get(ret_key)
+        fwd_returns = get_forward_returns(symbol, signal_date, horizons)
         
         # 获取 SPY 同期收益 (缓存)
         if signal_date not in spy_returns_cache:
-            spy_returns_cache[signal_date] = get_forward_returns('SPY', signal_date, [forward_days])
-        spy_ret = spy_returns_cache[signal_date].get(ret_key)
+            spy_returns_cache[signal_date] = get_forward_returns('SPY', signal_date, horizons)
         
-        signal_results.append({
+        row = {
             'symbol': symbol,
             'signal_date': signal_date,
             'blue_daily': signal.get('blue_daily', 0),
             'price': signal.get('price', 0),
-            f'return_{forward_days}d': ret,
-            f'spy_return_{forward_days}d': spy_ret,
-            'alpha': (ret - spy_ret) if ret is not None and spy_ret is not None else None
-        })
-        
-        if ret is not None:
-            returns_list.append(ret)
+            'market_cap': signal.get('market_cap'),
+            'cap_category': signal.get('cap_category'),
+        }
+        for h in horizons:
+            ret_key = f'{h}d'
+            ret = fwd_returns.get(ret_key)
+            spy_ret = spy_returns_cache[signal_date].get(ret_key)
+            row[f'return_{h}d'] = ret
+            row[f'spy_return_{h}d'] = spy_ret
+            row[f'alpha_{h}d'] = (ret - spy_ret) if ret is not None and spy_ret is not None else None
+            if ret is not None:
+                returns_by_h[h].append(ret)
+        signal_results.append(row)
     
-    # 计算整体指标
-    metrics = calculate_backtest_metrics(returns_list)
+    metrics_by_h = {}
+    for h in horizons:
+        metrics_by_h[f'{h}d'] = calculate_backtest_metrics(returns_by_h.get(h, []))
+    metrics = metrics_by_h.get(f'{primary_horizon}d', calculate_backtest_metrics([]))
     
     # SPY 基准表现
-    spy_returns = [r for r in spy_returns_cache.values() if r.get(f'{forward_days}d') is not None]
-    spy_returns_flat = [r[f'{forward_days}d'] for r in spy_returns]
+    spy_returns = [r for r in spy_returns_cache.values() if r.get(f'{primary_horizon}d') is not None]
+    spy_returns_flat = [r[f'{primary_horizon}d'] for r in spy_returns]
     spy_metrics = calculate_backtest_metrics(spy_returns_flat) if spy_returns_flat else {}
     
     print(f"✅ Backtest complete. Win rate: {metrics['win_rate']}%, Avg return: {metrics['avg_return']}%")
     
     return {
         'metrics': metrics,
+        'metrics_by_horizon': metrics_by_h,
         'spy_metrics': spy_metrics,
         'signals': signal_results,
+        'cap_segment_metrics': _build_cap_segment_metrics(signal_results, primary_horizon),
         'params': {
             'start_date': start_date,
             'end_date': end_date,
             'market': market,
             'min_blue': min_blue,
-            'forward_days': forward_days,
+            'forward_days': primary_horizon,
+            'horizons': horizons,
+            'cap_filter': cap_filter,
             'total_analyzed': len(signal_results)
+        }
+    }
+
+
+def run_full_signal_backtest(
+    start_date: str = None,
+    end_date: str = None,
+    market: str = 'US',
+    min_blue: float = 100,
+    holding_days: int = 20,
+    limit: int = 500,
+    cap_filter: str = "all",
+    initial_capital: float = 100000.0,
+    max_positions: int = 10,
+    position_size_pct: float = 0.1,
+    commission: float = 0.0005,
+    slippage: float = 0.001,
+    run_walk_forward: bool = True
+) -> Dict:
+    """完整回测模式：组合回测 + 可选walk-forward"""
+    from backtest.backtester import Backtester
+
+    if end_date is None:
+        end_date = datetime.now().strftime('%Y-%m-%d')
+    if start_date is None:
+        start_date = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%d')
+
+    signals_all = query_scan_results(
+        start_date=start_date,
+        end_date=end_date,
+        market=market,
+        min_blue=min_blue,
+        limit=limit
+    )
+    signals = [s for s in (signals_all or []) if _cap_filter_match(s, cap_filter)]
+    if not signals:
+        return {
+            'mode': 'full',
+            'portfolio_metrics': {},
+            'walk_forward': {'status': 'skipped', 'reason': 'no_signals'},
+            'signals_count': 0,
+            'params': {
+                'start_date': start_date, 'end_date': end_date, 'market': market,
+                'min_blue': min_blue, 'holding_days': holding_days, 'cap_filter': cap_filter
+            }
+        }
+
+    signals_df = pd.DataFrame(signals)
+    bt = Backtester(initial_capital=initial_capital, commission=commission, slippage=slippage)
+    portfolio_metrics = bt.run_portfolio_backtest(
+        signals_df=signals_df,
+        holding_days=holding_days,
+        max_positions=max_positions,
+        position_size_pct=position_size_pct,
+        market=market
+    )
+
+    walk = {'status': 'skipped', 'reason': 'disabled'}
+    if run_walk_forward:
+        walk_raw = bt.walk_forward_backtest(
+            signals_df=signals_df,
+            train_days=60,
+            test_days=20,
+            holding_days=holding_days,
+            market=market
+        )
+        walk = walk_raw if isinstance(walk_raw, dict) else {'status': 'skipped', 'reason': 'unknown'}
+
+    return {
+        'mode': 'full',
+        'portfolio_metrics': portfolio_metrics,
+        'walk_forward': walk,
+        'trades': portfolio_metrics.get('trades', []),
+        'signals_count': len(signals_df),
+        'params': {
+            'start_date': start_date,
+            'end_date': end_date,
+            'market': market,
+            'min_blue': min_blue,
+            'holding_days': holding_days,
+            'cap_filter': cap_filter,
+            'initial_capital': initial_capital,
+            'max_positions': max_positions,
+            'position_size_pct': position_size_pct,
+            'commission': commission,
+            'slippage': slippage,
         }
     }
 
@@ -508,3 +613,81 @@ if __name__ == "__main__":
     
     print("\n📊 Backtest Summary:")
     print(get_backtest_summary_table(result).to_string(index=False))
+def _normalize_cap_category(raw: Optional[str], market_cap: Optional[float] = None) -> str:
+    """标准化市值类别"""
+    txt = (raw or "").lower()
+    if "mega" in txt or "超大盘" in txt:
+        return "mega"
+    if "large" in txt or "大盘" in txt:
+        return "large"
+    if "mid" in txt or "中盘" in txt:
+        return "mid"
+    if "small" in txt or "小盘" in txt:
+        return "small"
+    if "micro" in txt or "微盘" in txt:
+        return "micro"
+
+    try:
+        mc = float(market_cap or 0)
+        if mc >= 2e11:
+            return "mega"
+        if mc >= 1e10:
+            return "large"
+        if mc >= 2e9:
+            return "mid"
+        if mc >= 3e8:
+            return "small"
+        if mc > 0:
+            return "micro"
+    except Exception:
+        pass
+    return "unknown"
+
+
+def _cap_filter_match(signal: Dict, cap_filter: str) -> bool:
+    if cap_filter == "all":
+        return True
+    cap = _normalize_cap_category(signal.get("cap_category"), signal.get("market_cap"))
+    if cap_filter == "mega_large":
+        return cap in {"mega", "large"}
+    if cap_filter == "mid":
+        return cap == "mid"
+    if cap_filter == "small_micro":
+        return cap in {"small", "micro"}
+    return True
+
+
+def _build_cap_segment_metrics(signal_results: List[Dict], horizon: int) -> List[Dict]:
+    ret_key = f"return_{horizon}d"
+    segments = {
+        "mega_large": {"label": "Mega/Large", "vals": []},
+        "mid": {"label": "Mid", "vals": []},
+        "small_micro": {"label": "Small/Micro", "vals": []},
+    }
+
+    for r in signal_results:
+        ret = r.get(ret_key)
+        if ret is None:
+            continue
+        cap = _normalize_cap_category(r.get("cap_category"), r.get("market_cap"))
+        if cap in {"mega", "large"}:
+            segments["mega_large"]["vals"].append(ret)
+        elif cap == "mid":
+            segments["mid"]["vals"].append(ret)
+        elif cap in {"small", "micro"}:
+            segments["small_micro"]["vals"].append(ret)
+
+    out = []
+    for k, v in segments.items():
+        vals = v["vals"]
+        m = calculate_backtest_metrics(vals)
+        out.append({
+            "segment": k,
+            "label": v["label"],
+            "signals": m.get("total_signals", 0),
+            "win_rate": m.get("win_rate", 0),
+            "avg_return": m.get("avg_return", 0),
+            "sharpe": m.get("sharpe", 0),
+            "max_drawdown": m.get("max_drawdown", 0),
+        })
+    return out

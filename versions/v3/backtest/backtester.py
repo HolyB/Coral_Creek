@@ -265,7 +265,10 @@ class Backtester:
         
         # 按日期排序信号
         signals_df = signals_df.copy()
-        signals_df['scan_date'] = pd.to_datetime(signals_df.get('scan_date') or signals_df.get('Date'))
+        date_col = 'scan_date' if 'scan_date' in signals_df.columns else ('Date' if 'Date' in signals_df.columns else None)
+        if date_col is None:
+            return {'error': 'signals_df missing scan_date/Date'}
+        signals_df['scan_date'] = pd.to_datetime(signals_df[date_col])
         signals_df = signals_df.sort_values('scan_date')
         
         for _, signal in signals_df.iterrows():
@@ -384,7 +387,10 @@ class Backtester:
             Walk-Forward 结果 (按窗口划分)
         """
         signals_df = signals_df.copy()
-        signals_df['scan_date'] = pd.to_datetime(signals_df.get('scan_date') or signals_df.get('Date'))
+        date_col = 'scan_date' if 'scan_date' in signals_df.columns else ('Date' if 'Date' in signals_df.columns else None)
+        if date_col is None:
+            return {'error': 'signals_df missing scan_date/Date'}
+        signals_df['scan_date'] = pd.to_datetime(signals_df[date_col])
         signals_df = signals_df.sort_values('scan_date')
         
         if len(signals_df) < train_days + test_days:

@@ -5604,9 +5604,13 @@ def render_portfolio_tab():
 def render_signal_performance_page():
     """信号表现验证仪表盘 - 验证 BLUE 信号的历史有效性"""
     st.header("📊 信号表现验证 (Signal Performance)")
-    st.info("验证 BLUE 信号的历史盈利能力，对比 SPY 基准表现")
+    st.info("支持快速回测与完整回测，并可按市值分层验证美股策略有效性")
     
-    from services.backtest_service import run_signal_backtest, get_backtest_summary_table
+    from services.backtest_service import (
+        run_signal_backtest,
+        run_full_signal_backtest,
+        get_backtest_summary_table,
+    )
     from datetime import datetime, timedelta
     
     # 侧边栏参数
@@ -5629,16 +5633,52 @@ def render_signal_performance_page():
         # BLUE 阈值
         min_blue = st.slider("最低 BLUE 阈值", min_value=50, max_value=200, value=100, step=10)
         
-        # 持仓周期
-        forward_days = st.select_slider(
-            "持仓周期 (天)",
-            options=[5, 10, 20, 30],
-            value=10,
-            help="信号触发后持有多少天"
+        backtest_mode = st.radio("回测模式", ["快速回测", "完整回测"], horizontal=True)
+
+        # 持仓周期（扩展选项）
+        horizon_options = [3, 5, 7, 10, 15, 20, 30, 45, 60, 90]
+        forward_days_list = st.multiselect(
+            "持仓周期列表 (天)",
+            options=horizon_options,
+            default=[10, 20, 60],
+            help="快速回测会对每个周期分别统计；完整回测使用其中最小值作为持有天数"
         )
+        if not forward_days_list:
+            forward_days_list = [10]
+        primary_holding_days = min(forward_days_list)
+
+        cap_filter_label = st.selectbox(
+            "市值分层",
+            ["全部", "Mega/Large", "Mid", "Small/Micro"],
+            index=0,
+            help="验证不同市值层策略表现差异"
+        )
+        cap_filter_map = {
+            "全部": "all",
+            "Mega/Large": "mega_large",
+            "Mid": "mid",
+            "Small/Micro": "small_micro",
+        }
+        cap_filter = cap_filter_map.get(cap_filter_label, "all")
         
         # 分析数量限制
         limit = st.number_input("最大分析数量", min_value=50, max_value=500, value=200, step=50)
+
+        if backtest_mode == "完整回测":
+            st.markdown("**完整回测参数**")
+            initial_capital = st.number_input("初始资金", min_value=10000, max_value=1000000, value=100000, step=10000)
+            max_positions = st.slider("最大持仓数", min_value=3, max_value=30, value=10)
+            position_size_pct = st.slider("单仓位(%)", min_value=2, max_value=30, value=10) / 100.0
+            commission = st.number_input("单边佣金", min_value=0.0, max_value=0.005, value=0.0005, format="%.4f")
+            slippage = st.number_input("单边滑点", min_value=0.0, max_value=0.01, value=0.001, format="%.4f")
+            run_walk_forward = st.checkbox("启用 Walk-forward", value=True)
+        else:
+            initial_capital = 100000
+            max_positions = 10
+            position_size_pct = 0.1
+            commission = 0.0005
+            slippage = 0.001
+            run_walk_forward = False
         
         run_btn = st.button("🚀 开始验证", type="primary", use_container_width=True)
     
@@ -5669,19 +5709,85 @@ def render_signal_performance_page():
     
     # 运行回测
     with st.spinner(f"正在分析 {market} 市场的 BLUE 信号..."):
-        result = run_signal_backtest(
-            start_date=start.strftime('%Y-%m-%d'),
-            end_date=end.strftime('%Y-%m-%d'),
-            market=market,
-            min_blue=min_blue,
-            forward_days=forward_days,
-            limit=limit
-        )
+        if backtest_mode == "完整回测":
+            result = run_full_signal_backtest(
+                start_date=start.strftime('%Y-%m-%d'),
+                end_date=end.strftime('%Y-%m-%d'),
+                market=market,
+                min_blue=min_blue,
+                holding_days=primary_holding_days,
+                limit=limit,
+                cap_filter=cap_filter,
+                initial_capital=float(initial_capital),
+                max_positions=int(max_positions),
+                position_size_pct=float(position_size_pct),
+                commission=float(commission),
+                slippage=float(slippage),
+                run_walk_forward=run_walk_forward
+            )
+        else:
+            result = run_signal_backtest(
+                start_date=start.strftime('%Y-%m-%d'),
+                end_date=end.strftime('%Y-%m-%d'),
+                market=market,
+                min_blue=min_blue,
+                forward_days=primary_holding_days,
+                forward_days_list=forward_days_list,
+                limit=limit,
+                cap_filter=cap_filter
+            )
     
     metrics = result.get('metrics', {})
     spy_metrics = result.get('spy_metrics', {})
     signals = result.get('signals', [])
     params = result.get('params', {})
+    forward_days = int(params.get('forward_days', primary_holding_days))
+
+    if backtest_mode == "完整回测":
+        pf = result.get('portfolio_metrics', {}) or {}
+        st.markdown("---")
+        st.subheader("📊 完整回测概览")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.metric("总收益率", f"{pf.get('total_return', 0):.2f}%")
+        with c2:
+            st.metric("胜率", f"{pf.get('win_rate', 0):.2f}%")
+        with c3:
+            st.metric("Sharpe", f"{pf.get('sharpe_ratio', 0):.2f}")
+        with c4:
+            st.metric("最大回撤", f"{pf.get('max_drawdown', 0):.2f}%")
+
+        c5, c6, c7, c8 = st.columns(4)
+        with c5:
+            st.metric("交易数", pf.get('total_trades', 0))
+        with c6:
+            st.metric("组合持仓数", pf.get('num_positions', 0))
+        with c7:
+            st.metric("Sortino", f"{pf.get('sortino_ratio', 0):.2f}")
+        with c8:
+            st.metric("Calmar", f"{pf.get('calmar_ratio', 0):.2f}")
+
+        walk = result.get('walk_forward', {})
+        st.markdown("### 🧪 Walk-forward")
+        if walk.get('error'):
+            st.warning(f"Walk-forward 未完成: {walk.get('error')}")
+        elif walk.get('status') == 'skipped':
+            st.info(f"Walk-forward 跳过: {walk.get('reason')}")
+        else:
+            windows = walk.get('windows', [])
+            if windows:
+                wdf = pd.DataFrame(windows)
+                st.dataframe(wdf, use_container_width=True, hide_index=True)
+
+        trades = result.get('trades', [])
+        if trades:
+            st.markdown("### 📋 交易明细")
+            tdf = pd.DataFrame(trades)
+            st.dataframe(tdf, use_container_width=True, hide_index=True)
+
+        with st.expander("🔧 回测参数"):
+            st.json(params)
+        return
     
     # 顶部摘要卡片
     st.markdown("---")
@@ -5745,6 +5851,40 @@ def render_signal_performance_page():
     
     summary_df = get_backtest_summary_table(result)
     st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+    # 多周期表现（快速回测）
+    metrics_by_h = result.get('metrics_by_horizon', {})
+    if metrics_by_h:
+        rows = []
+        for h, m in metrics_by_h.items():
+            rows.append({
+                "周期": h,
+                "胜率(%)": m.get("win_rate", 0),
+                "平均收益(%)": m.get("avg_return", 0),
+                "Sharpe": m.get("sharpe", 0),
+                "最大回撤(%)": m.get("max_drawdown", 0),
+                "样本": m.get("total_signals", 0),
+            })
+        if rows:
+            st.markdown("### ⏱️ 多周期对比")
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+    # 市值分层表现
+    cap_rows = result.get('cap_segment_metrics', [])
+    if cap_rows:
+        st.markdown("### 🧱 市值分层表现")
+        cap_df = pd.DataFrame(cap_rows)
+        cap_df = cap_df.rename(columns={
+            "label": "市值层",
+            "signals": "样本",
+            "win_rate": "胜率(%)",
+            "avg_return": "平均收益(%)",
+            "sharpe": "Sharpe",
+            "max_drawdown": "最大回撤(%)",
+        })
+        keep_cols = ["市值层", "样本", "胜率(%)", "平均收益(%)", "Sharpe", "最大回撤(%)"]
+        cap_df = cap_df[[c for c in keep_cols if c in cap_df.columns]]
+        st.dataframe(cap_df, use_container_width=True, hide_index=True)
     
     # 累积收益曲线图表
     st.markdown("---")
@@ -5765,6 +5905,7 @@ def render_signal_performance_page():
         # 根据 forward_days 动态确定列名
         ret_col = f'return_{forward_days}d'
         spy_ret_col = f'spy_return_{forward_days}d'
+        alpha_col = f'alpha_{forward_days}d'
         
         # 格式化显示
         if ret_col in signals_df.columns:
@@ -5775,8 +5916,8 @@ def render_signal_performance_page():
             signals_df[f'SPY{forward_days}d%'] = signals_df[spy_ret_col].apply(
                 lambda x: f"{x*100:.2f}%" if x is not None else "N/A"
             )
-        if 'alpha' in signals_df.columns:
-            signals_df['Alpha%'] = signals_df['alpha'].apply(
+        if alpha_col in signals_df.columns:
+            signals_df['Alpha%'] = signals_df[alpha_col].apply(
                 lambda x: f"{x*100:.2f}%" if x is not None else "N/A"
             )
         
