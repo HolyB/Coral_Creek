@@ -12171,6 +12171,105 @@ def render_ml_prediction_page():
 
 
 # --- V3 主导航 (精简版 4 入口) ---
+def render_qlib_mining_hub():
+    """主应用内的 Qlib 挖掘中心（不依赖 Streamlit 多页面发现）。"""
+    import json
+    import subprocess
+    from pathlib import Path
+
+    st.header("🧠 Qlib 因子与策略挖掘")
+    st.caption("在主应用内查看/运行 Qlib 挖掘，不依赖 pages 侧栏菜单")
+
+    try:
+        from ml.qlib_integration import check_qlib_status
+        status = check_qlib_status()
+    except Exception:
+        status = {"installed": False, "us_data": False, "cn_data": False}
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Qlib 安装", "✅" if status.get("installed") else "❌")
+    c2.metric("US 数据", "✅" if status.get("us_data") else "❌")
+    c3.metric("CN 数据", "✅" if status.get("cn_data") else "❌")
+
+    with st.expander("运行挖掘", expanded=False):
+        market = st.selectbox("市场", ["US", "CN"], index=0, key="qlib_hub_market")
+        segment = st.selectbox("市值分层", ["ALL", "LARGE", "MID", "SMALL"], index=0, key="qlib_hub_segment")
+        days = st.slider("回溯天数", 180, 1460, 730, 30, key="qlib_hub_days")
+        topk_grid = st.text_input("TopK 网格", "5,8,10,15", key="qlib_hub_topk")
+        drop_grid = st.text_input("N_drop 网格", "1,2,3", key="qlib_hub_drop")
+        run_batch = st.checkbox("批量跑分层对比（仅US）", value=True, key="qlib_hub_batch")
+
+        if st.button("开始挖掘", type="primary", key="qlib_hub_run"):
+            cmd = [
+                sys.executable,
+                "scripts/run_qlib_mining.py",
+                "--market", market,
+                "--segment", segment,
+                "--days", str(days),
+                "--topk-grid", topk_grid,
+                "--drop-grid", drop_grid,
+            ]
+            if run_batch and market == "US":
+                cmd.append("--run-segment-batch")
+
+            with st.spinner("运行中，可能需要几分钟..."):
+                proc = subprocess.run(
+                    cmd,
+                    cwd=str(current_dir),
+                    capture_output=True,
+                    text=True,
+                )
+            output = ((proc.stdout or "") + "\n" + (proc.stderr or "")).strip()
+            if proc.returncode == 0:
+                st.success("挖掘完成")
+            else:
+                st.error("挖掘失败")
+            st.code(output if output else "(无输出)")
+
+    out_dir = Path(current_dir) / "ml" / "saved_models" / "qlib_us"
+    market_view = st.radio("查看市场", ["US", "CN"], horizontal=True, key="qlib_hub_view_market")
+    out_dir = Path(current_dir) / "ml" / "saved_models" / f"qlib_{market_view.lower()}"
+
+    summary_path = out_dir / "qlib_mining_summary_latest.json"
+    factor_path = out_dir / "factor_mining_latest.csv"
+    strategy_path = out_dir / "strategy_mining_latest.csv"
+    segment_path = out_dir / "segment_strategy_compare_latest.csv"
+
+    if summary_path.exists():
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        except Exception:
+            summary = {}
+        if summary:
+            x1, x2, x3, x4 = st.columns(4)
+            x1.metric("分层", str(summary.get("segment", "-")))
+            x2.metric("因子数", int(summary.get("factor_rows", 0)))
+            x3.metric("策略组合", int(summary.get("strategy_rows", 0)))
+            top = (summary.get("top_strategies") or [{}])[0]
+            x4.metric("最佳 Sharpe", f"{float(top.get('sharpe', 0.0)):.2f}")
+
+    col_l, col_r = st.columns(2)
+    with col_l:
+        st.subheader("因子排名")
+        if factor_path.exists():
+            st.dataframe(pd.read_csv(factor_path).head(30), use_container_width=True)
+        else:
+            st.caption("暂无因子结果")
+    with col_r:
+        st.subheader("策略排名")
+        if strategy_path.exists():
+            st.dataframe(pd.read_csv(strategy_path).head(30), use_container_width=True)
+        else:
+            st.caption("暂无策略结果")
+
+    st.subheader("市值分层对比")
+    if segment_path.exists():
+        st.dataframe(pd.read_csv(segment_path), use_container_width=True)
+    else:
+        st.caption("暂无分层对比结果")
+
+
+# --- V3 主导航 (精简版 5 入口) ---
 
 st.sidebar.title("Coral Creek V3 🦅")
 st.sidebar.caption("ML量化交易系统")
@@ -12180,6 +12279,7 @@ page = st.sidebar.radio("功能导航", [
     "📊 全量扫描",      # 原 每日扫描 (数据表)
     "🔬 个股研究",      # 原 个股分析 + 策略回测 (深度分析)
     "💰 交易执行",      # 原 组合管理 + 策略实验室模拟盘 (Alpaca+Paper)
+    "🧠 Qlib挖掘",
 ])
 
 st.sidebar.markdown("---")
@@ -12203,3 +12303,5 @@ elif page == "🔬 个股研究":
 elif page == "💰 交易执行":
     # 整合: 组合管理 (持仓+风控) + Paper Trading + Alpaca Trading
     render_portfolio_management_page()
+elif page == "🧠 Qlib挖掘":
+    render_qlib_mining_hub()
