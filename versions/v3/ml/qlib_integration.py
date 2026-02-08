@@ -146,10 +146,10 @@ class QlibBridge:
         
         try:
             if self.market == 'CN':
-                provider_uri = str(self.data_dir)
+                provider_uri = {'day': str(self.data_dir)}
                 region = REG_CN
             else:
-                provider_uri = str(self.data_dir)
+                provider_uri = {'day': str(self.data_dir)}
                 region = REG_US
             
             qlib.init(
@@ -163,7 +163,11 @@ class QlibBridge:
             
         except Exception as e:
             print(f"❌ Qlib 初始化失败: {e}")
-            print(f"   请先下载数据: python -m qlib.run.get_data qlib_data_{self.market.lower()} --target_dir {self.data_dir}")
+            print(
+                "   请先下载数据: "
+                f"python -m qlib.cli.data qlib_data --target_dir {self.data_dir} "
+                f"--region {self.market.lower()} --interval 1d"
+            )
             return False
     
     def convert_to_qlib_format(self, 
@@ -558,7 +562,7 @@ def install_qlib_data(market: str = 'US'):
    pip install pyqlib
 
 2. 下载数据:
-   python -m qlib.run.get_data qlib_data_{market.lower()} --target_dir ~/.qlib/qlib_data/{market.lower()}_data
+   python -m qlib.cli.data qlib_data --target_dir ~/.qlib/qlib_data/{market.lower()}_data --region {market.lower()} --interval 1d
 
 3. 数据大小:
    - US: ~5GB

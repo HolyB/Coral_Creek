@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -60,10 +60,34 @@ class QlibMiningPipeline:
         if not self.bridge.initialized:
             raise RuntimeError("Qlib 初始化失败，请先下载 market 对应数据")
 
+        self._align_date_range_with_data()
         dataset = self._build_dataset()
         factor_df = self._mine_factors(dataset)
         strategy_df = self._mine_strategies(dataset)
         return self._save_reports(factor_df, strategy_df)
+
+    def _align_date_range_with_data(self) -> None:
+        cal_file = Path(self.bridge.data_dir) / "calendars" / "day.txt"
+        if not cal_file.exists():
+            return
+        dates = [x.strip() for x in cal_file.read_text(encoding="utf-8", errors="ignore").splitlines() if x.strip()]
+        if not dates:
+            return
+        min_d = dates[0]
+        max_d = dates[-1]
+
+        start = self.config.start_date
+        end = self.config.end_date
+        if end > max_d:
+            end = max_d
+        if start < min_d:
+            start = min_d
+        if start > end:
+            end_dt = datetime.strptime(end, "%Y-%m-%d")
+            start = max(min_d, (end_dt - timedelta(days=365)).strftime("%Y-%m-%d"))
+
+        self.config.start_date = start
+        self.config.end_date = end
 
     def _build_dataset(self):
         from qlib.contrib.data.handler import Alpha158
@@ -91,7 +115,52 @@ class QlibMiningPipeline:
         )
 
     @staticmethod
-    def _flatten_label(label_obj: pd.DataFrame | pd.Series) -> pd.Series:
+    def _to_df(obj) -> pd.DataFrame:
+        if isinstance(obj, list):
+            parts = [x for x in obj if isinstance(x, (pd.DataFrame, pd.Series))]
+            if not parts:
+                return pd.DataFrame()
+            fixed = [p.to_frame() if isinstance(p, pd.Series) else p for p in parts]
+            return pd.concat(fixed, axis=0)
+        if isinstance(obj, pd.Series):
+            return obj.to_frame()
+        if isinstance(obj, pd.DataFrame):
+            return obj
+        return pd.DataFrame()
+
+    @classmethod
+    def _flatten_label(cls, label_obj: pd.DataFrame | pd.Series | list) -> pd.Series:
+        label_df = cls._to_df(label_obj)
+        if label_df.empty:
+            return pd.Series(dtype=float)
+        return label_df.iloc[:, 0]
+
+    @classmethod
+    def _flatten_feature(cls, feat_obj: pd.DataFrame | list) -> pd.DataFrame:
+        feat_df = cls._to_df(feat_obj)
+        if feat_df.empty:
+            return pd.DataFrame()
+        return feat_df
+
+    @staticmethod
+    def _flatten_prediction(pred_obj):
+        if isinstance(pred_obj, list):
+            parts = [x for x in pred_obj if isinstance(x, (pd.DataFrame, pd.Series))]
+            if not parts:
+                return pd.Series(dtype=float)
+            fixed = []
+            for p in parts:
+                if isinstance(p, pd.DataFrame):
+                    fixed.append(p.iloc[:, 0])
+                else:
+                    fixed.append(p)
+            return pd.concat(fixed, axis=0)
+        if isinstance(pred_obj, pd.DataFrame):
+            return pred_obj.iloc[:, 0]
+        return pred_obj
+
+    @staticmethod
+    def _flatten_label_legacy(label_obj: pd.DataFrame | pd.Series) -> pd.Series:
         if isinstance(label_obj, pd.Series):
             return label_obj
         if not isinstance(label_obj, pd.DataFrame):
@@ -111,7 +180,11 @@ class QlibMiningPipeline:
     def _mine_factors(self, dataset) -> pd.DataFrame:
         from qlib.data.dataset.handler import DataHandlerLP
 
-        feat_df = dataset.prepare(["train", "valid"], col_set="feature", data_key=DataHandlerLP.DK_L)
+        feat_df = self._flatten_feature(
+            dataset.prepare(["train", "valid"], col_set="feature", data_key=DataHandlerLP.DK_L)
+        )
+        if feat_df.empty:
+            raise RuntimeError("Alpha158 特征为空，请检查时间区间是否超出本地 Qlib 数据范围")
         label_df = dataset.prepare(["train", "valid"], col_set="label", data_key=DataHandlerLP.DK_L)
         label_ser = self._flatten_label(label_df)
 
@@ -173,9 +246,8 @@ class QlibMiningPipeline:
         return result
 
     def _mine_strategies(self, dataset) -> pd.DataFrame:
-        from qlib.contrib.evaluate import backtest as qlib_backtest
         from qlib.contrib.model.gbdt import LGBModel
-        from qlib.contrib.strategy.signal_strategy import TopkDropoutStrategy
+        from qlib.data.dataset.handler import DataHandlerLP
 
         model = LGBModel(
             loss="mse",
@@ -186,16 +258,31 @@ class QlibMiningPipeline:
         )
         model.fit(dataset)
 
-        pred = model.predict(dataset, segment="test")
-        if isinstance(pred, pd.DataFrame):
-            pred = pred.iloc[:, 0]
+        pred = self._flatten_prediction(model.predict(dataset, segment="test"))
+        feat_test = self._flatten_feature(dataset.prepare("test", col_set="feature", data_key=DataHandlerLP.DK_L))
+        label_test = self._flatten_label(dataset.prepare("test", col_set="label", data_key=DataHandlerLP.DK_L))
+        if feat_test.empty or label_test.empty:
+            raise RuntimeError("测试集为空，无法进行策略挖掘")
+
+        if isinstance(pred, (np.ndarray, list)):
+            pred = pd.Series(np.asarray(pred).reshape(-1), index=feat_test.index[: len(np.asarray(pred).reshape(-1))])
+        elif isinstance(pred, pd.Series):
+            pred = pred.reindex(feat_test.index)
+        else:
+            raise RuntimeError(f"不支持的预测结果类型: {type(pred)}")
+
+        panel = pd.DataFrame({"score": pred, "label": label_test.reindex(feat_test.index)}, index=feat_test.index).dropna()
+        if panel.empty:
+            raise RuntimeError("预测分数与标签对齐后为空")
+
+        dt_level = self._get_datetime_level(panel.index)
 
         rows = []
         for topk in self.config.topk_grid:
             for n_drop in self.config.drop_grid:
                 if n_drop >= topk:
                     continue
-                metrics = self._run_one_backtest(qlib_backtest, TopkDropoutStrategy, pred, topk, n_drop)
+                metrics = self._simulate_topk_dropout(panel, dt_level=dt_level, topk=topk, n_drop=n_drop)
                 rows.append(metrics)
 
         result = pd.DataFrame(rows)
@@ -210,27 +297,50 @@ class QlibMiningPipeline:
         )
         return result.sort_values("score", ascending=False).reset_index(drop=True)
 
-    def _run_one_backtest(self, qlib_backtest, strategy_cls, pred: pd.Series, topk: int, n_drop: int) -> Dict:
-        strategy = strategy_cls(signal=pred, topk=topk, n_drop=n_drop)
-        benchmark = self.config.benchmark or ("SH000300" if self.market == "CN" else "SPY")
-
+    def _simulate_topk_dropout(self, panel: pd.DataFrame, dt_level: int, topk: int, n_drop: int) -> Dict:
         try:
-            result = qlib_backtest(
-                start_time=self.config.start_date,
-                end_time=self.config.end_date,
-                strategy=strategy,
-                benchmark=benchmark,
-                account=10_000_000,
-                exchange_kwargs={
-                    "freq": "day",
-                    "deal_price": "close",
-                    "open_cost": 0.0005,
-                    "close_cost": 0.0015,
-                    "min_cost": 5,
-                },
-            )
-            report = self._extract_report_df(result)
-            metrics = self._metrics_from_report(report)
+            trading_days = list(panel.groupby(level=dt_level).groups.keys())
+            holdings: List[str] = []
+            daily_returns: List[float] = []
+            turnover_list: List[float] = []
+
+            for dt in trading_days:
+                day_df = panel.xs(dt, level=dt_level)
+                if day_df.empty:
+                    continue
+                day_df = day_df.sort_values("score", ascending=False)
+                ranked = day_df.index.tolist()
+                candidates = ranked[: max(topk * 2, topk)]
+
+                if not holdings:
+                    holdings = ranked[:topk]
+                else:
+                    keep_n = max(topk - n_drop, 0)
+                    kept = [s for s in holdings if s in day_df.index][:keep_n]
+                    replacements = [s for s in candidates if s not in kept][: max(topk - len(kept), 0)]
+                    holdings = (kept + replacements)[:topk]
+
+                if not holdings:
+                    continue
+
+                ret = float(day_df.loc[holdings, "label"].mean())
+                daily_returns.append(ret)
+
+                if len(daily_returns) == 1:
+                    turnover_list.append(1.0)
+                else:
+                    prev_set = set(prev_holdings)
+                    curr_set = set(holdings)
+                    changed = len(curr_set - prev_set)
+                    turnover_list.append(changed / max(len(curr_set), 1))
+
+                prev_holdings = holdings.copy()
+
+            if not daily_returns:
+                raise RuntimeError("无有效交易日")
+
+            daily = pd.Series(daily_returns, dtype=float)
+            metrics = self._metrics_from_daily_returns(daily, turnover=float(np.mean(turnover_list)))
             metrics.update({"topk": int(topk), "n_drop": int(n_drop), "status": "ok", "error": ""})
             return metrics
         except Exception as exc:
@@ -247,62 +357,20 @@ class QlibMiningPipeline:
             }
 
     @staticmethod
-    def _extract_report_df(result) -> pd.DataFrame:
-        if isinstance(result, tuple) and len(result) >= 1:
-            report = result[0]
-            if isinstance(report, pd.DataFrame):
-                return report
-        if isinstance(result, pd.DataFrame):
-            return result
-        if isinstance(result, dict):
-            for key in ["report_df", "report", "portfolio_report"]:
-                val = result.get(key)
-                if isinstance(val, pd.DataFrame):
-                    return val
-        raise RuntimeError("无法从回测结果中提取 report DataFrame")
-
-    @staticmethod
-    def _metrics_from_report(report: pd.DataFrame) -> Dict[str, float]:
-        if report is None or report.empty:
-            raise RuntimeError("空回测报告")
-
-        cols = {c.lower(): c for c in report.columns}
-        ret_col = cols.get("return")
-        cost_col = cols.get("cost")
-        turnover_col = cols.get("turnover")
-
-        if ret_col is None:
-            candidate = [c for c in report.columns if "return" in c.lower()]
-            if not candidate:
-                raise RuntimeError("report 缺少 return 列")
-            ret_col = candidate[0]
-
-        gross_ret = pd.to_numeric(report[ret_col], errors="coerce").fillna(0.0)
-        cost = pd.to_numeric(report[cost_col], errors="coerce").fillna(0.0) if cost_col else 0.0
-        net_ret = gross_ret - cost
-
-        curve = (1.0 + net_ret).cumprod()
-        n = max(len(net_ret), 1)
-
+    def _metrics_from_daily_returns(daily: pd.Series, turnover: float) -> Dict[str, float]:
+        curve = (1.0 + daily).cumprod()
+        n = max(len(daily), 1)
         ann_return = float(curve.iloc[-1] ** (252.0 / n) - 1.0)
-        vol = float(net_ret.std())
-        sharpe = float(net_ret.mean() / vol * math.sqrt(252.0)) if vol > 1e-12 else 0.0
-
+        vol = float(daily.std())
+        sharpe = float(daily.mean() / vol * math.sqrt(252.0)) if vol > 1e-12 else 0.0
         rolling_peak = curve.cummax()
         drawdown = (curve / rolling_peak) - 1.0
         max_dd = float(drawdown.min())
-
-        turnover = (
-            float(pd.to_numeric(report[turnover_col], errors="coerce").mean())
-            if turnover_col
-            else float("nan")
-        )
-
         return {
             "ann_return": ann_return,
             "sharpe": sharpe,
             "max_drawdown": max_dd,
-            "turnover": turnover,
+            "turnover": float(turnover),
             "total_return": float(curve.iloc[-1] - 1.0),
         }
 

@@ -4,8 +4,8 @@
 
 ```bash
 pip install pyqlib
-python -m qlib.run.get_data qlib_data_us --target_dir ~/.qlib/qlib_data/us_data
-python -m qlib.run.get_data qlib_data_cn --target_dir ~/.qlib/qlib_data/cn_data
+python -m qlib.cli.data qlib_data --target_dir ~/.qlib/qlib_data/us_data --region us --interval 1d
+python -m qlib.cli.data qlib_data --target_dir ~/.qlib/qlib_data/cn_data --region cn --interval 1d
 ```
 
 ## 2) 一键运行挖掘

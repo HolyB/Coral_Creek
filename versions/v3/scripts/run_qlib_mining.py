@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import subprocess
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -17,7 +19,6 @@ from ml.qlib_mining import (  # noqa: E402
     QlibMiningPipeline,
     build_symbol_pool,
     parse_int_list,
-    run_segment_batch,
 )
 
 
@@ -63,18 +64,53 @@ def main():
 
     try:
         if args.run_segment_batch and args.market.upper() == "US" and not args.symbols:
-            batch_df = run_segment_batch(
-                market=cfg.market,
-                segments=["LARGE", "MID", "SMALL"],
-                start_date=cfg.start_date,
-                end_date=cfg.end_date,
-                topk_grid=cfg.topk_grid,
-                drop_grid=cfg.drop_grid,
-                benchmark=cfg.benchmark,
-                min_cross_section=cfg.min_cross_section,
-            )
+            rows = []
             out_dir = project_root / "ml" / "saved_models" / f"qlib_{cfg.market.lower()}"
             out_dir.mkdir(parents=True, exist_ok=True)
+            for seg in ["LARGE", "MID", "SMALL"]:
+                cmd = [
+                    sys.executable,
+                    "scripts/run_qlib_mining.py",
+                    "--market",
+                    cfg.market,
+                    "--segment",
+                    seg,
+                    "--days",
+                    str(args.days),
+                    "--topk-grid",
+                    args.topk_grid,
+                    "--drop-grid",
+                    args.drop_grid,
+                ]
+                if args.benchmark:
+                    cmd.extend(["--benchmark", args.benchmark])
+                proc = subprocess.run(cmd, cwd=str(project_root), capture_output=True, text=True)
+                if proc.returncode != 0:
+                    raise RuntimeError(f"{seg} 分层运行失败: {(proc.stdout or '')[-200:]} {(proc.stderr or '')[-200:]}")
+
+                summary_path = out_dir / "qlib_mining_summary_latest.json"
+                if not summary_path.exists():
+                    continue
+                with open(summary_path, "r", encoding="utf-8") as f:
+                    summary = json.load(f)
+                top = (summary.get("top_strategies") or [{}])[0]
+                rows.append(
+                    {
+                        "segment": seg,
+                        "symbols_count": len(summary.get("symbols", [])),
+                        "best_topk": top.get("topk"),
+                        "best_n_drop": top.get("n_drop"),
+                        "best_ann_return": top.get("ann_return"),
+                        "best_sharpe": top.get("sharpe"),
+                        "best_max_drawdown": top.get("max_drawdown"),
+                        "best_turnover": top.get("turnover"),
+                        "best_total_return": top.get("total_return"),
+                        "status": top.get("status", "ok"),
+                    }
+                )
+
+            import pandas as pd
+            batch_df = pd.DataFrame(rows)
             batch_path = out_dir / "segment_strategy_compare_latest.csv"
             batch_df.to_csv(batch_path, index=False)
             print("\n✅ 分层批量挖掘完成")
@@ -89,8 +125,8 @@ def main():
         print("\n建议检查：")
         print("1) 安装 Qlib: pip install pyqlib")
         print(
-            "2) 下载数据: python -m qlib.run.get_data "
-            f"qlib_data_{cfg.market.lower()} --target_dir ~/.qlib/qlib_data/{cfg.market.lower()}_data"
+            "2) 下载数据: python -m qlib.cli.data qlib_data "
+            f"--target_dir ~/.qlib/qlib_data/{cfg.market.lower()}_data --region {cfg.market.lower()} --interval 1d"
         )
         return
 

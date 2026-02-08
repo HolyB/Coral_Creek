@@ -49,6 +49,15 @@ logs/
 
 # Artifacts
 scan_summary.json
+mlruns/
+Users/
+versions/v3/mlruns/
+versions/v3/Users/
+
+# Qlib mining timestamp artifacts (keep latest files)
+versions/v3/ml/saved_models/qlib_*/factor_mining_[0-9]*.csv
+versions/v3/ml/saved_models/qlib_*/strategy_mining_[0-9]*.csv
+versions/v3/ml/saved_models/qlib_*/qlib_mining_summary_[0-9]*.json
 
 # Allow Coral Creek database for Streamlit Cloud
 !versions/v2/db/coral_creek.db
