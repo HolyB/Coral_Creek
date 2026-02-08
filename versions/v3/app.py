@@ -2788,6 +2788,42 @@ def render_scan_page():
             st.info("💡 **方式二**: 批量回填历史数据\n```bash\ncd versions/v2\npython scripts/backfill.py --start 2025-12-01 --end 2026-01-07\n```")
         return
             
+    # === Qlib 结果加载 (用于融合) ===
+    def _load_qlib_latest_pack(market: str) -> dict:
+        from pathlib import Path
+        import json
+
+        base = Path(current_dir) / "ml" / "saved_models" / f"qlib_{market.lower()}"
+        out = {
+            "available": False,
+            "summary": {},
+            "segment_df": pd.DataFrame(),
+        }
+        try:
+            summary_path = base / "qlib_mining_summary_latest.json"
+            seg_path = base / "segment_strategy_compare_latest.csv"
+            if summary_path.exists():
+                with open(summary_path, "r", encoding="utf-8") as f:
+                    out["summary"] = json.load(f)
+            if seg_path.exists():
+                out["segment_df"] = pd.read_csv(seg_path)
+            out["available"] = bool(out["summary"] or not out["segment_df"].empty)
+        except Exception:
+            pass
+        return out
+
+    def _qlib_segment_to_caps(seg: str):
+        seg = (seg or "").upper()
+        if seg == "LARGE":
+            return ["Mega-Cap (超大盘)", "Mega-Cap (巨头)", "Large-Cap (大盘)", "Large-Cap"]
+        if seg == "MID":
+            return ["Mid-Cap (中盘)", "Mid-Cap"]
+        if seg == "SMALL":
+            return ["Small-Cap (小盘)", "Small-Cap", "Micro-Cap (微盘)", "Micro-Cap"]
+        return []
+
+    qlib_pack = _load_qlib_latest_pack(selected_market)
+
     # === 🏆 智能排序 & Alpha Picks ===
     # 在筛选之前先计算全量分数 (仅基础技术面分)
     try:
@@ -2805,6 +2841,41 @@ def render_scan_page():
         st.divider()
         st.header("🎛️ 多维筛选")
         st.caption("根据您的偏好自由组合过滤条件")
+
+        # === Qlib 融合层 ===
+        qlib_blend_enabled = False
+        qlib_focus_segment = None
+        qlib_best_topk = None
+        if qlib_pack["available"]:
+            with st.expander("🧠 Qlib 融合", expanded=False):
+                seg_df = qlib_pack.get("segment_df", pd.DataFrame())
+                summary = qlib_pack.get("summary", {})
+
+                if not seg_df.empty and "best_sharpe" in seg_df.columns:
+                    tmp = seg_df.sort_values("best_sharpe", ascending=False).iloc[0]
+                    qlib_focus_segment = str(tmp.get("segment", ""))
+                    qlib_best_topk = int(tmp.get("best_topk", 8) or 8)
+                    st.caption(
+                        f"建议分层: **{qlib_focus_segment}** | "
+                        f"建议持仓: **Top {qlib_best_topk}** | "
+                        f"Sharpe: **{float(tmp.get('best_sharpe', 0)):.2f}**"
+                    )
+                else:
+                    top = (summary.get("top_strategies") or [{}])[0]
+                    qlib_best_topk = int(top.get("topk", 8) or 8)
+                    qlib_focus_segment = summary.get("segment", "")
+                    st.caption(
+                        f"建议分层: **{qlib_focus_segment or 'N/A'}** | "
+                        f"建议持仓: **Top {qlib_best_topk}**"
+                    )
+
+                qlib_blend_enabled = st.checkbox(
+                    "应用 Qlib 融合过滤与打分",
+                    value=False,
+                    help="将 Qlib 挖掘结果与当前扫描特征融合：按分层过滤 + 融合分排序。",
+                )
+        else:
+            st.caption("🧠 Qlib 融合：暂无可用结果文件")
         
         # === 1. 流动性筛选 (最重要!) ===
         st.subheader("💧 流动性")
@@ -2980,11 +3051,47 @@ def render_scan_page():
         st.divider()
         st.metric("筛选后结果", f"{len(df)} 只", help="符合所有筛选条件的股票数量")
 
+    # === 应用 Qlib 融合 ===
+    qlib_impact = ""
+    if qlib_pack["available"] and qlib_blend_enabled:
+        before_n = len(df)
+
+        # 1) 按分层优先过滤
+        target_caps = _qlib_segment_to_caps(qlib_focus_segment)
+        if target_caps and "Cap_Category" in df.columns:
+            filtered = df[df["Cap_Category"].isin(target_caps)]
+            if len(filtered) >= 3:
+                df = filtered
+
+        # 2) 构建融合分（现有综合分 + 信号强度 + 趋势强度）
+        # 注意：Qlib 当前输出是组合层结论，这里做的是交易执行层的可落地融合，而非逐票 qlib 预测。
+        if "Integrated_Score" in df.columns:
+            base = pd.to_numeric(df["Integrated_Score"], errors="coerce").fillna(0)
+        elif "Score" in df.columns:
+            base = pd.to_numeric(df["Score"], errors="coerce").fillna(0)
+        else:
+            base = pd.Series(0, index=df.index, dtype=float)
+
+        blue = pd.to_numeric(df.get("Day BLUE", 0), errors="coerce").fillna(0)
+        adx = pd.to_numeric(df.get("ADX", 0), errors="coerce").fillna(0)
+        qlib_bonus = 10 if qlib_focus_segment else 0
+        df["Qlib_Fusion_Score"] = base * 0.65 + blue * 0.20 + adx * 0.15 + qlib_bonus
+        df = df.sort_values("Qlib_Fusion_Score", ascending=False)
+
+        # 3) 按建议持仓数给出候选池（TopK * 3）
+        if qlib_best_topk and qlib_best_topk > 0 and len(df) > qlib_best_topk * 3:
+            df = df.head(qlib_best_topk * 3)
+
+        qlib_impact = f"Qlib融合已生效: {before_n} → {len(df)} 只"
+
     # 2. 顶部仪表盘
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("筛选后机会", f"{len(df)} 只", help="符合当前筛选条件的股票数量")
+        label = "筛选后机会"
+        if qlib_impact:
+            label = "筛选后机会 (Qlib融合)"
+        st.metric(label, f"{len(df)} 只", help="符合当前筛选条件的股票数量")
 
     with col2:
         # 强信号：BLUE > 150
@@ -3006,6 +3113,8 @@ def render_scan_page():
             st.markdown(f"<h3 style='color: {color}; margin-top: -10px;'>{mood}</h3>", unsafe_allow_html=True)
 
     st.divider()
+    if qlib_impact:
+        st.info(f"🧠 {qlib_impact}")
 
     # 3. 机会清单
     st.subheader("📋 机会清单 (Opportunity Matrix)")
@@ -3122,6 +3231,12 @@ def render_scan_page():
         "新发现": st.column_config.TextColumn("状态", width="small", help="🆕=今日新发现, 📅=之前出现过"),
         "新闻": st.column_config.TextColumn("新闻", width="small", help="🟢利好/🔴利空 (利好数/利空数)")
     }
+    if "Qlib_Fusion_Score" in df.columns:
+        column_config["Qlib_Fusion_Score"] = st.column_config.NumberColumn(
+            "Qlib融合分",
+            format="%.1f",
+            help="Qlib 组合结论与现有技术特征融合后的执行分",
+        )
 
     # === 新发现标记 ===
     # 查询每只股票首次出现在扫描结果中的日期
@@ -4584,6 +4699,41 @@ def render_stock_lookup_page():
         st.divider()
     else:
         st.caption(f"ℹ️ {active_symbol} 不在最近的扫描结果中 (非信号股或未被扫描)")
+
+    # --- 1.5 Qlib 融合解释层 ---
+    try:
+        from pathlib import Path
+        qlib_dir = Path(current_dir) / "ml" / "saved_models" / f"qlib_{market.lower()}"
+        seg_path = qlib_dir / "segment_strategy_compare_latest.csv"
+        if seg_path.exists():
+            seg_df = pd.read_csv(seg_path)
+            if not seg_df.empty and "best_sharpe" in seg_df.columns:
+                top_seg = seg_df.sort_values("best_sharpe", ascending=False).iloc[0]
+                best_segment = str(top_seg.get("segment", "")).upper()
+
+                cap_cat = ""
+                if scan_info:
+                    cap_cat = str(scan_info.get("cap_category", "") or "")
+                in_focus = False
+                if best_segment == "LARGE":
+                    in_focus = ("Large" in cap_cat) or ("Mega" in cap_cat)
+                elif best_segment == "MID":
+                    in_focus = "Mid" in cap_cat
+                elif best_segment == "SMALL":
+                    in_focus = ("Small" in cap_cat) or ("Micro" in cap_cat)
+
+                if in_focus:
+                    st.success(
+                        f"🧠 Qlib 融合判断: 当前更偏好 **{best_segment}** 分层，"
+                        f"{active_symbol} 与该分层匹配。"
+                    )
+                else:
+                    st.info(
+                        f"🧠 Qlib 融合判断: 当前更偏好 **{best_segment}** 分层，"
+                        f"而 {active_symbol} 的市值分层匹配度一般。"
+                    )
+    except Exception:
+        pass
     
     # --- 2. 历史信号轨迹 ---
     _render_signal_history(active_symbol, market)
@@ -12269,7 +12419,7 @@ def render_qlib_mining_hub():
         st.caption("暂无分层对比结果")
 
 
-# --- V3 主导航 (精简版 5 入口) ---
+# --- V3 主导航 (精简版 4 入口) ---
 
 st.sidebar.title("Coral Creek V3 🦅")
 st.sidebar.caption("ML量化交易系统")
@@ -12279,7 +12429,6 @@ page = st.sidebar.radio("功能导航", [
     "📊 全量扫描",      # 原 每日扫描 (数据表)
     "🔬 个股研究",      # 原 个股分析 + 策略回测 (深度分析)
     "💰 交易执行",      # 原 组合管理 + 策略实验室模拟盘 (Alpaca+Paper)
-    "🧠 Qlib挖掘",
 ])
 
 st.sidebar.markdown("---")
@@ -12291,17 +12440,17 @@ if page == "🎯 每日机会":
 elif page == "📊 全量扫描":
     render_scan_page()
 elif page == "🔬 个股研究":
-    # 整合: 个股分析 + 策略回测 + AI中心(今日精选)
+    # 整合: 个股分析 + 策略回测 + AI中心(今日精选) + Qlib融合
     st.header("🔬 个股研究")
-    research_tab = st.tabs(["🔍 个股分析", "🧪 策略回测", "🤖 AI选股"])
+    research_tab = st.tabs(["🔍 个股分析", "🧪 策略回测", "🤖 AI选股", "🧠 Qlib融合"])
     with research_tab[0]:
         render_stock_lookup_page()
     with research_tab[1]:
         render_strategy_lab_page()
     with research_tab[2]:
         render_ai_center_page()
+    with research_tab[3]:
+        render_qlib_mining_hub()
 elif page == "💰 交易执行":
     # 整合: 组合管理 (持仓+风控) + Paper Trading + Alpaca Trading
     render_portfolio_management_page()
-elif page == "🧠 Qlib挖掘":
-    render_qlib_mining_hub()
