@@ -5635,10 +5635,33 @@ def render_portfolio_tab():
         )
         _set_global_paper_account_name(selected_account)
         account_cfg = get_paper_account_config(selected_account)
+        st.info(f"当前查看子账户: **{selected_account}**")
         st.caption(
             f"当前风控: 单票≤{float(account_cfg.get('max_single_position_pct', 0.30))*100:.1f}% | "
             f"最大回撤≤{float(account_cfg.get('max_drawdown_pct', 0.20))*100:.1f}%"
         )
+
+        # 子账户总览（减少“我现在操作的是哪个账户”的歧义）
+        with st.expander("👥 子账户总览", expanded=False):
+            overview_rows = []
+            for acc in sub_names:
+                acc_data = get_paper_account(acc)
+                if not acc_data:
+                    continue
+                overview_rows.append({
+                    "账户": acc,
+                    "现金": float(acc_data.get("cash_balance", 0) or 0),
+                    "持仓市值": float(acc_data.get("position_value", 0) or 0),
+                    "总权益": float(acc_data.get("total_equity", 0) or 0),
+                    "持仓数": len(acc_data.get("positions", [])),
+                })
+            if overview_rows:
+                ov_df = pd.DataFrame(overview_rows)
+                for col in ["现金", "持仓市值", "总权益"]:
+                    ov_df[col] = ov_df[col].apply(lambda x: f"${x:,.2f}")
+                st.dataframe(ov_df, hide_index=True, use_container_width=True)
+            else:
+                st.caption("暂无子账户数据")
 
         with st.expander("➕ 新建策略子账户", expanded=False):
             new_sub_name = st.text_input("子账户名称", placeholder="trend_us / meanrev_cn", key="new_paper_subaccount")
@@ -5715,14 +5738,25 @@ def render_portfolio_tab():
             buy_shares = st.number_input("买入股数", min_value=1, value=10, key="paper_buy_shares")
             buy_price = st.number_input("价格 (0=市价)", min_value=0.0, value=0.0, key="paper_buy_price")
             buy_market = st.selectbox("市场", ["US", "CN"], key="paper_buy_market")
+            buy_target_account = st.selectbox(
+                "目标子账户",
+                sub_names,
+                index=sub_names.index(selected_account) if selected_account in sub_names else 0,
+                key="paper_buy_target_account",
+                help="买入会记入此子账户"
+            )
+            st.caption(f"本次买入将进入: **{buy_target_account}**")
             
             if st.button("🛒 买入", type="primary", key="do_paper_buy"):
                 if buy_symbol:
                     price = buy_price if buy_price > 0 else None
-                    result = paper_buy(buy_symbol.upper(), buy_shares, price, buy_market, selected_account)
+                    result = paper_buy(buy_symbol.upper(), buy_shares, price, buy_market, buy_target_account)
                     
                     if result['success']:
-                        st.success(f"✅ 买入成功! {result['symbol']} {result['shares']}股 @ ${result['price']:.2f}")
+                        st.success(
+                            f"✅ 买入成功! {result['symbol']} {result['shares']}股 @ ${result['price']:.2f} "
+                            f"→ 子账户[{buy_target_account}]"
+                        )
                         st.rerun()
                     else:
                         st.error(f"❌ {result['error']}")
@@ -5731,6 +5765,7 @@ def render_portfolio_tab():
         
         with col_sell:
             st.markdown("#### 🔴 卖出")
+            st.caption(f"当前卖出来源账户: **{selected_account}**")
             
             # 持仓下拉选择
             position_options = [f"{p['symbol']} ({p['shares']}股)" for p in account['positions']]
@@ -5751,12 +5786,61 @@ def render_portfolio_tab():
                         result = paper_sell(sell_symbol, sell_shares, price, selected_position['market'], selected_account)
                         
                         if result['success']:
-                            st.success(f"✅ 卖出成功! 盈亏: ${result['realized_pnl']:+.2f}")
+                            st.success(f"✅ 卖出成功! 盈亏: ${result['realized_pnl']:+.2f} ← 子账户[{selected_account}]")
                             st.rerun()
                         else:
                             st.error(f"❌ {result['error']}")
             else:
                 st.info("暂无持仓可卖出")
+
+        # 跨子账户调仓（A账户减仓 -> B账户加仓）
+        with st.expander("↔ 跨子账户调仓", expanded=False):
+            st.caption("将某子账户中的持仓部分转移到另一个子账户（先卖出，再买入）")
+            source_account = st.selectbox("来源子账户", sub_names, key="rebalance_source_account")
+            target_candidates = [x for x in sub_names if x != source_account] or [source_account]
+            target_account = st.selectbox("目标子账户", target_candidates, key="rebalance_target_account")
+
+            source_data = get_paper_account(source_account)
+            source_positions = source_data.get("positions", []) if source_data else []
+            if source_positions:
+                pos_options = [f"{p['symbol']} | {p['market']} | {p['shares']}股" for p in source_positions]
+                sel = st.selectbox("来源持仓", pos_options, key="rebalance_position_select")
+                sel_symbol = sel.split(" | ")[0]
+                sel_market = sel.split(" | ")[1]
+                sel_pos = next((p for p in source_positions if p["symbol"] == sel_symbol and p["market"] == sel_market), None)
+                max_move = int(sel_pos["shares"]) if sel_pos else 0
+                move_shares = st.number_input("调仓股数", min_value=1, max_value=max_move if max_move > 0 else 1, value=max_move if max_move > 0 else 1, key="rebalance_move_shares")
+                move_price = st.number_input("执行价格 (0=市价)", min_value=0.0, value=0.0, key="rebalance_move_price")
+
+                if st.button("执行调仓", key="do_rebalance_accounts_btn"):
+                    if source_account == target_account:
+                        st.error("来源和目标子账户不能相同")
+                    else:
+                        px = move_price if move_price > 0 else None
+                        sell_res = paper_sell(sel_symbol, int(move_shares), px, sel_market, source_account)
+                        if not sell_res.get("success"):
+                            st.error(f"❌ 来源账户卖出失败: {sell_res.get('error')}")
+                        else:
+                            buy_px = sell_res.get("price", px)
+                            buy_res = paper_buy(sel_symbol, int(move_shares), buy_px, sel_market, target_account)
+                            if buy_res.get("success"):
+                                st.success(
+                                    f"✅ 调仓完成: {sel_symbol} {move_shares}股 "
+                                    f"[{source_account}] → [{target_account}]"
+                                )
+                                st.rerun()
+                            else:
+                                # 失败回滚：尝试买回来源账户
+                                rollback = paper_buy(sel_symbol, int(move_shares), buy_px, sel_market, source_account)
+                                if rollback.get("success"):
+                                    st.error(f"❌ 目标账户买入失败，已回滚来源账户: {buy_res.get('error')}")
+                                else:
+                                    st.error(
+                                        "❌ 目标账户买入失败且回滚失败，请立即手动检查。"
+                                        f"目标错误: {buy_res.get('error')} | 回滚错误: {rollback.get('error')}"
+                                    )
+            else:
+                st.info("来源子账户暂无持仓")
         
         st.divider()
         
