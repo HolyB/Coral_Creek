@@ -14,7 +14,7 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
 
 
-def send_telegram_message(message: str, parse_mode: str = 'HTML') -> bool:
+def send_telegram_message(message: str, parse_mode: str = 'Markdown') -> bool:
     """发送消息到 Telegram + 企业微信（若已配置）"""
     from services.notification import NotificationManager
     nm = NotificationManager()
@@ -63,36 +63,37 @@ def generate_picks_message(market: str = 'US') -> str:
     market_name = "美股" if market == "US" else "A股"
     
     lines = [
-        f"🎯 <b>今日精选 | {market_emoji} {market_name}</b>",
+        f"🎯 *今日精选 | {market_emoji} {market_name}*",
         f"📅 {latest_date}",
         "",
     ]
     
     # 共识股票
     if consensus:
-        lines.append("🔥 <b>多策略共识 (重点关注)</b>")
+        lines.append("🔥 *多策略共识 (重点关注)*")
         for symbol, votes, score in consensus[:5]:
             stars = "⭐" * votes
-            lines.append(f"  • <code>{symbol}</code> {stars} ({score:.0f}分)")
+            lines.append(f"  • `{symbol}` {stars} ({score:.0f}分)")
         lines.append("")
     
     # 每个策略的 top pick
     all_picks = manager.get_all_picks(df, top_n=3)
     
-    lines.append("📊 <b>各策略首选</b>")
+    lines.append("📊 *各策略首选*")
     for strategy_key, picks in all_picks.items():
         if picks:
             strategy = manager.strategies[strategy_key]
             top = picks[0]
+            stop_loss = max(0.01, float(top.stop_loss or 0.0))
             lines.append(
                 f"  {strategy.icon} {strategy.name}: "
-                f"<code>{top.symbol}</code> ${top.entry_price:.2f} "
-                f"(止损${top.stop_loss:.2f})"
+                f"`{top.symbol}` ${top.entry_price:.2f} "
+                f"(止损${stop_loss:.2f})"
             )
     
     lines.append("")
     lines.append("⚠️ 以上仅供参考，不构成投资建议")
-    lines.append("🌐 <a href='https://coralcreek.streamlit.app/'>查看详情</a>")
+    lines.append("🌐 [查看详情](https://coralcreek.streamlit.app/)")
     
     return "\n".join(lines)
 

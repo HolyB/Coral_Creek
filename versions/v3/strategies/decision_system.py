@@ -58,12 +58,20 @@ class BaseStrategy(ABC):
     
     def calculate_stop_loss(self, price: float, volatility: float = 0.02) -> float:
         """计算止损价"""
-        return round(price * (1 - max(0.03, volatility * 1.5)), 2)
-    
+        # 兼容异常波动率输入，避免出现负数止损价
+        vol = float(volatility) if volatility is not None else 0.02
+        if vol < 0:
+            vol = 0.02
+        # 实战约束：止损比例在 3%~35% 区间
+        stop_pct = max(0.03, min(0.35, vol * 1.5))
+        stop = price * (1 - stop_pct)
+        # 保底不低于 0.01，避免低价股出现负值或 0
+        return round(max(0.01, stop), 2)
+
     def calculate_take_profit(self, price: float, risk_reward: float = 2.0, stop_loss: float = None) -> float:
         """计算止盈价 (基于风险回报比)"""
         if stop_loss:
-            risk = price - stop_loss
+            risk = max(price - stop_loss, price * 0.03)  # 保底至少 3% 风险距离
             return round(price + risk * risk_reward, 2)
         return round(price * 1.08, 2)  # 默认8%止盈
 
