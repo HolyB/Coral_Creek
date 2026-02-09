@@ -350,8 +350,9 @@ def send_telegram_message(message: str) -> bool:
     tg_ok = nm.send_telegram(message) if nm.telegram_token else False
     wc_ok = nm.send_wecom(message, msg_type='markdown') if nm.wecom_webhook else False
     wx_ok = nm.send_wxpusher(title="Coral Creek 盘中监控", content=message) if nm.wxpusher_app_token else False
-    print(f"notify result -> telegram={tg_ok}, wecom={wc_ok}, wxpusher={wx_ok}")
-    return bool(tg_ok or wc_ok or wx_ok)
+    bark_ok = nm.send_bark(title="Coral Creek 盘中监控", content=message) if nm.bark_url else False
+    print(f"notify result -> telegram={tg_ok}, wecom={wc_ok}, wxpusher={wx_ok}, bark={bark_ok}")
+    return bool(tg_ok or wc_ok or wx_ok or bark_ok)
 
 
 def monitor_and_notify(market: str = 'US', notify: bool = True, force: bool = False):

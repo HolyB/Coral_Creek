@@ -17,6 +17,8 @@ class NotificationManager:
         self.feishu_webhook = os.environ.get('FEISHU_WEBHOOK')
         self.telegram_token = os.environ.get('TELEGRAM_BOT_TOKEN')
         self.telegram_chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+        self.bark_url = os.environ.get('BARK_URL')
+        self.bark_group = os.environ.get('BARK_GROUP', 'CoralCreek')
     
     def send_wecom(self, content: str, msg_type: str = 'markdown') -> bool:
         """
@@ -110,6 +112,29 @@ class NotificationManager:
         except Exception as e:
             print(f"Telegram error: {e}")
             return False
+
+    def send_bark(self, title: str, content: str) -> bool:
+        """发送 Bark (iOS 推送)"""
+        if not self.bark_url:
+            return False
+
+        try:
+            data = {
+                "title": title[:120],
+                "body": content[:4000],
+                "group": self.bark_group,
+            }
+            resp = requests.post(self.bark_url.rstrip('/'), json=data, timeout=10)
+            if resp.status_code != 200:
+                return False
+            try:
+                body = resp.json()
+                return int(body.get("code", 0)) == 200
+            except Exception:
+                return True
+        except Exception as e:
+            print(f"Bark error: {e}")
+            return False
     
     def send_all(self, title: str, content: str) -> Dict[str, bool]:
         """
@@ -132,6 +157,9 @@ class NotificationManager:
         
         if self.telegram_token:
             results['telegram'] = self.send_telegram(f"**{title}**\n\n{content}")
+
+        if self.bark_url:
+            results['bark'] = self.send_bark(title, content)
         
         return results
     
@@ -184,3 +212,4 @@ if __name__ == "__main__":
     print(f"  WeCom: {'✅' if nm.wecom_webhook else '❌'}")
     print(f"  Feishu: {'✅' if nm.feishu_webhook else '❌'}")
     print(f"  Telegram: {'✅' if nm.telegram_token else '❌'}")
+    print(f"  Bark: {'✅' if nm.bark_url else '❌'}")

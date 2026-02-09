@@ -307,6 +307,7 @@ def _send_report(message: str) -> Dict[str, bool]:
         "telegram": nm.send_telegram(message) if nm.telegram_token else False,
         "wecom": nm.send_wecom(message, msg_type="markdown") if nm.wecom_webhook else False,
         "wxpusher": nm.send_wxpusher(title="Coral Creek 默认组合日报", content=message) if nm.wxpusher_app_token else False,
+        "bark": nm.send_bark(title="Coral Creek 默认组合日报", content=message) if nm.bark_url else False,
     }
 
 

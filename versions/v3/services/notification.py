@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-多渠道推送模块 - 企业微信、飞书、Telegram、WxPusher
+多渠道推送模块 - 企业微信、飞书、Telegram、WxPusher、Bark
 """
 import os
 import requests
@@ -24,6 +24,8 @@ class NotificationManager:
             int(x.strip()) for x in (os.environ.get('WXPUSHER_TOPIC_IDS', '')).split(',')
             if x.strip().isdigit()
         ]
+        self.bark_url = os.environ.get('BARK_URL')  # 例: https://api.day.app/<key>
+        self.bark_group = os.environ.get('BARK_GROUP', 'CoralCreek')
         self.max_retries = int(os.environ.get('NOTIFY_MAX_RETRIES', '3'))
         self.backoff_sec = float(os.environ.get('NOTIFY_RETRY_BACKOFF_SEC', '1.0'))
 
@@ -198,6 +200,30 @@ class NotificationManager:
         except Exception as e:
             print(f"WxPusher error: {e}")
             return False
+
+    def send_bark(self, title: str, content: str) -> bool:
+        """发送 Bark (iOS 推送)"""
+        if not self.bark_url:
+            return False
+        try:
+            url = self.bark_url.rstrip('/')
+            data = {
+                "title": title[:120],
+                "body": content[:4000],
+                "group": self.bark_group,
+            }
+            resp = self._post_with_retry(url, data, "Bark")
+            if not resp or resp.status_code != 200:
+                return False
+            try:
+                body = resp.json()
+                # Bark 成功字段常见 code=200
+                return int(body.get("code", 0)) == 200
+            except Exception:
+                return True
+        except Exception as e:
+            print(f"Bark error: {e}")
+            return False
     
     def send_all(self, title: str, content: str) -> Dict[str, bool]:
         """
@@ -223,6 +249,9 @@ class NotificationManager:
 
         if self.wxpusher_app_token and (self.wxpusher_uids or self.wxpusher_topic_ids):
             results['wxpusher'] = self.send_wxpusher(title=title, content=content)
+
+        if self.bark_url:
+            results['bark'] = self.send_bark(title=title, content=content)
         
         return results
     
@@ -276,3 +305,4 @@ if __name__ == "__main__":
     print(f"  Feishu: {'✅' if nm.feishu_webhook else '❌'}")
     print(f"  Telegram: {'✅' if nm.telegram_token else '❌'}")
     print(f"  WxPusher: {'✅' if nm.wxpusher_app_token else '❌'}")
+    print(f"  Bark: {'✅' if nm.bark_url else '❌'}")

@@ -37,6 +37,8 @@ jobs:
       WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
       WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
       WXPUSHER_TOPIC_IDS: ${{ secrets.WXPUSHER_TOPIC_IDS }}
+      BARK_URL: ${{ secrets.BARK_URL }}
+      BARK_GROUP: ${{ secrets.BARK_GROUP }}
       TZ: America/New_York
     steps:
       - name: Checkout

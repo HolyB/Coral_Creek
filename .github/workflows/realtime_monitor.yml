@@ -58,6 +58,8 @@ jobs:
           WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
           WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
           WXPUSHER_TOPIC_IDS: ${{ secrets.WXPUSHER_TOPIC_IDS }}
+          BARK_URL: ${{ secrets.BARK_URL }}
+          BARK_GROUP: ${{ secrets.BARK_GROUP }}
         run: |
           pip install akshare || true
           python scripts/realtime_monitor.py --both
@@ -77,6 +79,8 @@ jobs:
           WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
           WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
           WXPUSHER_TOPIC_IDS: ${{ secrets.WXPUSHER_TOPIC_IDS }}
+          BARK_URL: ${{ secrets.BARK_URL }}
+          BARK_GROUP: ${{ secrets.BARK_GROUP }}
         run: |
           pip install akshare || true
           FORCE_FLAG=""

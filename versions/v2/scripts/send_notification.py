@@ -533,6 +533,55 @@ def send_wxpusher(summary):
         return False
 
 
+def send_bark(summary):
+    """发送 Bark 通知"""
+    bark_url = os.getenv('BARK_URL', '').strip()
+    if not bark_url:
+        print("⚠️ BARK_URL not configured, skipping")
+        return False
+
+    date = summary.get('date', 'Unknown')
+    market = summary.get('market', 'US')
+    total = summary.get('total_signals', 0)
+    top = summary.get('top_signals', [])[:8]
+    market_name = "🇺🇸 美股" if market == "US" else "🇨🇳 A股"
+    group = os.getenv('BARK_GROUP', 'CoralCreek')
+
+    lines = [
+        f"🦅 Coral Creek 每日扫描",
+        f"日期: {date}",
+        f"市场: {market_name}",
+        f"信号数: {total}",
+        "",
+        "Top 信号:",
+    ]
+    for s in top:
+        symbol = s.get('symbol', 'N/A')
+        blue = float(s.get('day_blue', 0))
+        lines.append(f"- {symbol} | BLUE {blue:.0f}")
+
+    payload = {
+        "title": f"Coral Creek {market} 扫描日报",
+        "body": "\n".join(lines)[:4000],
+        "group": group,
+    }
+
+    try:
+        req = urllib.request.Request(
+            bark_url.rstrip('/'),
+            data=json.dumps(payload).encode('utf-8'),
+            headers={'Content-Type': 'application/json'}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode('utf-8', errors='ignore')
+            ok = '"code":200' in body or '"code": 200' in body
+            print("✅ Bark notification sent" if ok else f"❌ Bark response: {body}")
+            return ok
+    except Exception as e:
+        print(f"❌ Bark error: {e}")
+        return False
+
+
 def main():
     print("📧 Loading scan summary...")
     summary = load_scan_summary()
@@ -563,6 +612,9 @@ def main():
 
     # 发送 WxPusher
     send_wxpusher(summary)
+
+    # 发送 Bark
+    send_bark(summary)
     
     print("\n✅ Notification process completed")
 
