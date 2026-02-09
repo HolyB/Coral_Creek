@@ -10553,7 +10553,8 @@ def render_paper_trading_tab():
             create_paper_account,
             get_paper_account_config,
             update_paper_account_config,
-            get_all_paper_accounts_performance
+            get_all_paper_accounts_performance,
+            get_paper_account_performance
         )
 
         sub_accounts = list_paper_accounts()
@@ -10744,6 +10745,281 @@ def render_paper_trading_tab():
                      delta_color="normal" if pnl >= 0 else "inverse")
         
         st.divider()
+
+        # 默认策略组合（自动建仓）
+        st.markdown("#### 🧩 默认策略组合（自动建仓）")
+        with st.expander("按策略模板生成组合 + 一键等金额买入", expanded=False):
+            def _pick_first(row: dict, keys: list, default=None):
+                for k in keys:
+                    if k in row and row.get(k) is not None:
+                        return row.get(k)
+                return default
+
+            def _to_float(v, default=0.0) -> float:
+                try:
+                    if v is None or v == "":
+                        return float(default)
+                    return float(v)
+                except Exception:
+                    return float(default)
+
+            def _to_bool(v) -> bool:
+                if isinstance(v, bool):
+                    return v
+                if isinstance(v, (int, float)):
+                    return v != 0
+                if isinstance(v, str):
+                    s = v.strip().lower()
+                    return s in ("1", "true", "yes", "y", "是")
+                return False
+
+            def _extract_signal_fields(row: dict) -> dict:
+                day_blue = _to_float(_pick_first(row, ["blue_daily", "Day_BLUE", "day_blue"], 0.0), 0.0)
+                week_blue = _to_float(_pick_first(row, ["blue_weekly", "Week_BLUE", "week_blue"], 0.0), 0.0)
+                month_blue = _to_float(_pick_first(row, ["blue_monthly", "Month_BLUE", "month_blue"], 0.0), 0.0)
+                price = _to_float(_pick_first(row, ["price", "Close", "close"], 0.0), 0.0)
+
+                is_heima = _to_bool(_pick_first(row, ["is_heima", "Is_Heima", "heima_daily", "Heima_Daily"], False))
+                week_heima = _to_bool(_pick_first(row, ["heima_weekly", "Heima_Weekly"], False))
+                month_heima = _to_bool(_pick_first(row, ["heima_monthly", "Heima_Monthly"], False))
+
+                # 兜底: Strategy 字段包含“黑马”
+                strategy_text = str(_pick_first(row, ["strategy", "Strategy"], "") or "")
+                if ("黑马" in strategy_text) and not (is_heima or week_heima or month_heima):
+                    is_heima = True
+
+                return {
+                    "symbol": str(_pick_first(row, ["symbol", "Symbol"], "") or "").upper().strip(),
+                    "price": price,
+                    "day_blue": day_blue,
+                    "week_blue": week_blue,
+                    "month_blue": month_blue,
+                    "is_heima": is_heima,
+                    "week_heima": week_heima,
+                    "month_heima": month_heima,
+                }
+
+            auto_col1, auto_col2, auto_col3, auto_col4 = st.columns(4)
+            with auto_col1:
+                auto_market = st.selectbox("市场", ["US", "CN"], key="auto_basket_market")
+            with auto_col2:
+                auto_min_blue = st.slider("BLUE阈值", min_value=60, max_value=160, value=100, step=5, key="auto_basket_min_blue")
+            with auto_col3:
+                auto_top_n = st.number_input("TopN(非全买策略)", min_value=5, max_value=60, value=20, step=1, key="auto_basket_top_n")
+            with auto_col4:
+                auto_deploy_pct = st.slider("资金使用率(%)", min_value=10, max_value=100, value=90, step=5, key="auto_basket_deploy_pct")
+
+            auto_col5, auto_col6, auto_col7 = st.columns(3)
+            with auto_col5:
+                auto_seed_cap = st.number_input("新账户初始资金($)", min_value=1000.0, value=20000.0, step=1000.0, key="auto_basket_seed_cap")
+            with auto_col6:
+                auto_full_cap = st.number_input("全买策略上限只数", min_value=20, max_value=300, value=120, step=10, key="auto_basket_full_cap")
+            with auto_col7:
+                auto_reset_before_buy = st.checkbox("执行前重置目标子账户", value=False, key="auto_basket_reset_before_buy")
+
+            _set_active_market(auto_market)
+
+            strategy_defs = [
+                {
+                    "id": "daily_equal",
+                    "name": "每日组合等权",
+                    "desc": "日BLUE>=阈值，按综合分排序取TopN，等金额买入",
+                    "account_tag": "daily_equal",
+                    "full_buy": False,
+                },
+                {
+                    "id": "month_heima_all",
+                    "name": "月黑马全买",
+                    "desc": "月线黑马/月级黑马信号，满足即入池（受上限只数保护）",
+                    "account_tag": "month_heima_all",
+                    "full_buy": True,
+                },
+                {
+                    "id": "week_heima_all",
+                    "name": "周黑马全买",
+                    "desc": "周线黑马信号，满足即入池（受上限只数保护）",
+                    "account_tag": "week_heima_all",
+                    "full_buy": True,
+                },
+                {
+                    "id": "day_week_resonance",
+                    "name": "日周共振",
+                    "desc": "日BLUE+周BLUE 同时过阈值，取TopN",
+                    "account_tag": "day_week_res",
+                    "full_buy": False,
+                },
+                {
+                    "id": "core_resonance",
+                    "name": "核心共振",
+                    "desc": "日周过阈值且(月BLUE过阈值或任意黑马)",
+                    "account_tag": "core_res",
+                    "full_buy": False,
+                },
+            ]
+
+            def _strategy_match(rule_id: str, f: dict) -> bool:
+                d = f["day_blue"]
+                w = f["week_blue"]
+                m = f["month_blue"]
+                h_any = f["is_heima"] or f["week_heima"] or f["month_heima"]
+
+                if rule_id == "daily_equal":
+                    return d >= auto_min_blue
+                if rule_id == "month_heima_all":
+                    return f["month_heima"] or (m >= auto_min_blue and h_any)
+                if rule_id == "week_heima_all":
+                    return f["week_heima"] or (w >= auto_min_blue and h_any)
+                if rule_id == "day_week_resonance":
+                    return d >= auto_min_blue and w >= auto_min_blue
+                if rule_id == "core_resonance":
+                    return d >= auto_min_blue and w >= auto_min_blue and (m >= auto_min_blue or h_any)
+                return False
+
+            def _strategy_score(f: dict) -> float:
+                base = f["day_blue"] * 0.45 + f["week_blue"] * 0.35 + f["month_blue"] * 0.20
+                bonus = 0.0
+                if f["is_heima"]:
+                    bonus += 25.0
+                if f["week_heima"]:
+                    bonus += 20.0
+                if f["month_heima"]:
+                    bonus += 20.0
+                return base + bonus
+
+            auto_dates = _cached_scanned_dates(market=auto_market)
+            if not auto_dates:
+                st.warning(f"暂无 {auto_market} 扫描数据，无法生成默认组合。")
+            else:
+                auto_latest_date = auto_dates[0]
+                auto_rows = _cached_scan_results(scan_date=auto_latest_date, market=auto_market, limit=2000) or []
+                st.caption(f"使用扫描日: `{auto_latest_date}` | 样本数: {len(auto_rows)}")
+
+                basket_results = {}
+                for sd in strategy_defs:
+                    sym_map = {}
+                    for r in auto_rows:
+                        f = _extract_signal_fields(r)
+                        sym = f["symbol"]
+                        if not sym or f["price"] <= 0:
+                            continue
+                        if not _strategy_match(sd["id"], f):
+                            continue
+                        score = _strategy_score(f)
+                        prev = sym_map.get(sym)
+                        if (prev is None) or (score > prev["score"]):
+                            sym_map[sym] = {
+                                "symbol": sym,
+                                "price": f["price"],
+                                "day_blue": f["day_blue"],
+                                "week_blue": f["week_blue"],
+                                "month_blue": f["month_blue"],
+                                "is_heima": f["is_heima"] or f["week_heima"] or f["month_heima"],
+                                "score": score,
+                            }
+
+                    picks = sorted(sym_map.values(), key=lambda x: x["score"], reverse=True)
+                    if sd["full_buy"]:
+                        picks = picks[: int(auto_full_cap)]
+                    else:
+                        picks = picks[: int(auto_top_n)]
+                    basket_results[sd["id"]] = picks
+
+                st.markdown("**策略候选与执行**")
+                for sd in strategy_defs:
+                    picks = basket_results.get(sd["id"], [])
+                    account_name = f"auto_{auto_market.lower()}_{sd['account_tag']}"
+                    header = f"{sd['name']} | {len(picks)} 只 | 子账户: `{account_name}`"
+                    with st.expander(header, expanded=False):
+                        st.caption(sd["desc"])
+                        if picks:
+                            preview_df = pd.DataFrame(picks)
+                            preview_df["黑马"] = preview_df["is_heima"].map(lambda x: "是" if x else "否")
+                            show_cols = ["symbol", "price", "day_blue", "week_blue", "month_blue", "黑马", "score"]
+                            rename_cols = {
+                                "symbol": "代码",
+                                "price": "价格",
+                                "day_blue": "日BLUE",
+                                "week_blue": "周BLUE",
+                                "month_blue": "月BLUE",
+                                "score": "综合分",
+                            }
+                            st.dataframe(
+                                preview_df[show_cols].rename(columns=rename_cols),
+                                use_container_width=True,
+                                hide_index=True,
+                            )
+                        else:
+                            st.info("当前条件无候选股票。")
+
+                        if st.button(f"🚀 执行买入: {sd['name']}", key=f"run_auto_basket_{sd['id']}_{auto_market}"):
+                            if not picks:
+                                st.warning("无候选股票，跳过执行。")
+                            else:
+                                created = create_paper_account(account_name, float(auto_seed_cap))
+                                if (not created.get("success")) and ("已存在" not in str(created.get("error", ""))):
+                                    st.error(f"创建子账户失败: {created.get('error')}")
+                                else:
+                                    if auto_reset_before_buy:
+                                        reset_paper_account(account_name)
+
+                                    target_acc = get_paper_account(account_name)
+                                    cash_balance = float((target_acc or {}).get("cash_balance", 0.0) or 0.0)
+                                    deploy_cap = cash_balance * (float(auto_deploy_pct) / 100.0)
+                                    if deploy_cap <= 0:
+                                        st.error("可用资金不足，无法执行。")
+                                    else:
+                                        per_stock_budget = deploy_cap / max(len(picks), 1)
+                                        success_cnt = 0
+                                        fail_msgs = []
+                                        skip_cnt = 0
+                                        for item in picks:
+                                            px = float(item.get("price", 0.0) or 0.0)
+                                            if px <= 0:
+                                                skip_cnt += 1
+                                                continue
+                                            qty = int(per_stock_budget / px)
+                                            if qty < 1:
+                                                skip_cnt += 1
+                                                continue
+                                            ret = paper_buy(item["symbol"], qty, px, auto_market, account_name)
+                                            if ret.get("success"):
+                                                success_cnt += 1
+                                            else:
+                                                fail_msgs.append(f"{item['symbol']}: {ret.get('error', '失败')}")
+                                        st.success(
+                                            f"执行完成: 成功 {success_cnt} | 跳过 {skip_cnt} | 失败 {len(fail_msgs)}"
+                                        )
+                                        if fail_msgs:
+                                            st.warning(" ; ".join(fail_msgs[:5]))
+                                        st.rerun()
+
+                st.markdown("**默认组合绩效对比**")
+                perf_rows = []
+                for sd in strategy_defs:
+                    acc_name = f"auto_{auto_market.lower()}_{sd['account_tag']}"
+                    if acc_name not in sub_names:
+                        continue
+                    perf = get_paper_account_performance(acc_name)
+                    acc_data = get_paper_account(acc_name) or {}
+                    pos = acc_data.get("positions", []) or []
+                    open_winners = sum(1 for p in pos if float(p.get("unrealized_pnl", 0.0) or 0.0) > 0)
+                    open_win_rate = (open_winners / len(pos) * 100.0) if pos else 0.0
+                    perf_rows.append({
+                        "策略": sd["name"],
+                        "子账户": acc_name,
+                        "总收益率": f"{float(perf.get('total_return_pct', 0.0)):+.2f}%",
+                        "胜率(已平仓)": f"{float(perf.get('win_rate_pct', 0.0)):.1f}%",
+                        "赢面(当前持仓)": f"{open_win_rate:.1f}%",
+                        "盈亏比": "∞" if perf.get("profit_factor") == float("inf") else f"{float(perf.get('profit_factor', 0.0)):.2f}",
+                        "总盈亏": f"${float(perf.get('total_pnl', 0.0)):+,.2f}",
+                        "持仓数": len(pos),
+                        "今日候选": len(basket_results.get(sd["id"], [])),
+                    })
+
+                if perf_rows:
+                    st.dataframe(pd.DataFrame(perf_rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("默认组合子账户尚未创建。先点上方任一策略“执行买入”。")
         
         # 交易面板
         trade_col1, trade_col2 = st.columns(2)
