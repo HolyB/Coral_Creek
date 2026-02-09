@@ -341,7 +341,16 @@ def main():
     msg = _format_markdown_report(results, args.dry_run)
     send_res = _send_report(msg)
     print(msg)
-    print("\nNotify:", send_res)
+    overall = any(send_res.values()) if send_res else False
+    print(
+        "\nNOTIFY_STATUS|overall={}|telegram={}|wecom={}|wxpusher={}|bark={}".format(
+            overall,
+            send_res.get("telegram", False),
+            send_res.get("wecom", False),
+            send_res.get("wxpusher", False),
+            send_res.get("bark", False),
+        )
+    )
 
 
 if __name__ == "__main__":

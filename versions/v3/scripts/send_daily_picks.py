@@ -22,8 +22,9 @@ def send_telegram_message(message: str, parse_mode: str = 'HTML') -> bool:
     wc_ok = nm.send_wecom(message, msg_type='markdown') if nm.wecom_webhook else False
     wx_ok = nm.send_wxpusher(title="Coral Creek 今日精选", content=message) if nm.wxpusher_app_token else False
     bark_ok = nm.send_bark(title="Coral Creek 今日精选", content=message) if nm.bark_url else False
-    print(f"notify result -> telegram={tg_ok}, wecom={wc_ok}, wxpusher={wx_ok}, bark={bark_ok}")
-    return bool(tg_ok or wc_ok or wx_ok or bark_ok)
+    overall = bool(tg_ok or wc_ok or wx_ok or bark_ok)
+    print(f"NOTIFY_STATUS|overall={overall}|telegram={tg_ok}|wecom={wc_ok}|wxpusher={wx_ok}|bark={bark_ok}")
+    return overall
 
 
 def generate_picks_message(market: str = 'US') -> str:

@@ -597,24 +597,31 @@ def main():
     print(f"📊 Date: {date}, Market: {market}, Signals: {total}")
     
     # 发送 Telegram (简报)
-    send_telegram(summary)
+    tg_ok = send_telegram(summary)
     
     # 发送 Telegram (详细版 - 决策仪表盘)
     import time
     time.sleep(1)  # 避免 rate limit
-    send_telegram_detailed(summary)
+    tg_detail_ok = send_telegram_detailed(summary)
     
     # 发送 Email
-    send_email(summary)
+    email_ok = send_email(summary)
 
     # 发送企业微信
-    send_wecom(summary)
+    wecom_ok = send_wecom(summary)
 
     # 发送 WxPusher
-    send_wxpusher(summary)
+    wxpusher_ok = send_wxpusher(summary)
 
     # 发送 Bark
-    send_bark(summary)
+    bark_ok = send_bark(summary)
+
+    overall = any([tg_ok, tg_detail_ok, email_ok, wecom_ok, wxpusher_ok, bark_ok])
+    print(
+        "NOTIFY_STATUS|overall={}|telegram={}|telegram_detail={}|email={}|wecom={}|wxpusher={}|bark={}".format(
+            overall, tg_ok, tg_detail_ok, email_ok, wecom_ok, wxpusher_ok, bark_ok
+        )
+    )
     
     print("\n✅ Notification process completed")
 
