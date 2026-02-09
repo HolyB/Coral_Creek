@@ -250,25 +250,39 @@ def init_db():
 def get_scanned_dates(start_date=None, end_date=None, market=None):
     """获取已扫描的日期列表 - 优先使用 Supabase"""
     def _sqlite_dates():
-        with get_db() as conn:
-            cursor = conn.cursor()
+        def _query_dates():
+            with get_db() as conn:
+                cursor = conn.cursor()
 
-            query = "SELECT DISTINCT scan_date FROM scan_results WHERE 1=1"
-            params = []
+                query = "SELECT DISTINCT scan_date FROM scan_results WHERE 1=1"
+                params = []
 
-            if start_date:
-                query += " AND scan_date >= ?"
-                params.append(start_date)
-            if end_date:
-                query += " AND scan_date <= ?"
-                params.append(end_date)
-            if market:
-                query += " AND market = ?"
-                params.append(market)
+                if start_date:
+                    query += " AND scan_date >= ?"
+                    params.append(start_date)
+                if end_date:
+                    query += " AND scan_date <= ?"
+                    params.append(end_date)
+                if market:
+                    query += " AND market = ?"
+                    params.append(market)
 
-            query += " ORDER BY scan_date DESC"
-            cursor.execute(query, params)
-            return [row['scan_date'] for row in cursor.fetchall()]
+                query += " ORDER BY scan_date DESC"
+                cursor.execute(query, params)
+                return [row['scan_date'] for row in cursor.fetchall()]
+
+        try:
+            return _query_dates()
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e).lower():
+                # 首次运行或空 DB：先初始化表结构，再返回空列表
+                try:
+                    init_db()
+                    return _query_dates()
+                except Exception as e2:
+                    print(f"⚠️ SQLite 初始化后仍无法读取扫描日期: {e2}")
+                    return []
+            raise
 
     # 优先使用 Supabase
     if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
@@ -439,44 +453,57 @@ def query_scan_results(scan_date=None, start_date=None, end_date=None,
             print(f"⚠️ Supabase 查询失败，回退到 SQLite: {e}")
     
     # SQLite 备用
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        query = "SELECT * FROM scan_results WHERE 1=1"
-        params = []
-        
-        if scan_date:
-            query += " AND scan_date = ?"
-            params.append(scan_date)
-        
-        if start_date:
-            query += " AND scan_date >= ?"
-            params.append(start_date)
-        
-        if end_date:
-            query += " AND scan_date <= ?"
-            params.append(end_date)
-        
-        if min_blue is not None:
-            query += " AND blue_daily >= ?"
-            params.append(min_blue)
-        
-        if symbols:
-            placeholders = ','.join(['?' for _ in symbols])
-            query += f" AND symbol IN ({placeholders})"
-            params.extend(symbols)
-        
-        if market:
-            query += " AND market = ?"
-            params.append(market)
-        
-        query += " ORDER BY scan_date DESC, blue_daily DESC"
-        
-        if limit:
-            query += f" LIMIT {limit}"
-        
-        cursor.execute(query, params)
-        return [dict(row) for row in cursor.fetchall()]
+    def _sqlite_query():
+        with get_db() as conn:
+            cursor = conn.cursor()
+
+            query = "SELECT * FROM scan_results WHERE 1=1"
+            params = []
+
+            if scan_date:
+                query += " AND scan_date = ?"
+                params.append(scan_date)
+
+            if start_date:
+                query += " AND scan_date >= ?"
+                params.append(start_date)
+
+            if end_date:
+                query += " AND scan_date <= ?"
+                params.append(end_date)
+
+            if min_blue is not None:
+                query += " AND blue_daily >= ?"
+                params.append(min_blue)
+
+            if symbols:
+                placeholders = ','.join(['?' for _ in symbols])
+                query += f" AND symbol IN ({placeholders})"
+                params.extend(symbols)
+
+            if market:
+                query += " AND market = ?"
+                params.append(market)
+
+            query += " ORDER BY scan_date DESC, blue_daily DESC"
+
+            if limit:
+                query += f" LIMIT {limit}"
+
+            cursor.execute(query, params)
+            return [dict(row) for row in cursor.fetchall()]
+
+    try:
+        return _sqlite_query()
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e).lower():
+            try:
+                init_db()
+                return _sqlite_query()
+            except Exception as e2:
+                print(f"⚠️ SQLite 初始化后仍无法查询 scan_results: {e2}")
+                return []
+        raise
 
 
 def get_stock_history(symbol, limit=30):

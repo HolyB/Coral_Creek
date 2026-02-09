@@ -52,12 +52,20 @@ def generate_picks_message(market: str = 'US') -> str:
     import pandas as pd
     
     # 获取最新数据
-    dates = get_scanned_dates(market=market)
+    try:
+        dates = get_scanned_dates(market=market)
+    except Exception as e:
+        print(f"⚠️ get_scanned_dates failed ({market}): {e}")
+        return None
     if not dates:
         return None
     
     latest_date = dates[0]
-    results = query_scan_results(scan_date=latest_date, market=market, limit=500)
+    try:
+        results = query_scan_results(scan_date=latest_date, market=market, limit=500)
+    except Exception as e:
+        print(f"⚠️ query_scan_results failed ({market}, {latest_date}): {e}")
+        return None
     
     if not results:
         return None
