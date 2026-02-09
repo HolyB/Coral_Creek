@@ -5841,6 +5841,129 @@ def render_portfolio_tab():
                                     )
             else:
                 st.info("来源子账户暂无持仓")
+
+        # 单账户目标权重调仓（先预览再执行）
+        with st.expander("🎯 目标权重调仓（单账户）", expanded=False):
+            st.caption("为单个子账户设置目标权重，系统自动计算并执行买卖（先卖后买）")
+            tw_account = st.selectbox("调仓账户", sub_names, index=sub_names.index(selected_account) if selected_account in sub_names else 0, key="tw_rebalance_account")
+            tw_data = get_paper_account(tw_account)
+            tw_positions = tw_data.get("positions", []) if tw_data else []
+
+            if not tw_positions:
+                st.info("该账户暂无持仓")
+            else:
+                total_equity = float(tw_data.get("total_equity", 0) or 0)
+                investable_symbols = [p for p in tw_positions if (p.get("current_price") or 0) > 0]
+                if not investable_symbols or total_equity <= 0:
+                    st.warning("当前持仓缺少有效价格，暂无法计算目标权重")
+                else:
+                    mode = st.radio("调仓模式", ["一键等权", "手动权重"], horizontal=True, key="tw_rebalance_mode")
+                    cash_reserve_pct = st.slider("现金保留 (%)", min_value=0, max_value=50, value=5, step=1, key="tw_cash_reserve_pct")
+                    min_trade_value = st.number_input("最小交易金额 ($)", min_value=0.0, value=300.0, step=50.0, key="tw_min_trade_value")
+
+                    target_weights = {}
+                    remain_pct = max(0.0, 100.0 - float(cash_reserve_pct))
+                    if mode == "一键等权":
+                        each = remain_pct / len(investable_symbols)
+                        for p in investable_symbols:
+                            target_weights[p["symbol"]] = each
+                    else:
+                        st.caption("手动输入各持仓目标权重(%)，系统会自动按比例归一化到可投资比例")
+                        raw_sum = 0.0
+                        for p in investable_symbols:
+                            curr_mv = float(p.get("market_value", 0) or 0)
+                            curr_w = (curr_mv / total_equity * 100) if total_equity > 0 else 0.0
+                            w = st.number_input(
+                                f"{p['symbol']} 目标权重(%)",
+                                min_value=0.0,
+                                max_value=100.0,
+                                value=float(round(curr_w, 2)),
+                                step=0.5,
+                                key=f"tw_weight_{tw_account}_{p['symbol']}_{p.get('market','US')}"
+                            )
+                            target_weights[p["symbol"]] = float(w)
+                            raw_sum += float(w)
+
+                        if raw_sum <= 0:
+                            st.warning("目标权重全为0，将仅保留现金")
+                            for k in list(target_weights.keys()):
+                                target_weights[k] = 0.0
+                        else:
+                            scale = remain_pct / raw_sum
+                            for k in list(target_weights.keys()):
+                                target_weights[k] = target_weights[k] * scale
+
+                    # 生成调仓计划
+                    plan_rows = []
+                    for p in investable_symbols:
+                        sym = p["symbol"]
+                        mkt = p.get("market", "US")
+                        px = float(p.get("current_price", 0) or 0)
+                        shares_now = int(p.get("shares", 0) or 0)
+                        curr_value = float(p.get("market_value", shares_now * px) or 0)
+                        tgt_value = total_equity * (target_weights.get(sym, 0.0) / 100.0)
+                        delta_value = tgt_value - curr_value
+                        action = "HOLD"
+                        qty = 0
+                        if abs(delta_value) >= float(min_trade_value) and px > 0:
+                            if delta_value > 0:
+                                qty = int(delta_value / px)
+                                action = "BUY" if qty > 0 else "HOLD"
+                            else:
+                                qty = int(abs(delta_value) / px)
+                                qty = min(qty, shares_now)
+                                action = "SELL" if qty > 0 else "HOLD"
+
+                        plan_rows.append({
+                            "symbol": sym,
+                            "market": mkt,
+                            "current_shares": shares_now,
+                            "current_weight_pct": (curr_value / total_equity * 100) if total_equity > 0 else 0.0,
+                            "target_weight_pct": target_weights.get(sym, 0.0),
+                            "delta_value": delta_value,
+                            "action": action,
+                            "shares": qty,
+                            "ref_price": px,
+                        })
+
+                    plan_df = pd.DataFrame(plan_rows)
+                    if not plan_df.empty:
+                        view_df = plan_df.copy()
+                        view_df["current_weight_pct"] = view_df["current_weight_pct"].map(lambda x: f"{x:.2f}%")
+                        view_df["target_weight_pct"] = view_df["target_weight_pct"].map(lambda x: f"{x:.2f}%")
+                        view_df["delta_value"] = view_df["delta_value"].map(lambda x: f"${x:,.2f}")
+                        view_df["ref_price"] = view_df["ref_price"].map(lambda x: f"${x:,.2f}")
+                        view_df = view_df.rename(columns={
+                            "symbol": "代码", "market": "市场", "current_shares": "当前股数",
+                            "current_weight_pct": "当前权重", "target_weight_pct": "目标权重",
+                            "delta_value": "目标差额", "action": "动作", "shares": "执行股数", "ref_price": "参考价"
+                        })
+                        st.dataframe(view_df, hide_index=True, use_container_width=True)
+
+                        actionable = plan_df[(plan_df["action"] != "HOLD") & (plan_df["shares"] > 0)]
+                        st.caption(f"待执行指令: {len(actionable)} 条（先卖后买）")
+
+                        if st.button("🚀 执行目标权重调仓", key="tw_execute_btn", disabled=len(actionable) == 0):
+                            exec_errors = []
+                            sell_orders = actionable[actionable["action"] == "SELL"]
+                            buy_orders = actionable[actionable["action"] == "BUY"]
+
+                            # 先卖后买，降低现金不足概率
+                            for _, row in sell_orders.iterrows():
+                                res = paper_sell(row["symbol"], int(row["shares"]), None, row["market"], tw_account)
+                                if not res.get("success"):
+                                    exec_errors.append(f"SELL {row['symbol']} 失败: {res.get('error')}")
+
+                            for _, row in buy_orders.iterrows():
+                                res = paper_buy(row["symbol"], int(row["shares"]), None, row["market"], tw_account)
+                                if not res.get("success"):
+                                    exec_errors.append(f"BUY {row['symbol']} 失败: {res.get('error')}")
+
+                            if exec_errors:
+                                st.error("部分指令执行失败:\n" + "\n".join(exec_errors[:8]))
+                            else:
+                                st.success(f"✅ 目标权重调仓完成（账户: {tw_account}）")
+                            st.rerun()
         
         st.divider()
         
