@@ -1109,40 +1109,72 @@ def render_market_pulse(market='US'):
                 
                 with north_cols[0]:
                     north_val = north_data.get('north_money', 0)
-                    color = "#3fb950" if north_val > 0 else "#f85149"
-                    icon = "📈" if north_val > 0 else "📉"
+                    if north_val > 0:
+                        icon = "📈"
+                        delta_text = "净流入"
+                        delta_color = "normal"
+                    elif north_val < 0:
+                        icon = "📉"
+                        delta_text = "净流出"
+                        delta_color = "inverse"
+                    else:
+                        icon = "➖"
+                        delta_text = "持平/待更新"
+                        delta_color = "off"
                     st.metric(
                         label=f"🏦 北向资金 {icon}",
                         value=f"¥{abs(north_val):.2f}亿",
-                        delta=f"{'净流入' if north_val > 0 else '净流出'}",
-                        delta_color="normal" if north_val > 0 else "inverse"
+                        delta=delta_text,
+                        delta_color=delta_color
                     )
                 
                 with north_cols[1]:
                     sh_val = north_data.get('sh_money', 0)
+                    if sh_val > 0:
+                        sh_delta = "流入"
+                        sh_color = "normal"
+                    elif sh_val < 0:
+                        sh_delta = "流出"
+                        sh_color = "inverse"
+                    else:
+                        sh_delta = "持平"
+                        sh_color = "off"
                     st.metric(
                         label="沪股通",
                         value=f"¥{abs(sh_val):.2f}亿",
-                        delta=f"{'流入' if sh_val > 0 else '流出'}",
-                        delta_color="normal" if sh_val > 0 else "inverse"
+                        delta=sh_delta,
+                        delta_color=sh_color
                     )
                 
                 with north_cols[2]:
                     sz_val = north_data.get('sz_money', 0)
+                    if sz_val > 0:
+                        sz_delta = "流入"
+                        sz_color = "normal"
+                    elif sz_val < 0:
+                        sz_delta = "流出"
+                        sz_color = "inverse"
+                    else:
+                        sz_delta = "持平"
+                        sz_color = "off"
                     st.metric(
                         label="深股通",
                         value=f"¥{abs(sz_val):.2f}亿",
-                        delta=f"{'流入' if sz_val > 0 else '流出'}",
-                        delta_color="normal" if sz_val > 0 else "inverse"
+                        delta=sz_delta,
+                        delta_color=sz_color
                     )
                 
                 with north_cols[3]:
                     st.caption(f"📅 {north_data.get('date', '--')}")
+                    if north_val == 0:
+                        st.caption("ℹ️ 可能因港股通未开盘/当日未更新")
                     # 北向资金判断
                     if north_val > 50:
                         st.markdown("🟢 **大幅流入**")
                     elif north_val > 0:
                         st.markdown("🟡 **小幅流入**")
+                    elif north_val == 0:
+                        st.markdown("⚪ **中性**")
                     elif north_val > -50:
                         st.markdown("🟠 **小幅流出**")
                     else:

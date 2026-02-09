@@ -1193,31 +1193,61 @@ def get_north_money_today() -> dict:
     """
     try:
         import akshare as ak
-        
+
         # 获取实时北向资金汇总
         df = ak.stock_hsgt_fund_flow_summary_em()
-        
         if df is None or df.empty:
             return {}
-        
-        # 筛选北向资金 (沪股通 + 深股通)
-        sh_row = df[(df['板块'] == '沪股通') & (df['资金方向'] == '北向')]
-        sz_row = df[(df['板块'] == '深股通') & (df['资金方向'] == '北向')]
-        
-        sh_money = float(sh_row['成交净买额'].values[0]) if len(sh_row) > 0 else 0
-        sz_money = float(sz_row['成交净买额'].values[0]) if len(sz_row) > 0 else 0
+
+        def _pick_num_col(frame: pd.DataFrame, candidates) -> str:
+            for c in candidates:
+                if c in frame.columns:
+                    return c
+            return ""
+
+        def _to_float(val) -> float:
+            try:
+                if isinstance(val, str):
+                    val = val.replace(",", "").strip()
+                return float(val)
+            except Exception:
+                return 0.0
+
+        board_col = "板块" if "板块" in df.columns else ("类型名称" if "类型名称" in df.columns else "")
+        dir_col = "资金方向" if "资金方向" in df.columns else ""
+        date_col = "交易日" if "交易日" in df.columns else ("日期" if "日期" in df.columns else "")
+        status_col = "交易状态" if "交易状态" in df.columns else ""
+        money_col = _pick_num_col(df, ["成交净买额", "资金净流入", "当日成交净买额", "净流入额", "净买入额"])
+
+        if not board_col or not money_col:
+            return {}
+
+        sh_mask = df[board_col].astype(str).str.contains("沪股通", na=False)
+        sz_mask = df[board_col].astype(str).str.contains("深股通", na=False)
+        if dir_col:
+            north_mask = df[dir_col].astype(str).str.contains("北向", na=False)
+            sh_mask = sh_mask & north_mask
+            sz_mask = sz_mask & north_mask
+
+        sh_row = df[sh_mask]
+        sz_row = df[sz_mask]
+
+        sh_money = _to_float(sh_row[money_col].iloc[0]) if len(sh_row) > 0 else 0.0
+        sz_money = _to_float(sz_row[money_col].iloc[0]) if len(sz_row) > 0 else 0.0
         north_money = sh_money + sz_money
-        
-        # 获取日期
-        date_str = str(df['交易日'].values[0]) if '交易日' in df.columns else ''
-        
+
+        date_str = str(df[date_col].iloc[0]) if date_col else ""
+        trade_status = str(df[status_col].iloc[0]) if status_col and len(df) > 0 else ""
+
         return {
-            'date': date_str,
-            'north_money': north_money,
-            'sh_money': sh_money,
-            'sz_money': sz_money
+            "date": date_str,
+            "north_money": float(north_money),
+            "sh_money": float(sh_money),
+            "sz_money": float(sz_money),
+            "trade_status": trade_status,
+            "money_col": money_col,
         }
-        
+
     except Exception as e:
         print(f"❌ 获取今日北向资金失败: {e}")
         return {}
