@@ -459,7 +459,7 @@ def generate_telegram_message(stats: Dict, results: List[Dict], market: str) -> 
             msg += f"{emoji} {r['symbol']}: {ret:+.1f}%\n"
     
     msg += "\n━" * 20 + "\n"
-    msg += f"🔗 [查看详情](https://coral-creek.streamlit.app)\n"
+    msg += f"🔗 [查看详情](https://coralcreek.streamlit.app/)\n"
     msg += "⚠️ 仅供参考，不构成投资建议"
     
     return msg

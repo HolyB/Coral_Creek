@@ -172,7 +172,7 @@ class NewsIntelligence:
             msg += f"   来源: {alert['source']}\n\n"
         
         msg += "━" * 20 + "\n"
-        msg += "🔗 [详情](https://coral-creek.streamlit.app)"
+        msg += "🔗 [详情](https://coralcreek.streamlit.app/)"
         
         return msg
     

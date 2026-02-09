@@ -300,7 +300,7 @@ def send_email_notification(results, market='US'):
         </div>
         
         <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-            <a href="https://coral-creek-park-way.onrender.com" style="color: #2196F3;">查看完整报告</a>
+            <a href="https://coralcreek.streamlit.app/" style="color: #2196F3;">查看完整报告</a>
             <br><br>
             Coral Creek V2.0 - Baseline Scanner
         </div>

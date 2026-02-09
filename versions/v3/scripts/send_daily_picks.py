@@ -89,7 +89,7 @@ def generate_picks_message(market: str = 'US') -> str:
     
     lines.append("")
     lines.append("⚠️ 以上仅供参考，不构成投资建议")
-    lines.append("🌐 <a href='https://coral-creek.streamlit.app'>查看详情</a>")
+    lines.append("🌐 <a href='https://coralcreek.streamlit.app/'>查看详情</a>")
     
     return "\n".join(lines)
 

@@ -74,7 +74,7 @@ def generate_and_send_signals(market: str = 'US'):
     message += "━" * 25 + "\n"
     message += f"📈 买入信号: {len(buy_signals)}个\n"
     message += f"📉 卖出信号: {len(sell_signals)}个\n"
-    message += f"\n🔗 [查看详情](https://coral-creek.streamlit.app)\n"
+    message += f"\n🔗 [查看详情](https://coralcreek.streamlit.app/)\n"
     message += f"⚠️ 仅供参考，投资有风险"
     
     # 发送
