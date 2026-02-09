@@ -12,7 +12,7 @@ from datetime import datetime
 from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Sequence
 
-from db.database import get_db
+from db.database import get_db, init_db
 
 
 CORE_TAGS = [
@@ -35,6 +35,59 @@ DEFAULT_TAG_RULES = {
     "chip_breakout_profit_ratio_min": 0.9,
     "chip_overhang_profit_ratio_max": 0.3,
 }
+
+
+def _ensure_tracking_table() -> None:
+    """自愈建表：兼容旧数据库未迁移场景。"""
+    # 先触发全局初始化（包含其它依赖表）
+    try:
+        init_db()
+    except Exception:
+        pass
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS candidate_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol VARCHAR(20) NOT NULL,
+                market VARCHAR(10) DEFAULT 'US',
+                signal_date DATE NOT NULL,
+                source VARCHAR(50) DEFAULT 'daily_scan',
+                signal_price REAL NOT NULL,
+                current_price REAL,
+                pnl_pct REAL DEFAULT 0,
+                days_since_signal INTEGER DEFAULT 0,
+                first_positive_day INTEGER,
+                max_up_pct REAL DEFAULT 0,
+                max_drawdown_pct REAL DEFAULT 0,
+                pnl_d1 REAL,
+                pnl_d3 REAL,
+                pnl_d5 REAL,
+                pnl_d10 REAL,
+                pnl_d20 REAL,
+                cap_category VARCHAR(30),
+                industry VARCHAR(200),
+                signal_tags TEXT,
+                blue_daily REAL,
+                blue_weekly REAL,
+                blue_monthly REAL,
+                heima_daily BOOLEAN,
+                heima_weekly BOOLEAN,
+                heima_monthly BOOLEAN,
+                vp_rating VARCHAR(20),
+                profit_ratio REAL,
+                status VARCHAR(20) DEFAULT 'tracking',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(symbol, market, signal_date)
+            )
+            """
+        )
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_date ON candidate_tracking(signal_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_market ON candidate_tracking(market)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_status ON candidate_tracking(status)")
 
 
 def _to_bool(v) -> bool:
@@ -176,6 +229,7 @@ def capture_daily_candidates(
     rules: Optional[Dict] = None,
 ) -> int:
     """批量写入当日候选追踪快照。"""
+    _ensure_tracking_table()
     if not rows:
         return 0
 
@@ -213,6 +267,7 @@ def _horizon_return(prices: List[float], horizon: int) -> Optional[float]:
 
 def refresh_candidate_tracking(market: Optional[str] = None, max_rows: int = 2000) -> int:
     """刷新候选追踪当前表现。"""
+    _ensure_tracking_table()
     with get_db() as conn:
         cursor = conn.cursor()
         query = """
@@ -303,6 +358,7 @@ def refresh_candidate_tracking(market: Optional[str] = None, max_rows: int = 200
 
 
 def get_candidate_tracking_rows(market: Optional[str] = None, days_back: int = 180) -> List[Dict]:
+    _ensure_tracking_table()
     query = """
         SELECT *
         FROM candidate_tracking
@@ -313,8 +369,11 @@ def get_candidate_tracking_rows(market: Optional[str] = None, days_back: int = 1
         query += " AND market = ?"
         params.append(market)
     if days_back > 0:
-        query += " AND signal_date >= date('now', ?)"
-        params.append(f"-{int(days_back)} day")
+        # 避免在不同 SQLite 环境中使用 date('now', ?) 参数导致兼容性错误
+        from datetime import timedelta
+        cutoff = (datetime.now() - timedelta(days=int(days_back))).strftime("%Y-%m-%d")
+        query += " AND signal_date >= ?"
+        params.append(cutoff)
     query += " ORDER BY signal_date DESC, pnl_pct DESC"
 
     with get_db() as conn:
@@ -333,6 +392,7 @@ def get_candidate_tracking_rows(market: Optional[str] = None, days_back: int = 1
 
 def reclassify_tracking_tags(market: Optional[str] = None, rules: Optional[Dict] = None, max_rows: int = 5000) -> int:
     """按新规则重算候选追踪标签。"""
+    _ensure_tracking_table()
     query = """
         SELECT id, blue_daily, blue_weekly, blue_monthly,
                heima_daily, heima_weekly, heima_monthly,
