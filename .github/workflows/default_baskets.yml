@@ -34,6 +34,9 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+      WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
+      WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
+      WXPUSHER_TOPIC_IDS: ${{ secrets.WXPUSHER_TOPIC_IDS }}
       TZ: America/New_York
     steps:
       - name: Checkout
@@ -89,4 +92,3 @@ jobs:
             git pull --rebase origin main || true
             git push
           fi
-

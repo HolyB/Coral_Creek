@@ -21,8 +21,9 @@ def send_telegram_message(message: str, bot_token: str = None, chat_id: str = No
     nm = NotificationManager()
     tg_ok = nm.send_telegram(message) if nm.telegram_token else False
     wc_ok = nm.send_wecom(message, msg_type='markdown') if nm.wecom_webhook else False
-    print(f"notify result -> telegram={tg_ok}, wecom={wc_ok}")
-    return bool(tg_ok or wc_ok)
+    wx_ok = nm.send_wxpusher(title="Coral Creek 交易信号", content=message) if nm.wxpusher_app_token else False
+    print(f"notify result -> telegram={tg_ok}, wecom={wc_ok}, wxpusher={wx_ok}")
+    return bool(tg_ok or wc_ok or wx_ok)
 
 
 def generate_and_send_signals(market: str = 'US'):

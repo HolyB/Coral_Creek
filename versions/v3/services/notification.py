@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-多渠道推送模块 - 企业微信、飞书、Telegram、邮件
+多渠道推送模块 - 企业微信、飞书、Telegram、WxPusher
 """
 import os
 import requests
@@ -18,6 +18,12 @@ class NotificationManager:
         self.feishu_webhook = os.environ.get('FEISHU_WEBHOOK')
         self.telegram_token = os.environ.get('TELEGRAM_BOT_TOKEN')
         self.telegram_chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+        self.wxpusher_app_token = os.environ.get('WXPUSHER_APP_TOKEN')
+        self.wxpusher_uids = [x.strip() for x in (os.environ.get('WXPUSHER_UIDS', '')).split(',') if x.strip()]
+        self.wxpusher_topic_ids = [
+            int(x.strip()) for x in (os.environ.get('WXPUSHER_TOPIC_IDS', '')).split(',')
+            if x.strip().isdigit()
+        ]
         self.max_retries = int(os.environ.get('NOTIFY_MAX_RETRIES', '3'))
         self.backoff_sec = float(os.environ.get('NOTIFY_RETRY_BACKOFF_SEC', '1.0'))
 
@@ -154,6 +160,44 @@ class NotificationManager:
         except Exception as e:
             print(f"Telegram error: {e}")
             return False
+
+    def send_wxpusher(self, title: str, content: str) -> bool:
+        """
+        发送 WxPusher 消息到普通微信
+        需要:
+        - WXPUSHER_APP_TOKEN
+        - WXPUSHER_UIDS (逗号分隔) 或 WXPUSHER_TOPIC_IDS (逗号分隔数字)
+        """
+        if not self.wxpusher_app_token:
+            return False
+        if not self.wxpusher_uids and not self.wxpusher_topic_ids:
+            return False
+
+        try:
+            url = "https://wxpusher.zjiecode.com/api/send/message"
+            data = {
+                "appToken": self.wxpusher_app_token,
+                "content": content,
+                "summary": title[:100],
+                "contentType": 3,  # 3=markdown
+            }
+            if self.wxpusher_uids:
+                data["uids"] = self.wxpusher_uids
+            if self.wxpusher_topic_ids:
+                data["topicIds"] = self.wxpusher_topic_ids
+
+            resp = self._post_with_retry(url, data, "WxPusher")
+            if not resp or resp.status_code != 200:
+                return False
+            try:
+                body = resp.json()
+                # WxPusher 成功 code=1000
+                return int(body.get("code", 0)) == 1000
+            except Exception:
+                return False
+        except Exception as e:
+            print(f"WxPusher error: {e}")
+            return False
     
     def send_all(self, title: str, content: str) -> Dict[str, bool]:
         """
@@ -176,6 +220,9 @@ class NotificationManager:
         
         if self.telegram_token:
             results['telegram'] = self.send_telegram(f"**{title}**\n\n{content}")
+
+        if self.wxpusher_app_token and (self.wxpusher_uids or self.wxpusher_topic_ids):
+            results['wxpusher'] = self.send_wxpusher(title=title, content=content)
         
         return results
     
@@ -228,3 +275,4 @@ if __name__ == "__main__":
     print(f"  WeCom: {'✅' if nm.wecom_webhook else '❌'}")
     print(f"  Feishu: {'✅' if nm.feishu_webhook else '❌'}")
     print(f"  Telegram: {'✅' if nm.telegram_token else '❌'}")
+    print(f"  WxPusher: {'✅' if nm.wxpusher_app_token else '❌'}")

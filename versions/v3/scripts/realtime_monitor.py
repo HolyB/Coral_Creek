@@ -349,8 +349,9 @@ def send_telegram_message(message: str) -> bool:
     nm = NotificationManager()
     tg_ok = nm.send_telegram(message) if nm.telegram_token else False
     wc_ok = nm.send_wecom(message, msg_type='markdown') if nm.wecom_webhook else False
-    print(f"notify result -> telegram={tg_ok}, wecom={wc_ok}")
-    return bool(tg_ok or wc_ok)
+    wx_ok = nm.send_wxpusher(title="Coral Creek 盘中监控", content=message) if nm.wxpusher_app_token else False
+    print(f"notify result -> telegram={tg_ok}, wecom={wc_ok}, wxpusher={wx_ok}")
+    return bool(tg_ok or wc_ok or wx_ok)
 
 
 def monitor_and_notify(market: str = 'US', notify: bool = True, force: bool = False):

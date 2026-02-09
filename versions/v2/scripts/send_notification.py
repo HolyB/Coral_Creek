@@ -480,6 +480,59 @@ def send_wecom(summary):
         return False
 
 
+def send_wxpusher(summary):
+    """发送 WxPusher 通知"""
+    app_token = os.getenv('WXPUSHER_APP_TOKEN')
+    uids = [x.strip() for x in os.getenv('WXPUSHER_UIDS', '').split(',') if x.strip()]
+    topic_ids = [int(x.strip()) for x in os.getenv('WXPUSHER_TOPIC_IDS', '').split(',') if x.strip().isdigit()]
+    if not app_token or (not uids and not topic_ids):
+        print("⚠️ WxPusher credentials not configured, skipping")
+        return False
+
+    date = summary.get('date', 'Unknown')
+    market = summary.get('market', 'US')
+    total = summary.get('total_signals', 0)
+    top = summary.get('top_signals', [])[:8]
+    market_name = "🇺🇸 美股" if market == "US" else "🇨🇳 A股"
+
+    lines = [
+        f"### 🦅 Coral Creek 每日扫描",
+        f"- 日期: `{date}`",
+        f"- 市场: {market_name}",
+        f"- 信号数: **{total}**",
+        "",
+        "#### Top 信号",
+    ]
+    for s in top:
+        lines.append(f"- `{s.get('symbol','N/A')}` | BLUE {float(s.get('day_blue',0)):.0f}")
+
+    payload = {
+        "appToken": app_token,
+        "content": "\n".join(lines),
+        "summary": f"Coral Creek {market} 扫描日报",
+        "contentType": 3,
+    }
+    if uids:
+        payload["uids"] = uids
+    if topic_ids:
+        payload["topicIds"] = topic_ids
+
+    try:
+        req = urllib.request.Request(
+            "https://wxpusher.zjiecode.com/api/send/message",
+            data=json.dumps(payload).encode('utf-8'),
+            headers={'Content-Type': 'application/json'}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode('utf-8', errors='ignore')
+            ok = '"code":1000' in body or '"code": 1000' in body
+            print("✅ WxPusher notification sent" if ok else f"❌ WxPusher response: {body}")
+            return ok
+    except Exception as e:
+        print(f"❌ WxPusher error: {e}")
+        return False
+
+
 def main():
     print("📧 Loading scan summary...")
     summary = load_scan_summary()
@@ -507,6 +560,9 @@ def main():
 
     # 发送企业微信
     send_wecom(summary)
+
+    # 发送 WxPusher
+    send_wxpusher(summary)
     
     print("\n✅ Notification process completed")
 
