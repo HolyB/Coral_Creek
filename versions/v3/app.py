@@ -1479,17 +1479,51 @@ def render_todays_picks_page():
     
     from db.database import query_scan_results, get_scanned_dates, get_stock_info_batch
     from services.portfolio_service import get_portfolio_summary
-    from services.candidate_tracking_service import (
-        capture_daily_candidates,
-        refresh_candidate_tracking,
-        get_candidate_tracking_rows,
-        build_combo_stats,
-        build_segment_stats,
-        reclassify_tracking_tags,
-        CORE_TAGS,
-        DEFAULT_TAG_RULES,
-        backfill_candidates_from_scan_history,
-    )
+    try:
+        from services.candidate_tracking_service import (
+            capture_daily_candidates,
+            refresh_candidate_tracking,
+            get_candidate_tracking_rows,
+            build_combo_stats,
+            build_segment_stats,
+            reclassify_tracking_tags,
+            CORE_TAGS,
+            DEFAULT_TAG_RULES,
+            backfill_candidates_from_scan_history,
+        )
+    except Exception as e:
+        st.warning(f"候选追踪模块加载失败（已降级）: {e}")
+
+        def capture_daily_candidates(*args, **kwargs):
+            return 0
+
+        def refresh_candidate_tracking(*args, **kwargs):
+            return 0
+
+        def get_candidate_tracking_rows(*args, **kwargs):
+            return []
+
+        def build_combo_stats(*args, **kwargs):
+            return []
+
+        def build_segment_stats(*args, **kwargs):
+            return []
+
+        def reclassify_tracking_tags(*args, **kwargs):
+            return 0
+
+        def backfill_candidates_from_scan_history(*args, **kwargs):
+            return 0
+
+        CORE_TAGS = []
+        DEFAULT_TAG_RULES = {
+            "day_blue_min": 100.0,
+            "week_blue_min": 80.0,
+            "month_blue_min": 60.0,
+            "chip_dense_profit_ratio_min": 0.7,
+            "chip_breakout_profit_ratio_min": 0.9,
+            "chip_overhang_profit_ratio_max": 0.3,
+        }
     
     # 尝试导入工作流服务
     try:
