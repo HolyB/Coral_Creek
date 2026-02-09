@@ -1106,6 +1106,10 @@ def render_market_pulse(market='US'):
             
             if north_data:
                 north_cols = st.columns(4)
+                north_source = north_data.get("source", "")
+                north_note = north_data.get("note", "")
+                north_fallback = bool(north_data.get("is_fallback", False))
+                north_suspect = bool(north_data.get("is_suspect_zero", False))
                 
                 with north_cols[0]:
                     north_val = north_data.get('north_money', 0)
@@ -1130,15 +1134,20 @@ def render_market_pulse(market='US'):
                 
                 with north_cols[1]:
                     sh_val = north_data.get('sh_money', 0)
-                    if sh_val > 0:
-                        sh_delta = "流入"
-                        sh_color = "normal"
-                    elif sh_val < 0:
-                        sh_delta = "流出"
-                        sh_color = "inverse"
-                    else:
-                        sh_delta = "持平"
+                    if pd.isna(sh_val):
+                        sh_val = 0
+                        sh_delta = "N/A"
                         sh_color = "off"
+                    else:
+                        if sh_val > 0:
+                            sh_delta = "流入"
+                            sh_color = "normal"
+                        elif sh_val < 0:
+                            sh_delta = "流出"
+                            sh_color = "inverse"
+                        else:
+                            sh_delta = "持平"
+                            sh_color = "off"
                     st.metric(
                         label="沪股通",
                         value=f"¥{abs(sh_val):.2f}亿",
@@ -1148,15 +1157,20 @@ def render_market_pulse(market='US'):
                 
                 with north_cols[2]:
                     sz_val = north_data.get('sz_money', 0)
-                    if sz_val > 0:
-                        sz_delta = "流入"
-                        sz_color = "normal"
-                    elif sz_val < 0:
-                        sz_delta = "流出"
-                        sz_color = "inverse"
-                    else:
-                        sz_delta = "持平"
+                    if pd.isna(sz_val):
+                        sz_val = 0
+                        sz_delta = "N/A"
                         sz_color = "off"
+                    else:
+                        if sz_val > 0:
+                            sz_delta = "流入"
+                            sz_color = "normal"
+                        elif sz_val < 0:
+                            sz_delta = "流出"
+                            sz_color = "inverse"
+                        else:
+                            sz_delta = "持平"
+                            sz_color = "off"
                     st.metric(
                         label="深股通",
                         value=f"¥{abs(sz_val):.2f}亿",
@@ -1168,6 +1182,10 @@ def render_market_pulse(market='US'):
                     st.caption(f"📅 {north_data.get('date', '--')}")
                     if north_val == 0:
                         st.caption("ℹ️ 可能因港股通未开盘/当日未更新")
+                    if north_source:
+                        st.caption(f"源: {north_source}")
+                    if north_note:
+                        st.caption(f"注: {north_note}")
                     # 北向资金判断
                     if north_val > 50:
                         st.markdown("🟢 **大幅流入**")
@@ -1179,6 +1197,11 @@ def render_market_pulse(market='US'):
                         st.markdown("🟠 **小幅流出**")
                     else:
                         st.markdown("🔴 **大幅流出**")
+
+                if north_suspect and not north_fallback:
+                    st.warning("⚠️ 北向实时数据疑似异常归零，当前仅供参考。")
+                elif north_fallback:
+                    st.info("ℹ️ 北向资金已使用回退值（最近有效数据）。")
         
         # 市场情绪总结
         sentiment = index_data.get('_sentiment', ('未知', '未知', 'gray'))

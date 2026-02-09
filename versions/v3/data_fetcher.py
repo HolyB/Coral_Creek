@@ -1193,6 +1193,8 @@ def get_north_money_today() -> dict:
     """
     try:
         import akshare as ak
+        from datetime import datetime
+        import pandas as pd
 
         # 获取实时北向资金汇总
         df = ak.stock_hsgt_fund_flow_summary_em()
@@ -1239,14 +1241,85 @@ def get_north_money_today() -> dict:
         date_str = str(df[date_col].iloc[0]) if date_col else ""
         trade_status = str(df[status_col].iloc[0]) if status_col and len(df) > 0 else ""
 
-        return {
+        result = {
             "date": date_str,
             "north_money": float(north_money),
             "sh_money": float(sh_money),
             "sz_money": float(sz_money),
             "trade_status": trade_status,
             "money_col": money_col,
+            "source": "eastmoney_summary",
+            "is_fallback": False,
+            "is_suspect_zero": False,
+            "note": "",
         }
+
+        # 盘中全零判定：若在交易窗口且北向/沪/深全为0，视为可疑，尝试回退最近有效值
+        now_cn = datetime.utcnow() + timedelta(hours=8)
+        hhmm = int(now_cn.strftime("%H%M"))
+        in_cn_session = (930 <= hhmm <= 1130) or (1300 <= hhmm <= 1500)
+        all_zero = abs(result["north_money"]) < 1e-9 and abs(result["sh_money"]) < 1e-9 and abs(result["sz_money"]) < 1e-9
+
+        if in_cn_session and all_zero:
+            result["is_suspect_zero"] = True
+            result["note"] = "盘中实时源返回0，可能接口未更新或地域受限"
+
+            # 优先用分钟接口最后一个有效值
+            try:
+                min_df = ak.stock_hsgt_fund_min_em(symbol="北向资金")
+                if min_df is not None and not min_df.empty:
+                    for c in ["沪股通", "深股通", "北向资金"]:
+                        if c in min_df.columns:
+                            min_df[c] = pd.to_numeric(min_df[c], errors="coerce")
+                    valid = min_df.dropna(subset=["北向资金"])
+                    if len(valid) > 0:
+                        last = valid.iloc[-1]
+                        n = float(last.get("北向资金", 0) or 0)
+                        s = float(last.get("沪股通", 0) or 0)
+                        z = float(last.get("深股通", 0) or 0)
+                        if not (abs(n) < 1e-9 and abs(s) < 1e-9 and abs(z) < 1e-9):
+                            result.update({
+                                "north_money": n,
+                                "sh_money": s,
+                                "sz_money": z,
+                                "source": "eastmoney_min",
+                                "is_fallback": True,
+                                "note": f"使用分钟级最近有效值 {last.get('时间', '')}",
+                            })
+                            return result
+            except Exception:
+                pass
+
+            # 再回退到历史日度最近有效值
+            try:
+                hist_df = ak.stock_hsgt_hist_em(symbol="北向资金")
+                if hist_df is not None and not hist_df.empty and "当日成交净买额" in hist_df.columns:
+                    hist_df["当日成交净买额"] = pd.to_numeric(hist_df["当日成交净买额"], errors="coerce")
+                    valid_hist = hist_df.dropna(subset=["当日成交净买额"])
+                    if len(valid_hist) > 0:
+                        last = valid_hist.iloc[-1]
+                        last_date = pd.to_datetime(last.get("日期"), errors="coerce")
+                        if pd.notna(last_date):
+                            days_gap = (now_cn.date() - last_date.date()).days
+                        else:
+                            days_gap = 9999
+
+                        if days_gap <= 7:
+                            result.update({
+                                "north_money": float(last.get("当日成交净买额", 0) or 0),
+                                "sh_money": float("nan"),
+                                "sz_money": float("nan"),
+                                "date": str(last.get("日期", result.get("date", ""))),
+                                "source": "eastmoney_hist",
+                                "is_fallback": True,
+                                "note": "使用历史最近有效日度值",
+                            })
+                        else:
+                            result["note"] = f"实时值为0，历史最近有效数据过旧({days_gap}天)"
+            except Exception:
+                pass
+
+        return result
 
     except Exception as e:
         print(f"❌ 获取今日北向资金失败: {e}")
