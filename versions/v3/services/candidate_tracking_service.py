@@ -12,7 +12,7 @@ from datetime import datetime
 from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Sequence
 
-from db.database import get_db, init_db
+from db.database import get_db, init_db, get_scanned_dates, query_scan_results
 
 
 CORE_TAGS = [
@@ -239,6 +239,35 @@ def capture_daily_candidates(
         _upsert_snapshot(row=row, signal_date=signal_date, market=market, source=source, rules=rules)
         inserted = before + 1
     return inserted
+
+
+def backfill_candidates_from_scan_history(
+    market: str,
+    recent_days: int = 30,
+    max_per_day: int = 300,
+    rules: Optional[Dict] = None,
+) -> int:
+    """从历史扫描结果回填候选追踪，解决历史信号未入库问题。"""
+    _ensure_tracking_table()
+
+    dates = get_scanned_dates(market=market) or []
+    if not dates:
+        return 0
+
+    target_dates = dates[: max(1, int(recent_days))]
+    total = 0
+    for d in target_dates:
+        rows = query_scan_results(scan_date=d, market=market, limit=int(max_per_day)) or []
+        if not rows:
+            continue
+        total += capture_daily_candidates(
+            rows=rows,
+            market=market,
+            signal_date=d,
+            source="history_backfill",
+            rules=rules,
+        )
+    return total
 
 
 def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:

@@ -1488,6 +1488,7 @@ def render_todays_picks_page():
         reclassify_tracking_tags,
         CORE_TAGS,
         DEFAULT_TAG_RULES,
+        backfill_candidates_from_scan_history,
     )
     
     # 尝试导入工作流服务
@@ -1560,6 +1561,11 @@ def render_todays_picks_page():
             last_refresh = st.session_state.get(refresh_key)
             now_txt = datetime.now().strftime("%Y-%m-%d %H:%M")
             if last_refresh != now_txt:
+                # 自动回填近30个交易日，避免历史扫描信号缺失
+                backfill_key = f"candidate_backfill_done_{market}_{datetime.now().strftime('%Y-%m-%d')}"
+                if not st.session_state.get(backfill_key):
+                    backfill_candidates_from_scan_history(market=market, recent_days=30, max_per_day=300)
+                    st.session_state[backfill_key] = True
                 refresh_candidate_tracking(market=market, max_rows=1200)
                 st.session_state[refresh_key] = now_txt
         except Exception as e:
@@ -2784,6 +2790,11 @@ def render_todays_picks_page():
                 st.success(f"已刷新 {refreshed} 条记录")
         with c4:
             st.caption(f"市场: {market}")
+            if st.button("📥 回填历史扫描", key=f"track_backfill_btn_{market}"):
+                with st.spinner("回填历史扫描信号中..."):
+                    added = backfill_candidates_from_scan_history(market=market, recent_days=180, max_per_day=500)
+                    refreshed = refresh_candidate_tracking(market=market, max_rows=5000)
+                st.success(f"回填完成: {added} 条 | 刷新: {refreshed} 条")
 
         with st.expander("⚙️ 标签规则（黑马/筹码/蓝线）", expanded=False):
             r1, r2, r3 = st.columns(3)
