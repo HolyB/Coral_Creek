@@ -89,24 +89,15 @@
   ],
   "metrics": {
     "short": {
-      "ndcg@10": 0.8062771700526553,
-      "top10_avg_return": -0.8441851957674449,
+      "ndcg@10": 0.8524413207665512,
+      "top10_avg_return": -0.7167755294493637,
       "train_samples": 1373,
-      "test_samples": 868,
+      "test_samples": 863,
       "n_train_groups": 23,
       "n_test_groups": 6
-    },
-    "medium": {
-      "ndcg@10": 0.7827074250536838,
-      "top10_avg_return": -1.5339326798363873,
-      "train_samples": 764,
-      "test_samples": 765,
-      "n_train_groups": 19,
-      "n_test_groups": 5
     }
   },
   "horizons": [
-    "short",
-    "medium"
+    "short"
   ]
 }

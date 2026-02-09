@@ -3,6 +3,17 @@
   "commission_bps": 5.0,
   "slippage_bps": 10.0,
   "round_trip_cost_pct": 0.3,
+  "objective": {
+    "primary_horizons": [
+      "20d",
+      "60d"
+    ],
+    "excess_baseline": "cross_sectional_median_by_scan_date",
+    "risk_penalty_lambda": {
+      "20d": 0.35,
+      "60d": 0.45
+    }
+  },
   "horizons": {
     "1d": {
       "samples": 2241,
@@ -27,6 +38,14 @@
       "cost_drag_pct": 0.2999999999999998,
       "gross_win_rate_pct": 12.557226945716154,
       "net_win_rate_pct": 11.576193590582081
+    },
+    "20d": {
+      "samples": 171,
+      "avg_gross_return_pct": -21.329415736723693,
+      "avg_net_return_pct": -13.240583208822317,
+      "cost_drag_pct": -8.088832527901381,
+      "gross_win_rate_pct": 18.71345029239766,
+      "net_win_rate_pct": 33.91812865497076
     },
     "30d": {
       "samples": 49,
