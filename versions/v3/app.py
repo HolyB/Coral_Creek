@@ -1105,11 +1105,13 @@ def render_market_pulse(market='US'):
                 north_data = st.session_state[north_cache_key]
             
             if north_data:
-                north_cols = st.columns(4)
+                north_cols = st.columns(5)
                 north_source = north_data.get("source", "")
                 north_note = north_data.get("note", "")
                 north_fallback = bool(north_data.get("is_fallback", False))
                 north_suspect = bool(north_data.get("is_suspect_zero", False))
+                official_val = north_data.get("official_north_money")
+                official_date = north_data.get("official_date", "--")
                 
                 with north_cols[0]:
                     north_val = north_data.get('north_money', 0)
@@ -1179,7 +1181,30 @@ def render_market_pulse(market='US'):
                     )
                 
                 with north_cols[3]:
+                    # 权威(日终)值
+                    if official_val is None or (isinstance(official_val, float) and pd.isna(official_val)):
+                        st.metric("权威(日终)", "N/A", "待更新", delta_color="off")
+                    else:
+                        off_val = float(official_val)
+                        if off_val > 0:
+                            off_delta = "净流入"
+                            off_color = "normal"
+                        elif off_val < 0:
+                            off_delta = "净流出"
+                            off_color = "inverse"
+                        else:
+                            off_delta = "持平"
+                            off_color = "off"
+                        st.metric(
+                            label="权威(日终)",
+                            value=f"¥{abs(off_val):.2f}亿",
+                            delta=off_delta,
+                            delta_color=off_color,
+                        )
+                
+                with north_cols[4]:
                     st.caption(f"📅 {north_data.get('date', '--')}")
+                    st.caption(f"权威日: {official_date}")
                     if north_val == 0:
                         st.caption("ℹ️ 可能因港股通未开盘/当日未更新")
                     if north_source:

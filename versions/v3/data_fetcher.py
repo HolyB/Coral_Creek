@@ -1177,6 +1177,32 @@ def get_north_money_flow(days: int = 30) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def get_north_money_official() -> dict:
+    """
+    获取北向资金权威(日终)值（最近有效交易日）。
+    """
+    try:
+        import akshare as ak
+        hist_df = ak.stock_hsgt_hist_em(symbol="北向资金")
+        if hist_df is None or hist_df.empty or "当日成交净买额" not in hist_df.columns:
+            return {}
+
+        hist_df["当日成交净买额"] = pd.to_numeric(hist_df["当日成交净买额"], errors="coerce")
+        valid = hist_df.dropna(subset=["当日成交净买额"])
+        if valid.empty:
+            return {}
+
+        last = valid.iloc[-1]
+        return {
+            "date": str(last.get("日期", "")),
+            "north_money": float(last.get("当日成交净买额", 0) or 0),
+            "source": "eastmoney_hist",
+        }
+    except Exception as e:
+        print(f"❌ 获取北向权威(日终)失败: {e}")
+        return {}
+
+
 def get_north_money_today() -> dict:
     """
     获取今日北向资金流入情况
@@ -1185,10 +1211,12 @@ def get_north_money_today() -> dict:
     
     Returns:
         {
-            'north_money': 净流入(亿),
-            'sh_money': 沪股通(亿),
-            'sz_money': 深股通(亿),
-            'date': 日期
+            'north_money': 实时(参考)净流入(亿),
+            'sh_money': 实时(参考)沪股通(亿),
+            'sz_money': 实时(参考)深股通(亿),
+            'date': 实时日期,
+            'official_north_money': 权威(日终)净流入(亿),
+            'official_date': 权威日期
         }
     """
     try:
@@ -1199,7 +1227,14 @@ def get_north_money_today() -> dict:
         # 获取实时北向资金汇总
         df = ak.stock_hsgt_fund_flow_summary_em()
         if df is None or df.empty:
-            return {}
+            off = get_north_money_official()
+            return {
+                "source": "none",
+                "note": "实时源无数据",
+                "official_north_money": off.get("north_money"),
+                "official_date": off.get("date"),
+                "official_source": off.get("source", ""),
+            }
 
         def _pick_num_col(frame: pd.DataFrame, candidates) -> str:
             for c in candidates:
@@ -1319,11 +1354,22 @@ def get_north_money_today() -> dict:
             except Exception:
                 pass
 
+        off = get_north_money_official()
+        result["official_north_money"] = off.get("north_money")
+        result["official_date"] = off.get("date")
+        result["official_source"] = off.get("source", "")
         return result
 
     except Exception as e:
         print(f"❌ 获取今日北向资金失败: {e}")
-        return {}
+        off = get_north_money_official()
+        return {
+            "source": "none",
+            "note": "实时源异常",
+            "official_north_money": off.get("north_money"),
+            "official_date": off.get("date"),
+            "official_source": off.get("source", ""),
+        }
 
 
 def get_north_holding_stocks(limit: int = 50) -> pd.DataFrame:
