@@ -9,7 +9,6 @@
 import os
 import sys
 import argparse
-import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 import pytz
@@ -345,33 +344,13 @@ def format_monitor_message(alerts: List[Dict], opportunities: List[Dict], market
 
 
 def send_telegram_message(message: str) -> bool:
-    """发送 Telegram 消息"""
-    bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
-    chat_id = os.getenv('TELEGRAM_CHAT_ID')
-    
-    if not bot_token or not chat_id:
-        print("❌ TELEGRAM_BOT_TOKEN 或 TELEGRAM_CHAT_ID 未设置")
-        return False
-    
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    
-    try:
-        response = requests.post(url, json={
-            'chat_id': chat_id,
-            'text': message,
-            'parse_mode': 'Markdown',
-            'disable_web_page_preview': True
-        }, timeout=10)
-        
-        if response.status_code == 200:
-            print("✅ Telegram 消息发送成功")
-            return True
-        else:
-            print(f"❌ Telegram 发送失败: {response.text}")
-            return False
-    except Exception as e:
-        print(f"❌ Telegram 发送异常: {e}")
-        return False
+    """发送消息到 Telegram + 企业微信（若已配置）"""
+    from services.notification import NotificationManager
+    nm = NotificationManager()
+    tg_ok = nm.send_telegram(message) if nm.telegram_token else False
+    wc_ok = nm.send_wecom(message, msg_type='markdown') if nm.wecom_webhook else False
+    print(f"notify result -> telegram={tg_ok}, wecom={wc_ok}")
+    return bool(tg_ok or wc_ok)
 
 
 def monitor_and_notify(market: str = 'US', notify: bool = True, force: bool = False):

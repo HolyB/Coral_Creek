@@ -6,6 +6,7 @@
 import os
 import requests
 import json
+import time
 from typing import Dict, Optional
 
 
@@ -17,6 +18,30 @@ class NotificationManager:
         self.feishu_webhook = os.environ.get('FEISHU_WEBHOOK')
         self.telegram_token = os.environ.get('TELEGRAM_BOT_TOKEN')
         self.telegram_chat_id = os.environ.get('TELEGRAM_CHAT_ID')
+        self.max_retries = int(os.environ.get('NOTIFY_MAX_RETRIES', '3'))
+        self.backoff_sec = float(os.environ.get('NOTIFY_RETRY_BACKOFF_SEC', '1.0'))
+
+    def _post_with_retry(self, url: str, data: Dict, channel: str) -> Optional[requests.Response]:
+        """统一 HTTP 重试：处理网络错误和 429/5xx 限流/抖动"""
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                resp = requests.post(url, json=data, timeout=10)
+                if resp.status_code in (429, 500, 502, 503, 504):
+                    if attempt < self.max_retries:
+                        delay = self.backoff_sec * (2 ** (attempt - 1))
+                        print(f"{channel} retryable status={resp.status_code}, retry in {delay:.1f}s ({attempt}/{self.max_retries})")
+                        time.sleep(delay)
+                        continue
+                return resp
+            except Exception as e:
+                if attempt < self.max_retries:
+                    delay = self.backoff_sec * (2 ** (attempt - 1))
+                    print(f"{channel} network error: {e}, retry in {delay:.1f}s ({attempt}/{self.max_retries})")
+                    time.sleep(delay)
+                    continue
+                print(f"{channel} final error: {e}")
+                return None
+        return None
     
     def send_wecom(self, content: str, msg_type: str = 'markdown') -> bool:
         """
@@ -44,8 +69,14 @@ class NotificationManager:
                     "text": {"content": content}
                 }
             
-            resp = requests.post(self.wecom_webhook, json=data, timeout=10)
-            return resp.status_code == 200
+            resp = self._post_with_retry(self.wecom_webhook, data, "WeCom")
+            if not resp or resp.status_code != 200:
+                return False
+            try:
+                body = resp.json()
+                return body.get('errcode', 0) == 0
+            except Exception:
+                return True
         except Exception as e:
             print(f"WeCom error: {e}")
             return False
@@ -78,8 +109,15 @@ class NotificationManager:
                 }
             }
             
-            resp = requests.post(self.feishu_webhook, json=data, timeout=10)
-            return resp.status_code == 200
+            resp = self._post_with_retry(self.feishu_webhook, data, "Feishu")
+            if not resp or resp.status_code != 200:
+                return False
+            try:
+                body = resp.json()
+                # 飞书 webhook 成功常见 code=0 或 StatusCode=0
+                return body.get('code', 0) == 0 or body.get('StatusCode', 0) == 0
+            except Exception:
+                return True
         except Exception as e:
             print(f"Feishu error: {e}")
             return False
@@ -105,8 +143,14 @@ class NotificationManager:
                 "parse_mode": "Markdown"
             }
             
-            resp = requests.post(url, json=data, timeout=10)
-            return resp.status_code == 200
+            resp = self._post_with_retry(url, data, "Telegram")
+            if not resp or resp.status_code != 200:
+                return False
+            try:
+                body = resp.json()
+                return bool(body.get('ok', False))
+            except Exception:
+                return True
         except Exception as e:
             print(f"Telegram error: {e}")
             return False

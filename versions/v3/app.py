@@ -4,6 +4,7 @@ import glob
 import os
 import sys
 import socket
+import subprocess
 import urllib.error
 import urllib.request
 import numpy as np
@@ -194,6 +195,85 @@ def render_data_source_status_bar():
         st.caption(f"🧭 数据源: {source_mode} | US最新: {us_latest} | CN最新: {cn_latest} | 更新时间: {now_txt}")
     except Exception as e:
         st.caption(f"🧭 数据源状态读取失败: {e}")
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _get_action_health_rows():
+    """从 git 提交中估算核心 Action 健康状态"""
+    workflows = [
+        {"name": "Daily Stock Scan (US)", "pattern": "📊 Auto-update: Scan results for"},
+        {"name": "Daily Stock Scan (CN)", "pattern": "📊 Auto-update: CN A-Share scan results for"},
+        {"name": "Default Baskets Auto Execute", "pattern": "🤖 Auto basket execution update"},
+        {"name": "ML Model Training", "pattern": "🧠 Auto-update: ML models retrained"},
+    ]
+    rows = []
+    try:
+        proc = subprocess.run(
+            [
+                "git", "log",
+                "--author=github-actions[bot]",
+                "--pretty=format:%aI|%s",
+                "-n", "300",
+            ],
+            cwd=current_dir,
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+        lines = (proc.stdout or "").splitlines()
+        now = datetime.now().astimezone()
+        for wf in workflows:
+            latest_ts = None
+            latest_msg = ""
+            for line in lines:
+                if "|" not in line:
+                    continue
+                ts_txt, msg = line.split("|", 1)
+                if wf["pattern"] in msg:
+                    latest_msg = msg.strip()
+                    try:
+                        latest_ts = datetime.fromisoformat(ts_txt.strip())
+                    except Exception:
+                        latest_ts = None
+                    break
+            if latest_ts:
+                lag_h = (now - latest_ts).total_seconds() / 3600.0
+                status = "🟢 正常" if lag_h <= 36 else ("🟡 偏久" if lag_h <= 72 else "🔴 需检查")
+                rows.append({
+                    "任务": wf["name"],
+                    "状态": status,
+                    "最近提交时间": latest_ts.strftime("%Y-%m-%d %H:%M:%S %z"),
+                    "延迟(小时)": round(lag_h, 1),
+                    "最近信息": latest_msg,
+                })
+            else:
+                rows.append({
+                    "任务": wf["name"],
+                    "状态": "⚪ 无记录",
+                    "最近提交时间": "-",
+                    "延迟(小时)": "-",
+                    "最近信息": "-",
+                })
+    except Exception as e:
+        rows = [{
+            "任务": "Action Health",
+            "状态": "⚠️ 读取失败",
+            "最近提交时间": "-",
+            "延迟(小时)": "-",
+            "最近信息": str(e),
+        }]
+    return rows
+
+
+def render_action_health_panel():
+    """Action 健康总览面板"""
+    with st.expander("🛠️ Action 健康总览", expanded=False):
+        rows = _get_action_health_rows()
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("暂无可展示的 Action 状态")
 
 
 def _run_network_diagnostics():
@@ -13154,6 +13234,7 @@ if page == "💰 交易执行":
 st.sidebar.markdown("---")
 st.sidebar.caption("💡 Alpaca 持仓始终可见于左侧栏")
 render_data_source_status_bar()
+render_action_health_panel()
 
 if page == "🎯 每日机会":
     # 整合: 每日工作台 + 买卖点信号

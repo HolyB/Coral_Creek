@@ -431,6 +431,55 @@ def send_email(summary):
         return False
 
 
+def send_wecom(summary):
+    """发送企业微信机器人通知（简版）"""
+    webhook = os.getenv('WECOM_WEBHOOK')
+    if not webhook:
+        print("⚠️ WECOM_WEBHOOK not configured, skipping")
+        return False
+
+    date = summary.get('date', 'Unknown')
+    market = summary.get('market', 'US')
+    total = summary.get('total_signals', 0)
+    top = summary.get('top_signals', [])[:8]
+    market_name = "🇺🇸 美股" if market == "US" else "🇨🇳 A股"
+
+    lines = [
+        f"### 🦅 Coral Creek 每日扫描",
+        f"- 日期: `{date}`",
+        f"- 市场: {market_name}",
+        f"- 信号数: **{total}**",
+        "",
+        "#### Top 信号",
+    ]
+    for s in top:
+        symbol = s.get('symbol', 'N/A')
+        blue = s.get('day_blue', 0)
+        price = s.get('price', 0)
+        lines.append(f"- `{symbol}` | BLUE {blue:.0f} | ${price:.2f}")
+    lines.append("")
+    lines.append("仅供参考，不构成投资建议。")
+
+    payload = {
+        "msgtype": "markdown",
+        "markdown": {"content": "\n".join(lines)}
+    }
+
+    try:
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(webhook, data=data, headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode('utf-8', errors='ignore')
+            if '"errcode":0' in body or '"errcode": 0' in body:
+                print("✅ WeCom notification sent")
+                return True
+            print(f"❌ WeCom response: {body}")
+            return False
+    except Exception as e:
+        print(f"❌ WeCom error: {e}")
+        return False
+
+
 def main():
     print("📧 Loading scan summary...")
     summary = load_scan_summary()
@@ -455,6 +504,9 @@ def main():
     
     # 发送 Email
     send_email(summary)
+
+    # 发送企业微信
+    send_wecom(summary)
     
     print("\n✅ Notification process completed")
 

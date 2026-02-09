@@ -6,7 +6,6 @@ Telegram 今日精选推送
 """
 import os
 import sys
-import requests
 from datetime import datetime
 
 # 添加路径
@@ -16,33 +15,13 @@ sys.path.insert(0, parent_dir)
 
 
 def send_telegram_message(message: str, parse_mode: str = 'HTML') -> bool:
-    """发送 Telegram 消息"""
-    bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
-    chat_id = os.environ.get('TELEGRAM_CHAT_ID')
-    
-    if not bot_token or not chat_id:
-        print("⚠️ TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set")
-        return False
-    
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    
-    try:
-        response = requests.post(url, json={
-            'chat_id': chat_id,
-            'text': message,
-            'parse_mode': parse_mode,
-            'disable_web_page_preview': True
-        }, timeout=30)
-        
-        if response.status_code == 200:
-            print("✅ Telegram message sent")
-            return True
-        else:
-            print(f"❌ Telegram error: {response.text}")
-            return False
-    except Exception as e:
-        print(f"❌ Telegram exception: {e}")
-        return False
+    """发送消息到 Telegram + 企业微信（若已配置）"""
+    from services.notification import NotificationManager
+    nm = NotificationManager()
+    tg_ok = nm.send_telegram(message) if nm.telegram_token else False
+    wc_ok = nm.send_wecom(message, msg_type='markdown') if nm.wecom_webhook else False
+    print(f"notify result -> telegram={tg_ok}, wecom={wc_ok}")
+    return bool(tg_ok or wc_ok)
 
 
 def generate_picks_message(market: str = 'US') -> str:
