@@ -22,7 +22,7 @@ from backtester import SimpleBacktester
 from db.database import (
     query_scan_results, get_scanned_dates, get_db_stats, 
     get_stock_history, init_db, get_scan_job, get_stock_info_batch,
-    get_first_scan_dates
+    get_first_scan_dates, USE_SUPABASE, SUPABASE_LAYER_AVAILABLE
 )
 
 # 设置页面配置
@@ -180,6 +180,20 @@ def _cached_theme_radar(market, top_themes, leaders_per_theme, include_social, l
         scan_df=scan_df,
         include_social=include_social,
     )
+
+
+def render_data_source_status_bar():
+    """顶部数据源状态条：显示当前数据源模式与 US/CN 最新扫描日期"""
+    try:
+        us_dates = _cached_scanned_dates(market="US")
+        cn_dates = _cached_scanned_dates(market="CN")
+        us_latest = us_dates[0] if us_dates else "暂无"
+        cn_latest = cn_dates[0] if cn_dates else "暂无"
+        source_mode = "Supabase+SQLite容错" if (USE_SUPABASE and SUPABASE_LAYER_AVAILABLE) else "SQLite本地"
+        now_txt = datetime.now().strftime("%Y-%m-%d %H:%M")
+        st.caption(f"🧭 数据源: {source_mode} | US最新: {us_latest} | CN最新: {cn_latest} | 更新时间: {now_txt}")
+    except Exception as e:
+        st.caption(f"🧭 数据源状态读取失败: {e}")
 
 
 def _run_network_diagnostics():
@@ -13139,6 +13153,7 @@ if page == "💰 交易执行":
 
 st.sidebar.markdown("---")
 st.sidebar.caption("💡 Alpaca 持仓始终可见于左侧栏")
+render_data_source_status_bar()
 
 if page == "🎯 每日机会":
     # 整合: 每日工作台 + 买卖点信号
