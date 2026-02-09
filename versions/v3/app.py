@@ -1479,6 +1479,13 @@ def render_todays_picks_page():
     
     from db.database import query_scan_results, get_scanned_dates, get_stock_info_batch
     from services.portfolio_service import get_portfolio_summary
+    from services.candidate_tracking_service import (
+        capture_daily_candidates,
+        refresh_candidate_tracking,
+        get_candidate_tracking_rows,
+        build_combo_stats,
+        build_segment_stats,
+    )
     
     # 尝试导入工作流服务
     try:
@@ -1536,6 +1543,25 @@ def render_todays_picks_page():
         positions = []
         portfolio = {}
     
+    # 自动收录候选追踪快照（按 symbol+market+date 去重）
+    if not df.empty:
+        try:
+            capture_daily_candidates(
+                rows=df.to_dict("records"),
+                market=market,
+                signal_date=latest_date,
+                source="daily_workbench",
+            )
+            # 控制刷新频率，避免每次 rerun 都全量刷新
+            refresh_key = f"candidate_refresh_at_{market}"
+            last_refresh = st.session_state.get(refresh_key)
+            now_txt = datetime.now().strftime("%Y-%m-%d %H:%M")
+            if last_refresh != now_txt:
+                refresh_candidate_tracking(market=market, max_rows=1200)
+                st.session_state[refresh_key] = now_txt
+        except Exception as e:
+            st.caption(f"候选追踪初始化失败: {e}")
+
     # 计算行动项
     buy_opportunities = 0
     sell_signals = 0
@@ -1639,13 +1665,14 @@ def render_todays_picks_page():
     # ============================================
     # 📋 核心工作区 (Tabs) - 重新设计的用户体验
     # ============================================
-    work_tab1, work_tab2, work_tab3, work_tab4, work_tab5, work_tab6 = st.tabs([
+    work_tab1, work_tab2, work_tab3, work_tab4, work_tab5, work_tab6, work_tab7 = st.tabs([
         "⚡ 今日行动",
         "🔎 发现新股", 
         "🎯 策略精选",
         "💼 我的持仓",
         "📊 买卖信号",  # 新增: 整合原「每日买卖点」
-        "🔥 热点板块"
+        "🔥 热点板块",
+        "📌 组合追踪"
     ])
 
     
@@ -2736,6 +2763,92 @@ def render_todays_picks_page():
                                     st.warning(f"⚠️ 加入失败: {', '.join(ret['failed'])}")
                             except Exception as e:
                                 st.error(f"加入观察失败: {e}")
+
+    # === Tab 7: 组合追踪（日/周/月BLUE + 日/周/月黑马 + 筹码） ===
+    with work_tab7:
+        st.subheader("📌 信号组合持续追踪")
+        st.caption("自动追踪：日/周/月BLUE、日/周/月黑马与筹码标签的各种组合表现")
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            days_back = st.slider("回看天数", min_value=30, max_value=720, value=180, step=30, key=f"track_days_{market}")
+        with c2:
+            min_samples = st.slider("最小样本", min_value=3, max_value=50, value=8, step=1, key=f"track_min_samples_{market}")
+        with c3:
+            if st.button("🔄 刷新追踪数据", key=f"track_refresh_btn_{market}"):
+                with st.spinner("刷新候选追踪中..."):
+                    refreshed = refresh_candidate_tracking(market=market, max_rows=2000)
+                st.success(f"已刷新 {refreshed} 条记录")
+        with c4:
+            st.caption(f"市场: {market}")
+
+        rows = get_candidate_tracking_rows(market=market, days_back=days_back)
+        if not rows:
+            st.info("暂无追踪数据。请先运行每日扫描并进入“每日工作台”。")
+        else:
+            # 顶部总览
+            total = len(rows)
+            wins = sum(1 for r in rows if float(r.get("pnl_pct") or 0) > 0)
+            avg_pnl = np.mean([float(r.get("pnl_pct") or 0) for r in rows]) if rows else 0
+            d2p_vals = [int(r["first_positive_day"]) for r in rows if r.get("first_positive_day") is not None]
+            median_d2p = int(np.median(d2p_vals)) if d2p_vals else None
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("追踪样本", total)
+            m2.metric("当前胜率", f"{(wins / total * 100):.1f}%")
+            m3.metric("当前平均收益", f"{avg_pnl:+.2f}%")
+            m4.metric("首次转正中位天数", f"{median_d2p}天" if median_d2p is not None else "-")
+
+            st.markdown("### 🧩 组合绩效矩阵")
+            combo_stats = build_combo_stats(rows, min_samples=min_samples)
+            if combo_stats:
+                combo_df = pd.DataFrame(combo_stats)
+                st.dataframe(combo_df, use_container_width=True, hide_index=True)
+            else:
+                st.info("当前组合样本不足，调低“最小样本”可查看更多组合。")
+
+            st.markdown("### 🧱 分层统计")
+            seg1, seg2 = st.columns(2)
+            with seg1:
+                cap_df = pd.DataFrame(build_segment_stats(rows, by="cap_category"))
+                st.markdown("**按市值层**")
+                st.dataframe(cap_df, use_container_width=True, hide_index=True)
+            with seg2:
+                ind_df = pd.DataFrame(build_segment_stats(rows, by="industry"))
+                st.markdown("**按板块/行业**")
+                st.dataframe(ind_df.head(20), use_container_width=True, hide_index=True)
+
+            st.markdown("### 📋 个股追踪明细")
+            detail_df = pd.DataFrame(rows)
+            if not detail_df.empty:
+                detail_df["标签"] = detail_df["signal_tags_list"].apply(
+                    lambda x: ",".join(x[:6]) + ("..." if len(x) > 6 else "") if isinstance(x, list) else ""
+                )
+                show_cols = [
+                    "symbol", "signal_date", "signal_price", "current_price", "pnl_pct",
+                    "days_since_signal", "first_positive_day", "max_up_pct", "max_drawdown_pct",
+                    "pnl_d1", "pnl_d3", "pnl_d5", "pnl_d10", "pnl_d20",
+                    "cap_category", "industry", "标签", "status",
+                ]
+                show_cols = [c for c in show_cols if c in detail_df.columns]
+                show_df = detail_df[show_cols].copy()
+                show_df = show_df.rename(
+                    columns={
+                        "symbol": "代码",
+                        "signal_date": "信号日",
+                        "signal_price": "信号价",
+                        "current_price": "现价",
+                        "pnl_pct": "当前收益%",
+                        "days_since_signal": "追踪天数",
+                        "first_positive_day": "首次转正天",
+                        "max_up_pct": "最大浮盈%",
+                        "max_drawdown_pct": "最大浮亏%",
+                        "cap_category": "市值层",
+                        "industry": "行业",
+                        "status": "状态",
+                    }
+                )
+                st.dataframe(show_df, use_container_width=True, hide_index=True)
 
     
     # ============================================

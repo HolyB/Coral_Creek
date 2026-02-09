@@ -175,6 +175,47 @@ def init_db():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_perf_date ON signal_performance(scan_date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_perf_market ON signal_performance(market)")
+
+        # 候选信号持续追踪表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS candidate_tracking (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol VARCHAR(20) NOT NULL,
+                market VARCHAR(10) DEFAULT 'US',
+                signal_date DATE NOT NULL,
+                source VARCHAR(50) DEFAULT 'daily_scan',
+                signal_price REAL NOT NULL,
+                current_price REAL,
+                pnl_pct REAL DEFAULT 0,
+                days_since_signal INTEGER DEFAULT 0,
+                first_positive_day INTEGER,
+                max_up_pct REAL DEFAULT 0,
+                max_drawdown_pct REAL DEFAULT 0,
+                pnl_d1 REAL,
+                pnl_d3 REAL,
+                pnl_d5 REAL,
+                pnl_d10 REAL,
+                pnl_d20 REAL,
+                cap_category VARCHAR(30),
+                industry VARCHAR(200),
+                signal_tags TEXT,
+                blue_daily REAL,
+                blue_weekly REAL,
+                blue_monthly REAL,
+                heima_daily BOOLEAN,
+                heima_weekly BOOLEAN,
+                heima_monthly BOOLEAN,
+                vp_rating VARCHAR(20),
+                profit_ratio REAL,
+                status VARCHAR(20) DEFAULT 'tracking',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(symbol, market, signal_date)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_date ON candidate_tracking(signal_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_market ON candidate_tracking(market)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_status ON candidate_tracking(status)")
         
         # Baseline 扫描结果表 (用于对比)
         cursor.execute("""
