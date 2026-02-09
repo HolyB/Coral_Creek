@@ -439,8 +439,9 @@ def update_paper_account_config(account_name: str,
         conn.close()
 
 
-def paper_buy(symbol: str, shares: int, price: float = None, 
-              market: str = 'US', account_name: str = 'default') -> Dict:
+def paper_buy(symbol: str, shares: int, price: float = None,
+              market: str = 'US', account_name: str = 'default',
+              notes: str = None) -> Dict:
     """
     模拟买入
     
@@ -568,9 +569,18 @@ def paper_buy(symbol: str, shares: int, price: float = None,
         
         # 记录交易
         cursor.execute("""
-            INSERT INTO paper_trades (account_name, symbol, market, trade_type, price, shares, commission, trade_date)
-            VALUES (?, ?, ?, 'BUY', ?, ?, ?, ?)
-        """, (account_name, symbol, market, price, shares, commission, datetime.now().strftime('%Y-%m-%d')))
+            INSERT INTO paper_trades (account_name, symbol, market, trade_type, price, shares, commission, trade_date, notes)
+            VALUES (?, ?, ?, 'BUY', ?, ?, ?, ?, ?)
+        """, (
+            account_name,
+            symbol,
+            market,
+            price,
+            shares,
+            commission,
+            datetime.now().strftime('%Y-%m-%d'),
+            notes
+        ))
         
         conn.commit()
         
@@ -1313,4 +1323,3 @@ if __name__ == "__main__":
     # 查看账户
     account = get_paper_account()
     print(f"买入后账户: {account}")
-

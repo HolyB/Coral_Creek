@@ -61,5 +61,6 @@ versions/v3/ml/saved_models/qlib_*/qlib_mining_summary_[0-9]*.json
 
 # Allow Coral Creek database for Streamlit Cloud
 !versions/v2/db/coral_creek.db
+!versions/v3/db/coral_creek.db
 
 versions/v1/config.json

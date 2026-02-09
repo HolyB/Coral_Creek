@@ -1,0 +1,92 @@
+name: Default Baskets Auto Execute
+
+on:
+  schedule:
+    - cron: "20 14 * * 1-5" # US market routine
+    - cron: "20 2 * * 1-5"  # CN market routine
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Market to run"
+        required: false
+        default: "ALL"
+        type: choice
+        options:
+          - ALL
+          - US
+          - CN
+      dry_run:
+        description: "Dry run only"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  run-default-baskets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+      TZ: America/New_York
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy requests python-dotenv supabase
+
+      - name: Run US (scheduled)
+        if: github.event_name == 'schedule' && github.event.schedule == '20 14 * * 1-5'
+        working-directory: versions/v3
+        run: |
+          python scripts/run_default_baskets.py --market US
+
+      - name: Run CN (scheduled)
+        if: github.event_name == 'schedule' && github.event.schedule == '20 2 * * 1-5'
+        env:
+          TZ: Asia/Shanghai
+        working-directory: versions/v3
+        run: |
+          python scripts/run_default_baskets.py --market CN
+
+      - name: Run manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: versions/v3
+        run: |
+          MARKET="${{ github.event.inputs.market }}"
+          if [ -z "$MARKET" ]; then MARKET="ALL"; fi
+          DRY="${{ github.event.inputs.dry_run }}"
+          if [ "$DRY" = "true" ]; then
+            python scripts/run_default_baskets.py --market "$MARKET" --dry-run
+          else
+            python scripts/run_default_baskets.py --market "$MARKET"
+          fi
+
+      - name: Commit v3 paper trading db
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add versions/v3/db/coral_creek.db || true
+          if git diff --staged --quiet; then
+            echo "No DB changes to commit"
+          else
+            git commit -m "🤖 Auto basket execution update ($(date +%Y-%m-%d))"
+            git pull --rebase origin main || true
+            git push
+          fi
+
