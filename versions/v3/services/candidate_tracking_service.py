@@ -22,9 +22,19 @@ CORE_TAGS = [
     "DAY_HEIMA",
     "WEEK_HEIMA",
     "MONTH_HEIMA",
-    "CHIP_GOOD",
+    "CHIP_DENSE",
     "CHIP_BREAKOUT",
+    "CHIP_OVERHANG",
 ]
+
+DEFAULT_TAG_RULES = {
+    "day_blue_min": 100.0,
+    "week_blue_min": 80.0,
+    "month_blue_min": 60.0,
+    "chip_dense_profit_ratio_min": 0.7,
+    "chip_breakout_profit_ratio_min": 0.9,
+    "chip_overhang_profit_ratio_max": 0.3,
+}
 
 
 def _to_bool(v) -> bool:
@@ -55,8 +65,12 @@ def _parse_date(text: str) -> Optional[datetime]:
         return None
 
 
-def derive_signal_tags(row: Dict) -> List[str]:
+def derive_signal_tags(row: Dict, rules: Optional[Dict] = None) -> List[str]:
     """从扫描记录推导原子标签。"""
+    cfg = dict(DEFAULT_TAG_RULES)
+    if rules:
+        cfg.update(rules)
+
     tags: List[str] = []
 
     day_blue = _to_float(row.get("blue_daily"))
@@ -65,11 +79,11 @@ def derive_signal_tags(row: Dict) -> List[str]:
     profit_ratio = _to_float(row.get("profit_ratio"))
     vp_rating = str(row.get("vp_rating", "") or "")
 
-    if day_blue >= 100:
+    if day_blue >= _to_float(cfg.get("day_blue_min"), 100.0):
         tags.append("DAY_BLUE")
-    if week_blue >= 80:
+    if week_blue >= _to_float(cfg.get("week_blue_min"), 80.0):
         tags.append("WEEK_BLUE")
-    if month_blue >= 60:
+    if month_blue >= _to_float(cfg.get("month_blue_min"), 60.0):
         tags.append("MONTH_BLUE")
 
     if _to_bool(row.get("heima_daily")):
@@ -79,20 +93,22 @@ def derive_signal_tags(row: Dict) -> List[str]:
     if _to_bool(row.get("heima_monthly")):
         tags.append("MONTH_HEIMA")
 
-    if vp_rating in ("Good", "Excellent") or profit_ratio >= 0.7:
-        tags.append("CHIP_GOOD")
-    if vp_rating == "Excellent" or profit_ratio >= 0.9:
+    if vp_rating in ("Good", "Excellent") or profit_ratio >= _to_float(cfg.get("chip_dense_profit_ratio_min"), 0.7):
+        tags.append("CHIP_DENSE")
+    if vp_rating == "Excellent" or profit_ratio >= _to_float(cfg.get("chip_breakout_profit_ratio_min"), 0.9):
         tags.append("CHIP_BREAKOUT")
+    if vp_rating == "Poor" or (0 < profit_ratio <= _to_float(cfg.get("chip_overhang_profit_ratio_max"), 0.3)):
+        tags.append("CHIP_OVERHANG")
 
     return sorted(set(tags))
 
 
-def _upsert_snapshot(row: Dict, signal_date: str, market: str, source: str) -> None:
+def _upsert_snapshot(row: Dict, signal_date: str, market: str, source: str, rules: Optional[Dict] = None) -> None:
     symbol = (row.get("symbol") or "").strip()
     if not symbol:
         return
 
-    tags = derive_signal_tags(row)
+    tags = derive_signal_tags(row, rules=rules)
     if not tags:
         return
 
@@ -152,7 +168,13 @@ def _upsert_snapshot(row: Dict, signal_date: str, market: str, source: str) -> N
         )
 
 
-def capture_daily_candidates(rows: Sequence[Dict], market: str, signal_date: str, source: str = "daily_scan") -> int:
+def capture_daily_candidates(
+    rows: Sequence[Dict],
+    market: str,
+    signal_date: str,
+    source: str = "daily_scan",
+    rules: Optional[Dict] = None,
+) -> int:
     """批量写入当日候选追踪快照。"""
     if not rows:
         return 0
@@ -160,7 +182,7 @@ def capture_daily_candidates(rows: Sequence[Dict], market: str, signal_date: str
     inserted = 0
     for row in rows:
         before = inserted
-        _upsert_snapshot(row=row, signal_date=signal_date, market=market, source=source)
+        _upsert_snapshot(row=row, signal_date=signal_date, market=market, source=source, rules=rules)
         inserted = before + 1
     return inserted
 
@@ -307,6 +329,44 @@ def get_candidate_tracking_rows(market: Optional[str] = None, days_back: int = 1
         except Exception:
             row["signal_tags_list"] = []
     return rows
+
+
+def reclassify_tracking_tags(market: Optional[str] = None, rules: Optional[Dict] = None, max_rows: int = 5000) -> int:
+    """按新规则重算候选追踪标签。"""
+    query = """
+        SELECT id, blue_daily, blue_weekly, blue_monthly,
+               heima_daily, heima_weekly, heima_monthly,
+               vp_rating, profit_ratio
+        FROM candidate_tracking
+        WHERE 1=1
+    """
+    params: List = []
+    if market:
+        query += " AND market = ?"
+        params.append(market)
+    query += " ORDER BY signal_date DESC LIMIT ?"
+    params.append(int(max_rows))
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        rows = [dict(x) for x in cursor.fetchall()]
+
+    updated = 0
+    for row in rows:
+        tags = derive_signal_tags(row, rules=rules)
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE candidate_tracking
+                SET signal_tags = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (json.dumps(tags, ensure_ascii=False), row["id"]),
+            )
+        updated += 1
+    return updated
 
 
 def _iter_combo_keys(tags: Iterable[str], max_size: int = 4) -> Iterable[str]:

@@ -1485,6 +1485,9 @@ def render_todays_picks_page():
         get_candidate_tracking_rows,
         build_combo_stats,
         build_segment_stats,
+        reclassify_tracking_tags,
+        CORE_TAGS,
+        DEFAULT_TAG_RULES,
     )
     
     # 尝试导入工作流服务
@@ -2782,12 +2785,79 @@ def render_todays_picks_page():
         with c4:
             st.caption(f"市场: {market}")
 
+        with st.expander("⚙️ 标签规则（黑马/筹码/蓝线）", expanded=False):
+            r1, r2, r3 = st.columns(3)
+            with r1:
+                day_blue_min = st.slider(
+                    "DAY_BLUE 阈值", min_value=50, max_value=180,
+                    value=int(DEFAULT_TAG_RULES["day_blue_min"]), step=5, key=f"rule_day_blue_{market}"
+                )
+                week_blue_min = st.slider(
+                    "WEEK_BLUE 阈值", min_value=40, max_value=160,
+                    value=int(DEFAULT_TAG_RULES["week_blue_min"]), step=5, key=f"rule_week_blue_{market}"
+                )
+            with r2:
+                month_blue_min = st.slider(
+                    "MONTH_BLUE 阈值", min_value=30, max_value=140,
+                    value=int(DEFAULT_TAG_RULES["month_blue_min"]), step=5, key=f"rule_month_blue_{market}"
+                )
+                chip_dense_min = st.slider(
+                    "CHIP_DENSE 最低获利盘", min_value=0.40, max_value=0.95,
+                    value=float(DEFAULT_TAG_RULES["chip_dense_profit_ratio_min"]), step=0.05, key=f"rule_chip_dense_{market}"
+                )
+            with r3:
+                chip_breakout_min = st.slider(
+                    "CHIP_BREAKOUT 最低获利盘", min_value=0.60, max_value=0.99,
+                    value=float(DEFAULT_TAG_RULES["chip_breakout_profit_ratio_min"]), step=0.01, key=f"rule_chip_break_{market}"
+                )
+                chip_overhang_max = st.slider(
+                    "CHIP_OVERHANG 最高获利盘", min_value=0.05, max_value=0.50,
+                    value=float(DEFAULT_TAG_RULES["chip_overhang_profit_ratio_max"]), step=0.01, key=f"rule_chip_overhang_{market}"
+                )
+
+            rule_cfg = {
+                "day_blue_min": float(day_blue_min),
+                "week_blue_min": float(week_blue_min),
+                "month_blue_min": float(month_blue_min),
+                "chip_dense_profit_ratio_min": float(chip_dense_min),
+                "chip_breakout_profit_ratio_min": float(chip_breakout_min),
+                "chip_overhang_profit_ratio_max": float(chip_overhang_max),
+            }
+            if st.button("🧠 重新计算历史标签", key=f"rule_reclassify_{market}"):
+                with st.spinner("重算历史标签中..."):
+                    changed = reclassify_tracking_tags(market=market, rules=rule_cfg, max_rows=5000)
+                st.success(f"已重算 {changed} 条历史标签")
+
         rows = get_candidate_tracking_rows(market=market, days_back=days_back)
         if not rows:
             st.info("暂无追踪数据。请先运行每日扫描并进入“每日工作台”。")
         else:
+            f1, f2 = st.columns([2, 3])
+            with f1:
+                required_tags = st.multiselect(
+                    "按标签过滤（必须全部包含）",
+                    options=CORE_TAGS,
+                    default=[],
+                    key=f"track_tag_filter_{market}",
+                )
+            with f2:
+                combo_contains = st.text_input(
+                    "组合关键词过滤（例如 DAY_BLUE+WEEK_BLUE）",
+                    value="",
+                    key=f"track_combo_filter_{market}",
+                ).strip().upper()
+
+            if required_tags:
+                rows = [
+                    r for r in rows
+                    if set(required_tags).issubset(set(r.get("signal_tags_list") or []))
+                ]
+
             # 顶部总览
             total = len(rows)
+            if total == 0:
+                st.info("当前过滤条件下无样本。")
+                return
             wins = sum(1 for r in rows if float(r.get("pnl_pct") or 0) > 0)
             avg_pnl = np.mean([float(r.get("pnl_pct") or 0) for r in rows]) if rows else 0
             d2p_vals = [int(r["first_positive_day"]) for r in rows if r.get("first_positive_day") is not None]
@@ -2802,6 +2872,8 @@ def render_todays_picks_page():
             st.markdown("### 🧩 组合绩效矩阵")
             combo_stats = build_combo_stats(rows, min_samples=min_samples)
             if combo_stats:
+                if combo_contains:
+                    combo_stats = [x for x in combo_stats if combo_contains in str(x.get("组合", "")).upper()]
                 combo_df = pd.DataFrame(combo_stats)
                 st.dataframe(combo_df, use_container_width=True, hide_index=True)
             else:
