@@ -1826,22 +1826,27 @@ def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly
     """渲染操作区 - 快速交易工具"""
     
     st.markdown("### 💰 快速操作")
-    
-    tab_alpaca, tab_backtest, tab_buy, tab_calc, tab_watch = st.tabs([
-        "🚀 Alpaca交易", "📈 快速回测", "🛒 模拟买入", "📐 仓位计算", "📋 观察列表"
-    ])
-    
-    # === Alpaca 快速交易 ===
-    with tab_alpaca:
-        try:
-            from components.alpaca_widget import render_alpaca_quick_trade
-            render_alpaca_quick_trade(symbol=symbol, suggested_price=current_price)
-        except ImportError:
-            st.warning("⚠️ Alpaca 组件未安装")
-            st.info("请确保 components/alpaca_widget.py 存在")
-        except Exception as e:
-            st.error(f"Alpaca 组件加载失败: {e}")
-    
+
+    is_us_market = (market == "US")
+    if is_us_market:
+        tab_alpaca, tab_backtest, tab_buy, tab_calc, tab_watch = st.tabs([
+            "🚀 Alpaca交易", "📈 快速回测", "🛒 模拟买入", "📐 仓位计算", "📋 观察列表"
+        ])
+        with tab_alpaca:
+            try:
+                from components.alpaca_widget import render_alpaca_quick_trade
+                render_alpaca_quick_trade(symbol=symbol, suggested_price=current_price, market=market)
+            except ImportError:
+                st.warning("⚠️ Alpaca 组件未安装")
+                st.info("请确保 components/alpaca_widget.py 存在")
+            except Exception as e:
+                st.error(f"Alpaca 组件加载失败: {e}")
+    else:
+        tab_backtest, tab_buy, tab_calc, tab_watch = st.tabs([
+            "📈 快速回测", "🛒 模拟买入", "📐 仓位计算", "📋 观察列表"
+        ])
+        st.info("ℹ️ 当前为 A 股，Alpaca 不适用。已保留模拟交易与回测。")
+
     # === 快速回测 ===
     with tab_backtest:
         try:

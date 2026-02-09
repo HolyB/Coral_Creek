@@ -36,7 +36,7 @@ def get_alpaca_trader():
         return None
 
 
-def render_alpaca_sidebar_widget():
+def render_alpaca_sidebar_widget(enabled: bool = True, current_market: str = "US"):
     """
     在侧边栏底部显示 Alpaca 持仓摘要 + Paper Trading 子账户状态
     """
@@ -57,7 +57,9 @@ def render_alpaca_sidebar_widget():
         paper_available = False
     
     # Alpaca 信息
-    if trader:
+    if not enabled:
+        st.caption(f"💰 Alpaca 仅支持美股（当前: {current_market}）")
+    elif trader:
         try:
             account = trader.get_account()
             positions = trader.get_positions()
@@ -134,10 +136,13 @@ def render_alpaca_sidebar_widget():
 
 
 
-def render_alpaca_floating_bar():
+def render_alpaca_floating_bar(enabled: bool = True, market: str = "US"):
     """
     在页面底部显示浮动持仓栏
     """
+    if not enabled:
+        return
+
     trader = get_alpaca_trader()
     
     if not trader:
@@ -299,7 +304,7 @@ def render_alpaca_floating_bar():
         st.caption(f"⚠️ Alpaca 连接异常: {e}")
 
 
-def render_alpaca_quick_trade(symbol: str = None, suggested_price: float = None):
+def render_alpaca_quick_trade(symbol: str = None, suggested_price: float = None, market: str = "US"):
     """
     快速交易组件 - 可嵌入股票详情页
     
@@ -307,6 +312,10 @@ def render_alpaca_quick_trade(symbol: str = None, suggested_price: float = None)
         symbol: 预填股票代码
         suggested_price: 建议价格
     """
+    if market != "US":
+        st.info(f"ℹ️ 当前为 {market} 市场，Alpaca 仅支持美股。请使用下方“模拟买入”。")
+        return
+
     trader = get_alpaca_trader()
     
     if not trader:

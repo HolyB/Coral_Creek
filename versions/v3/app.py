@@ -131,6 +131,18 @@ def _set_global_paper_account_name(name: str):
     st.session_state["global_paper_account_name"] = (name or "default")
 
 
+def _set_active_market(market: str):
+    """记录当前页面市场上下文，用于统一控制 US/CN 交易入口"""
+    if market in ("US", "CN"):
+        st.session_state["active_market"] = market
+
+
+def _get_active_market(default: str = "US") -> str:
+    """读取当前页面市场上下文"""
+    market = st.session_state.get("active_market", default)
+    return market if market in ("US", "CN") else default
+
+
 # --- 数据缓存层 (Performance Optimization) ---
 # 全局缓存高频数据查询，避免每次交互都重新加载
 
@@ -329,10 +341,14 @@ check_password()
 
 # --- 侧边栏: Alpaca 持仓 + 系统工具 ---
 with st.sidebar:
-    # Alpaca 持仓小部件 (始终显示)
+    # Alpaca 持仓小部件（仅 US 市场）
     try:
         from components.alpaca_widget import render_alpaca_sidebar_widget
-        render_alpaca_sidebar_widget()
+        sidebar_market = _get_active_market()
+        render_alpaca_sidebar_widget(
+            enabled=(sidebar_market == "US"),
+            current_market=sidebar_market,
+        )
     except ImportError:
         pass  # 组件未安装时静默跳过
     
@@ -1387,6 +1403,7 @@ def render_todays_picks_page():
         
         market_choice = st.radio("市场", ["🇺🇸 美股", "🇨🇳 A股"], horizontal=True, key="picks_market")
         market = "US" if "美股" in market_choice else "CN"
+        _set_active_market(market)
         
         # 检测市场切换，清除之前选中的股票
         prev_market = st.session_state.get('_picks_prev_market', market)
@@ -2632,7 +2649,7 @@ def render_todays_picks_page():
     # ============================================
     try:
         from components.alpaca_widget import render_alpaca_floating_bar
-        render_alpaca_floating_bar()
+        render_alpaca_floating_bar(enabled=(market == "US"), market=market)
     except ImportError:
         pass  # 组件未安装时静默跳过
 
@@ -2789,9 +2806,11 @@ def render_scan_page():
             options=list(market_options.keys()),
             horizontal=True,
             index=0,
+            key="scan_market",
             help="切换美股/A股扫描结果"
         )
         selected_market = market_options[selected_market_label]
+        _set_active_market(selected_market)
     
     # === Market Pulse Dashboard (顶部) - 传入选中的市场 ===
     render_market_pulse(market=selected_market)
@@ -4696,6 +4715,7 @@ def render_stock_lookup_page():
         lookup_market = st.radio("市场", options=list(market_options.keys()), 
                                  index=default_idx, horizontal=True, key="lookup_market")
         market = market_options[lookup_market]
+        _set_active_market(market)
     
     with search_col3:
         search_btn = st.button("🔍 开始分析", type="primary", use_container_width=True)
@@ -12836,6 +12856,10 @@ page = st.sidebar.radio("功能导航", [
     "🔬 个股研究",      # 原 个股分析 + 策略回测 (深度分析)
     "💰 交易执行",      # 原 组合管理 + 策略实验室模拟盘 (Alpaca+Paper)
 ])
+
+# 交易执行页默认按 US 上下文展示 Alpaca；其他页面会在各自 market 选择器里覆盖
+if page == "💰 交易执行":
+    _set_active_market("US")
 
 st.sidebar.markdown("---")
 st.sidebar.caption("💡 Alpaca 持仓始终可见于左侧栏")
