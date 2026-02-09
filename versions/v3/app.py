@@ -5986,6 +5986,50 @@ def render_portfolio_tab():
             st.dataframe(pd.DataFrame(pos_data), hide_index=True, use_container_width=True)
         else:
             st.info("暂无模拟持仓")
+
+        # 全部子账户持仓总览（解决“买了但看不到”的困惑）
+        with st.expander("🗂️ 全部子账户持仓总览", expanded=False):
+            all_pos_rows = []
+            for acc_name in sub_names:
+                acc_data = get_paper_account(acc_name)
+                if not acc_data:
+                    continue
+                for p in acc_data.get("positions", []):
+                    all_pos_rows.append({
+                        "子账户": acc_name,
+                        "代码": p.get("symbol"),
+                        "市场": p.get("market"),
+                        "股数": int(p.get("shares", 0) or 0),
+                        "成本": float(p.get("avg_cost", 0) or 0),
+                        "现价": float(p.get("current_price", 0) or 0) if p.get("current_price") else None,
+                        "市值": float(p.get("market_value", 0) or 0) if p.get("market_value") else 0.0,
+                        "盈亏": float(p.get("unrealized_pnl", 0) or 0),
+                        "盈亏%": float(p.get("unrealized_pnl_pct", 0) or 0),
+                    })
+
+            if all_pos_rows:
+                all_df = pd.DataFrame(all_pos_rows)
+                account_filter = st.selectbox(
+                    "按子账户筛选",
+                    ["全部"] + sub_names,
+                    index=0,
+                    key="all_paper_positions_account_filter"
+                )
+                if account_filter != "全部":
+                    all_df = all_df[all_df["子账户"] == account_filter]
+
+                # 美化显示
+                show_df = all_df.copy()
+                show_df["成本"] = show_df["成本"].map(lambda x: f"${x:.2f}")
+                show_df["现价"] = show_df["现价"].map(lambda x: f"${x:.2f}" if pd.notna(x) else "--")
+                show_df["市值"] = show_df["市值"].map(lambda x: f"${x:,.2f}")
+                show_df["盈亏"] = show_df["盈亏"].map(lambda x: f"${x:+,.2f}")
+                show_df["盈亏%"] = show_df["盈亏%"].map(lambda x: f"{x:+.2f}%")
+
+                st.dataframe(show_df, hide_index=True, use_container_width=True)
+                st.caption(f"共 {len(show_df)} 条持仓记录")
+            else:
+                st.info("所有子账户均暂无持仓")
         
         # 交易记录
         with st.expander("📜 模拟交易记录", expanded=False):
