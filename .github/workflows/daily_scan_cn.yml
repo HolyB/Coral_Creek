@@ -182,9 +182,14 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+
+          # 同步 v2 数据库到 v3（v3 Streamlit 页面读取）
+          mkdir -p versions/v3/db
+          cp versions/v2/db/coral_creek.db versions/v3/db/coral_creek.db || true
           
           # 添加数据库文件
           git add versions/v2/db/coral_creek.db || true
+          git add versions/v3/db/coral_creek.db || true
           git add versions/v2/scan_summary_cn.json || true
           
           # 检查是否有变化

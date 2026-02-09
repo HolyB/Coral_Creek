@@ -249,36 +249,47 @@ def init_db():
 
 def get_scanned_dates(start_date=None, end_date=None, market=None):
     """获取已扫描的日期列表 - 优先使用 Supabase"""
+    def _sqlite_dates():
+        with get_db() as conn:
+            cursor = conn.cursor()
+
+            query = "SELECT DISTINCT scan_date FROM scan_results WHERE 1=1"
+            params = []
+
+            if start_date:
+                query += " AND scan_date >= ?"
+                params.append(start_date)
+            if end_date:
+                query += " AND scan_date <= ?"
+                params.append(end_date)
+            if market:
+                query += " AND market = ?"
+                params.append(market)
+
+            query += " ORDER BY scan_date DESC"
+            cursor.execute(query, params)
+            return [row['scan_date'] for row in cursor.fetchall()]
+
     # 优先使用 Supabase
     if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
         try:
             dates = get_scanned_dates_supabase(start_date, end_date, market)
+            # 容错: 若 Supabase 日期落后于本地 SQLite，则优先使用本地最新日期
+            local_dates = _sqlite_dates()
+            if dates and local_dates:
+                if str(dates[0]) >= str(local_dates[0]):
+                    return dates
+                print(f"⚠️ Supabase 日期落后 (supabase={dates[0]}, sqlite={local_dates[0]}), 回退 SQLite")
+                return local_dates
             if dates:
                 return dates
+            if local_dates:
+                return local_dates
         except Exception as e:
             print(f"⚠️ Supabase 日期查询失败: {e}")
-    
+
     # SQLite 备用
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        query = "SELECT DISTINCT scan_date FROM scan_results WHERE 1=1"
-        params = []
-        
-        if start_date:
-            query += " AND scan_date >= ?"
-            params.append(start_date)
-        if end_date:
-            query += " AND scan_date <= ?"
-            params.append(end_date)
-        if market:
-            query += " AND market = ?"
-            params.append(market)
-        
-        query += " ORDER BY scan_date DESC"
-        
-        cursor.execute(query, params)
-        return [row['scan_date'] for row in cursor.fetchall()]
+    return _sqlite_dates()
 
 
 def get_missing_dates(start_date, end_date):
