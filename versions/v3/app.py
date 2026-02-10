@@ -11,6 +11,7 @@ import urllib.request
 import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+from typing import Dict
 
 # 添加当前目录到路径，以便导入其他模块
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -475,6 +476,140 @@ def _evaluate_ml_vs_baseline(
             "ranked_cnt": ranked_cnt,
             "fallback_cnt": fallback_cnt,
         },
+    }
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
+    """
+    极致条件 Lift 分析:
+    例如 日BLUE>=200 + 周BLUE>=200 + 黑马/掘地 的胜率提升。
+    """
+    from services.candidate_tracking_service import get_candidate_tracking_rows
+    from db.database import get_connection
+
+    rows = get_candidate_tracking_rows(market=market, days_back=days_back) or []
+    if not rows:
+        return {"ok": False, "reason": "no_tracking_rows", "table": [], "target_col": None}
+
+    # 选择尽量稳定的收益口径：优先 pnl_d10，再 pnl_d5，最后当前 pnl_pct
+    def _pick_target_col(rs):
+        cands = ["pnl_d10", "pnl_d5", "pnl_pct"]
+        for c in cands:
+            valid = 0
+            for r in rs:
+                v = r.get(c)
+                if v is None:
+                    continue
+                try:
+                    _ = float(v)
+                    valid += 1
+                except Exception:
+                    pass
+            if valid >= max(20, int(len(rs) * 0.25)):
+                return c
+        return "pnl_pct"
+
+    target_col = _pick_target_col(rows)
+
+    # 从 scan_results 取掘地字段（candidate_tracking 当前未持久化 juedi）
+    min_date = min(str(r.get("signal_date") or "9999-12-31") for r in rows)
+    juedi_map = {}
+    try:
+        conn = get_connection()
+        q = """
+            SELECT symbol, scan_date, COALESCE(is_juedi, 0) AS is_juedi
+            FROM scan_results
+            WHERE market = ? AND scan_date >= ?
+        """
+        dfj = pd.read_sql_query(q, conn, params=(market, min_date))
+        conn.close()
+        for _, x in dfj.iterrows():
+            key = (str(x.get("symbol") or "").upper(), str(x.get("scan_date") or ""))
+            juedi_map[key] = int(float(x.get("is_juedi") or 0))
+    except Exception:
+        juedi_map = {}
+
+    def _to_float(v, d=0.0):
+        try:
+            if v is None:
+                return float(d)
+            return float(v)
+        except Exception:
+            return float(d)
+
+    enriched = []
+    for r in rows:
+        sym = str(r.get("symbol") or "").upper()
+        dt = str(r.get("signal_date") or "")
+        ret = _to_float(r.get(target_col), np.nan)
+        if np.isnan(ret):
+            continue
+        enriched.append(
+            {
+                "ret": ret,
+                "blue_daily": _to_float(r.get("blue_daily")),
+                "blue_weekly": _to_float(r.get("blue_weekly")),
+                "blue_monthly": _to_float(r.get("blue_monthly")),
+                "heima_daily": bool(r.get("heima_daily")),
+                "heima_weekly": bool(r.get("heima_weekly")),
+                "heima_monthly": bool(r.get("heima_monthly")),
+                "is_juedi": bool(juedi_map.get((sym, dt), 0)),
+            }
+        )
+
+    if not enriched:
+        return {"ok": False, "reason": "no_valid_returns", "table": [], "target_col": target_col}
+
+    def _eval(name, fn):
+        picked = [x for x in enriched if fn(x)]
+        n = len(picked)
+        if n == 0:
+            return {"组合": name, "样本": 0, "胜率(%)": None, "均收(%)": None, "相对基线提升(%)": None}
+        wr = float(sum(1 for x in picked if x["ret"] > 0) / n * 100.0)
+        avg = float(np.mean([x["ret"] for x in picked]))
+        return {"组合": name, "样本": n, "胜率(%)": round(wr, 1), "均收(%)": round(avg, 2)}
+
+    baseline = _eval("基线(全部候选)", lambda x: True)
+    base_wr = float(baseline.get("胜率(%)") or 0.0)
+
+    combos = [
+        _eval("日200+周200", lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200),
+        _eval(
+            "日200+周200+日/周黑马",
+            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and (x["heima_daily"] or x["heima_weekly"]),
+        ),
+        _eval(
+            "日200+周200+日/周黑马+掘地",
+            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and (x["heima_daily"] or x["heima_weekly"]) and x["is_juedi"],
+        ),
+        _eval(
+            "日200+周200+月200",
+            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and x["blue_monthly"] >= 200,
+        ),
+        _eval(
+            "日200+周200+月200+任一黑马",
+            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and x["blue_monthly"] >= 200 and (x["heima_daily"] or x["heima_weekly"] or x["heima_monthly"]),
+        ),
+        _eval(
+            "日200+周200+月200+任一黑马+掘地",
+            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and x["blue_monthly"] >= 200 and (x["heima_daily"] or x["heima_weekly"] or x["heima_monthly"]) and x["is_juedi"],
+        ),
+    ]
+
+    table = [baseline] + combos
+    for r in table:
+        wr = r.get("胜率(%)")
+        if wr is None:
+            r["相对基线提升(%)"] = None
+        else:
+            r["相对基线提升(%)"] = round(float(wr) - base_wr, 1)
+
+    return {
+        "ok": True,
+        "target_col": target_col,
+        "table": table,
+        "base_sample": int(baseline.get("样本") or 0),
     }
 
 
@@ -2145,6 +2280,22 @@ def render_todays_picks_page():
                         st.info("今日暂无满足组合规则的候选。")
             else:
                 st.info("组合层样本不足：请先积累更多候选追踪样本。")
+
+            st.markdown("### 🔬 极致条件提升（Lift）")
+            lift_ret = _analyze_extreme_lift(market=market, days_back=360)
+            if lift_ret.get("ok"):
+                lift_df = pd.DataFrame(lift_ret.get("table") or [])
+                if not lift_df.empty:
+                    st.dataframe(lift_df, width="stretch", hide_index=True)
+                    st.caption(
+                        "说明: 胜率提升=组合胜率-基线胜率；"
+                        f"收益口径={lift_ret.get('target_col')}。"
+                        "建议关注样本数，样本<20仅作参考。"
+                    )
+                else:
+                    st.info("暂无可用组合统计")
+            else:
+                st.info("极致条件统计暂无样本，请先在“组合追踪”完成回填与刷新。")
         else:
             st.info("暂无候选追踪样本，先运行扫描并回填历史。")
     
