@@ -206,6 +206,7 @@ def _get_action_health_rows():
         {"name": "Daily Stock Scan (CN)", "pattern": "📊 Auto-update: CN A-Share scan results for"},
         {"name": "Default Baskets Auto Execute", "pattern": "🤖 Auto basket execution update"},
         {"name": "ML Model Training", "pattern": "🧠 Auto-update: ML models retrained"},
+        {"name": "Social KOL Scan", "pattern": "📡 Auto-update: social KOL scan"},
     ]
     rows = []
     try:

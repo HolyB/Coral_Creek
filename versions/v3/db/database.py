@@ -1223,15 +1223,24 @@ def add_recommendation(blogger_id, ticker, rec_date, market='CN', rec_price=None
                        rec_type='BUY', target_price=None, stop_loss=None,
                        portfolio_tag=None, notes=None, source_url=None):
     """添加推荐记录"""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO recommendations (blogger_id, ticker, market, rec_date, rec_price, 
-                                         rec_type, target_price, stop_loss, portfolio_tag, notes, source_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (blogger_id, ticker.upper(), market, rec_date, rec_price, 
-              rec_type, target_price, stop_loss, portfolio_tag, notes, source_url))
-        return cursor.lastrowid
+    def _insert_once():
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO recommendations (blogger_id, ticker, market, rec_date, rec_price, 
+                                             rec_type, target_price, stop_loss, portfolio_tag, notes, source_url)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (blogger_id, ticker.upper(), market, rec_date, rec_price,
+                  rec_type, target_price, stop_loss, portfolio_tag, notes, source_url))
+            return cursor.lastrowid
+
+    try:
+        return _insert_once()
+    except sqlite3.OperationalError as e:
+        if "no such column" in str(e).lower() or "no such table" in str(e).lower():
+            init_blogger_tables()
+            return _insert_once()
+        raise
 
 
 def get_recommendations(blogger_id=None, ticker=None, market=None, start_date=None, end_date=None, portfolio_tag=None, limit=100):
@@ -1269,7 +1278,14 @@ def get_recommendations(blogger_id=None, ticker=None, market=None, start_date=No
         query += " ORDER BY r.rec_date DESC LIMIT ?"
         params.append(limit)
         
-        cursor.execute(query, params)
+        try:
+            cursor.execute(query, params)
+        except sqlite3.OperationalError as e:
+            if "no such column" in str(e).lower() or "no such table" in str(e).lower():
+                init_blogger_tables()
+                cursor.execute(query, params)
+            else:
+                raise
         return [dict(row) for row in cursor.fetchall()]
 
 
