@@ -2852,6 +2852,27 @@ def render_todays_picks_page():
                 key=f"track_template_enable_{market}",
             )
 
+        pin_key = f"track_pinned_templates_{market}"
+        if pin_key not in st.session_state:
+            st.session_state[pin_key] = ["日周月 三线共振", "中长线强共振(三线+黑马任一+筹码密集)"]
+        p1, p2 = st.columns([3, 1])
+        with p1:
+            pinned_templates = st.multiselect(
+                "⭐ 置顶模板（用于组合对比/推送）",
+                options=[x for x in combo_templates.keys() if x != "不使用模板"],
+                default=[x for x in st.session_state[pin_key] if x in combo_templates and x != "不使用模板"],
+                key=f"track_pin_select_{market}",
+            )
+            st.session_state[pin_key] = pinned_templates
+        with p2:
+            if st.button("使用置顶模板", key=f"track_use_pinned_{market}"):
+                if pinned_templates:
+                    selected_template_name = pinned_templates[0]
+                    use_template = True
+                    st.success(f"已切换到置顶模板: {selected_template_name}")
+                else:
+                    st.info("请先选择置顶模板")
+
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             days_back = st.slider("回看天数", min_value=30, max_value=720, value=180, step=30, key=f"track_days_{market}")
@@ -2980,6 +3001,105 @@ def render_todays_picks_page():
                     combo_stats = [x for x in combo_stats if effective_keyword in str(x.get("组合", "")).upper()]
                 combo_df = pd.DataFrame(combo_stats)
                 st.dataframe(combo_df, use_container_width=True, hide_index=True)
+
+                # 置顶模板对比图
+                st.markdown("### 📈 置顶模板对比")
+                template_combo_map = {
+                    name: cfg.get("keyword", "")
+                    for name, cfg in combo_templates.items()
+                    if name != "不使用模板"
+                }
+                selected_compare_templates = [
+                    x for x in st.session_state.get(pin_key, []) if x in template_combo_map
+                ][:3]
+                if selected_compare_templates:
+                    compare_rows = []
+                    for tname in selected_compare_templates:
+                        keyword = str(template_combo_map.get(tname, "") or "").upper()
+                        if not keyword:
+                            continue
+                        matched = combo_df[combo_df["组合"].astype(str).str.upper().str.contains(keyword, na=False)]
+                        if matched.empty:
+                            continue
+                        top = matched.sort_values(by=["当前胜率(%)", "当前平均收益(%)"], ascending=False).iloc[0]
+                        compare_rows.append({
+                            "模板": tname,
+                            "组合": top["组合"],
+                            "样本数": int(top.get("样本数", 0) or 0),
+                            "当前胜率(%)": float(top.get("当前胜率(%)", 0) or 0),
+                            "当前平均收益(%)": float(top.get("当前平均收益(%)", 0) or 0),
+                            "首次转正中位天数": top.get("首次转正中位天数"),
+                        })
+                    if compare_rows:
+                        compare_df = pd.DataFrame(compare_rows)
+                        st.dataframe(compare_df, use_container_width=True, hide_index=True)
+
+                        fig_cmp = go.Figure()
+                        fig_cmp.add_trace(
+                            go.Bar(
+                                x=compare_df["模板"],
+                                y=compare_df["当前胜率(%)"],
+                                name="当前胜率(%)",
+                                marker_color="#2E7D32",
+                            )
+                        )
+                        fig_cmp.add_trace(
+                            go.Scatter(
+                                x=compare_df["模板"],
+                                y=compare_df["当前平均收益(%)"],
+                                mode="lines+markers",
+                                name="当前平均收益(%)",
+                                yaxis="y2",
+                                line=dict(color="#1565C0", width=2),
+                            )
+                        )
+                        fig_cmp.update_layout(
+                            height=340,
+                            xaxis_title="模板",
+                            yaxis=dict(title="胜率(%)"),
+                            yaxis2=dict(title="平均收益(%)", overlaying="y", side="right"),
+                            margin=dict(l=20, r=20, t=20, b=20),
+                        )
+                        st.plotly_chart(fig_cmp, use_container_width=True)
+
+                        # 一键推送置顶模板摘要
+                        if st.button("📣 推送置顶模板表现", key=f"track_push_pinned_{market}"):
+                            try:
+                                from services.notification import NotificationManager
+                                nm = NotificationManager()
+                                lines = [
+                                    f"*📌 置顶模板表现 | {market}*",
+                                    f"日期: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                                    "",
+                                ]
+                                for _, r in compare_df.iterrows():
+                                    lines.append(
+                                        f"- {r['模板']} ({r['组合']}): 胜率 {r['当前胜率(%)']:.1f}% | "
+                                        f"均收 {r['当前平均收益(%)']:+.2f}% | 样本 {int(r['样本数'])}"
+                                    )
+                                lines.append("")
+                                lines.append("仅供研究，不构成投资建议。")
+                                msg = "\n".join(lines)
+
+                                tg_ok = nm.send_telegram(msg) if nm.telegram_token else False
+                                wc_ok = nm.send_wecom(msg, msg_type="markdown") if nm.wecom_webhook else False
+                                wx_ok = nm.send_wxpusher(
+                                    title=f"Coral Creek 置顶模板表现 {market}",
+                                    content=msg,
+                                ) if nm.wxpusher_app_token else False
+                                bark_ok = nm.send_bark(
+                                    title=f"置顶模板表现 {market}",
+                                    content=msg,
+                                ) if nm.bark_url else False
+                                st.success(
+                                    f"推送完成 | telegram={tg_ok}, wecom={wc_ok}, wxpusher={wx_ok}, bark={bark_ok}"
+                                )
+                            except Exception as e:
+                                st.error(f"推送失败: {e}")
+                    else:
+                        st.info("置顶模板当前无可匹配组合数据。")
+                else:
+                    st.info("请先选择置顶模板（最多取前3个做对比）。")
             else:
                 st.info("当前组合样本不足，调低“最小样本”可查看更多组合。")
 
