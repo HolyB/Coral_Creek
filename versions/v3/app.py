@@ -1482,9 +1482,16 @@ def render_todays_picks_page():
         query_scan_results,
         get_scanned_dates,
         get_stock_info_batch,
-        get_app_setting,
-        set_app_setting,
     )
+    try:
+        from db.database import get_app_setting, set_app_setting
+    except Exception:
+        # 兼容云端缓存旧版本 database.py 的场景
+        def get_app_setting(_key, default=None):
+            return default
+
+        def set_app_setting(_key, _value):
+            return None
     from services.portfolio_service import get_portfolio_summary
     try:
         from services.candidate_tracking_service import (
