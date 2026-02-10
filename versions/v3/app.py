@@ -212,9 +212,8 @@ def _get_action_health_rows():
         proc = subprocess.run(
             [
                 "git", "log",
-                "--author=github-actions[bot]",
-                "--pretty=format:%aI|%s",
-                "-n", "300",
+                "--pretty=format:%aI|%aN|%aE|%s",
+                "-n", "500",
             ],
             cwd=current_dir,
             capture_output=True,
@@ -227,17 +226,35 @@ def _get_action_health_rows():
         for wf in workflows:
             latest_ts = None
             latest_msg = ""
+            fallback_ts = None
+            fallback_msg = ""
             for line in lines:
                 if "|" not in line:
                     continue
-                ts_txt, msg = line.split("|", 1)
-                if wf["pattern"] in msg:
+                parts = line.split("|", 3)
+                if len(parts) != 4:
+                    continue
+                ts_txt, author_name, author_email, msg = parts
+                is_actions_bot = (
+                    "github-actions[bot]" in (author_name or "").lower()
+                    or "github-actions[bot]" in (author_email or "").lower()
+                )
+                if wf["pattern"] in msg and fallback_ts is None:
+                    fallback_msg = msg.strip()
+                    try:
+                        fallback_ts = datetime.fromisoformat(ts_txt.strip())
+                    except Exception:
+                        fallback_ts = None
+                if is_actions_bot and wf["pattern"] in msg:
                     latest_msg = msg.strip()
                     try:
                         latest_ts = datetime.fromisoformat(ts_txt.strip())
                     except Exception:
                         latest_ts = None
                     break
+            if latest_ts is None and fallback_ts is not None:
+                latest_ts = fallback_ts
+                latest_msg = fallback_msg
             if latest_ts:
                 lag_h = (now - latest_ts).total_seconds() / 3600.0
                 status = "🟢 正常" if lag_h <= 36 else ("🟡 偏久" if lag_h <= 72 else "🔴 需检查")
