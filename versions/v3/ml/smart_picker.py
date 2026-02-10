@@ -63,6 +63,9 @@ class StockPick:
     # 综合评分
     overall_score: float = 0.0
     star_rating: int = 0  # 1-5 星
+    is_trade_candidate: bool = False
+    trade_block_reason: str = ""
+    selected_rank_score: float = 0.0
     
     # 元数据
     blue_daily: float = 0.0
@@ -94,6 +97,9 @@ class StockPick:
             'suggested_position_pct': self.suggested_position_pct,
             'overall_score': self.overall_score,
             'star_rating': self.star_rating,
+            'is_trade_candidate': self.is_trade_candidate,
+            'trade_block_reason': self.trade_block_reason,
+            'selected_rank_score': self.selected_rank_score,
             'blue_daily': self.blue_daily,
             'blue_weekly': self.blue_weekly,
             'blue_monthly': self.blue_monthly,
@@ -268,12 +274,13 @@ class SmartPicker:
             pick = self._analyze_stock(row, history)
             if pick and pick.overall_score > 0:
                 picks.append(pick)
-        
-        # 按综合评分排序
-        picks.sort(key=lambda x: x.overall_score, reverse=True)
-        
+
+        # 只返回可交易候选，避免“第一名却是低质量票”
+        tradable_picks = [p for p in picks if p.is_trade_candidate]
+        tradable_picks.sort(key=lambda x: x.overall_score, reverse=True)
+
         # 返回 Top N
-        return picks[:max_picks]
+        return tradable_picks[:max_picks]
     
     def _analyze_stock(self, signal: pd.Series, history: pd.DataFrame, skip_prefilter: bool = False) -> Optional[StockPick]:
         """分析单只股票
@@ -335,8 +342,45 @@ class SmartPicker:
         # === 综合评分 ===
         pick.overall_score = self._calculate_overall_score(pick)
         pick.star_rating = self._get_star_rating(pick.overall_score)
-        
+        pick.selected_rank_score = self._get_horizon_rank_score(pick)
+        pick.is_trade_candidate, pick.trade_block_reason = self._is_trade_candidate(pick)
+
         return pick
+
+    def _get_horizon_rank_score(self, pick: StockPick) -> float:
+        if self.horizon == 'medium':
+            return float(pick.rank_score_medium or 0.0)
+        if self.horizon == 'long':
+            return float(pick.rank_score_long or 0.0)
+        return float(pick.rank_score_short or 0.0)
+
+    def _is_trade_candidate(self, pick: StockPick) -> Tuple[bool, str]:
+        """
+        交易硬门槛: 低质量信号直接拦截，不进入“今日精选”。
+        可由风控配置覆盖。
+        """
+        cfg = self.risk_profile or {}
+        min_overall = float(cfg.get("min_trade_overall_score", 50.0))
+        min_prob = float(cfg.get("min_trade_direction_prob", 0.52))
+        min_pred = float(cfg.get("min_trade_pred_return_pct", 0.0))
+        min_rank = float(cfg.get("min_trade_rank_score", 10.0))
+        min_rr = float(cfg.get("min_trade_rr", 1.2))
+
+        blockers = []
+        if float(pick.overall_score or 0.0) < min_overall:
+            blockers.append(f"综合评分<{min_overall:.0f}")
+        if float(pick.pred_direction_prob or 0.0) < min_prob:
+            blockers.append(f"上涨概率<{min_prob:.0%}")
+        if float(pick.pred_return_5d or 0.0) < min_pred:
+            blockers.append(f"预测收益<{min_pred:.1f}%")
+        if float(self._get_horizon_rank_score(pick) or 0.0) < min_rank:
+            blockers.append(f"排序得分<{min_rank:.0f}")
+        if float(pick.risk_reward_ratio or 0.0) < min_rr:
+            blockers.append(f"风险收益比<1:{min_rr:.1f}")
+
+        if blockers:
+            return False, "；".join(blockers)
+        return True, ""
     
     def _pass_prefilter(self, signal: pd.Series, history: pd.DataFrame) -> bool:
         """预过滤"""

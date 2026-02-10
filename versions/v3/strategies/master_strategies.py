@@ -111,6 +111,190 @@ CAI_SEN_STRATEGY = MasterStrategy(
     ]
 )
 
+
+# ==================================
+# 蔡森 16 量价形态（多周期）
+# ==================================
+CAISEN_16_PATTERN_CATALOG: List[Dict[str, str]] = [
+    {"code": "P01", "name": "放量突破", "bias": "多", "desc": "突破近期压力并伴随明显放量"},
+    {"code": "P02", "name": "缩量回踩", "bias": "多", "desc": "上涨后缩量回踩关键均线/平台"},
+    {"code": "P03", "name": "底部堆量", "bias": "多", "desc": "底部连续放量，资金吸筹迹象"},
+    {"code": "P04", "name": "平台突破", "bias": "多", "desc": "横盘收敛后放量向上突破"},
+    {"code": "P05", "name": "量价齐升", "bias": "多", "desc": "涨幅和量能同步扩张"},
+    {"code": "P06", "name": "缩量新高", "bias": "中", "desc": "创新高但量能未同步放大"},
+    {"code": "P07", "name": "放量滞涨", "bias": "空", "desc": "量大但价格不涨，冲高受阻"},
+    {"code": "P08", "name": "巨量阴线", "bias": "空", "desc": "高位或关键位出现大阴放量"},
+    {"code": "P09", "name": "价涨量缩背离", "bias": "空", "desc": "价格抬升但量能持续走弱"},
+    {"code": "P10", "name": "放量长上影", "bias": "空", "desc": "上攻失败，抛压明显"},
+    {"code": "P11", "name": "跌破均线放量", "bias": "空", "desc": "关键均线失守且放量"},
+    {"code": "P12", "name": "缩量止跌", "bias": "中", "desc": "连续下跌后缩量企稳"},
+    {"code": "P13", "name": "周线突破", "bias": "多", "desc": "周线级别平台突破"},
+    {"code": "P14", "name": "月线转强", "bias": "多", "desc": "月线站上关键均线并转强"},
+    {"code": "P15", "name": "多周期共振", "bias": "多", "desc": "日/周/月趋势同向强化"},
+    {"code": "P16", "name": "下跌量能衰竭", "bias": "中", "desc": "下跌动能衰减，临近反转窗口"},
+]
+
+
+def _normalize_ohlcv(df: Optional[pd.DataFrame]) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    work = df.copy()
+    col_map = {}
+    for c in work.columns:
+        cl = str(c).lower()
+        if cl == "open":
+            col_map[c] = "Open"
+        elif cl == "high":
+            col_map[c] = "High"
+        elif cl == "low":
+            col_map[c] = "Low"
+        elif cl == "close":
+            col_map[c] = "Close"
+        elif cl == "volume":
+            col_map[c] = "Volume"
+    if col_map:
+        work = work.rename(columns=col_map)
+
+    need = ["Open", "High", "Low", "Close", "Volume"]
+    if any(c not in work.columns for c in need):
+        return pd.DataFrame()
+    return work[need].dropna()
+
+
+def _resample_ohlcv(df: pd.DataFrame, rule: str) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    out = df.resample(rule).agg(
+        {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
+    ).dropna()
+    return out
+
+
+def _detect_caisen_16(df: pd.DataFrame, timeframe_label: str) -> List[Dict[str, str]]:
+    if df is None or df.empty or len(df) < 35:
+        return []
+
+    close = df["Close"]
+    high = df["High"]
+    low = df["Low"]
+    vol = df["Volume"]
+
+    ma5 = close.rolling(5).mean()
+    ma20 = close.rolling(20).mean()
+    ma60 = close.rolling(60).mean()
+    vma5 = vol.rolling(5).mean()
+    vma20 = vol.rolling(20).mean()
+    vol_ratio = float((vol.iloc[-1] / max(vma20.iloc[-1], 1e-9)) if pd.notna(vma20.iloc[-1]) else 1.0)
+
+    ret1 = float(close.pct_change().iloc[-1] * 100.0) if len(close) > 1 else 0.0
+    ret5 = float((close.iloc[-1] / close.iloc[-6] - 1.0) * 100.0) if len(close) > 6 else 0.0
+    ret20 = float((close.iloc[-1] / close.iloc[-21] - 1.0) * 100.0) if len(close) > 21 else 0.0
+
+    prev20_high = float(high.iloc[-21:-1].max()) if len(high) > 21 else float(high.iloc[:-1].max())
+    prev20_low = float(low.iloc[-21:-1].min()) if len(low) > 21 else float(low.iloc[:-1].min())
+    close_now = float(close.iloc[-1])
+    close_prev = float(close.iloc[-2]) if len(close) > 1 else close_now
+
+    upper_shadow = float(high.iloc[-1] - max(close_now, float(df["Open"].iloc[-1])))
+    body = max(abs(close_now - float(df["Open"].iloc[-1])), 1e-9)
+    upper_shadow_ratio = upper_shadow / body
+
+    matched: List[Dict[str, str]] = []
+
+    def add(code: str, name: str, bias: str, reason: str):
+        matched.append({"timeframe": timeframe_label, "code": code, "name": name, "bias": bias, "reason": reason})
+
+    # P01~P16
+    if close_now > prev20_high and vol_ratio >= 1.5:
+        add("P01", "放量突破", "多", f"收盘突破20期高点，量比{vol_ratio:.2f}")
+    if pd.notna(ma20.iloc[-1]) and abs(close_now - float(ma20.iloc[-1])) / max(float(ma20.iloc[-1]), 1e-9) <= 0.02 and vol_ratio <= 0.75 and close_now >= close_prev:
+        add("P02", "缩量回踩", "多", f"贴近MA20缩量回踩，量比{vol_ratio:.2f}")
+    if len(vol) >= 7 and vol.iloc[-3:].sum() > vol.iloc[-6:-3].sum() * 1.4 and ret20 < 0:
+        add("P03", "底部堆量", "多", "近3期量能明显抬升，且此前处于回撤区")
+    if len(high) >= 25:
+        box_range = (high.iloc[-21:-1].max() - low.iloc[-21:-1].min()) / max(close_now, 1e-9)
+        if box_range < 0.12 and close_now > high.iloc[-21:-1].max() and vol_ratio > 1.3:
+            add("P04", "平台突破", "多", f"平台振幅{box_range*100:.1f}%后放量突破")
+    if ret1 > 2.0 and vol_ratio > 1.3:
+        add("P05", "量价齐升", "多", f"单期涨幅{ret1:.2f}% 且量比{vol_ratio:.2f}")
+    if len(close) >= 60 and close_now >= float(close.iloc[-60:].max()) and vol_ratio < 0.85:
+        add("P06", "缩量新高", "中", f"创新高但量比偏低({vol_ratio:.2f})")
+    if abs(ret1) < 1.0 and vol_ratio > 1.8:
+        add("P07", "放量滞涨", "空", f"量比{vol_ratio:.2f}但涨幅{ret1:.2f}%")
+    if ret1 < -3.0 and vol_ratio > 2.0:
+        add("P08", "巨量阴线", "空", f"跌幅{ret1:.2f}%且量比{vol_ratio:.2f}")
+    if ret5 > 5.0 and (vma5.iloc[-1] < vma20.iloc[-1] * 0.9 if pd.notna(vma5.iloc[-1]) and pd.notna(vma20.iloc[-1]) else False):
+        add("P09", "价涨量缩背离", "空", "上涨阶段短均量持续弱于中均量")
+    if upper_shadow_ratio > 1.5 and vol_ratio > 1.5:
+        add("P10", "放量长上影", "空", f"上影/实体={upper_shadow_ratio:.2f}，量比{vol_ratio:.2f}")
+    if pd.notna(ma20.iloc[-1]) and close_now < float(ma20.iloc[-1]) <= close_prev and vol_ratio > 1.3:
+        add("P11", "跌破均线放量", "空", "放量跌破MA20")
+    if ret5 < -5.0 and ret1 > 0 and vol_ratio < 0.85:
+        add("P12", "缩量止跌", "中", "下跌后出现缩量企稳阳线")
+    if timeframe_label == "周线" and len(high) >= 30 and close_now > float(high.iloc[-27:-1].max()) and vol_ratio > 1.2:
+        add("P13", "周线突破", "多", f"突破半年周线高点，量比{vol_ratio:.2f}")
+    if timeframe_label == "月线" and len(close) >= 8:
+        ma6 = close.rolling(6).mean()
+        if pd.notna(ma6.iloc[-1]) and pd.notna(ma6.iloc[-2]) and close_now > float(ma6.iloc[-1]) and close_prev <= float(ma6.iloc[-2]):
+            add("P14", "月线转强", "多", "月线收盘重新站上MA6")
+    if pd.notna(ma20.iloc[-1]) and pd.notna(ma60.iloc[-1]) and close_now > float(ma20.iloc[-1]) > float(ma60.iloc[-1]) and ret20 > 0:
+        add("P15", "多周期共振", "多", "均线多头+阶段收益为正")
+    if ret5 < -8.0 and vol_ratio < 0.75 and close_now > prev20_low:
+        add("P16", "下跌量能衰竭", "中", "快速下跌后量能衰竭但未创新低")
+
+    return matched
+
+
+def analyze_caisen_multitimeframe(
+    daily_df: Optional[pd.DataFrame],
+    hourly_df: Optional[pd.DataFrame] = None
+) -> Dict[str, Dict]:
+    """
+    蔡森16形态多周期识别。
+    返回 1小时/日线/周线/月线 的匹配形态与倾向结论。
+    """
+    results: Dict[str, Dict] = {}
+    d = _normalize_ohlcv(daily_df)
+    h = _normalize_ohlcv(hourly_df)
+
+    frames = [
+        ("h1", "1小时", h),
+        ("d1", "日线", d),
+        ("w1", "周线", _resample_ohlcv(d, "W-FRI") if not d.empty else pd.DataFrame()),
+        ("m1", "月线", _resample_ohlcv(d, "ME") if not d.empty else pd.DataFrame()),
+    ]
+
+    for key, label, df in frames:
+        if df.empty or len(df) < 10:
+            results[key] = {
+                "label": label,
+                "available": False,
+                "signal": "N/A",
+                "summary": "样本不足",
+                "patterns": [],
+            }
+            continue
+
+        found = _detect_caisen_16(df, timeframe_label=label)
+        bull = sum(1 for x in found if x["bias"] == "多")
+        bear = sum(1 for x in found if x["bias"] == "空")
+        if bull > bear:
+            signal = "偏多"
+        elif bear > bull:
+            signal = "偏空"
+        else:
+            signal = "中性"
+        results[key] = {
+            "label": label,
+            "available": True,
+            "signal": signal,
+            "summary": f"多头{bull} / 空头{bear} / 中性{max(len(found)-bull-bear, 0)}",
+            "patterns": found,
+        }
+
+    return results
+
 TD_SEQUENTIAL = MasterStrategy(
     name="神奇九转",
     master="Tom DeMark",

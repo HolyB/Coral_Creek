@@ -2071,9 +2071,76 @@ def _render_ml_prediction_tab(
         with m4:
             st.metric("风险收益比", f"1:{pick.risk_reward_ratio:.1f}")
             st.caption(f"建议仓位: {pick.suggested_position_pct:.0f}%")
-        
+
+        if getattr(pick, "is_trade_candidate", False):
+            st.success("✅ 当前周期满足可交易门槛（可执行候选）")
+        else:
+            block_reason = getattr(pick, "trade_block_reason", "") or "未通过硬门槛"
+            st.warning(f"⚠️ 当前周期仅观察，不建议执行: {block_reason}")
+
         st.divider()
-        
+
+        # === 蔡森16形态（多周期） ===
+        st.markdown("### 📚 蔡森16形态（多周期）")
+        try:
+            from strategies.master_strategies import (
+                analyze_caisen_multitimeframe,
+                CAISEN_16_PATTERN_CATALOG,
+            )
+
+            caisen_res = analyze_caisen_multitimeframe(daily_df=hist_data, hourly_df=None)
+
+            cat_df = pd.DataFrame(CAISEN_16_PATTERN_CATALOG)
+            cat_df = cat_df.rename(
+                columns={"code": "编号", "name": "形态", "bias": "方向", "desc": "含义"}
+            )
+            st.dataframe(cat_df, hide_index=True, use_container_width=True)
+
+            tf_cols = st.columns(4)
+            tf_keys = ["h1", "d1", "w1", "m1"]
+            for idx, tf_key in enumerate(tf_keys):
+                info = caisen_res.get(tf_key, {})
+                with tf_cols[idx]:
+                    st.markdown(f"**{info.get('label', tf_key)}**")
+                    if not info.get("available"):
+                        st.caption("数据不足")
+                        continue
+                    sig = info.get("signal", "中性")
+                    if sig == "偏多":
+                        st.success(sig)
+                    elif sig == "偏空":
+                        st.error(sig)
+                    else:
+                        st.info(sig)
+                    st.caption(info.get("summary", ""))
+                    patterns = info.get("patterns", [])[:5]
+                    if patterns:
+                        for p in patterns:
+                            st.caption(f"{p.get('code')} {p.get('name')}")
+                    else:
+                        st.caption("未触发关键形态")
+
+            with st.expander("查看触发形态明细", expanded=False):
+                detail_rows = []
+                for tf_key in tf_keys:
+                    info = caisen_res.get(tf_key, {})
+                    for p in info.get("patterns", []):
+                        detail_rows.append({
+                            "周期": info.get("label", tf_key),
+                            "编号": p.get("code"),
+                            "形态": p.get("name"),
+                            "方向": p.get("bias"),
+                            "触发原因": p.get("reason"),
+                        })
+                if detail_rows:
+                    st.dataframe(pd.DataFrame(detail_rows), hide_index=True, use_container_width=True)
+                else:
+                    st.caption("当前未触发形态。")
+        except Exception as e:
+            st.warning(f"蔡森16形态分析暂不可用: {e}")
+
+        st.divider()
+
         # === 交易计划 ===
         st.markdown("### 📋 交易计划")
         
