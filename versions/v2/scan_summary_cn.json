@@ -1,7 +1,7 @@
 {
   "date": "2026-02-09",
   "market": "CN",
-  "total_signals": 17,
+  "total_signals": 20,
   "top_signals": [
     {
       "symbol": "605008.SH",
@@ -18,10 +18,24 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "300791.SZ",
+      "name": "仙乐健康",
+      "price": 21.79,
+      "day_blue": 140.5,
+      "week_blue": 93.8
+    },
+    {
       "symbol": "603226.SH",
       "name": "菲林格尔",
       "price": 28.83,
       "day_blue": 139.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000656.SZ",
+      "name": "*ST金科",
+      "price": 1.44,
+      "day_blue": 134.6,
       "week_blue": 0.0
     },
     {
@@ -60,6 +74,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "603683.SH",
+      "name": "晶华新材",
+      "price": 25.26,
+      "day_blue": 110.3,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "603406.SH",
       "name": "天富龙",
       "price": 38.95,
@@ -86,27 +107,6 @@
       "price": 40.01,
       "day_blue": 98.0,
       "week_blue": 200.0
-    },
-    {
-      "symbol": "920273.BJ",
-      "name": "一致魔芋",
-      "price": 32.31,
-      "day_blue": 95.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920225.BJ",
-      "name": "利通科技",
-      "price": 30.15,
-      "day_blue": 94.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688578.SH",
-      "name": "艾力斯",
-      "price": 95.6,
-      "day_blue": 85.5,
-      "week_blue": 0.0
     }
   ]
 }
