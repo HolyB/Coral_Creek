@@ -141,7 +141,7 @@ with left:
         st.caption("暂无数据")
     else:
         show_factor = factor_df.head(30).copy()
-        st.dataframe(show_factor, use_container_width=True)
+        st.dataframe(show_factor, width='stretch')
 
         chart_df = show_factor.head(15).copy()
         fig = px.bar(
@@ -153,7 +153,7 @@ with left:
             color_continuous_scale="Viridis",
         )
         fig.update_layout(xaxis_tickangle=-45)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 with right:
     st.subheader("策略排名（Top 30）")
@@ -161,7 +161,7 @@ with right:
         st.caption("暂无数据")
     else:
         show_strategy = strategy_df.head(30).copy()
-        st.dataframe(show_strategy, use_container_width=True)
+        st.dataframe(show_strategy, width='stretch')
 
         chart_df = show_strategy.head(15).copy()
         fig = px.scatter(
@@ -173,20 +173,20 @@ with right:
             hover_data=["topk", "n_drop", "turnover"],
             title="策略收益-回撤分布",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 st.markdown("---")
 st.subheader("市值分层策略对比")
 if segment_df.empty:
     st.caption("暂无分层对比数据。运行任务时勾选“批量跑分层对比（仅 US）”。")
 else:
-    st.dataframe(segment_df, use_container_width=True)
+    st.dataframe(segment_df, width='stretch')
 
     fig1 = px.bar(segment_df, x="segment", y="best_ann_return", color="segment", title="分层最佳策略年化收益")
     fig2 = px.bar(segment_df, x="segment", y="best_sharpe", color="segment", title="分层最佳策略 Sharpe")
     c1, c2 = st.columns(2)
-    c1.plotly_chart(fig1, use_container_width=True)
-    c2.plotly_chart(fig2, use_container_width=True)
+    c1.plotly_chart(fig1, width='stretch')
+    c2.plotly_chart(fig2, width='stretch')
 
 st.markdown("---")
 st.caption(f"最后刷新: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")

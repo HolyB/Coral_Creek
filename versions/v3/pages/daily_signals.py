@@ -35,7 +35,7 @@ def render_daily_signals_page():
         
         signal_type = st.selectbox("信号类型", ["全部", "仅买入", "仅卖出"])
         
-        if st.button("🔄 刷新信号", type="primary", use_container_width=True):
+        if st.button("🔄 刷新信号", type="primary", width='stretch'):
             with st.spinner("生成交易信号..."):
                 result = manager.generate_daily_signals(market=market)
                 if 'error' not in result:

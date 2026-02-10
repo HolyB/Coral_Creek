@@ -94,7 +94,7 @@ def render_alpaca_sidebar_widget(enabled: bool = True, current_market: str = "US
             """, unsafe_allow_html=True)
             
             # 展开按钮
-            if st.button("📊 管理持仓", key="sidebar_alpaca_manage", use_container_width=True):
+            if st.button("📊 管理持仓", key="sidebar_alpaca_manage", width='stretch'):
                 st.session_state['show_alpaca_panel'] = True
                 
         except Exception as e:
@@ -265,7 +265,7 @@ def render_alpaca_floating_bar(enabled: bool = True, market: str = "US"):
                 })
             
             df = pd.DataFrame(pos_data)
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width='stretch', hide_index=True)
             
             # 操作按钮
             col1, col2, col3, col4 = st.columns([2, 1, 1, 1])

@@ -238,7 +238,7 @@ for i, (key, strategy) in enumerate(STRATEGIES.items()):
 
 # 运行按钮
 st.markdown("---")
-run_btn = st.button("🚀 运行策略对比", type="primary", use_container_width=True)
+run_btn = st.button("🚀 运行策略对比", type="primary", width='stretch')
 
 if run_btn and symbol and selected:
     with st.spinner(f"正在对 {symbol} 运行 {len(selected)} 个策略回测..."):
@@ -279,7 +279,7 @@ if run_btn and symbol and selected:
                     })
                 
                 df_compare = pd.DataFrame(comparison_data)
-                st.dataframe(df_compare, use_container_width=True, hide_index=True)
+                st.dataframe(df_compare, width='stretch', hide_index=True)
                 
                 # 找出最佳
                 if results:
@@ -319,7 +319,7 @@ if run_btn and symbol and selected:
                     legend=dict(orientation="h", yanchor="bottom", y=1.02)
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # 交易明细
                 st.markdown("---")
@@ -347,7 +347,7 @@ if run_btn and symbol and selected:
                             '出场原因': {'time': '持有到期', 'stop_loss': '止损', 'signal_exit': '信号'}[t['exit_reason']]
                         })
                     
-                    st.dataframe(pd.DataFrame(trade_data), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(trade_data), width='stretch', hide_index=True)
                 else:
                     st.info("该策略没有产生交易")
                     

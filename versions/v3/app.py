@@ -306,7 +306,7 @@ def render_action_health_panel():
                     df["延迟(小时)"].replace({"-": None, "": None}),
                     errors="coerce",
                 )
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width='stretch', hide_index=True)
         else:
             st.info("暂无可展示的 Action 状态")
 
@@ -1538,7 +1538,7 @@ def render_market_pulse(market='US'):
                                     show_volume_profile=True
                                 )
                                 if fig:
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, width='stretch')
                                 else:
                                     st.info("无法生成图表")
                             
@@ -1574,7 +1574,7 @@ def render_market_pulse(market='US'):
                             if chip_flow_data:
                                 flow_fig = create_chip_flow_chart(chip_flow_data, selected_index)
                                 if flow_fig:
-                                    st.plotly_chart(flow_fig, use_container_width=True)
+                                    st.plotly_chart(flow_fig, width='stretch')
                             else:
                                 st.info("数据不足，无法显示筹码流动")
                                 
@@ -1938,7 +1938,7 @@ def render_todays_picks_page():
                 st.markdown("**策略组合（按当前胜率）**")
                 if not combo_df.empty:
                     combo_df = combo_df.sort_values(["当前胜率(%)", "当前平均收益(%)"], ascending=False).head(12)
-                    st.dataframe(combo_df, use_container_width=True, hide_index=True)
+                    st.dataframe(combo_df, width='stretch', hide_index=True)
                 else:
                     st.info("组合样本不足")
 
@@ -1987,7 +1987,7 @@ def render_todays_picks_page():
                         grp["平均收益"] = grp["平均收益"].round(2)
                         st.dataframe(
                             grp.rename(columns={"胜率": "胜率(%)", "平均收益": "平均收益(%)"}),
-                            use_container_width=True,
+                            width='stretch',
                             hide_index=True,
                         )
                     else:
@@ -2004,7 +2004,7 @@ def render_todays_picks_page():
                         ind_df = ind_df[ind_df["样本数"] >= 8]
                     if "胜率(%)" in ind_df.columns:
                         ind_df = ind_df.sort_values("胜率(%)", ascending=False).head(12)
-                    st.dataframe(ind_df, use_container_width=True, hide_index=True)
+                    st.dataframe(ind_df, width='stretch', hide_index=True)
                 else:
                     st.info("暂无行业统计")
 
@@ -2216,10 +2216,10 @@ def render_todays_picks_page():
                             # 操作按钮
                             btn_col1, btn_col2 = st.columns(2)
                             with btn_col1:
-                                if st.button("📊 查看详情", key=f"view_{symbol}", use_container_width=True):
+                                if st.button("📊 查看详情", key=f"view_{symbol}", width='stretch'):
                                     st.session_state['action_selected_symbol'] = symbol
                             with btn_col2:
-                                if st.button("💰 模拟买入", key=f"buy_{symbol}", use_container_width=True):
+                                if st.button("💰 模拟买入", key=f"buy_{symbol}", width='stretch'):
                                     st.session_state['action_buy_symbol'] = symbol
                 else:
                     if precision_mode:
@@ -2582,7 +2582,7 @@ def render_todays_picks_page():
                             """, unsafe_allow_html=True)
                             
                             # 操作按钮
-                            if st.button(f"📊 {symbol} 详情", key=f"disc_{symbol}", use_container_width=True):
+                            if st.button(f"📊 {symbol} 详情", key=f"disc_{symbol}", width='stretch'):
                                 st.session_state['discover_selected'] = symbol
                 
                 # 显示选中股票的详情
@@ -2645,7 +2645,7 @@ def render_todays_picks_page():
             # 显示表格
             event = st.dataframe(
                 consensus_df,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 selection_mode="single-row",
                 on_select="rerun"
@@ -2769,14 +2769,14 @@ def render_todays_picks_page():
                     # 操作按钮
                     btn_col1, btn_col2, btn_col3 = st.columns(3)
                     with btn_col1:
-                        if st.button(f"📊 分析", key=f"pos_detail_{symbol}", use_container_width=True):
+                        if st.button(f"📊 分析", key=f"pos_detail_{symbol}", width='stretch'):
                             st.session_state['portfolio_selected'] = symbol
                     with btn_col2:
-                        if st.button(f"➕ 加仓", key=f"pos_add_{symbol}", use_container_width=True):
+                        if st.button(f"➕ 加仓", key=f"pos_add_{symbol}", width='stretch'):
                             st.session_state['portfolio_add'] = symbol
                     with btn_col3:
                         sell_label = "🔴 止损" if pnl < -5 else ("✅ 止盈" if pnl > 10 else "📤 卖出")
-                        if st.button(sell_label, key=f"pos_sell_{symbol}", use_container_width=True):
+                        if st.button(sell_label, key=f"pos_sell_{symbol}", width='stretch'):
                             st.session_state['portfolio_sell'] = symbol
             
             # 显示选中持仓的详情
@@ -3065,7 +3065,7 @@ def render_todays_picks_page():
             if st.button("🔍 运行自检", key=f"theme_net_diag_{market}"):
                 with st.spinner("检测网络连通性..."):
                     diag_df = _run_network_diagnostics()
-                    st.dataframe(diag_df, use_container_width=True, hide_index=True)
+                    st.dataframe(diag_df, width='stretch', hide_index=True)
 
         radar_state_key = f"theme_radar_cache_{market}"
         trigger_refresh = st.button("🔄 刷新主题雷达", key=f"refresh_theme_radar_{market}")
@@ -3097,7 +3097,7 @@ def render_todays_picks_page():
                 recent_errs = get_recent_fetch_errors(limit=10)
                 if recent_errs:
                     st.markdown("#### 🧪 数据源诊断（最近错误）")
-                    st.dataframe(pd.DataFrame(recent_errs), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(recent_errs), width='stretch', hide_index=True)
             except Exception:
                 pass
         else:
@@ -3108,7 +3108,7 @@ def render_todays_picks_page():
                 st.caption(f"⚠️ 数据抓取异常 {len(radar['errors'])} 条（已自动跳过异常股票）")
                 with st.expander("查看异常明细", expanded=False):
                     err_df = pd.DataFrame({"error": radar.get("errors", [])[:30]})
-                    st.dataframe(err_df, use_container_width=True, hide_index=True)
+                    st.dataframe(err_df, width='stretch', hide_index=True)
 
             # 社交热度状态看板
             if include_social:
@@ -3149,7 +3149,7 @@ def render_todays_picks_page():
                 })
 
             st.markdown("### 🧭 主题强度排行")
-            st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(summary_rows), width='stretch', hide_index=True)
 
             if include_social:
                 social_rows = []
@@ -3169,7 +3169,7 @@ def render_todays_picks_page():
                     })
                 if social_rows:
                     st.markdown("### 📣 社交热度榜")
-                    st.dataframe(pd.DataFrame(social_rows), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(social_rows), width='stretch', hide_index=True)
                 else:
                     st.info("社交热度已开启，但当前主题暂无可用帖子样本。")
 
@@ -3204,7 +3204,7 @@ def render_todays_picks_page():
                         "龙头分": f"{x.get('leader_score', 0):.1f}",
                     } for x in leaders])
 
-                    st.dataframe(leader_df, use_container_width=True, hide_index=True)
+                    st.dataframe(leader_df, width='stretch', hide_index=True)
 
                     a1, a2 = st.columns([2, 1])
                     with a1:
@@ -3444,7 +3444,7 @@ def render_todays_picks_page():
                 if effective_keyword:
                     combo_stats = [x for x in combo_stats if effective_keyword in str(x.get("组合", "")).upper()]
                 combo_df = pd.DataFrame(combo_stats)
-                st.dataframe(combo_df, use_container_width=True, hide_index=True)
+                st.dataframe(combo_df, width='stretch', hide_index=True)
 
                 # 置顶模板对比图
                 st.markdown("### 📈 置顶模板对比")
@@ -3499,7 +3499,7 @@ def render_todays_picks_page():
                         })
                     if compare_rows:
                         compare_df = pd.DataFrame(compare_rows)
-                        st.dataframe(compare_df, use_container_width=True, hide_index=True)
+                        st.dataframe(compare_df, width='stretch', hide_index=True)
 
                         fig_cmp = go.Figure()
                         fig_cmp.add_trace(
@@ -3527,7 +3527,7 @@ def render_todays_picks_page():
                             yaxis2=dict(title="平均收益(%)", overlaying="y", side="right"),
                             margin=dict(l=20, r=20, t=20, b=20),
                         )
-                        st.plotly_chart(fig_cmp, use_container_width=True)
+                        st.plotly_chart(fig_cmp, width='stretch')
 
                         # 一键推送置顶模板摘要
                         if st.button("📣 推送置顶模板表现", key=f"track_push_pinned_{market}"):
@@ -3575,11 +3575,11 @@ def render_todays_picks_page():
             with seg1:
                 cap_df = pd.DataFrame(build_segment_stats(rows, by="cap_category"))
                 st.markdown("**按市值层**")
-                st.dataframe(cap_df, use_container_width=True, hide_index=True)
+                st.dataframe(cap_df, width='stretch', hide_index=True)
             with seg2:
                 ind_df = pd.DataFrame(build_segment_stats(rows, by="industry"))
                 st.markdown("**按板块/行业**")
-                st.dataframe(ind_df.head(20), use_container_width=True, hide_index=True)
+                st.dataframe(ind_df.head(20), width='stretch', hide_index=True)
 
             st.markdown("### 📋 个股追踪明细")
             detail_df = pd.DataFrame(rows)
@@ -3611,7 +3611,7 @@ def render_todays_picks_page():
                         "status": "状态",
                     }
                 )
-                st.dataframe(show_df, use_container_width=True, hide_index=True)
+                st.dataframe(show_df, width='stretch', hide_index=True)
 
             # 组合 -> 个股钻取
             if combo_stats:
@@ -3650,7 +3650,7 @@ def render_todays_picks_page():
                         "追踪天数", "首次转正天", "市值层", "行业", "标签",
                     ]
                     keep_cols = [c for c in keep_cols if c in drill_show.columns]
-                    st.dataframe(drill_show[keep_cols], use_container_width=True, hide_index=True)
+                    st.dataframe(drill_show[keep_cols], width='stretch', hide_index=True)
 
                     symbol_options = [f"{r.get('symbol')} | {r.get('signal_date')}" for r in drill_rows]
                     selected_symbol_row = st.selectbox(
@@ -3790,10 +3790,10 @@ def _render_stock_comparison(tickers: list, market: str, key_prefix: str = ""):
                         xaxis=dict(visible=False), yaxis=dict(visible=False),
                         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)'
                     )
-                    st.plotly_chart(fig, use_container_width=True, key=f"compare_chart_{key_prefix}_{ticker}")
+                    st.plotly_chart(fig, width='stretch', key=f"compare_chart_{key_prefix}_{ticker}")
                     
                     # 操作按钮
-                    if st.button(f"🔍 详情", key=f"compare_detail_{key_prefix}_{ticker}", use_container_width=True):
+                    if st.button(f"🔍 详情", key=f"compare_detail_{key_prefix}_{ticker}", width='stretch'):
                         st.session_state[f'compare_detail_{key_prefix}'] = ticker
                         st.rerun()
                     
@@ -4839,7 +4839,7 @@ def render_scan_page():
             event1 = st.dataframe(
                 df_day_only[existing_cols],
                 column_config=column_config,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 selection_mode="multi-row",
                 on_select="rerun",
@@ -4857,7 +4857,7 @@ def render_scan_page():
             event2 = st.dataframe(
                 df_day_week[existing_cols],
                 column_config=column_config,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 selection_mode="multi-row",
                 on_select="rerun",
@@ -4875,7 +4875,7 @@ def render_scan_page():
             event3 = st.dataframe(
                 df_month[existing_cols],
                 column_config=column_config,
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 selection_mode="multi-row",
                 on_select="rerun",
@@ -5108,7 +5108,7 @@ def render_scan_page():
                 event4 = st.dataframe(
                     df_special_result[cols_to_show],
                     column_config=column_config,
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True,
                     selection_mode="single-row",
                     on_select="rerun",
@@ -5194,7 +5194,7 @@ def render_scan_page():
                         'heat_score': '热度'
                     },
                     hide_index=True,
-                    use_container_width=True
+                    width='stretch'
                 )
                 
                 # 可视化热度前10
@@ -5208,7 +5208,7 @@ def render_scan_page():
                         color_continuous_scale='YlOrRd'
                     )
                     fig.update_layout(height=350)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
             else:
                 st.info("暂无增强数据")
         
@@ -5296,7 +5296,7 @@ def render_scan_page():
                                 'stock_count': '股票数'
                             },
                             hide_index=True,
-                            use_container_width=True
+                            width='stretch'
                         )
                     
                     with col_down:
@@ -5319,7 +5319,7 @@ def render_scan_page():
                                 'stock_count': '股票数'
                             },
                             hide_index=True,
-                            use_container_width=True
+                            width='stretch'
                         )
                 else:
                     st.info("暂无板块数据")
@@ -5368,7 +5368,7 @@ def render_scan_page():
                                         'pct_chg': '涨跌幅%'
                                     },
                                     hide_index=True,
-                                    use_container_width=True
+                                    width='stretch'
                                 )
                             else:
                                 st.info("暂无热门股数据")
@@ -5420,7 +5420,7 @@ def render_scan_page():
         # 批量分析按钮
         col_act, col_info = st.columns([1, 4])
         with col_act:
-            do_batch_analyze = st.button("✨ 分析选中股票", type="primary", use_container_width=True)
+            do_batch_analyze = st.button("✨ 分析选中股票", type="primary", width='stretch')
             
         with col_info:
             st.caption(f"选中: {', '.join(selected_list[:10])} {'...' if len(selected_list)>10 else ''}")
@@ -5747,15 +5747,15 @@ def render_stock_lookup_page():
         _set_active_market(market)
     
     with search_col3:
-        search_btn = st.button("🔍 开始分析", type="primary", use_container_width=True)
+        search_btn = st.button("🔍 开始分析", type="primary", width='stretch')
         # 热门快捷
         hot_col1, hot_col2 = st.columns(2)
         with hot_col1:
-            if st.button("NVDA", key="hot_nvda", use_container_width=True):
+            if st.button("NVDA", key="hot_nvda", width='stretch'):
                 st.session_state['lookup_symbol'] = 'NVDA'
                 st.rerun()
         with hot_col2:
-            if st.button("AAPL", key="hot_aapl", use_container_width=True):
+            if st.button("AAPL", key="hot_aapl", width='stretch'):
                 st.session_state['lookup_symbol'] = 'AAPL'
                 st.rerun()
     
@@ -5775,7 +5775,7 @@ def render_stock_lookup_page():
             hist_cols = st.columns(min(len(search_history), 6))
             for i, h in enumerate(search_history[:6]):
                 with hist_cols[i]:
-                    if st.button(h, key=f"hist_{h}", use_container_width=True):
+                    if st.button(h, key=f"hist_{h}", width='stretch'):
                         st.session_state['lookup_symbol'] = h
                         st.rerun()
         return
@@ -5934,7 +5934,7 @@ def render_stock_lookup_page():
     st.markdown("### 🧭 多维决策评分卡")
     c1, c2 = st.columns([2, 1])
     with c1:
-        st.dataframe(dim_df, use_container_width=True, hide_index=True)
+        st.dataframe(dim_df, width='stretch', hide_index=True)
     with c2:
         st.metric("综合决策分", f"{total_score}")
         st.caption("Qlib 仅占 15% 权重")
@@ -6015,7 +6015,7 @@ def _render_signal_history(symbol: str, market: str):
                 xaxis_title="", yaxis_title="信号强度",
                 template="plotly_dark"
             )
-            st.plotly_chart(fig, use_container_width=True, key=f"signal_hist_{symbol}")
+            st.plotly_chart(fig, width='stretch', key=f"signal_hist_{symbol}")
             
             # 出现天数统计
             total_days = len(dates[:30])
@@ -6077,7 +6077,7 @@ def render_todays_signals_tab():
         
         min_confidence = st.slider("最低信心度", 30, 90, 50, key="signal_conf")
         
-        generate_btn = st.button("🔄 生成今日信号", type="primary", use_container_width=True)
+        generate_btn = st.button("🔄 生成今日信号", type="primary", width='stretch')
     
     # 尝试导入信号系统
     try:
@@ -6145,7 +6145,7 @@ def render_todays_signals_tab():
             '理由': s['reason']
         } for s in buy_signals])
         
-        st.dataframe(buy_df, hide_index=True, use_container_width=True)
+        st.dataframe(buy_df, hide_index=True, width='stretch')
         
         # 可视化
         if len(buy_signals) > 0:
@@ -6173,7 +6173,7 @@ def render_todays_signals_tab():
             '理由': s['reason']
         } for s in sell_signals])
         
-        st.dataframe(sell_df, hide_index=True, use_container_width=True)
+        st.dataframe(sell_df, hide_index=True, width='stretch')
     else:
         st.info("暂无卖出信号")
     
@@ -6200,7 +6200,7 @@ def render_todays_signals_tab():
                 {'日期': date, '买入信号': counts['买入'], '卖出信号': counts['卖出']}
                 for date, counts in date_counts.items()
             ])
-            st.dataframe(stats_df, hide_index=True, use_container_width=True)
+            st.dataframe(stats_df, hide_index=True, width='stretch')
     else:
         st.info("暂无历史信号数据")
 
@@ -6241,7 +6241,7 @@ def render_signal_performance_tab():
         track_days = st.slider("追踪天数", 5, 30, 20)
         
         # 计算按钮
-        calculate_btn = st.button("🔍 计算信号表现", type="primary", use_container_width=True)
+        calculate_btn = st.button("🔍 计算信号表现", type="primary", width='stretch')
     
     # 主区域
     if not calculate_btn:
@@ -6270,7 +6270,7 @@ def render_signal_performance_tab():
                 date_info.append({'日期': d, '信号数': count})
             
             if date_info:
-                st.dataframe(pd.DataFrame(date_info), hide_index=True, use_container_width=True)
+                st.dataframe(pd.DataFrame(date_info), hide_index=True, width='stretch')
         return
     
     # 执行计算
@@ -6410,7 +6410,7 @@ def render_signal_performance_tab():
         sort_idx = df[sort_map[sort_col]].sort_values(ascending=False).index
         display_df = display_df.loc[sort_idx]
     
-    st.dataframe(display_df, hide_index=True, use_container_width=True)
+    st.dataframe(display_df, hide_index=True, width='stretch')
     
     # 信号质量评估
     st.markdown("### 💡 信号质量评估")
@@ -6491,7 +6491,7 @@ def render_signal_review_tab():
     display_df = df[available_cols].copy()
     display_df.columns = ['信号日期', '当日价格', 'Day BLUE', 'Week BLUE', '波浪阶段'][:len(available_cols)]
     
-    st.dataframe(display_df, hide_index=True, use_container_width=True)
+    st.dataframe(display_df, hide_index=True, width='stretch')
     
     # 信号统计
     st.markdown("### 📊 信号统计")
@@ -6662,7 +6662,7 @@ def render_portfolio_tab():
                 display_df.columns = ['代码', '类型', '价格', '股数', '日期', '市场']
                 display_df['类型'] = display_df['类型'].map({'BUY': '🟢买入', 'SELL': '🔴卖出'})
                 display_df['价格'] = display_df['价格'].apply(lambda x: f"${x:.2f}")
-                st.dataframe(display_df, hide_index=True, use_container_width=True)
+                st.dataframe(display_df, hide_index=True, width='stretch')
             else:
                 st.info("暂无交易记录")
     
@@ -6708,7 +6708,7 @@ def render_portfolio_tab():
                 ov_df = pd.DataFrame(overview_rows)
                 for col in ["现金", "持仓市值", "总权益"]:
                     ov_df[col] = ov_df[col].apply(lambda x: f"${x:,.2f}")
-                st.dataframe(ov_df, hide_index=True, use_container_width=True)
+                st.dataframe(ov_df, hide_index=True, width='stretch')
             else:
                 st.caption("暂无子账户数据")
 
@@ -6987,7 +6987,7 @@ def render_portfolio_tab():
                             "current_weight_pct": "当前权重", "target_weight_pct": "目标权重",
                             "delta_value": "目标差额", "action": "动作", "shares": "执行股数", "ref_price": "参考价"
                         })
-                        st.dataframe(view_df, hide_index=True, use_container_width=True)
+                        st.dataframe(view_df, hide_index=True, width='stretch')
 
                         actionable = plan_df[(plan_df["action"] != "HOLD") & (plan_df["shares"] > 0)]
                         st.caption(f"待执行指令: {len(actionable)} 条（先卖后买）")
@@ -7032,7 +7032,7 @@ def render_portfolio_tab():
                     '盈亏%': f"{p['unrealized_pnl_pct']:+.2f}%" if p.get('unrealized_pnl_pct') else '--'
                 })
             
-            st.dataframe(pd.DataFrame(pos_data), hide_index=True, use_container_width=True)
+            st.dataframe(pd.DataFrame(pos_data), hide_index=True, width='stretch')
         else:
             st.info("暂无模拟持仓")
 
@@ -7075,7 +7075,7 @@ def render_portfolio_tab():
                 show_df["盈亏"] = show_df["盈亏"].map(lambda x: f"${x:+,.2f}")
                 show_df["盈亏%"] = show_df["盈亏%"].map(lambda x: f"{x:+.2f}%")
 
-                st.dataframe(show_df, hide_index=True, use_container_width=True)
+                st.dataframe(show_df, hide_index=True, width='stretch')
                 st.caption(f"共 {len(show_df)} 条持仓记录")
             else:
                 st.info("所有子账户均暂无持仓")
@@ -7090,7 +7090,7 @@ def render_portfolio_tab():
                 display_df = trades_df[available_cols].copy()
                 display_df.columns = ['代码', '类型', '价格', '股数', '佣金', '日期', '备注'][:len(available_cols)]
                 display_df['类型'] = display_df['类型'].map({'BUY': '🟢买入', 'SELL': '🔴卖出'})
-                st.dataframe(display_df, hide_index=True, use_container_width=True)
+                st.dataframe(display_df, hide_index=True, width='stretch')
             else:
                 st.info("暂无交易记录")
         
@@ -7128,7 +7128,7 @@ def render_portfolio_tab():
                 showlegend=True
             )
             
-            st.plotly_chart(fig_equity, use_container_width=True)
+            st.plotly_chart(fig_equity, width='stretch')
             
             # 收益率曲线
             col_ret, col_heat = st.columns(2)
@@ -7146,7 +7146,7 @@ def render_portfolio_tab():
                     height=250,
                     showlegend=False
                 )
-                st.plotly_chart(fig_ret, use_container_width=True)
+                st.plotly_chart(fig_ret, width='stretch')
             
             with col_heat:
                 # 月度收益热力图
@@ -7169,7 +7169,7 @@ def render_portfolio_tab():
                         title="月度收益热力图 (%)"
                     )
                     fig_heat.update_layout(height=250)
-                    st.plotly_chart(fig_heat, use_container_width=True)
+                    st.plotly_chart(fig_heat, width='stretch')
                 else:
                     st.info("暂无足够数据生成热力图")
         else:
@@ -7192,7 +7192,7 @@ def render_portfolio_tab():
                 realized_df = pd.DataFrame(realized)
                 realized_df['realized_pnl'] = realized_df['realized_pnl'].apply(lambda x: f"${x:+,.2f}")
                 realized_df.columns = ['日期', '代码', '价格', '股数', '盈亏']
-                st.dataframe(realized_df, hide_index=True, use_container_width=True)
+                st.dataframe(realized_df, hide_index=True, width='stretch')
             else:
                 st.info("暂无已实现盈亏")
         
@@ -7285,7 +7285,7 @@ def render_signal_performance_page():
             slippage = 0.001
             run_walk_forward = False
         
-        run_btn = st.button("🚀 开始验证", type="primary", use_container_width=True)
+        run_btn = st.button("🚀 开始验证", type="primary", width='stretch')
     
     # 使用说明
     if not run_btn:
@@ -7382,13 +7382,13 @@ def render_signal_performance_page():
             windows = walk.get('windows', [])
             if windows:
                 wdf = pd.DataFrame(windows)
-                st.dataframe(wdf, use_container_width=True, hide_index=True)
+                st.dataframe(wdf, width='stretch', hide_index=True)
 
         trades = result.get('trades', [])
         if trades:
             st.markdown("### 📋 交易明细")
             tdf = pd.DataFrame(trades)
-            st.dataframe(tdf, use_container_width=True, hide_index=True)
+            st.dataframe(tdf, width='stretch', hide_index=True)
 
         with st.expander("🔧 回测参数"):
             st.json(params)
@@ -7455,7 +7455,7 @@ def render_signal_performance_page():
     st.subheader("📋 BLUE vs SPY 对比")
     
     summary_df = get_backtest_summary_table(result)
-    st.dataframe(summary_df, use_container_width=True, hide_index=True)
+    st.dataframe(summary_df, width='stretch', hide_index=True)
 
     # 多周期表现（快速回测）
     metrics_by_h = result.get('metrics_by_horizon', {})
@@ -7472,7 +7472,7 @@ def render_signal_performance_page():
             })
         if rows:
             st.markdown("### ⏱️ 多周期对比")
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
 
     # 市值分层表现
     cap_rows = result.get('cap_segment_metrics', [])
@@ -7489,7 +7489,7 @@ def render_signal_performance_page():
         })
         keep_cols = ["市值层", "样本", "胜率(%)", "平均收益(%)", "Sharpe", "最大回撤(%)"]
         cap_df = cap_df[[c for c in keep_cols if c in cap_df.columns]]
-        st.dataframe(cap_df, use_container_width=True, hide_index=True)
+        st.dataframe(cap_df, width='stretch', hide_index=True)
     
     # 累积收益曲线图表
     st.markdown("---")
@@ -7497,7 +7497,7 @@ def render_signal_performance_page():
     
     from services.backtest_service import create_cumulative_returns_chart
     cumulative_chart = create_cumulative_returns_chart(result)
-    st.plotly_chart(cumulative_chart, use_container_width=True)
+    st.plotly_chart(cumulative_chart, width='stretch')
     
     # 信号详情表
     if signals:
@@ -7541,7 +7541,7 @@ def render_signal_performance_page():
         
         st.dataframe(
             display_df,
-            use_container_width=True,
+            width='stretch',
             hide_index=True,
             column_config={
                 "Day BLUE": st.column_config.ProgressColumn(
@@ -7766,7 +7766,7 @@ def render_portfolio_optimizer_page():
                         import plotly.express as px
                         fig = px.pie(names=list(weights.keys()), values=list(weights.values()), 
                                      title="资产配置")
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                 
                 with tab_vol:
                     vol = result.get('min_vol', {})
@@ -7907,7 +7907,7 @@ def render_research_page():
                                 }
                         fig = create_multi_timeframe_heatmap(data)
                         if fig:
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width='stretch')
                     else:
                         st.warning("无数据")
         
@@ -7923,7 +7923,7 @@ def render_research_page():
                     'momentum_strength': np.random.randint(45, 95)
                 }
                 fig = create_signal_radar_chart(signal_data)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 st.caption("注: 数据为演示用途")
         
         elif chart_type == "📉 回撤分析图":
@@ -7941,7 +7941,7 @@ def render_research_page():
                             for t in trades:
                                 equity.append(equity[-1] * (1 + t.get('pnl_pct', 0) / 100))
                             fig = create_drawdown_chart(equity)
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width='stretch')
                         else:
                             st.warning("无交易数据")
                     else:
@@ -7959,7 +7959,7 @@ def render_research_page():
                     if df is not None and len(df) > 20:
                         fig = create_volume_price_divergence_chart(df, symbol)
                         if fig:
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width='stretch')
                     else:
                         st.warning("无法获取数据")
 
@@ -8109,7 +8109,7 @@ def render_parameter_lab():
                         height=400
                     )
                     
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width='stretch')
                     
                     # --- 收益分布图 ---
                     col_dist, col_monthly = st.columns(2)
@@ -8124,7 +8124,7 @@ def render_parameter_lab():
                         )
                         fig_dist.add_vline(x=0, line_dash="dash", line_color="red")
                         fig_dist.update_layout(height=300)
-                        st.plotly_chart(fig_dist, use_container_width=True)
+                        st.plotly_chart(fig_dist, width='stretch')
                     
                     with col_monthly:
                         st.subheader("🗓️ 按月统计")
@@ -8137,7 +8137,7 @@ def render_parameter_lab():
                         monthly_stats = monthly_stats.reset_index()
                         monthly_stats.columns = ['月份', '平均收益%', '总收益%', '交易数']
                         
-                        st.dataframe(monthly_stats, use_container_width=True, hide_index=True)
+                        st.dataframe(monthly_stats, width='stretch', hide_index=True)
                     
                     # --- 交易明细 ---
                     with st.expander("📋 查看交易明细", expanded=False):
@@ -8145,7 +8145,7 @@ def render_parameter_lab():
                                                'exit_price', 'holding_days', 'pnl_pct', 'win']].copy()
                         display_df.columns = ['股票', '入场日期', '入场价', '出场价', '持有天数', '收益%', '盈利']
                         display_df['盈利'] = display_df['盈利'].map({True: '✅', False: '❌'})
-                        st.dataframe(display_df, use_container_width=True, hide_index=True)
+                        st.dataframe(display_df, width='stretch', hide_index=True)
                 
             except Exception as e:
                 st.error(f"回测出错: {str(e)}")
@@ -8194,7 +8194,7 @@ def render_parameter_lab():
                 # 显示对比表格
                 st.dataframe(
                     compare_df.style.background_gradient(subset=['胜率%', '平均收益%'], cmap='RdYlGn'),
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True
                 )
                 
@@ -8223,7 +8223,7 @@ def render_parameter_lab():
                     height=400
                 )
                 
-                st.plotly_chart(fig_compare, use_container_width=True)
+                st.plotly_chart(fig_compare, width='stretch')
                 
                 # 最佳参数建议
                 best_row = compare_df.loc[compare_df['平均收益%'].idxmax()]
@@ -8281,7 +8281,7 @@ def render_parameter_lab():
                             
                             st.dataframe(
                                 windows_df.style.background_gradient(subset=['胜率%', '平均收益%'], cmap='RdYlGn'),
-                                use_container_width=True,
+                                width='stretch',
                                 hide_index=True
                             )
                             
@@ -8308,7 +8308,7 @@ def render_parameter_lab():
                                 yaxis2=dict(title="平均收益%", side='right', overlaying='y'),
                                 height=350
                             )
-                            st.plotly_chart(fig_wf, use_container_width=True)
+                            st.plotly_chart(fig_wf, width='stretch')
                             
             except Exception as e:
                 st.error(f"Walk-Forward 验证出错: {e}")
@@ -8382,13 +8382,13 @@ def render_parameter_lab():
                             charts = create_monte_carlo_charts(mc_result)
                             
                             if 'distribution' in charts:
-                                st.plotly_chart(charts['distribution'], use_container_width=True)
+                                st.plotly_chart(charts['distribution'], width='stretch')
                             
                             if 'curves' in charts:
-                                st.plotly_chart(charts['curves'], use_container_width=True)
+                                st.plotly_chart(charts['curves'], width='stretch')
                             
                             if 'gauges' in charts:
-                                st.plotly_chart(charts['gauges'], use_container_width=True)
+                                st.plotly_chart(charts['gauges'], width='stretch')
                             
             except Exception as e:
                 st.error(f"蒙特卡洛模拟出错: {e}")
@@ -8475,7 +8475,7 @@ def render_picks_performance_tab():
                     for k, v in corr.items()
                 ])
                 corr_df = corr_df.sort_values('与5日收益相关性', ascending=False)
-                st.dataframe(corr_df, use_container_width=True, hide_index=True)
+                st.dataframe(corr_df, width='stretch', hide_index=True)
             
             # 分类特征分析
             cat_analysis = importance.get('categorical_analysis', {})
@@ -8511,7 +8511,7 @@ def render_picks_performance_tab():
                 }
                 for name, stats in strategies.items()
             ])
-            st.dataframe(strategy_df, use_container_width=True, hide_index=True)
+            st.dataframe(strategy_df, width='stretch', hide_index=True)
         else:
             st.info("暂无策略表现数据")
             
@@ -8584,7 +8584,7 @@ def render_strategy_optimizer_tab():
                         for r in results[:20]
                     ])
                     
-                    st.dataframe(results_df, use_container_width=True, hide_index=True)
+                    st.dataframe(results_df, width='stretch', hide_index=True)
                     
                     # 保存最优
                     if st.button("💾 保存最优配置"):
@@ -8615,7 +8615,7 @@ def render_strategy_optimizer_tab():
             for name, cfg in templates.items()
         ])
         
-        st.dataframe(template_df, use_container_width=True, hide_index=True)
+        st.dataframe(template_df, width='stretch', hide_index=True)
         
     except Exception as e:
         st.error(f"加载失败: {e}")
@@ -8701,7 +8701,7 @@ def render_historical_review():
                         st.dataframe(
                             display_df.style.applymap(color_returns, 
                                                      subset=[c for c in display_df.columns if '收益' in c or '涨幅' in c or '回撤' in c]),
-                            use_container_width=True,
+                            width='stretch',
                             hide_index=True
                         )
                         
@@ -8716,7 +8716,7 @@ def render_historical_review():
                                 labels={'return_20d': '20日收益率 (%)'}
                             )
                             fig.add_vline(x=0, line_dash="dash", line_color="red")
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width='stretch')
                 
             except Exception as e:
                 st.error(f"分析出错: {str(e)}")
@@ -8888,7 +8888,7 @@ def render_backtest_page():
                     # 资金曲线图
                     fig = backtester.plot_results(show=False)
                     if fig:
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                         
                     # 交易详情表
                     if backtester.trades:
@@ -8907,7 +8907,7 @@ def render_backtest_page():
                                 "止损价": f"{t.get('stop_loss', 0):.2f}" if t.get('stop_loss', 0) > 0 else "-"
                             })
                         
-                        st.dataframe(pd.DataFrame(trade_data), use_container_width=True)
+                        st.dataframe(pd.DataFrame(trade_data), width='stretch')
                     else:
                         st.warning("在此期间未触发任何交易。")
 
@@ -8926,7 +8926,7 @@ def render_backtest_page():
                                     "拒绝原因 ❌": r['reason']
                                 })
                             
-                            st.dataframe(pd.DataFrame(rejected_data), use_container_width=True)
+                            st.dataframe(pd.DataFrame(rejected_data), width='stretch')
                         
             except Exception as e:
                 st.error(f"回测出错: {str(e)}")
@@ -8956,7 +8956,7 @@ def render_baseline_comparison_page():
         
         selected_date = st.selectbox("选择日期", dates[:30], key="cmp_date")
         
-        compare_btn = st.button("🔍 开始对比", type="primary", use_container_width=True)
+        compare_btn = st.button("🔍 开始对比", type="primary", width='stretch')
     
     if not compare_btn:
         st.markdown("""
@@ -9033,7 +9033,7 @@ def render_baseline_comparison_page():
         if available_cols:
             display_df = df[available_cols].copy()
             display_df.columns = ['代码', '名称', '价格', 'Day BLUE', 'Week BLUE', '扫描时段'][:len(available_cols)]
-            st.dataframe(display_df, hide_index=True, use_container_width=True)
+            st.dataframe(display_df, hide_index=True, width='stretch')
 
 
 # --- ML Lab 页面 (新增) ---
@@ -9097,7 +9097,7 @@ def render_ml_lab_page():
             min_blue = st.slider("最低 BLUE 阈值", 50, 150, 80, 10)
         
         # 训练按钮
-        if st.button("🚀 开始训练", type="primary", use_container_width=True):
+        if st.button("🚀 开始训练", type="primary", width='stretch'):
             with st.spinner("正在准备数据并训练模型..."):
                 try:
                     # 1. 优先从缓存加载数据
@@ -9208,7 +9208,7 @@ def render_ml_lab_page():
                             height=300,
                             showlegend=False
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                     
                     # 6. 模型解释
                     st.markdown("---")
@@ -9340,7 +9340,7 @@ def render_ml_lab_page():
                             yaxis_title="Loss (MSE)",
                             legend=dict(orientation="h", y=1.1)
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
                     
                     # 预测 vs 实际
                     st.markdown("---")
@@ -9350,7 +9350,7 @@ def render_ml_lab_page():
                         '实际价格': result.get('actuals', []),
                         '预测价格': result.get('predictions', [])
                     })
-                    st.dataframe(pred_df.style.format("${:.2f}"), use_container_width=True)
+                    st.dataframe(pred_df.style.format("${:.2f}"), width='stretch')
                     
                 except Exception as e:
                     st.error(f"❌ 训练出错: {str(e)}")
@@ -9541,7 +9541,7 @@ def render_ml_lab_page():
                                     
                                     # 结果表格
                                     results_df = pd.DataFrame(result['all_results'])
-                                    st.dataframe(results_df, use_container_width=True, hide_index=True)
+                                    st.dataframe(results_df, width='stretch', hide_index=True)
                                     
                                     # 保存到 session
                                     st.session_state['automl_instance'] = automl
@@ -9568,7 +9568,7 @@ def render_ml_lab_page():
                         
                         # 显示集成摘要
                         summary = ensemble.summary()
-                        st.dataframe(summary, use_container_width=True, hide_index=True)
+                        st.dataframe(summary, width='stretch', hide_index=True)
                     except Exception as e:
                         st.error(f"创建集成失败: {e}")
                 
@@ -9618,7 +9618,7 @@ def render_external_strategies_tab():
                 for s in tv_strategies
             ])
             
-            st.dataframe(tv_df, use_container_width=True, hide_index=True)
+            st.dataframe(tv_df, width='stretch', hide_index=True)
         
         st.divider()
         
@@ -9638,7 +9638,7 @@ def render_external_strategies_tab():
             for s in impl_strategies
         ])
         
-        st.dataframe(impl_df, use_container_width=True, hide_index=True)
+        st.dataframe(impl_df, width='stretch', hide_index=True)
         
         st.divider()
         
@@ -9659,7 +9659,7 @@ def render_external_strategies_tab():
                 for a in authors
             ])
             
-            st.dataframe(author_df, use_container_width=True, hide_index=True)
+            st.dataframe(author_df, width='stretch', hide_index=True)
         
     except Exception as e:
         st.error(f"加载失败: {e}")
@@ -9802,7 +9802,7 @@ def render_article_crawler_tab():
                 for a in articles[:30]
             ])
             
-            st.dataframe(article_df, use_container_width=True, hide_index=True)
+            st.dataframe(article_df, width='stretch', hide_index=True)
         else:
             st.info("暂无文章，请点击「开始爬取」")
     except Exception as e:
@@ -9843,7 +9843,7 @@ def render_article_crawler_tab():
             
             st.dataframe(
                 strat_df, 
-                use_container_width=True, 
+                width='stretch', 
                 hide_index=True,
                 column_config={
                     "策略名称": st.column_config.TextColumn("策略名称", width="large"),
@@ -9956,7 +9956,7 @@ def render_strategy_backtest_tab():
                     compare_df['_sort'] = compare_df['总收益'].str.replace('%', '').astype(float)
                     compare_df = compare_df.sort_values('_sort', ascending=False).drop('_sort', axis=1)
                     
-                    st.dataframe(compare_df, use_container_width=True, hide_index=True)
+                    st.dataframe(compare_df, width='stretch', hide_index=True)
                 else:
                     st.warning("没有足够数据进行对比")
         
@@ -10101,7 +10101,7 @@ def render_blogger_page():
                         'days_held': '持有天数'
                     },
                     hide_index=True,
-                    use_container_width=True
+                    width='stretch'
                 )
             else:
                 st.info("暂无推荐记录")
@@ -10186,7 +10186,7 @@ def render_blogger_page():
                     'total_return': st.column_config.NumberColumn('累计收益%', format="%.2f%%")
                 },
                 hide_index=True,
-                use_container_width=True
+                width='stretch'
             )
             
             # 胜率图表
@@ -10199,7 +10199,7 @@ def render_blogger_page():
                     color='win_rate',
                     color_continuous_scale='RdYlGn'
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
         else:
             st.info("暂无数据，请先添加博主和推荐记录")
     
@@ -10264,7 +10264,7 @@ def render_blogger_page():
                             "added": "新增推荐",
                             "duplicates": "重复跳过",
                         },
-                        use_container_width=True,
+                        width='stretch',
                         hide_index=True,
                     )
                 if ret.get("errors"):
@@ -10349,7 +10349,7 @@ def render_blogger_page():
                     st.markdown("**组合评估汇总**")
                     st.dataframe(
                         summary,
-                        use_container_width=True,
+                        width='stretch',
                         hide_index=True,
                         column_config={
                             "方向命中率": st.column_config.NumberColumn("方向命中率(%)", format="%.1f%%"),
@@ -10372,7 +10372,7 @@ def render_blogger_page():
                 ]
                 detail_cols = [c for c in detail_cols if c in eval_df.columns]
                 detail_df = eval_df.sort_values("rec_date", ascending=False)[detail_cols].head(200)
-                st.dataframe(detail_df, use_container_width=True, hide_index=True)
+                st.dataframe(detail_df, width='stretch', hide_index=True)
 
     # === Tab 5: 外部策略 ===
     with tab_external:
@@ -10718,7 +10718,7 @@ def render_watchlist_tracking_tab():
                     legend=dict(x=0, y=1.1, orientation='h')
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             else:
                 st.info(f"暂无 {selected_symbol} 的历史数据")
 
@@ -10746,7 +10746,7 @@ def render_historical_tracking_tab():
         days = st.slider("追踪天数", 7, 60, 30, key="hist_track_days")
         min_blue = st.slider("最低 BLUE 阈值", 100, 180, 130, key="hist_track_blue")
         
-        generate_btn = st.button("📊 生成报告", type="primary", use_container_width=True)
+        generate_btn = st.button("📊 生成报告", type="primary", width='stretch')
     
     if not generate_btn:
         st.info("👈 设置参数后点击「生成报告」查看历史信号表现")
@@ -10909,7 +10909,7 @@ def render_historical_tracking_tab():
                  color_continuous_scale=['red', 'gray', 'green'],
                  title="各周期平均收益")
     fig.add_hline(y=0, line_dash="dash", line_color="gray")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
     
     st.divider()
     
@@ -10954,7 +10954,7 @@ def render_historical_tracking_tab():
     
     st.dataframe(display_df.sort_values('日期', ascending=False), 
                  hide_index=True, 
-                 use_container_width=True,
+                 width='stretch',
                  height=400)
 
 
@@ -11098,7 +11098,7 @@ def render_signal_health_monitor():
                 height=400,
                 legend=dict(orientation="h", yanchor="bottom", y=1.02)
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         
         # === 告警汇总 ===
         alerts = monitor.get_decay_alerts(min_blue)
@@ -11524,7 +11524,7 @@ def render_risk_dashboard():
             height=300,
             margin=dict(t=40, b=20, l=20, r=20)
         )
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_pie, width='stretch')
         
         # 集中度警告
         if holdings:
@@ -11550,7 +11550,7 @@ def render_risk_dashboard():
             '盈亏': f"{p.get('unrealized_pnl_pct', 0):.1f}%"
         } for p in positions])
         
-        st.dataframe(pos_df, use_container_width=True, hide_index=True)
+        st.dataframe(pos_df, width='stretch', hide_index=True)
     
     st.divider()
     
@@ -11581,7 +11581,7 @@ def render_risk_dashboard():
                     zmin=-1, zmax=1
                 )
                 fig_corr.update_layout(height=350)
-                st.plotly_chart(fig_corr, use_container_width=True)
+                st.plotly_chart(fig_corr, width='stretch')
                 
                 # 高相关性警告
                 high_corr_pairs = []
@@ -11645,7 +11645,7 @@ def render_risk_dashboard():
                     height=350,
                     showlegend=False
                 )
-                st.plotly_chart(fig_returns, use_container_width=True)
+                st.plotly_chart(fig_returns, width='stretch')
                 
                 # 统计摘要
                 avg_return = stats_df['total_return'].mean()
@@ -11769,7 +11769,7 @@ def render_portfolio_tab():
             # 持仓列表
             st.dataframe(
                 pd.DataFrame(portfolio),
-                use_container_width=True,
+                width='stretch',
                 hide_index=True
             )
         else:
@@ -12191,7 +12191,7 @@ def render_paper_trading_tab():
                             }
                             st.dataframe(
                                 preview_df[show_cols].rename(columns=rename_cols),
-                                use_container_width=True,
+                                width='stretch',
                                 hide_index=True,
                             )
                         else:
@@ -12294,7 +12294,7 @@ def render_paper_trading_tab():
 
                 if perf_rows:
                     perf_df = pd.DataFrame(perf_rows)
-                    st.dataframe(perf_df, use_container_width=True, hide_index=True)
+                    st.dataframe(perf_df, width='stretch', hide_index=True)
 
                     if st.button("📣 推送默认组合绩效", key=f"push_auto_basket_perf_{auto_market}"):
                         try:
@@ -12401,7 +12401,7 @@ def render_paper_trading_tab():
             fig.add_hline(y=initial_cap, line_dash="dash", 
                          annotation_text=f"初始资金 ${initial_cap:,.0f}")
             fig.update_layout(height=300)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         # 子账户策略绩效对比
         st.markdown("#### 🏁 子账户策略绩效对比")
@@ -12422,7 +12422,7 @@ def render_paper_trading_tab():
                 show_df = show_df.rename(columns={'account_name': '子账户'})
                 st.dataframe(
                     show_df[['子账户', '总收益率', '最大回撤', '胜率', '已平仓笔数', '总交易数', '因子', '盈亏']],
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True
                 )
         else:
@@ -12485,7 +12485,7 @@ def render_paper_trading_tab():
                     if normalize_curve:
                         fig_compare.add_hline(y=100, line_dash="dot", line_color="gray", opacity=0.5)
                         
-                    st.plotly_chart(fig_compare, use_container_width=True)
+                    st.plotly_chart(fig_compare, width='stretch')
                 else:
                     st.info("所选子账户暂无足够数据生成曲线")
             except Exception as e:
@@ -12640,7 +12640,7 @@ def render_strategy_component_page():
                 '交易次数': r['trades']
             } for r in results])
             
-            st.dataframe(df_results, use_container_width=True, hide_index=True)
+            st.dataframe(df_results, width='stretch', hide_index=True)
             
             col1, col2, col3 = st.columns(3)
             col1.metric("平均年化", f"{np.mean([r['annual_return'] for r in results]):.1f}%")
@@ -12991,7 +12991,7 @@ def render_paper_trading_page():
                 '盈亏%': f"{pos.unrealized_plpc:+.2f}%"
             })
         
-        st.dataframe(pd.DataFrame(pos_data), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(pos_data), width='stretch', hide_index=True)
         
         color = "green" if total_pnl >= 0 else "red"
         st.markdown(f"**总浮动盈亏:** <span style='color:{color}'>${total_pnl:+,.2f}</span>", 
@@ -13081,7 +13081,7 @@ def render_paper_trading_page():
                 "创建时间": created_at[:19] if created_at else ""
             })
 
-        st.dataframe(pd.DataFrame(order_data), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(order_data), width='stretch', hide_index=True)
 
         if order_status == "open":
             if stale_open_orders:
@@ -13193,7 +13193,7 @@ def render_paper_trading_page():
                     "成交耗时": f"{mins:.1f}m" if mins is not None else "-",
                     "限价滑点": f"{slip:+.2f}%" if slip is not None else "-"
                 })
-            st.dataframe(pd.DataFrame(detail_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(detail_rows), width='stretch', hide_index=True)
 
 
 
@@ -13722,7 +13722,7 @@ def render_ml_prediction_page():
             if horizon_cost_rows:
                 horizon_cost_df = pd.DataFrame(horizon_cost_rows)
                 horizon_cost_df = horizon_cost_df[['周期', '毛收益', '净收益', '成本拖累', '毛胜率', '净胜率', '样本']]
-                st.dataframe(horizon_cost_df, hide_index=True, use_container_width=True)
+                st.dataframe(horizon_cost_df, hide_index=True, width='stretch')
                 st.caption("毛/净对比用于衡量策略交易成本敏感度，净收益更接近真实可交易表现。")
         
         # 所有周期指标对比表
@@ -13742,7 +13742,7 @@ def render_ml_prediction_page():
             metrics_df = pd.DataFrame(metrics_data)
             # 缩短列名
             metrics_df.columns = ['周期', 'R²', '方向准确率', 'RMSE', 'MAE', '训练', '测试']
-            st.dataframe(metrics_df, hide_index=True, use_container_width=True)
+            st.dataframe(metrics_df, hide_index=True, width='stretch')
             
             # 方向准确率图
             fig_acc = go.Figure()
@@ -13761,7 +13761,7 @@ def render_ml_prediction_page():
                 xaxis_title="预测周期", yaxis_title="准确率 (%)",
                 height=300, yaxis_range=[0, 100]
             )
-            st.plotly_chart(fig_acc, use_container_width=True)
+            st.plotly_chart(fig_acc, width='stretch')
         
         # 模型解读
         horizon_meta = meta.get('metrics', {}).get(horizon, {})
@@ -13798,7 +13798,7 @@ def render_ml_prediction_page():
             
             ranker_df = pd.DataFrame(ranker_data)
             ranker_df.columns = ['周期', 'NDCG', 'Top10收益', '样本', '分组']
-            st.dataframe(ranker_df, hide_index=True, use_container_width=True)
+            st.dataframe(ranker_df, hide_index=True, width='stretch')
             
             st.markdown("""
             **指标说明:**
@@ -13830,12 +13830,12 @@ def render_ml_prediction_page():
                 st.caption("Top 稳定特征")
                 if not stable_df.empty:
                     show = stable_df[['feature', 'stability_score', 'missing_rate', 'drift_score', 'ic_20d', 'ic_60d']]
-                    st.dataframe(show, hide_index=True, use_container_width=True)
+                    st.dataframe(show, hide_index=True, width='stretch')
             with rcol:
                 st.caption("Top 不稳定特征")
                 if not unstable_df.empty:
                     show = unstable_df[['feature', 'stability_score', 'missing_rate', 'drift_score', 'ic_20d', 'ic_60d']]
-                    st.dataframe(show, hide_index=True, use_container_width=True)
+                    st.dataframe(show, hide_index=True, width='stretch')
         else:
             st.info("暂无特征稳定性报告，请先训练一次模型。")
 
@@ -13885,7 +13885,7 @@ def render_ml_prediction_page():
                         height=500,
                         margin=dict(l=150)
                     )
-                    st.plotly_chart(fig_imp, use_container_width=True)
+                    st.plotly_chart(fig_imp, width='stretch')
                     
                     # 特征分类统计
                     categories = {
@@ -13911,7 +13911,7 @@ def render_ml_prediction_page():
                     cat_df.columns = ['类别', '重要性', '特征数']
                     
                     st.markdown("**特征类别重要性汇总:**")
-                    st.dataframe(cat_df, hide_index=True, use_container_width=True)
+                    st.dataframe(cat_df, hide_index=True, width='stretch')
         except Exception as e:
             st.warning(f"无法加载特征重要性: {e}")
     
@@ -13933,7 +13933,7 @@ def render_ml_prediction_page():
                     params_df = pd.DataFrame([
                         {'参数': k, '最优值': v} for k, v in params.items()
                     ])
-                    st.dataframe(params_df, hide_index=True, use_container_width=True)
+                    st.dataframe(params_df, hide_index=True, width='stretch')
             
             # 加载调优历史
             history_path = tuning_path.parent / 'tuning_history.json'
@@ -13952,7 +13952,7 @@ def render_ml_prediction_page():
                         history_df[['horizon', '默认分数', '最优分数', '提升']].rename(
                             columns={'horizon': '周期'}
                         ),
-                        hide_index=True, use_container_width=True
+                        hide_index=True, width='stretch'
                     )
         else:
             st.info("暂无调优结果")
@@ -14020,7 +14020,7 @@ def render_ml_prediction_page():
                 comp_df.columns = ['周期', '独立模型 NDCG', '串联模型 NDCG', '提升']
                 
                 st.markdown("**排序模型 NDCG@10 对比:**")
-                st.dataframe(comp_df, hide_index=True, use_container_width=True)
+                st.dataframe(comp_df, hide_index=True, width='stretch')
                 
                 # 添加特征信息
                 if 'ensemble' in comparison:
@@ -14173,7 +14173,7 @@ def render_ml_prediction_page():
                         },
                     ]
                 )
-                st.dataframe(cmp_df, hide_index=True, use_container_width=True)
+                st.dataframe(cmp_df, hide_index=True, width='stretch')
                 st.caption(
                     f"评估范围: 最近 {int(meta_eval.get('days_back') or 0)} 天 | "
                     f"覆盖交易日 {int(meta_eval.get('n_days') or 0)} | "
@@ -14323,7 +14323,7 @@ def render_ml_prediction_page():
         show_df['预测%'] = show_df['预测%'].apply(lambda x: f"{x:+.1f}")
         show_df['$'] = show_df['$'].apply(lambda x: f"{x:.2f}")
         
-        st.dataframe(show_df, hide_index=True, use_container_width=True)
+        st.dataframe(show_df, hide_index=True, width='stretch')
         
         # === 预测分布 ===
         st.markdown("### 📊 预测分布")
@@ -14341,7 +14341,7 @@ def render_ml_prediction_page():
             )
             fig.add_vline(x=0, line_dash="dash", line_color="red")
             fig.update_layout(height=300)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         
         with col2:
             # 统计
@@ -14373,7 +14373,7 @@ def render_ml_prediction_page():
             show_df2['预测%'] = show_df2['预测%'].apply(lambda x: f"{x:+.1f}")
             show_df2['$'] = show_df2['$'].apply(lambda x: f"{x:.2f}")
             
-            st.dataframe(show_df2, hide_index=True, use_container_width=True)
+            st.dataframe(show_df2, hide_index=True, width='stretch')
         
     except Exception as e:
         st.error(f"预测失败: {e}")
@@ -14531,19 +14531,19 @@ def render_qlib_mining_hub():
     with col_l:
         st.subheader("因子排名")
         if factor_path.exists():
-            st.dataframe(pd.read_csv(factor_path).head(30), use_container_width=True)
+            st.dataframe(pd.read_csv(factor_path).head(30), width='stretch')
         else:
             st.caption("暂无因子结果")
     with col_r:
         st.subheader("策略排名")
         if strategy_path.exists():
-            st.dataframe(pd.read_csv(strategy_path).head(30), use_container_width=True)
+            st.dataframe(pd.read_csv(strategy_path).head(30), width='stretch')
         else:
             st.caption("暂无策略结果")
 
     st.subheader("市值分层对比")
     if segment_path.exists():
-        st.dataframe(pd.read_csv(segment_path), use_container_width=True)
+        st.dataframe(pd.read_csv(segment_path), width='stretch')
     else:
         st.caption("暂无分层对比结果")
 
