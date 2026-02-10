@@ -271,7 +271,7 @@ def _get_action_health_rows():
                     "任务": wf["name"],
                     "状态": "⚪ 无记录",
                     "最近提交时间": "-",
-                    "延迟(小时)": "-",
+                    "延迟(小时)": None,
                     "最近信息": "-",
                 })
     except Exception as e:
@@ -279,7 +279,7 @@ def _get_action_health_rows():
             "任务": "Action Health",
             "状态": "⚠️ 读取失败",
             "最近提交时间": "-",
-            "延迟(小时)": "-",
+            "延迟(小时)": None,
             "最近信息": str(e),
         }]
     return rows
@@ -290,7 +290,10 @@ def render_action_health_panel():
     with st.expander("🛠️ Action 健康总览", expanded=False):
         rows = _get_action_health_rows()
         if rows:
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            df = pd.DataFrame(rows)
+            if "延迟(小时)" in df.columns:
+                df["延迟(小时)"] = pd.to_numeric(df["延迟(小时)"], errors="coerce")
+            st.dataframe(df, use_container_width=True, hide_index=True)
         else:
             st.info("暂无可展示的 Action 状态")
 
