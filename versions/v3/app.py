@@ -1519,6 +1519,7 @@ def render_todays_picks_page():
             build_combo_stats,
             build_segment_stats,
             reclassify_tracking_tags,
+            derive_signal_tags,
             CORE_TAGS,
             DEFAULT_TAG_RULES,
             backfill_candidates_from_scan_history,
@@ -1543,6 +1544,9 @@ def render_todays_picks_page():
 
         def reclassify_tracking_tags(*args, **kwargs):
             return 0
+        
+        def derive_signal_tags(*args, **kwargs):
+            return []
 
         def backfill_candidates_from_scan_history(*args, **kwargs):
             return 0
@@ -1695,7 +1699,55 @@ def render_todays_picks_page():
                         'action': '考虑获利了结',
                         'urgency': 'low'
                     })
-    
+
+    # 历史样本：用于给“今日行动”补充可执行置信度
+    try:
+        tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=360)
+    except Exception:
+        tracking_rows_for_action = []
+
+    def _calc_signal_reliability(tags: list):
+        if not tags or not tracking_rows_for_action:
+            return {
+                "sample": 0,
+                "win_rate": None,
+                "avg_pnl": None,
+                "grade": "N/A",
+                "position_hint": "观察",
+            }
+        tag_set = set(tags)
+        matched = [
+            r for r in tracking_rows_for_action
+            if tag_set.issubset(set(r.get("signal_tags_list") or []))
+        ]
+        sample = len(matched)
+        if sample == 0:
+            return {
+                "sample": 0,
+                "win_rate": None,
+                "avg_pnl": None,
+                "grade": "N/A",
+                "position_hint": "观察",
+            }
+        wins = sum(1 for r in matched if float(r.get("pnl_pct") or 0) > 0)
+        win_rate = wins / sample * 100.0
+        avg_pnl = float(np.mean([float(r.get("pnl_pct") or 0) for r in matched]))
+        if sample >= 25 and win_rate >= 62 and avg_pnl > 1.5:
+            grade, position_hint = "A", "主仓(40-60%)"
+        elif sample >= 15 and win_rate >= 55 and avg_pnl > 0.5:
+            grade, position_hint = "B", "半仓(20-40%)"
+        elif sample >= 8 and win_rate >= 50:
+            grade, position_hint = "C", "试仓(10-20%)"
+        else:
+            grade, position_hint = "D", "仅观察"
+        return {
+            "sample": sample,
+            "win_rate": win_rate,
+            "avg_pnl": avg_pnl,
+            "grade": grade,
+            "position_hint": position_hint,
+        }
+
     # 行动摘要卡片
     st.markdown(f"### 📅 {latest_date} 行动摘要")
     
@@ -1753,6 +1805,24 @@ def render_todays_picks_page():
     
     # === Tab 1: 今日行动 (重新设计 - 行动导向) ===
     with work_tab1:
+        st.markdown("### 🧭 今日怎么做（SOP）")
+        s1, s2, s3 = st.columns(3)
+        with s1:
+            st.info("1. 先处理红色卖出/止损信号\n\n优先级最高，先控回撤")
+        with s2:
+            st.info("2. 买入只做 A/B 级信号\n\n看历史胜率 + 样本数，不追低等级")
+        with s3:
+            st.info("3. 单票分批进场\n\n按建议仓位执行，避免一把梭")
+
+        if tracking_rows_for_action:
+            overall_win = sum(1 for r in tracking_rows_for_action if float(r.get("pnl_pct") or 0) > 0)
+            overall_wr = overall_win / len(tracking_rows_for_action) * 100.0
+            overall_avg = float(np.mean([float(r.get("pnl_pct") or 0) for r in tracking_rows_for_action]))
+            st.caption(
+                f"历史基准（{market}, 近360天）: 样本 {len(tracking_rows_for_action)} | "
+                f"胜率 {overall_wr:.1f}% | 平均收益 {overall_avg:+.2f}%"
+            )
+
         # 如果有紧急警报，用红色卡片突出显示
         if position_alerts:
             high_alerts = [a for a in position_alerts if a['urgency'] == 'high']
@@ -1804,6 +1874,8 @@ def render_todays_picks_page():
                         blue_d = row.get('blue_daily', 0)
                         blue_w = row.get('blue_weekly', 0)
                         price = row.get('price', 0)
+                        tags = derive_signal_tags(dict(row))
+                        rel = _calc_signal_reliability(tags)
                         
                         # 价格符号和名称显示
                         price_sym = "¥" if market == "CN" else "$"
@@ -1828,6 +1900,11 @@ def render_todays_picks_page():
                                 </div>
                             </div>
                             """, unsafe_allow_html=True)
+                            wr_txt = f"{rel['win_rate']:.1f}%" if rel['win_rate'] is not None else "-"
+                            avg_txt = f"{rel['avg_pnl']:+.2f}%" if rel['avg_pnl'] is not None else "-"
+                            st.caption(
+                                f"评级 {rel['grade']} | 样本 {rel['sample']} | 胜率 {wr_txt} | 均收 {avg_txt} | 建议: {rel['position_hint']}"
+                            )
                             
                             # 操作按钮
                             btn_col1, btn_col2 = st.columns(2)
