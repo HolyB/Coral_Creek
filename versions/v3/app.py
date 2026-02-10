@@ -1921,23 +1921,52 @@ def render_todays_picks_page():
         
         with action_left:
             st.markdown("### 🟢 今日买入机会")
+            pz1, pz2, pz3, pz4 = st.columns(4)
+            with pz1:
+                precision_mode = st.checkbox("高胜率模式", value=True, key=f"action_precision_{market}")
+            with pz2:
+                min_hist_samples = st.slider("最小样本", min_value=5, max_value=80, value=15, step=1, key=f"action_min_samples_{market}")
+            with pz3:
+                min_hist_win = st.slider("最小胜率(%)", min_value=45, max_value=80, value=56, step=1, key=f"action_min_win_{market}")
+            with pz4:
+                min_hist_avg = st.slider("最小均收(%)", min_value=-1.0, max_value=5.0, value=0.5, step=0.1, key=f"action_min_avg_{market}")
             
             # 获取强势信号
             if not df.empty and 'blue_daily' in df.columns:
-                strong = df[
+                strong_raw = df[
                     (df['blue_daily'].fillna(0) > 100) & 
                     (df['blue_weekly'].fillna(0) > 50)
-                ].head(5)
+                ].copy()
+                strong_raw = strong_raw.sort_values(
+                    by=["blue_daily", "blue_weekly"],
+                    ascending=False,
+                ).head(30)
+
+                strong_candidates = []
+                for _, row in strong_raw.iterrows():
+                    tags = derive_signal_tags(dict(row))
+                    rel = _calc_signal_reliability(tags)
+                    if precision_mode:
+                        wr = float(rel.get("win_rate") or 0.0)
+                        avg = float(rel.get("avg_pnl") or 0.0)
+                        if rel.get("sample", 0) < int(min_hist_samples):
+                            continue
+                        if wr < float(min_hist_win):
+                            continue
+                        if avg < float(min_hist_avg):
+                            continue
+                        if rel.get("grade") not in ("A", "B"):
+                            continue
+                    strong_candidates.append((row, tags, rel))
+                strong = strong_candidates[:8]
                 
-                if not strong.empty:
-                    for idx, row in strong.iterrows():
+                if strong:
+                    for row, tags, rel in strong:
                         symbol = row.get('symbol', '')
                         company_name = row.get('company_name', '')
                         blue_d = row.get('blue_daily', 0)
                         blue_w = row.get('blue_weekly', 0)
                         price = row.get('price', 0)
-                        tags = derive_signal_tags(dict(row))
-                        rel = _calc_signal_reliability(tags)
                         
                         # 价格符号和名称显示
                         price_sym = "¥" if market == "CN" else "$"
@@ -1977,7 +2006,10 @@ def render_todays_picks_page():
                                 if st.button("💰 模拟买入", key=f"buy_{symbol}", use_container_width=True):
                                     st.session_state['action_buy_symbol'] = symbol
                 else:
-                    st.info("今日暂无强势买入信号")
+                    if precision_mode:
+                        st.info("高胜率模式下暂无达标信号。可降低阈值或切换普通模式。")
+                    else:
+                        st.info("今日暂无强势买入信号")
             else:
                 st.info("正在加载数据...")
         
