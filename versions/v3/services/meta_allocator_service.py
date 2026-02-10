@@ -52,12 +52,24 @@ def _calc_trade_metrics_from_details(details: Sequence[Dict], avg_hold_days: flo
         }
 
     rets = np.array([_to_float(d.get("exit_return_pct")) / 100.0 for d in details], dtype=float)
+    rets = rets[np.isfinite(rets)]
+    # 物理边界保护：单笔收益率不应 <= -100%
+    rets = np.clip(rets, -0.999, 5.0)
+    if rets.size == 0:
+        return {
+            "total_return_pct": 0.0,
+            "ann_return_pct": 0.0,
+            "sharpe": 0.0,
+            "max_drawdown_pct": 0.0,
+            "profit_factor": 0.0,
+            "turnover_per_year": 0.0,
+        }
     curve = np.cumprod(1.0 + rets)
     total_ret = float(curve[-1] - 1.0)
 
     peaks = np.maximum.accumulate(curve)
     dd = (curve / np.where(peaks == 0, 1.0, peaks)) - 1.0
-    max_dd = float(dd.min()) if dd.size else 0.0
+    max_dd = abs(float(dd.min())) if dd.size else 0.0
 
     hold = max(_to_float(avg_hold_days, 10.0), 1.0)
     trades_per_year = 252.0 / hold
@@ -127,7 +139,7 @@ def evaluate_strategy_unified(
     for d in details:
         r = _to_float(d.get("exit_return_pct"))
         nd = dict(d)
-        nd["exit_return_pct"] = r - round_trip_cost_pct
+        nd["exit_return_pct"] = max(r - round_trip_cost_pct, -99.9)
         net_details.append(nd)
 
     net_avg = float(np.mean([_to_float(d.get("exit_return_pct")) for d in net_details]))
@@ -207,7 +219,8 @@ def allocate_meta_weights(
             0.40 * max(_to_float(r.get("sharpe"), 0.0), 0.0)
             + 0.25 * max(_to_float(r.get("ann_return_pct"), 0.0), 0.0) / 30.0
             + 0.20 * max(_to_float(r.get("net_win_rate_pct"), 0.0) - 50.0, 0.0) / 20.0
-            + 0.15 * max(20.0 + _to_float(r.get("max_drawdown_pct"), 0.0), 0.0) / 20.0
+            # 回撤越小越好（正值口径）
+            + 0.15 * max(20.0 - _to_float(r.get("max_drawdown_pct"), 0.0), 0.0) / 20.0
         ) * sample_factor
         raw_scores.append(max(score, 0.0))
 
