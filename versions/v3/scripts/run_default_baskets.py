@@ -25,6 +25,7 @@ except Exception:
 
 from db.database import get_scanned_dates, query_scan_results, get_connection
 from services.candidate_tracking_service import get_candidate_tracking_rows
+from services.meta_allocator_service import evaluate_strategy_baskets, allocate_meta_weights
 from services.portfolio_service import (
     create_paper_account,
     get_paper_account,
@@ -97,6 +98,16 @@ def _strategy_defs():
     ]
 
 
+def _strategy_key_map() -> Dict[str, str]:
+    return {
+        "daily_equal": "blue_day_week",
+        "month_heima_all": "heima",
+        "week_heima_all": "heima",
+        "day_week_resonance": "blue_day_week",
+        "core_resonance": "blue_triple",
+    }
+
+
 def _strategy_match(rule_id: str, f: Dict, min_blue: float) -> bool:
     d = f["day_blue"]
     w = f["week_blue"]
@@ -125,6 +136,50 @@ def _strategy_score(f: Dict) -> float:
     if f["month_heima"]:
         bonus += 20.0
     return base + bonus
+
+
+def _build_segment_industry_weights(
+    tracking_rows: List[Dict],
+    strategy_id: str,
+    min_blue: float,
+) -> Dict[str, Dict[str, float]]:
+    seg_stat: Dict[str, Dict[str, float]] = {}
+    ind_stat: Dict[str, Dict[str, float]] = {}
+    used = 0
+    for tr in tracking_rows or []:
+        tf = _extract_signal_fields(tr)
+        if not _strategy_match(strategy_id, tf, min_blue=min_blue):
+            continue
+        used += 1
+        pnl = _to_float(tr.get("pnl_pct"), 0.0)
+        seg = str(tr.get("cap_category") or "UNKNOWN")
+        ind = str(tr.get("industry") or "UNKNOWN")
+        seg_bucket = seg_stat.setdefault(seg, {"n": 0.0, "w": 0.0, "p": 0.0})
+        ind_bucket = ind_stat.setdefault(ind, {"n": 0.0, "w": 0.0, "p": 0.0})
+        seg_bucket["n"] += 1
+        ind_bucket["n"] += 1
+        if pnl > 0:
+            seg_bucket["w"] += 1
+            ind_bucket["w"] += 1
+        seg_bucket["p"] += pnl
+        ind_bucket["p"] += pnl
+
+    def _to_weight(stat: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+        out = {}
+        for k, v in stat.items():
+            n = max(v.get("n", 0.0), 1.0)
+            wr = v.get("w", 0.0) / n
+            avg = v.get("p", 0.0) / n
+            # 胜率主导，均收次之，做柔和限幅
+            raw = 1.0 + 0.7 * (wr - 0.5) + 0.3 * (avg / 5.0)
+            out[k] = max(0.70, min(1.30, raw))
+        return out
+
+    return {
+        "sample": used,
+        "segment": _to_weight(seg_stat),
+        "industry": _to_weight(ind_stat),
+    }
 
 
 def _already_bought_today(account_name: str, symbol: str, market: str, strategy_id: str) -> bool:
@@ -174,7 +229,46 @@ def run_market(
     except Exception:
         tracking_rows = []
 
+    # 组合层权重（策略一级）+ 分层权重（市值/行业二级）
+    strategy_weight_map: Dict[str, float] = {}
+    if tracking_rows:
+        try:
+            perf_rows = evaluate_strategy_baskets(
+                rows=tracking_rows,
+                rule_name="fixed_10d",
+                take_profit_pct=10.0,
+                stop_loss_pct=6.0,
+                max_hold_days=20,
+                fee_bps=5.0,
+                slippage_bps=5.0,
+                min_samples=20,
+                max_rows=1200,
+            )
+            alloc_rows = allocate_meta_weights(perf_rows, max_weight=0.45, min_weight=0.05)
+            strategy_weight_map = {
+                str(r.get("strategy_key")): _to_float(r.get("建议权重(%)"), 0.0) / 100.0
+                for r in alloc_rows
+            }
+        except Exception:
+            strategy_weight_map = {}
+
+    segment_weight_map_by_rule: Dict[str, Dict[str, float]] = {}
+    industry_weight_map_by_rule: Dict[str, Dict[str, float]] = {}
+    strategy_weight_by_rule: Dict[str, float] = {}
     for sd in defs:
+        w = _build_segment_industry_weights(
+            tracking_rows=tracking_rows,
+            strategy_id=sd["id"],
+            min_blue=min_blue,
+        )
+        segment_weight_map_by_rule[sd["id"]] = w.get("segment", {})
+        industry_weight_map_by_rule[sd["id"]] = w.get("industry", {})
+        strategy_key = _strategy_key_map().get(sd["id"], "blue_day_week")
+        strategy_weight_by_rule[sd["id"]] = strategy_weight_map.get(strategy_key, 0.20)
+
+    for sd in defs:
+        strategy_key = _strategy_key_map().get(sd["id"], "blue_day_week")
+        strategy_w = strategy_weight_by_rule.get(sd["id"], 0.20)  # 没样本时给保守默认
         sym_map = {}
         for r in rows:
             f = _extract_signal_fields(r)
@@ -183,13 +277,24 @@ def run_market(
                 continue
             if not _strategy_match(sd["id"], f, min_blue):
                 continue
-            score = _strategy_score(f)
+            seg = str(r.get("cap_category") or "UNKNOWN")
+            ind = str(r.get("industry") or "UNKNOWN")
+            seg_w = segment_weight_map_by_rule.get(sd["id"], {}).get(seg, 1.0)
+            ind_w = industry_weight_map_by_rule.get(sd["id"], {}).get(ind, 1.0)
+            raw_score = _strategy_score(f)
+            score = raw_score * strategy_w * seg_w * ind_w
             prev = sym_map.get(sym)
             if (prev is None) or (score > prev["score"]):
                 sym_map[sym] = {
                     "symbol": sym,
                     "price": f["price"],
                     "score": score,
+                    "raw_score": raw_score,
+                    "strategy_weight": strategy_w,
+                    "segment_weight": seg_w,
+                    "industry_weight": ind_w,
+                    "segment": seg,
+                    "industry": ind,
                     "is_heima": f["is_heima"] or f["week_heima"] or f["month_heima"],
                 }
 
@@ -200,6 +305,8 @@ def run_market(
     exec_rows = []
     for sd in defs:
         picks = basket_results.get(sd["id"], [])
+        strategy_key = _strategy_key_map().get(sd["id"], "blue_day_week")
+        strategy_w = strategy_weight_by_rule.get(sd["id"], 0.20)
         account_name = f"auto_{market.lower()}_{sd['account_tag']}"
         create_ret = create_paper_account(account_name, float(seed_capital))
         if (not create_ret.get("success")) and ("已存在" not in str(create_ret.get("error", ""))):
@@ -286,6 +393,8 @@ def run_market(
 
         exec_rows.append({
             "strategy": sd["name"],
+            "strategy_key": strategy_key,
+            "strategy_weight_pct": round(strategy_w * 100.0, 1),
             "account": account_name,
             "candidates": len(picks),
             "success": success_cnt,
@@ -299,6 +408,10 @@ def run_market(
             "track_avg_pnl_pct": track_avg_pnl,
             "track_median_d2p": track_median_d2p,
             "total_pnl": float(perf.get("total_pnl", 0.0)),
+            "top_pick": picks[0]["symbol"] if picks else "-",
+            "top_pick_score": round(_to_float(picks[0].get("score"), 0.0), 2) if picks else 0.0,
+            "top_pick_seg": picks[0].get("segment", "-") if picks else "-",
+            "top_pick_ind": picks[0].get("industry", "-") if picks else "-",
             "error": first_err,
         })
 
@@ -325,17 +438,19 @@ def _format_markdown_report(results: List[Dict], dry_run: bool) -> str:
         lines.append(
             f"📊 *{market}* | 扫描日 `{res.get('scan_date')}` | 样本 {res.get('sample_count', 0)} | 追踪窗 {res.get('track_days', 180)}天"
         )
-        lines.append("策略 | 候选 | 成功 | 跳过 | 失败 | 收益率 | 胜率(平仓) | 赢面(持仓) | 追踪样本 | 追踪胜率 | 追踪均收 | 转正中位天")
+        lines.append("策略 | 权重 | 候选 | 成功 | 跳过 | 失败 | 收益率 | 胜率(平仓) | 赢面(持仓) | 追踪样本 | 追踪胜率 | 追踪均收 | 转正中位天 | TOP")
         for r in res.get("rows", []):
             track_win_txt = f"{float(r.get('track_win_rate_pct')):.1f}%" if r.get("track_win_rate_pct") is not None else "-"
             track_avg_txt = f"{float(r.get('track_avg_pnl_pct')):+.2f}%" if r.get("track_avg_pnl_pct") is not None else "-"
             track_d2p_txt = f"{int(r.get('track_median_d2p'))}天" if r.get("track_median_d2p") is not None else "-"
+            top_txt = f"{r.get('top_pick', '-')}/{r.get('top_pick_seg', '-')}"
             lines.append(
-                f"{r['strategy']} | {r['candidates']} | {r['success']} | {r['skip']} | {r['fail']} | "
+                f"{r['strategy']} | {float(r.get('strategy_weight_pct', 0.0)):.1f}% | "
+                f"{r['candidates']} | {r['success']} | {r['skip']} | {r['fail']} | "
                 f"{r.get('total_return_pct', 0.0):+.2f}% | {r.get('closed_win_rate_pct', 0.0):.1f}% | "
                 f"{r.get('open_win_rate_pct', 0.0):.1f}% | "
                 f"{int(r.get('track_total', 0) or 0)} | "
-                f"{track_win_txt} | {track_avg_txt} | {track_d2p_txt}"
+                f"{track_win_txt} | {track_avg_txt} | {track_d2p_txt} | {top_txt}"
             )
             if r.get("error"):
                 lines.append(f"  ⚠️ {r['error']}")
