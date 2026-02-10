@@ -1804,17 +1804,57 @@ def render_todays_picks_page():
                     st.info("组合样本不足")
 
             with q2:
-                cap_quality = build_segment_stats(tracking_rows_for_action, by="cap_category")
-                cap_df = pd.DataFrame(cap_quality) if cap_quality else pd.DataFrame()
-                st.markdown("**市值层（按胜率）**")
-                if not cap_df.empty:
-                    if "样本数" in cap_df.columns:
-                        cap_df = cap_df[cap_df["样本数"] >= 8]
-                    if "胜率(%)" in cap_df.columns:
-                        cap_df = cap_df.sort_values("胜率(%)", ascending=False)
-                    st.dataframe(cap_df, use_container_width=True, hide_index=True)
+                def _strategy_bucket(tags):
+                    t = set(tags or [])
+                    if {"DAY_BLUE", "WEEK_BLUE", "MONTH_BLUE"}.issubset(t):
+                        return "三线共振"
+                    if {"DAY_BLUE", "WEEK_BLUE"}.issubset(t):
+                        return "日周共振"
+                    if {"DAY_HEIMA", "WEEK_HEIMA", "MONTH_HEIMA"} & t:
+                        return "黑马系"
+                    if {"CHIP_BREAKOUT", "CHIP_DENSE"} & t:
+                        return "筹码系"
+                    if "DAY_BLUE" in t:
+                        return "日线趋势"
+                    if "WEEK_BLUE" in t:
+                        return "周线趋势"
+                    if "MONTH_BLUE" in t:
+                        return "月线趋势"
+                    return "其他"
+
+                strat_cap_rows = []
+                for r in tracking_rows_for_action:
+                    tags = r.get("signal_tags_list") or []
+                    strat_cap_rows.append({
+                        "策略": _strategy_bucket(tags),
+                        "市值层": str(r.get("cap_category") or "未知"),
+                        "pnl": float(r.get("pnl_pct") or 0),
+                    })
+                strat_cap_df = pd.DataFrame(strat_cap_rows)
+                st.markdown("**策略 × 市值（按胜率）**")
+                if not strat_cap_df.empty:
+                    grp = (
+                        strat_cap_df.groupby(["策略", "市值层"], as_index=False)
+                        .agg(
+                            样本数=("pnl", "count"),
+                            胜率=("pnl", lambda x: (x > 0).mean() * 100.0),
+                            平均收益=("pnl", "mean"),
+                        )
+                    )
+                    grp = grp[grp["样本数"] >= 8]
+                    grp = grp.sort_values(["胜率", "平均收益"], ascending=False).head(15)
+                    if not grp.empty:
+                        grp["胜率"] = grp["胜率"].round(1)
+                        grp["平均收益"] = grp["平均收益"].round(2)
+                        st.dataframe(
+                            grp.rename(columns={"胜率": "胜率(%)", "平均收益": "平均收益(%)"}),
+                            use_container_width=True,
+                            hide_index=True,
+                        )
+                    else:
+                        st.info("策略×市值样本不足")
                 else:
-                    st.info("暂无市值层统计")
+                    st.info("暂无策略×市值统计")
 
             with q3:
                 ind_quality = build_segment_stats(tracking_rows_for_action, by="industry")
@@ -1831,21 +1871,21 @@ def render_todays_picks_page():
 
             # 给出可执行建议（顶级交易员视角）
             top_combo_txt = "-"
-            top_cap_txt = "-"
+            top_strat_cap_txt = "-"
             top_ind_txt = "-"
             try:
                 if not combo_df.empty:
                     top_combo = combo_df.iloc[0]
                     top_combo_txt = f"{top_combo.get('组合', '-')}"
-                if not cap_df.empty:
-                    top_cap = cap_df.iloc[0]
-                    top_cap_txt = f"{top_cap.get('分组', '-')}"
+                if 'grp' in locals() and not grp.empty:
+                    top_sc = grp.iloc[0]
+                    top_strat_cap_txt = f"{top_sc.get('策略', '-')}/{top_sc.get('市值层', '-')}"
                 if not ind_df.empty:
                     top_ind = ind_df.iloc[0]
                     top_ind_txt = f"{top_ind.get('分组', '-')}"
             except Exception:
                 pass
-            st.success(f"今日优先级建议: 先做 `{top_combo_txt}` 组合，其次聚焦 `{top_cap_txt}` 市值层与 `{top_ind_txt}` 板块。")
+            st.success(f"今日优先级建议: 先做 `{top_combo_txt}` 组合，再优先 `{top_strat_cap_txt}`，并聚焦 `{top_ind_txt}` 板块。")
         else:
             st.info("暂无候选追踪样本，先运行扫描并回填历史。")
     
