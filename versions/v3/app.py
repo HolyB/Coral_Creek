@@ -2969,6 +2969,7 @@ def render_todays_picks_page():
         if not rows:
             st.info("暂无追踪数据。请先运行每日扫描并进入“每日工作台”。")
         else:
+            all_rows = list(rows)
             f1, f2 = st.columns([2, 3])
             with f1:
                 required_tags = st.multiselect(
@@ -3035,31 +3036,54 @@ def render_todays_picks_page():
 
                 # 置顶模板对比图
                 st.markdown("### 📈 置顶模板对比")
-                template_combo_map = {
-                    name: cfg.get("keyword", "")
-                    for name, cfg in combo_templates.items()
-                    if name != "不使用模板"
-                }
                 selected_compare_templates = [
-                    x for x in st.session_state.get(pin_key, []) if x in template_combo_map
+                    x for x in st.session_state.get(pin_key, []) if x in combo_templates and x != "不使用模板"
                 ][:3]
                 if selected_compare_templates:
+                    def _filter_by_template(source_rows, template_cfg):
+                        out = list(source_rows)
+                        req_all = template_cfg.get("required_all", []) or []
+                        req_any_groups = template_cfg.get("required_any_groups", []) or []
+                        keyword = str(template_cfg.get("keyword", "") or "").upper()
+
+                        for tag in req_all:
+                            out = [
+                                r for r in out
+                                if tag in set(r.get("signal_tags_list") or [])
+                            ]
+                        for any_group in req_any_groups:
+                            out = [
+                                r for r in out
+                                if any(tag in set(r.get("signal_tags_list") or []) for tag in any_group)
+                            ]
+                        if keyword:
+                            out = [
+                                r for r in out
+                                if keyword in str(r.get("signal_tags", "")).upper()
+                            ]
+                        return out
+
                     compare_rows = []
                     for tname in selected_compare_templates:
-                        keyword = str(template_combo_map.get(tname, "") or "").upper()
-                        if not keyword:
+                        tcfg = combo_templates.get(tname, {})
+                        matched_rows = _filter_by_template(all_rows, tcfg)
+                        if len(matched_rows) < min_samples:
                             continue
-                        matched = combo_df[combo_df["组合"].astype(str).str.upper().str.contains(keyword, na=False)]
-                        if matched.empty:
-                            continue
-                        top = matched.sort_values(by=["当前胜率(%)", "当前平均收益(%)"], ascending=False).iloc[0]
+                        wins_t = sum(1 for r in matched_rows if float(r.get("pnl_pct") or 0) > 0)
+                        avg_t = float(np.mean([float(r.get("pnl_pct") or 0) for r in matched_rows])) if matched_rows else 0.0
+                        d2p_vals_t = [
+                            int(r["first_positive_day"]) for r in matched_rows
+                            if r.get("first_positive_day") is not None
+                        ]
+                        med_t = int(np.median(d2p_vals_t)) if d2p_vals_t else None
+                        combo_label = "+".join(tcfg.get("required_all", []) or []) or "模板规则"
                         compare_rows.append({
                             "模板": tname,
-                            "组合": top["组合"],
-                            "样本数": int(top.get("样本数", 0) or 0),
-                            "当前胜率(%)": float(top.get("当前胜率(%)", 0) or 0),
-                            "当前平均收益(%)": float(top.get("当前平均收益(%)", 0) or 0),
-                            "首次转正中位天数": top.get("首次转正中位天数"),
+                            "组合": combo_label,
+                            "样本数": int(len(matched_rows)),
+                            "当前胜率(%)": float(wins_t / len(matched_rows) * 100),
+                            "当前平均收益(%)": float(avg_t),
+                            "首次转正中位天数": med_t,
                         })
                     if compare_rows:
                         compare_df = pd.DataFrame(compare_rows)
