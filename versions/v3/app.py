@@ -1933,6 +1933,8 @@ def render_todays_picks_page():
             e4.metric("平均开始赚钱天数", f"{eval_ret.get('avg_first_profit_day') or '-'}")
             e5.metric("平均开始不赚钱天数", f"{eval_ret.get('avg_first_nonprofit_day') or '-'}")
             st.caption(f"平均盈利持续天数: {eval_ret.get('avg_profit_span_days') or '-'} 天（= 由盈转亏天 - 首次盈利天）")
+            if int(eval_ret.get("sample") or 0) == 0:
+                st.warning("当前规则评估样本为 0。请先在“组合追踪”里执行“回填历史扫描 + 刷新追踪”，再比较规则参数。")
         else:
             st.info("暂无候选追踪样本，先运行扫描并回填历史。")
     
