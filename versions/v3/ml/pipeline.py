@@ -32,13 +32,18 @@ class MLPipeline:
                  market: str = 'US',
                  days_back: int = 180,
                  commission_bps: float = 5.0,
-                 slippage_bps: float = 10.0):
+                 slippage_bps: float = 10.0,
+                 use_fundamental_features: bool = True,
+                 enable_fundamental_api: bool = False):
         self.market = market
         self.days_back = days_back
         self.commission_bps = float(commission_bps)
         self.slippage_bps = float(slippage_bps)
         # 双边成本: 开仓 + 平仓
         self.round_trip_cost_pct = 2.0 * (self.commission_bps + self.slippage_bps) / 100.0
+        # 基本面特征开关
+        self.use_fundamental_features = bool(use_fundamental_features)
+        self.enable_fundamental_api = bool(enable_fundamental_api)
         self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}"
         self.model_dir.mkdir(parents=True, exist_ok=True)
         self.label_cost_profile: Dict[str, Dict] = {}
@@ -307,6 +312,7 @@ class MLPipeline:
         from db.database import query_scan_results, get_scanned_dates, init_db
         from db.stock_history import get_stock_history, save_stock_history
         from ml.features.feature_calculator import FeatureCalculator, FEATURE_COLUMNS
+        from ml.features.fundamental_features import build_fundamental_features
         
         print(f"\n📊 准备数据集...")
         
@@ -344,6 +350,10 @@ class MLPipeline:
                     'blue_weekly': float(r.get('blue_weekly', 0) or 0),
                     'blue_monthly': float(r.get('blue_monthly', 0) or 0),
                     'is_heima': bool(r.get('is_heima', False) or r.get('heima_daily', False)),
+                    # 基本面/分层字段（优先用扫描结果自带）
+                    'market_cap': float(r.get('market_cap', 0) or 0),
+                    'industry': str(r.get('industry', '') or ''),
+                    'cap_category': str(r.get('cap_category', '') or ''),
                 })
         
         signals_df = pd.DataFrame(all_signals)
@@ -376,6 +386,8 @@ class MLPipeline:
             print(f"   限制为 Top {max_symbols} 股票")
         
         # 按股票处理
+        # 基本面外部 API 缓存（避免重复请求）
+        fundamental_external_cache: Dict[str, Dict[str, float]] = {}
         processed = 0
         for i, symbol in enumerate(symbols):
             # 获取历史数据 (优先本地，否则 API)
@@ -435,6 +447,17 @@ class MLPipeline:
                 feature_dict['blue_weekly'] = signal.get('blue_weekly', 0)
                 feature_dict['blue_monthly'] = signal.get('blue_monthly', 0)
                 feature_dict['is_heima'] = signal.get('is_heima', 0)
+
+                # 加入基本面特征（中文注释：这里是低频快照特征）
+                if self.use_fundamental_features:
+                    fund_feats = build_fundamental_features(
+                        symbol=symbol,
+                        market=self.market,
+                        signal_row=signal.to_dict() if hasattr(signal, "to_dict") else dict(signal),
+                        enable_external_api=self.enable_fundamental_api,
+                        external_cache=fundamental_external_cache,
+                    )
+                    feature_dict.update(fund_feats)
                 
                 # 计算未来收益 (标签)
                 # 入场口径: 信号后的下一交易日开盘价，更接近真实执行
@@ -537,6 +560,12 @@ class MLPipeline:
         print(f"   样本数: {len(X)}")
         print(f"   特征数: {len(feature_names)}")
         print(f"   分组数: {len(np.unique(groups))}")
+        print(
+            "   基本面特征: {} (外部API:{})".format(
+                "启用" if self.use_fundamental_features else "关闭",
+                "启用" if self.enable_fundamental_api else "关闭",
+            )
+        )
         print(f"   训练标签: 净收益 (已扣双边成本 {self.round_trip_cost_pct:.2f}%)")
 
         # 保存毛/净收益对比画像，供 UI 展示
