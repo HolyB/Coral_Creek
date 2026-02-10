@@ -24,6 +24,7 @@ except Exception:
     pass
 
 from db.database import get_scanned_dates, query_scan_results, get_connection
+from services.candidate_tracking_service import get_candidate_tracking_rows
 from services.portfolio_service import (
     create_paper_account,
     get_paper_account,
@@ -155,6 +156,7 @@ def run_market(
     full_cap: int = 120,
     deploy_pct: float = 90,
     seed_capital: float = 20000,
+    track_days: int = 180,
     reset_before_buy: bool = False,
     dry_run: bool = False,
 ) -> Dict:
@@ -166,6 +168,11 @@ def run_market(
     rows = query_scan_results(scan_date=latest_date, market=market, limit=3000) or []
     defs = _strategy_defs()
     basket_results = {}
+    tracking_rows = []
+    try:
+        tracking_rows = get_candidate_tracking_rows(market=market, days_back=int(track_days)) or []
+    except Exception:
+        tracking_rows = []
 
     for sd in defs:
         sym_map = {}
@@ -251,6 +258,32 @@ def run_market(
         open_winners = sum(1 for x in pos if float(x.get("unrealized_pnl", 0.0) or 0.0) > 0)
         open_win_rate = (open_winners / len(pos) * 100.0) if pos else 0.0
 
+        matched_track_rows = []
+        if tracking_rows:
+            for tr in tracking_rows:
+                tf = _extract_signal_fields(tr)
+                if _strategy_match(sd["id"], tf, min_blue=min_blue):
+                    matched_track_rows.append(tr)
+        track_total = len(matched_track_rows)
+        if track_total > 0:
+            track_wins = sum(1 for r in matched_track_rows if float(r.get("pnl_pct") or 0) > 0)
+            track_win_rate = track_wins / track_total * 100.0
+            track_avg_pnl = sum(float(r.get("pnl_pct") or 0.0) for r in matched_track_rows) / track_total
+            d2p_vals = sorted(
+                int(r["first_positive_day"])
+                for r in matched_track_rows
+                if r.get("first_positive_day") is not None
+            )
+            if d2p_vals:
+                mid = len(d2p_vals) // 2
+                track_median_d2p = d2p_vals[mid] if len(d2p_vals) % 2 == 1 else int(round((d2p_vals[mid - 1] + d2p_vals[mid]) / 2))
+            else:
+                track_median_d2p = None
+        else:
+            track_win_rate = None
+            track_avg_pnl = None
+            track_median_d2p = None
+
         exec_rows.append({
             "strategy": sd["name"],
             "account": account_name,
@@ -261,6 +294,10 @@ def run_market(
             "total_return_pct": float(perf.get("total_return_pct", 0.0)),
             "closed_win_rate_pct": float(perf.get("win_rate_pct", 0.0)),
             "open_win_rate_pct": open_win_rate,
+            "track_total": track_total,
+            "track_win_rate_pct": track_win_rate,
+            "track_avg_pnl_pct": track_avg_pnl,
+            "track_median_d2p": track_median_d2p,
             "total_pnl": float(perf.get("total_pnl", 0.0)),
             "error": first_err,
         })
@@ -269,6 +306,7 @@ def run_market(
         "ok": True,
         "market": market,
         "scan_date": latest_date,
+        "track_days": int(track_days),
         "sample_count": len(rows),
         "rows": exec_rows,
     }
@@ -285,14 +323,19 @@ def _format_markdown_report(results: List[Dict], dry_run: bool) -> str:
             lines.append("")
             continue
         lines.append(
-            f"📊 *{market}* | 扫描日 `{res.get('scan_date')}` | 样本 {res.get('sample_count', 0)}"
+            f"📊 *{market}* | 扫描日 `{res.get('scan_date')}` | 样本 {res.get('sample_count', 0)} | 追踪窗 {res.get('track_days', 180)}天"
         )
-        lines.append("策略 | 候选 | 成功 | 跳过 | 失败 | 收益率 | 胜率(平仓) | 赢面(持仓)")
+        lines.append("策略 | 候选 | 成功 | 跳过 | 失败 | 收益率 | 胜率(平仓) | 赢面(持仓) | 追踪样本 | 追踪胜率 | 追踪均收 | 转正中位天")
         for r in res.get("rows", []):
+            track_win_txt = f"{float(r.get('track_win_rate_pct')):.1f}%" if r.get("track_win_rate_pct") is not None else "-"
+            track_avg_txt = f"{float(r.get('track_avg_pnl_pct')):+.2f}%" if r.get("track_avg_pnl_pct") is not None else "-"
+            track_d2p_txt = f"{int(r.get('track_median_d2p'))}天" if r.get("track_median_d2p") is not None else "-"
             lines.append(
                 f"{r['strategy']} | {r['candidates']} | {r['success']} | {r['skip']} | {r['fail']} | "
                 f"{r.get('total_return_pct', 0.0):+.2f}% | {r.get('closed_win_rate_pct', 0.0):.1f}% | "
-                f"{r.get('open_win_rate_pct', 0.0):.1f}%"
+                f"{r.get('open_win_rate_pct', 0.0):.1f}% | "
+                f"{int(r.get('track_total', 0) or 0)} | "
+                f"{track_win_txt} | {track_avg_txt} | {track_d2p_txt}"
             )
             if r.get("error"):
                 lines.append(f"  ⚠️ {r['error']}")
@@ -319,6 +362,7 @@ def main():
     parser.add_argument("--full-cap", type=int, default=120)
     parser.add_argument("--deploy-pct", type=float, default=90)
     parser.add_argument("--seed-capital", type=float, default=20000)
+    parser.add_argument("--track-days", type=int, default=180)
     parser.add_argument("--reset-before-buy", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -333,6 +377,7 @@ def main():
             full_cap=args.full_cap,
             deploy_pct=args.deploy_pct,
             seed_capital=args.seed_capital,
+            track_days=args.track_days,
             reset_before_buy=args.reset_before_buy,
             dry_run=args.dry_run,
         )
