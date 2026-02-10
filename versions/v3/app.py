@@ -1652,6 +1652,11 @@ def render_todays_picks_page():
             DEFAULT_TAG_RULES,
             backfill_candidates_from_scan_history,
         )
+        from services.meta_allocator_service import (
+            evaluate_strategy_baskets,
+            allocate_meta_weights,
+            build_today_meta_plan,
+        )
     except Exception as e:
         st.warning(f"候选追踪模块加载失败（已降级）: {e}")
 
@@ -1689,6 +1694,15 @@ def render_todays_picks_page():
 
         def backfill_candidates_from_scan_history(*args, **kwargs):
             return 0
+
+        def evaluate_strategy_baskets(*args, **kwargs):
+            return []
+
+        def allocate_meta_weights(*args, **kwargs):
+            return []
+
+        def build_today_meta_plan(*args, **kwargs):
+            return []
 
         CORE_TAGS = []
         DEFAULT_TAG_RULES = {
@@ -2062,6 +2076,75 @@ def render_todays_picks_page():
             st.caption(f"平均盈利持续天数: {eval_ret.get('avg_profit_span_days') or '-'} 天（= 由盈转亏天 - 首次盈利天）")
             if int(eval_ret.get("sample") or 0) == 0:
                 st.warning("当前规则评估样本为 0。请先在“组合追踪”里执行“回填历史扫描 + 刷新追踪”，再比较规则参数。")
+
+            st.markdown("### 🧩 策略组合层（Meta Allocator）")
+            a1, a2, a3, a4 = st.columns(4)
+            with a1:
+                alloc_fee_bps = st.slider("手续费(bps)", min_value=0.0, max_value=30.0, value=5.0, step=0.5, key=f"alloc_fee_bps_{market}")
+            with a2:
+                alloc_slip_bps = st.slider("滑点(bps)", min_value=0.0, max_value=30.0, value=5.0, step=0.5, key=f"alloc_slip_bps_{market}")
+            with a3:
+                alloc_min_samples = st.slider("最小样本", min_value=8, max_value=120, value=20, step=2, key=f"alloc_min_samples_{market}")
+            with a4:
+                alloc_top_n = st.slider("当日候选数", min_value=5, max_value=30, value=12, step=1, key=f"alloc_topn_{market}")
+
+            perf_rows = evaluate_strategy_baskets(
+                rows=tracking_rows_for_action,
+                rule_name=exit_rule,
+                take_profit_pct=float(rule_tp),
+                stop_loss_pct=float(rule_sl),
+                max_hold_days=int(rule_max_hold),
+                fee_bps=float(alloc_fee_bps),
+                slippage_bps=float(alloc_slip_bps),
+                min_samples=int(alloc_min_samples),
+                max_rows=1200,
+            )
+            perf_df = pd.DataFrame(perf_rows) if perf_rows else pd.DataFrame()
+            if not perf_df.empty:
+                show_cols = [
+                    "策略", "sample", "net_win_rate_pct", "net_avg_return_pct",
+                    "ann_return_pct", "sharpe", "max_drawdown_pct",
+                    "profit_factor", "turnover_per_year",
+                ]
+                col_map = {
+                    "sample": "样本",
+                    "net_win_rate_pct": "净胜率(%)",
+                    "net_avg_return_pct": "净均收(%)",
+                    "ann_return_pct": "年化(%)",
+                    "sharpe": "Sharpe",
+                    "max_drawdown_pct": "最大回撤(%)",
+                    "profit_factor": "盈亏比",
+                    "turnover_per_year": "年换手(次)",
+                }
+                st.dataframe(
+                    perf_df[show_cols].rename(columns=col_map),
+                    width="stretch",
+                    hide_index=True,
+                )
+
+                weight_rows = allocate_meta_weights(perf_rows, max_weight=0.45, min_weight=0.05)
+                weight_df = pd.DataFrame(weight_rows) if weight_rows else pd.DataFrame()
+                b1, b2 = st.columns([1, 1])
+                with b1:
+                    st.markdown("**动态权重建议**")
+                    if not weight_df.empty:
+                        st.dataframe(weight_df, width="stretch", hide_index=True)
+                    else:
+                        st.info("暂无可分配策略")
+                with b2:
+                    st.markdown("**当日组合候选（按权重）**")
+                    today_plan = build_today_meta_plan(
+                        rows=tracking_rows_for_action,
+                        weight_rows=weight_rows,
+                        top_n=int(alloc_top_n),
+                    )
+                    today_plan_df = pd.DataFrame(today_plan) if today_plan else pd.DataFrame()
+                    if not today_plan_df.empty:
+                        st.dataframe(today_plan_df, width="stretch", hide_index=True)
+                    else:
+                        st.info("今日暂无满足组合规则的候选。")
+            else:
+                st.info("组合层样本不足：请先积累更多候选追踪样本。")
         else:
             st.info("暂无候选追踪样本，先运行扫描并回填历史。")
     
