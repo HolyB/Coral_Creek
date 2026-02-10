@@ -5,7 +5,7 @@
 """
 from __future__ import annotations
 
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence
 import numpy as np
 
 from services.candidate_tracking_service import evaluate_exit_rule
@@ -254,6 +254,7 @@ def build_today_meta_plan(
     rows: Sequence[Dict],
     weight_rows: Sequence[Dict],
     top_n: int = 10,
+    total_capital: float = 100000.0,
 ) -> List[Dict]:
     if not rows or not weight_rows:
         return []
@@ -262,34 +263,63 @@ def build_today_meta_plan(
     latest_rows = [r for r in rows if str(r.get("signal_date") or "") == latest_date]
 
     key2cfg = STRATEGY_TAG_DEFS
-    picked: Dict[Tuple[str, str], Dict] = {}
+    picked: Dict[str, Dict] = {}
     w_map = {str(w.get("strategy_key")): _to_float(w.get("建议权重(%)")) for w in weight_rows}
 
     for r in latest_rows:
+        sym = str(r.get("symbol") or "")
+        if not sym:
+            continue
+
+        hit_strategies = []
+        weight_sum = 0.0
         for key, cfg in key2cfg.items():
             if key not in w_map:
                 continue
             if not _match_strategy(r, cfg):
                 continue
-            sym = str(r.get("symbol") or "")
-            if not sym:
-                continue
-            score = 0.7 * _to_float(r.get("blue_daily")) + 0.3 * _to_float(r.get("blue_weekly"))
-            k = (sym, key)
-            if (k not in picked) or (score > _to_float(picked[k].get("_score"))):
-                picked[k] = {
-                    "日期": latest_date,
-                    "symbol": sym,
-                    "策略": cfg.get("name", key),
-                    "建议权重(%)": round(w_map.get(key, 0.0), 1),
-                    "blue_daily": round(_to_float(r.get("blue_daily")), 1),
-                    "blue_weekly": round(_to_float(r.get("blue_weekly")), 1),
-                    "当前收益(%)": round(_to_float(r.get("pnl_pct")), 2),
-                    "_score": score,
-                }
+            hit_strategies.append(cfg.get("name", key))
+            weight_sum += _to_float(w_map.get(key))
+
+        if not hit_strategies:
+            continue
+
+        day_blue = _to_float(r.get("blue_daily"))
+        week_blue = _to_float(r.get("blue_weekly"))
+        # 信号强度压缩到相对可解释区间，避免纯数值过大失真
+        signal_strength = 0.7 * min(day_blue / 200.0, 1.5) + 0.3 * min(week_blue / 200.0, 1.5)
+        raw_exec = max(weight_sum * signal_strength, 0.0)
+
+        existing = picked.get(sym)
+        if (existing is None) or (raw_exec > _to_float(existing.get("_raw_exec"))):
+            picked[sym] = {
+                "日期": latest_date,
+                "symbol": sym,
+                "命中策略数": len(hit_strategies),
+                "命中策略": "、".join(sorted(set(hit_strategies))),
+                "策略权重合计(%)": round(weight_sum, 1),
+                "blue_daily": round(day_blue, 1),
+                "blue_weekly": round(week_blue, 1),
+                "当前收益(%)": round(_to_float(r.get("pnl_pct")), 2),
+                "_raw_exec": raw_exec,
+            }
 
     rows_out = list(picked.values())
-    rows_out.sort(key=lambda x: (x.get("建议权重(%)", 0.0), x.get("_score", 0.0)), reverse=True)
+    rows_out.sort(key=lambda x: x.get("_raw_exec", 0.0), reverse=True)
+    if not rows_out:
+        return []
+
+    max_raw = max(_to_float(x.get("_raw_exec")) for x in rows_out)
+    sum_raw = sum(_to_float(x.get("_raw_exec")) for x in rows_out)
+    safe_capital = max(_to_float(total_capital, 100000.0), 0.0)
+
     for r in rows_out:
-        r.pop("_score", None)
+        raw = _to_float(r.get("_raw_exec"))
+        score_100 = (raw / max_raw * 100.0) if max_raw > 0 else 0.0
+        pos_pct = (raw / sum_raw * 100.0) if sum_raw > 0 else 0.0
+        r["综合执行分(0-100)"] = round(score_100, 1)
+        r["建议仓位(%)"] = round(pos_pct, 1)
+        r["建议金额($)"] = round(safe_capital * pos_pct / 100.0, 2)
+        r.pop("_raw_exec", None)
+
     return rows_out[: int(top_n)]
