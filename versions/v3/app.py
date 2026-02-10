@@ -3,6 +3,7 @@ import pandas as pd
 import glob
 import os
 import sys
+import json
 import socket
 import subprocess
 import urllib.error
@@ -1477,7 +1478,13 @@ def render_todays_picks_page():
         st.error(f"策略模块导入失败: {e}")
         return
     
-    from db.database import query_scan_results, get_scanned_dates, get_stock_info_batch
+    from db.database import (
+        query_scan_results,
+        get_scanned_dates,
+        get_stock_info_batch,
+        get_app_setting,
+        set_app_setting,
+    )
     from services.portfolio_service import get_portfolio_summary
     try:
         from services.candidate_tracking_service import (
@@ -2853,17 +2860,41 @@ def render_todays_picks_page():
             )
 
         pin_key = f"track_pinned_templates_{market}"
+        pin_db_key = f"{pin_key}_v1"
+        pin_default = ["日周月 三线共振", "中长线强共振(三线+黑马任一+筹码密集)"]
+        available_pin_options = [x for x in combo_templates.keys() if x != "不使用模板"]
+
         if pin_key not in st.session_state:
-            st.session_state[pin_key] = ["日周月 三线共振", "中长线强共振(三线+黑马任一+筹码密集)"]
+            restored_pins = list(pin_default)
+            try:
+                saved_pin_raw = get_app_setting(pin_db_key, default=None)
+                if saved_pin_raw:
+                    parsed = json.loads(saved_pin_raw)
+                    if isinstance(parsed, list):
+                        restored_pins = [
+                            x for x in parsed
+                            if x in available_pin_options
+                        ]
+            except Exception as e:
+                print(f"⚠️ 读取置顶模板失败({pin_db_key}): {e}")
+            if not restored_pins:
+                restored_pins = list(pin_default)
+            st.session_state[pin_key] = restored_pins
         p1, p2 = st.columns([3, 1])
         with p1:
             pinned_templates = st.multiselect(
                 "⭐ 置顶模板（用于组合对比/推送）",
-                options=[x for x in combo_templates.keys() if x != "不使用模板"],
+                options=available_pin_options,
                 default=[x for x in st.session_state[pin_key] if x in combo_templates and x != "不使用模板"],
                 key=f"track_pin_select_{market}",
             )
+            old_pins = list(st.session_state.get(pin_key, []))
             st.session_state[pin_key] = pinned_templates
+            if pinned_templates != old_pins:
+                try:
+                    set_app_setting(pin_db_key, json.dumps(pinned_templates, ensure_ascii=False))
+                except Exception as e:
+                    st.caption(f"⚠️ 置顶模板保存失败: {e}")
         with p2:
             if st.button("使用置顶模板", key=f"track_use_pinned_{market}"):
                 if pinned_templates:

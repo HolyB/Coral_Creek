@@ -277,6 +277,15 @@ def init_db():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_symbol ON watchlist(symbol)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_status ON watchlist(status)")
+
+        # 应用设置表（用于持久化 UI 偏好）
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS app_settings (
+                setting_key VARCHAR(100) PRIMARY KEY,
+                setting_value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         
         # 迁移: 如果 market 列不存在，添加它
         try:
@@ -286,6 +295,53 @@ def init_db():
             cursor.execute("ALTER TABLE scan_results ADD COLUMN market VARCHAR(10) DEFAULT 'US'")
         
         print(f"✅ Database initialized at: {DB_PATH}")
+
+
+def get_app_setting(setting_key, default=None):
+    """读取应用设置值（字符串）"""
+    def _query_setting():
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT setting_value FROM app_settings WHERE setting_key = ?",
+                (setting_key,),
+            )
+            row = cursor.fetchone()
+            return row["setting_value"] if row else default
+
+    try:
+        return _query_setting()
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e).lower():
+            init_db()
+            return _query_setting()
+        raise
+
+
+def set_app_setting(setting_key, setting_value):
+    """写入应用设置值（字符串）"""
+    def _upsert_setting():
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO app_settings (setting_key, setting_value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(setting_key) DO UPDATE SET
+                    setting_value = excluded.setting_value,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (setting_key, setting_value),
+            )
+
+    try:
+        _upsert_setting()
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e).lower():
+            init_db()
+            _upsert_setting()
+        else:
+            raise
 
 
 def get_scanned_dates(start_date=None, end_date=None, market=None):
