@@ -8978,9 +8978,44 @@ def render_strategy_optimizer_tab():
         if st.button("🧪 生成策略极致报告", key="run_extreme_report"):
             with st.spinner("正在评估各策略参数组合..."):
                 df_hist = optimizer._load_historical_data()
+                history_source = "optimizer_table"
+
+                # 兜底：若优化器历史表为空，则回退到 candidate_tracking 构造评估样本
                 if df_hist is None or df_hist.empty:
-                    st.warning("历史样本为空，无法生成策略极致报告")
+                    try:
+                        from services.candidate_tracking_service import get_candidate_tracking_rows
+                        tr_rows = get_candidate_tracking_rows(
+                            market=None if market_scope == "全部" else market_scope,
+                            days_back=max(365, int(lookback_days) if int(lookback_days) < 9999 else 720),
+                        ) or []
+                        if tr_rows:
+                            mapped = []
+                            for r in tr_rows:
+                                ret_d5 = r.get("pnl_d5")
+                                if ret_d5 is None:
+                                    ret_d5 = r.get("pnl_pct")
+                                mapped.append({
+                                    "symbol": r.get("symbol"),
+                                    "pick_date": r.get("signal_date"),
+                                    "market": r.get("market"),
+                                    "blue_daily": r.get("blue_daily"),
+                                    "blue_weekly": r.get("blue_weekly"),
+                                    "blue_monthly": r.get("blue_monthly"),
+                                    "adx": r.get("adx"),
+                                    "turnover": r.get("turnover_m"),
+                                    "is_heima": bool(r.get("heima_daily") or r.get("heima_weekly") or r.get("heima_monthly")),
+                                    "is_juedi": bool(r.get("juedi_daily") or r.get("juedi_weekly") or r.get("juedi_monthly")),
+                                    "return_d5": ret_d5,
+                                })
+                            df_hist = pd.DataFrame(mapped)
+                            history_source = "candidate_tracking"
+                    except Exception:
+                        pass
+
+                if df_hist is None or df_hist.empty:
+                    st.warning("历史样本为空，无法生成策略极致报告。请先在“每日工作台/组合追踪”累计并刷新候选追踪数据。")
                 else:
+                    st.caption(f"样本来源: {history_source} | 原始样本: {len(df_hist)}")
                     work_df = df_hist.copy()
 
                     # 按市场筛选
