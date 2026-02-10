@@ -12,6 +12,7 @@ Streamlit Cloud 部署:
 
 import sys
 import os
+import traceback
 
 # 运行 V3
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,19 @@ if V3_PATH not in sys.path:
 # 切换工作目录到 V3
 os.chdir(V3_PATH)
 
-# 运行 V3 app
+# 运行 V3 app（失败时在页面显示可读错误，避免 Streamlit Cloud 只给 Server Error）
 import runpy
-runpy.run_path(os.path.join(V3_PATH, "app.py"), run_name="__main__")
+try:
+    runpy.run_path(os.path.join(V3_PATH, "app.py"), run_name="__main__")
+except Exception as e:
+    try:
+        import streamlit as st
+        st.set_page_config(page_title="Coral Creek - Error", page_icon="⚠️", layout="wide")
+        st.error(f"应用启动失败: {e}")
+        st.code(traceback.format_exc())
+        st.info("请把上面的错误栈发给我，我会立刻修复。")
+    except Exception:
+        # 最后兜底：保证日志里有完整栈
+        print("Coral Creek bootstrap failed:")
+        print(traceback.format_exc())
+        raise
