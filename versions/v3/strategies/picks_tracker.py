@@ -103,7 +103,26 @@ class PicksPerformanceTracker:
         self.use_supabase = use_supabase
         self._supabase = None
         self.table_name = 'daily_picks_performance'
-    
+        self._table_checked = False
+
+    def _is_missing_table_error(self, err: Exception) -> bool:
+        s = str(err)
+        return ("PGRST205" in s) and ("daily_picks_performance" in s)
+
+    def _ensure_table_name(self):
+        """缺少 daily_picks_performance 时自动回退到 signal_performance。"""
+        if self._table_checked:
+            return
+        self._table_checked = True
+        supabase = self._supabase
+        if not supabase:
+            return
+        try:
+            supabase.table(self.table_name).select('symbol').limit(1).execute()
+        except Exception as e:
+            if self._is_missing_table_error(e):
+                self.table_name = 'signal_performance'
+
     def _get_supabase(self):
         """获取 Supabase 客户端"""
         if self._supabase is None:
@@ -115,6 +134,7 @@ class PicksPerformanceTracker:
                     self._supabase = create_client(url, key)
             except Exception as e:
                 print(f"Supabase not available: {e}")
+        self._ensure_table_name()
         return self._supabase
     
     def record_pick(self, pick: DailyPick) -> bool:
@@ -130,6 +150,16 @@ class PicksPerformanceTracker:
                 ).execute()
                 return True
             except Exception as e:
+                if self._is_missing_table_error(e):
+                    self.table_name = 'signal_performance'
+                    try:
+                        supabase.table(self.table_name).upsert(
+                            pick.to_dict(),
+                            on_conflict='symbol,pick_date,strategy'
+                        ).execute()
+                        return True
+                    except Exception:
+                        return False
                 print(f"Failed to record pick: {e}")
                 return False
         return False
@@ -171,6 +201,9 @@ class PicksPerformanceTracker:
                 }).execute()
                 return True
             except Exception as e:
+                if self._is_missing_table_error(e):
+                    self.table_name = 'signal_performance'
+                    return False
                 print(f"Failed to update returns: {e}")
         return False
     
@@ -190,6 +223,9 @@ class PicksPerformanceTracker:
             
             return response.data or []
         except Exception as e:
+            if self._is_missing_table_error(e):
+                self.table_name = 'signal_performance'
+                return []
             print(f"Failed to get picks needing update: {e}")
             return []
     
@@ -316,7 +352,8 @@ class PicksPerformanceTracker:
             }
             
         except Exception as e:
-            if "daily_picks_performance" in str(e) and "PGRST205" in str(e):
+            if self._is_missing_table_error(e):
+                self.table_name = 'signal_performance'
                 # 云端未建该表时静默降级，避免刷屏
                 return {}
             print(f"Failed to get performance summary: {e}")
@@ -346,7 +383,8 @@ class FeatureAnalyzer:
             
             return pd.DataFrame(data)
         except Exception as e:
-            if "daily_picks_performance" in str(e) and "PGRST205" in str(e):
+            if self.tracker._is_missing_table_error(e):
+                self.tracker.table_name = 'signal_performance'
                 return pd.DataFrame()
             print(f"Failed to get data: {e}")
             return pd.DataFrame()

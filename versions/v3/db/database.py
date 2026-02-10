@@ -22,6 +22,9 @@ try:
 except ImportError:
     SUPABASE_LAYER_AVAILABLE = False
 
+# 避免重复刷屏日志
+_SUPABASE_LAG_WARNED = False
+
 # 检查是否使用 Supabase
 USE_SUPABASE = os.environ.get('SUPABASE_URL') is not None
 
@@ -395,7 +398,10 @@ def get_scanned_dates(start_date=None, end_date=None, market=None):
             if dates and local_dates:
                 if str(dates[0]) >= str(local_dates[0]):
                     return dates
-                print(f"⚠️ Supabase 日期落后 (supabase={dates[0]}, sqlite={local_dates[0]}), 回退 SQLite")
+                global _SUPABASE_LAG_WARNED
+                if not _SUPABASE_LAG_WARNED:
+                    print(f"⚠️ Supabase 日期落后 (supabase={dates[0]}, sqlite={local_dates[0]}), 回退 SQLite")
+                    _SUPABASE_LAG_WARNED = True
                 return local_dates
             if dates:
                 return dates

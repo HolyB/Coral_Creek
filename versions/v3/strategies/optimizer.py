@@ -335,7 +335,13 @@ class StrategyOptimizer:
             return pd.DataFrame(response.data or [])
         except Exception as e:
             if "daily_picks_performance" in str(e) and "PGRST205" in str(e):
-                return pd.DataFrame()
+                try:
+                    response = supabase.table('signal_performance').select('*').not_.is_(
+                        'return_d5', 'null'
+                    ).execute()
+                    return pd.DataFrame(response.data or [])
+                except Exception:
+                    return pd.DataFrame()
             print(f"Failed to load data: {e}")
             return pd.DataFrame()
     
