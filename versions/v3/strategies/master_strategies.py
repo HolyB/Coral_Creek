@@ -295,6 +295,126 @@ def analyze_caisen_multitimeframe(
 
     return results
 
+
+# ==================================
+# 萧明道结构体系（多周期）
+# ==================================
+XIAOMINGDAO_CORE_STRUCTURES: List[Dict[str, str]] = [
+    {"code": "X01", "name": "上升结构完整", "bias": "多", "desc": "价在MA20/MA60之上，趋势斜率为正"},
+    {"code": "X02", "name": "缩量回踩不破", "bias": "多", "desc": "回踩MA20但不破，且量能明显萎缩"},
+    {"code": "X03", "name": "平台突破确认", "bias": "多", "desc": "箱体震荡后放量突破上沿"},
+    {"code": "X04", "name": "黄金坑反包", "bias": "多", "desc": "急跌后阳线反包，结构快速修复"},
+    {"code": "X05", "name": "多头排列共振", "bias": "多", "desc": "MA5>MA20>MA60，多周期一致"},
+    {"code": "X06", "name": "高位量价背离", "bias": "空", "desc": "创新高但量能持续衰减"},
+    {"code": "X07", "name": "巨量滞涨", "bias": "空", "desc": "放天量但价格推进不足"},
+    {"code": "X08", "name": "关键支撑失守", "bias": "空", "desc": "跌破MA20/箱体下沿且放量"},
+    {"code": "X09", "name": "反弹无量", "bias": "空", "desc": "下跌后反弹量能不足"},
+    {"code": "X10", "name": "结构中性整理", "bias": "中", "desc": "箱体内运行，方向未选择"},
+    {"code": "X11", "name": "下跌结构衰竭", "bias": "中", "desc": "下跌动能衰减，等待右侧确认"},
+    {"code": "X12", "name": "趋势反转确认", "bias": "多", "desc": "先站回MA20，再突破前高"},
+]
+
+
+def _detect_xiaomingdao_structures(df: pd.DataFrame, timeframe_label: str) -> List[Dict[str, str]]:
+    if df is None or df.empty or len(df) < 35:
+        return []
+
+    o = df["Open"]
+    h = df["High"]
+    l = df["Low"]
+    c = df["Close"]
+    v = df["Volume"]
+
+    ma5 = c.rolling(5).mean()
+    ma20 = c.rolling(20).mean()
+    ma60 = c.rolling(60).mean()
+    vma5 = v.rolling(5).mean()
+    vma20 = v.rolling(20).mean()
+
+    close_now = float(c.iloc[-1])
+    close_prev = float(c.iloc[-2]) if len(c) > 1 else close_now
+    ret1 = float(c.pct_change().iloc[-1] * 100.0) if len(c) > 1 else 0.0
+    ret5 = float((c.iloc[-1] / c.iloc[-6] - 1.0) * 100.0) if len(c) > 6 else 0.0
+    vol_ratio = float((v.iloc[-1] / max(vma20.iloc[-1], 1e-9)) if pd.notna(vma20.iloc[-1]) else 1.0)
+
+    prev20_high = float(h.iloc[-21:-1].max()) if len(h) > 21 else float(h.iloc[:-1].max())
+    prev20_low = float(l.iloc[-21:-1].min()) if len(l) > 21 else float(l.iloc[:-1].min())
+    box_range = (prev20_high - prev20_low) / max(close_now, 1e-9)
+
+    matched: List[Dict[str, str]] = []
+
+    def add(code: str, name: str, bias: str, reason: str):
+        matched.append({"timeframe": timeframe_label, "code": code, "name": name, "bias": bias, "reason": reason})
+
+    if pd.notna(ma20.iloc[-1]) and pd.notna(ma60.iloc[-1]) and close_now > float(ma20.iloc[-1]) > float(ma60.iloc[-1]):
+        add("X01", "上升结构完整", "多", "收盘位于MA20和MA60之上")
+    if pd.notna(ma20.iloc[-1]) and abs(close_now - float(ma20.iloc[-1])) / max(float(ma20.iloc[-1]), 1e-9) <= 0.02 and vol_ratio <= 0.8 and close_now >= close_prev:
+        add("X02", "缩量回踩不破", "多", f"贴近MA20缩量，量比{vol_ratio:.2f}")
+    if box_range < 0.12 and close_now > prev20_high and vol_ratio > 1.3:
+        add("X03", "平台突破确认", "多", f"箱体振幅{box_range*100:.1f}%后放量突破")
+    if len(c) >= 6:
+        low3 = float(l.iloc[-4:-1].min())
+        if ret1 > 2.0 and close_now > float(o.iloc[-1]) and close_now > float(c.iloc[-2]) and low3 < float(c.iloc[-5]):
+            add("X04", "黄金坑反包", "多", "快速下探后阳线反包修复")
+    if pd.notna(ma5.iloc[-1]) and pd.notna(ma20.iloc[-1]) and pd.notna(ma60.iloc[-1]) and float(ma5.iloc[-1]) > float(ma20.iloc[-1]) > float(ma60.iloc[-1]):
+        add("X05", "多头排列共振", "多", "短中长均线多头排列")
+    if len(c) >= 60 and close_now >= float(c.iloc[-60:].max()) and (vma5.iloc[-1] < vma20.iloc[-1] * 0.9 if pd.notna(vma5.iloc[-1]) and pd.notna(vma20.iloc[-1]) else False):
+        add("X06", "高位量价背离", "空", "创新高但短均量弱于中均量")
+    if abs(ret1) < 1.0 and vol_ratio > 1.8:
+        add("X07", "巨量滞涨", "空", f"量比{vol_ratio:.2f}但单期涨跌幅仅{ret1:.2f}%")
+    if pd.notna(ma20.iloc[-1]) and close_now < float(ma20.iloc[-1]) <= close_prev and vol_ratio > 1.2:
+        add("X08", "关键支撑失守", "空", "放量跌破MA20")
+    if ret5 < -5.0 and ret1 > 0 and vol_ratio < 0.9:
+        add("X09", "反弹无量", "空", "下跌后的反弹量能不足")
+    if box_range <= 0.15 and abs(ret5) < 4.0:
+        add("X10", "结构中性整理", "中", "仍在箱体内震荡")
+    if ret5 < -8.0 and vol_ratio < 0.8 and close_now > prev20_low:
+        add("X11", "下跌结构衰竭", "中", "跌势放缓但需右侧确认")
+    if pd.notna(ma20.iloc[-1]) and close_prev <= float(ma20.iloc[-1]) < close_now and close_now > prev20_high:
+        add("X12", "趋势反转确认", "多", "站回MA20后突破近期前高")
+
+    return matched
+
+
+def analyze_xiaomingdao_multitimeframe(
+    daily_df: Optional[pd.DataFrame],
+    hourly_df: Optional[pd.DataFrame] = None
+) -> Dict[str, Dict]:
+    """萧明道量价结构多周期识别（1小时/日/周/月）。"""
+    results: Dict[str, Dict] = {}
+    d = _normalize_ohlcv(daily_df)
+    h = _normalize_ohlcv(hourly_df)
+
+    frames = [
+        ("h1", "1小时", h),
+        ("d1", "日线", d),
+        ("w1", "周线", _resample_ohlcv(d, "W-FRI") if not d.empty else pd.DataFrame()),
+        ("m1", "月线", _resample_ohlcv(d, "ME") if not d.empty else pd.DataFrame()),
+    ]
+
+    for key, label, df in frames:
+        if df.empty or len(df) < 10:
+            results[key] = {"label": label, "available": False, "signal": "N/A", "summary": "样本不足", "patterns": []}
+            continue
+
+        found = _detect_xiaomingdao_structures(df, timeframe_label=label)
+        bull = sum(1 for x in found if x["bias"] == "多")
+        bear = sum(1 for x in found if x["bias"] == "空")
+        if bull > bear:
+            signal = "偏多"
+        elif bear > bull:
+            signal = "偏空"
+        else:
+            signal = "中性"
+        results[key] = {
+            "label": label,
+            "available": True,
+            "signal": signal,
+            "summary": f"多头{bull} / 空头{bear} / 中性{max(len(found)-bull-bear, 0)}",
+            "patterns": found,
+        }
+    return results
+
 TD_SEQUENTIAL = MasterStrategy(
     name="神奇九转",
     master="Tom DeMark",

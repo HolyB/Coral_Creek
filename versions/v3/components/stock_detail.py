@@ -2086,6 +2086,8 @@ def _render_ml_prediction_tab(
             from strategies.master_strategies import (
                 analyze_caisen_multitimeframe,
                 CAISEN_16_PATTERN_CATALOG,
+                analyze_xiaomingdao_multitimeframe,
+                XIAOMINGDAO_CORE_STRUCTURES,
             )
 
             caisen_res = analyze_caisen_multitimeframe(daily_df=hist_data, hourly_df=None)
@@ -2138,6 +2140,59 @@ def _render_ml_prediction_tab(
                     st.caption("当前未触发形态。")
         except Exception as e:
             st.warning(f"蔡森16形态分析暂不可用: {e}")
+
+        st.markdown("### 📐 萧明道结构体系（多周期）")
+        try:
+            xmd_res = analyze_xiaomingdao_multitimeframe(daily_df=hist_data, hourly_df=None)
+
+            xmd_df = pd.DataFrame(XIAOMINGDAO_CORE_STRUCTURES)
+            xmd_df = xmd_df.rename(
+                columns={"code": "编号", "name": "结构", "bias": "方向", "desc": "含义"}
+            )
+            st.dataframe(xmd_df, hide_index=True, use_container_width=True)
+
+            x_cols = st.columns(4)
+            x_keys = ["h1", "d1", "w1", "m1"]
+            for idx, x_key in enumerate(x_keys):
+                info = xmd_res.get(x_key, {})
+                with x_cols[idx]:
+                    st.markdown(f"**{info.get('label', x_key)}**")
+                    if not info.get("available"):
+                        st.caption("数据不足")
+                        continue
+                    sig = info.get("signal", "中性")
+                    if sig == "偏多":
+                        st.success(sig)
+                    elif sig == "偏空":
+                        st.error(sig)
+                    else:
+                        st.info(sig)
+                    st.caption(info.get("summary", ""))
+                    pts = info.get("patterns", [])[:5]
+                    if pts:
+                        for p in pts:
+                            st.caption(f"{p.get('code')} {p.get('name')}")
+                    else:
+                        st.caption("未触发关键结构")
+
+            with st.expander("查看萧明道结构明细", expanded=False):
+                detail_rows = []
+                for x_key in x_keys:
+                    info = xmd_res.get(x_key, {})
+                    for p in info.get("patterns", []):
+                        detail_rows.append({
+                            "周期": info.get("label", x_key),
+                            "编号": p.get("code"),
+                            "结构": p.get("name"),
+                            "方向": p.get("bias"),
+                            "触发原因": p.get("reason"),
+                        })
+                if detail_rows:
+                    st.dataframe(pd.DataFrame(detail_rows), hide_index=True, use_container_width=True)
+                else:
+                    st.caption("当前未触发结构。")
+        except Exception as e:
+            st.warning(f"萧明道结构分析暂不可用: {e}")
 
         st.divider()
 
