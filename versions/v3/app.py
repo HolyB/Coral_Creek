@@ -9592,26 +9592,15 @@ def render_blogger_page():
     # 确保表存在
     init_blogger_tables()
     
-    tab_bloggers, tab_recs, tab_perf, tab_external, tab_backtest, tab_crawler = st.tabs([
+    tab_bloggers, tab_recs, tab_perf, tab_eval, tab_external, tab_backtest, tab_crawler = st.tabs([
         "👤 博主管理",
         "📝 推荐记录", 
         "🏆 业绩排行",
+        "🎯 喊单评估",
         "📊 外部策略",
         "🧪 策略回测",
         "🔍 文章爬取"
     ])
-    
-    # === Tab 4: 外部策略 ===
-    with tab_external:
-        render_external_strategies_tab()
-    
-    # === Tab 5: 策略回测 ===
-    with tab_backtest:
-        render_strategy_backtest_tab()
-    
-    # === Tab 6: 文章爬取与策略分析 ===
-    with tab_crawler:
-        render_article_crawler_tab()
     
     # === Tab 1: 博主管理 ===
     with tab_bloggers:
@@ -9663,7 +9652,10 @@ def render_blogger_page():
             st.warning("请先添加博主")
         else:
             # 筛选
-            col1, col2 = st.columns(2)
+            all_recs_for_tags = get_recommendations(limit=1000)
+            tag_options = sorted({(x.get("portfolio_tag") or "").strip() for x in all_recs_for_tags if (x.get("portfolio_tag") or "").strip()})
+
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 filter_blogger = st.selectbox(
                     "选择博主",
@@ -9672,29 +9664,48 @@ def render_blogger_page():
                 )
             with col2:
                 filter_market = st.selectbox("市场", ["全部", "CN", "US"])
+            with col3:
+                filter_tag = st.selectbox("组合标签", ["全部"] + tag_options)
+            with col4:
+                horizon_days = st.slider("评估周期(天)", min_value=3, max_value=90, value=10, step=1, key="blogger_rec_horizon")
             
             # 获取并显示推荐
             recs = get_recommendations_with_returns(
                 blogger_id=filter_blogger,
                 market=None if filter_market == "全部" else filter_market,
-                limit=50
+                portfolio_tag=None if filter_tag == "全部" else filter_tag,
+                limit=80,
+                horizon_days=horizon_days,
             )
             
             if recs:
                 rec_df = pd.DataFrame(recs)
-                display_cols = ['blogger_name', 'ticker', 'rec_date', 'rec_type', 'rec_price', 'current_price', 'return_pct', 'days_held']
+                display_cols = [
+                    'blogger_name', 'portfolio_tag', 'ticker', 'rec_date', 'rec_type',
+                    'rec_price', 'current_price', 'return_pct', 'horizon_return_pct',
+                    'directional_return_pct', 'direction_ok', 'mfe_pct', 'mae_pct',
+                    'target_hit', 'stop_hit', 'days_held'
+                ]
                 display_cols = [c for c in display_cols if c in rec_df.columns]
                 
                 st.dataframe(
                     rec_df[display_cols],
                     column_config={
                         'blogger_name': '博主',
+                        'portfolio_tag': '组合标签',
                         'ticker': '股票',
                         'rec_date': '推荐日期',
                         'rec_type': '类型',
                         'rec_price': '推荐价',
                         'current_price': '现价',
                         'return_pct': st.column_config.NumberColumn('收益%', format="%.2f%%"),
+                        'horizon_return_pct': st.column_config.NumberColumn(f'{horizon_days}天收益%', format="%.2f%%"),
+                        'directional_return_pct': st.column_config.NumberColumn(f'{horizon_days}天方向收益%', format="%.2f%%"),
+                        'direction_ok': st.column_config.CheckboxColumn('方向命中'),
+                        'mfe_pct': st.column_config.NumberColumn('最大有利%', format="%.2f%%"),
+                        'mae_pct': st.column_config.NumberColumn('最大不利%', format="%.2f%%"),
+                        'target_hit': st.column_config.CheckboxColumn('到目标价'),
+                        'stop_hit': st.column_config.CheckboxColumn('触发止损'),
                         'days_held': '持有天数'
                     },
                     hide_index=True,
@@ -9709,7 +9720,7 @@ def render_blogger_page():
             if is_admin():
                 st.subheader("➕ 添加推荐")
                 with st.form("add_rec_form"):
-                    col1, col2, col3 = st.columns(3)
+                    col1, col2, col3, col4 = st.columns(4)
                     with col1:
                         rec_blogger = st.selectbox(
                             "博主*",
@@ -9723,6 +9734,9 @@ def render_blogger_page():
                     with col3:
                         rec_type = st.selectbox("类型", ["BUY", "SELL", "HOLD"])
                         rec_price = st.number_input("推荐价格 (可选)", min_value=0.0, step=0.01)
+                    with col4:
+                        rec_tag = st.text_input("组合标签", placeholder="如: X博主-高胜率组合")
+                        rec_source_url = st.text_input("来源链接", placeholder="https://...")
                     
                     rec_notes = st.text_area("推荐理由", height=80)
                     
@@ -9735,7 +9749,9 @@ def render_blogger_page():
                                 rec_date=rec_date.strftime('%Y-%m-%d'),
                                 rec_price=rec_price if rec_price > 0 else None,
                                 rec_type=rec_type,
-                                notes=rec_notes
+                                portfolio_tag=(rec_tag.strip() if rec_tag else None),
+                                notes=rec_notes,
+                                source_url=(rec_source_url.strip() if rec_source_url else None),
                             )
                             st.success(f"✅ 已添加推荐: {rec_ticker}")
                             st.rerun()
@@ -9749,20 +9765,32 @@ def render_blogger_page():
         if st.button("🔄 刷新统计"):
             st.cache_data.clear()
         
-        perf = get_blogger_performance()
+        all_recs_for_tags = get_recommendations(limit=1000)
+        tag_options = sorted({(x.get("portfolio_tag") or "").strip() for x in all_recs_for_tags if (x.get("portfolio_tag") or "").strip()})
+        p1, p2 = st.columns(2)
+        with p1:
+            perf_horizon = st.slider("排行评估周期(天)", min_value=3, max_value=90, value=10, step=1, key="blogger_perf_horizon")
+        with p2:
+            perf_tag = st.selectbox("组合标签过滤", ["全部"] + tag_options, key="blogger_perf_tag")
+
+        perf = get_blogger_performance(
+            horizon_days=perf_horizon,
+            portfolio_tag=None if perf_tag == "全部" else perf_tag,
+        )
         
         if perf:
             perf_df = pd.DataFrame(perf)
             
             # 高亮显示
             st.dataframe(
-                perf_df[['name', 'platform', 'rec_count', 'win_rate', 'avg_return', 'total_return']],
+                perf_df[['name', 'platform', 'rec_count', 'win_rate', 'avg_return', 'avg_directional_return', 'total_return']],
                 column_config={
                     'name': '博主',
                     'platform': '平台',
                     'rec_count': '推荐数',
                     'win_rate': st.column_config.NumberColumn('胜率%', format="%.1f%%"),
                     'avg_return': st.column_config.NumberColumn('平均收益%', format="%.2f%%"),
+                    'avg_directional_return': st.column_config.NumberColumn('方向收益%', format="%.2f%%"),
                     'total_return': st.column_config.NumberColumn('累计收益%', format="%.2f%%")
                 },
                 hide_index=True,
@@ -9782,6 +9810,127 @@ def render_blogger_page():
                 st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("暂无数据，请先添加博主和推荐记录")
+    
+    # === Tab 4: 喊单评估 ===
+    with tab_eval:
+        st.subheader("🎯 买卖点有效性评估")
+        st.caption("按博主/组合标签评估：方向命中率、方向收益、最大有利/不利波动、目标止损触发情况")
+
+        bloggers = get_all_bloggers()
+        if not bloggers:
+            st.info("请先在「博主管理」添加博主，并在「推荐记录」录入喊单。")
+        else:
+            all_recs_for_tags = get_recommendations(limit=2000)
+            tag_options = sorted({(x.get("portfolio_tag") or "").strip() for x in all_recs_for_tags if (x.get("portfolio_tag") or "").strip()})
+            blogger_name_map = {b["name"]: b["id"] for b in bloggers}
+            default_names = list(blogger_name_map.keys())[:3]
+
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                eval_blogger_names = st.multiselect("博主", options=list(blogger_name_map.keys()), default=default_names)
+            with c2:
+                eval_market = st.selectbox("市场", ["全部", "US", "CN"], key="blogger_eval_market")
+            with c3:
+                eval_tag = st.selectbox("组合标签", ["全部"] + tag_options, key="blogger_eval_tag")
+            with c4:
+                eval_horizon = st.slider("评估周期(天)", min_value=3, max_value=90, value=10, step=1, key="blogger_eval_horizon")
+
+            c5, c6, c7 = st.columns(3)
+            with c5:
+                eval_types = st.multiselect("类型", options=["BUY", "SELL", "HOLD"], default=["BUY", "SELL"], key="blogger_eval_types")
+            with c6:
+                eval_min_samples = st.slider("最小样本", min_value=3, max_value=100, value=8, step=1, key="blogger_eval_min_samples")
+            with c7:
+                eval_limit = st.number_input("每博主最大样本", min_value=20, max_value=500, value=150, step=10, key="blogger_eval_limit")
+
+            selected_ids = [blogger_name_map[n] for n in eval_blogger_names if n in blogger_name_map]
+            eval_rows = []
+            for bid in selected_ids:
+                recs = get_recommendations_with_returns(
+                    blogger_id=bid,
+                    market=None if eval_market == "全部" else eval_market,
+                    portfolio_tag=None if eval_tag == "全部" else eval_tag,
+                    limit=int(eval_limit),
+                    horizon_days=int(eval_horizon),
+                )
+                for r in recs:
+                    if eval_types and str(r.get("rec_type", "")).upper() not in eval_types:
+                        continue
+                    eval_rows.append(r)
+
+            if not eval_rows:
+                st.info("当前筛选下暂无可评估样本。")
+            else:
+                eval_df = pd.DataFrame(eval_rows)
+                eval_df["portfolio_tag"] = eval_df.get("portfolio_tag", "").fillna("").replace("", "未分组")
+                if "direction_ok" in eval_df.columns:
+                    eval_df["direction_ok_num"] = eval_df["direction_ok"].map(lambda x: 1.0 if bool(x) else 0.0)
+                else:
+                    eval_df["direction_ok_num"] = 0.0
+                for col in ["directional_return_pct", "mfe_pct", "mae_pct", "target_hit", "stop_hit"]:
+                    if col not in eval_df.columns:
+                        eval_df[col] = 0
+                eval_df["target_hit_num"] = eval_df["target_hit"].map(lambda x: 1.0 if bool(x) else 0.0)
+                eval_df["stop_hit_num"] = eval_df["stop_hit"].map(lambda x: 1.0 if bool(x) else 0.0)
+
+                summary = (
+                    eval_df.groupby(["blogger_name", "portfolio_tag"], as_index=False)
+                    .agg(
+                        样本数=("id", "count"),
+                        方向命中率=("direction_ok_num", "mean"),
+                        平均方向收益=("directional_return_pct", "mean"),
+                        平均最大有利=("mfe_pct", "mean"),
+                        平均最大不利=("mae_pct", "mean"),
+                        目标命中率=("target_hit_num", "mean"),
+                        止损触发率=("stop_hit_num", "mean"),
+                    )
+                )
+                summary["方向命中率"] = summary["方向命中率"] * 100.0
+                summary["目标命中率"] = summary["目标命中率"] * 100.0
+                summary["止损触发率"] = summary["止损触发率"] * 100.0
+                summary = summary[summary["样本数"] >= int(eval_min_samples)]
+                summary = summary.sort_values(["方向命中率", "平均方向收益"], ascending=False)
+
+                if not summary.empty:
+                    st.markdown("**组合评估汇总**")
+                    st.dataframe(
+                        summary,
+                        use_container_width=True,
+                        hide_index=True,
+                        column_config={
+                            "方向命中率": st.column_config.NumberColumn("方向命中率(%)", format="%.1f%%"),
+                            "平均方向收益": st.column_config.NumberColumn(f"{int(eval_horizon)}天平均方向收益(%)", format="%.2f%%"),
+                            "平均最大有利": st.column_config.NumberColumn("平均最大有利(%)", format="%.2f%%"),
+                            "平均最大不利": st.column_config.NumberColumn("平均最大不利(%)", format="%.2f%%"),
+                            "目标命中率": st.column_config.NumberColumn("目标命中率(%)", format="%.1f%%"),
+                            "止损触发率": st.column_config.NumberColumn("止损触发率(%)", format="%.1f%%"),
+                        },
+                    )
+                else:
+                    st.info("样本未达到最小阈值，调低“最小样本”后再看。")
+
+                st.markdown("**明细（最近样本）**")
+                detail_cols = [
+                    "blogger_name", "portfolio_tag", "ticker", "rec_date", "rec_type",
+                    "rec_price", "current_price", "horizon_return_pct",
+                    "directional_return_pct", "direction_ok", "mfe_pct", "mae_pct",
+                    "target_hit", "stop_hit",
+                ]
+                detail_cols = [c for c in detail_cols if c in eval_df.columns]
+                detail_df = eval_df.sort_values("rec_date", ascending=False)[detail_cols].head(200)
+                st.dataframe(detail_df, use_container_width=True, hide_index=True)
+
+    # === Tab 5: 外部策略 ===
+    with tab_external:
+        render_external_strategies_tab()
+    
+    # === Tab 6: 策略回测 ===
+    with tab_backtest:
+        render_strategy_backtest_tab()
+    
+    # === Tab 7: 文章爬取与策略分析 ===
+    with tab_crawler:
+        render_article_crawler_tab()
 
 
 # ==================== V3 合并页面 ====================

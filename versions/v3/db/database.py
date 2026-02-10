@@ -1149,12 +1149,19 @@ def init_blogger_tables():
                 rec_type TEXT DEFAULT 'BUY',
                 target_price REAL,
                 stop_loss REAL,
+                portfolio_tag TEXT,
                 notes TEXT,
                 source_url TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (blogger_id) REFERENCES bloggers(id)
             )
         """)
+
+        # 兼容旧库：补 portfolio_tag 字段
+        try:
+            cursor.execute("SELECT portfolio_tag FROM recommendations LIMIT 1")
+        except Exception:
+            cursor.execute("ALTER TABLE recommendations ADD COLUMN portfolio_tag TEXT")
         
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_rec_blogger ON recommendations(blogger_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_rec_date ON recommendations(rec_date)")
@@ -1212,21 +1219,22 @@ def delete_blogger(blogger_id):
         return cursor.rowcount
 
 
-def add_recommendation(blogger_id, ticker, rec_date, market='CN', rec_price=None, 
-                       rec_type='BUY', target_price=None, stop_loss=None, notes=None, source_url=None):
+def add_recommendation(blogger_id, ticker, rec_date, market='CN', rec_price=None,
+                       rec_type='BUY', target_price=None, stop_loss=None,
+                       portfolio_tag=None, notes=None, source_url=None):
     """添加推荐记录"""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO recommendations (blogger_id, ticker, market, rec_date, rec_price, 
-                                         rec_type, target_price, stop_loss, notes, source_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                         rec_type, target_price, stop_loss, portfolio_tag, notes, source_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (blogger_id, ticker.upper(), market, rec_date, rec_price, 
-              rec_type, target_price, stop_loss, notes, source_url))
+              rec_type, target_price, stop_loss, portfolio_tag, notes, source_url))
         return cursor.lastrowid
 
 
-def get_recommendations(blogger_id=None, ticker=None, market=None, start_date=None, end_date=None, limit=100):
+def get_recommendations(blogger_id=None, ticker=None, market=None, start_date=None, end_date=None, portfolio_tag=None, limit=100):
     """查询推荐记录"""
     with get_db() as conn:
         cursor = conn.cursor()
@@ -1254,6 +1262,9 @@ def get_recommendations(blogger_id=None, ticker=None, market=None, start_date=No
         if end_date:
             query += " AND r.rec_date <= ?"
             params.append(end_date)
+        if portfolio_tag:
+            query += " AND r.portfolio_tag = ?"
+            params.append(portfolio_tag)
         
         query += " ORDER BY r.rec_date DESC LIMIT ?"
         params.append(limit)
