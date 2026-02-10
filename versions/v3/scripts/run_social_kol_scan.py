@@ -70,6 +70,16 @@ def _format_report(ingest_ret: Dict, perf_rows: List[Dict], tag: str, horizon_da
         "Top 评估（按方向收益）:",
     ]
 
+    kol_stats = ingest_ret.get("kol_stats") or []
+    if kol_stats:
+        lines.append("KOL抓取诊断:")
+        for ks in kol_stats[:8]:
+            lines.append(
+                f"- {ks.get('name','-')}({ks.get('platform','-')}): 帖子 {int(ks.get('posts', 0) or 0)} | "
+                f"识别Ticker {int(ks.get('ticker_hits', 0) or 0)} | 新增 {int(ks.get('added', 0) or 0)}"
+            )
+        lines.append("")
+
     if perf_rows:
         for r in perf_rows[:8]:
             lines.append(

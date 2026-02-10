@@ -9864,6 +9864,22 @@ def render_blogger_page():
                     f"完成：处理KOL {ret.get('processed_kols', 0)} | 新增博主 {ret.get('new_bloggers', 0)} | "
                     f"新增推荐 {ret.get('added_recommendations', 0)} | 去重跳过 {ret.get('skipped_duplicates', 0)}"
                 )
+                kol_stats = ret.get("kol_stats") or []
+                if kol_stats:
+                    st.dataframe(
+                        pd.DataFrame(kol_stats),
+                        column_config={
+                            "name": "名称",
+                            "platform": "平台",
+                            "handle": "账号",
+                            "posts": "抓取帖子数",
+                            "ticker_hits": "识别Ticker数",
+                            "added": "新增推荐",
+                            "duplicates": "重复跳过",
+                        },
+                        use_container_width=True,
+                        hide_index=True,
+                    )
                 if ret.get("errors"):
                     st.caption("⚠️ 部分错误: " + " | ".join(ret.get("errors", [])[:3]))
 

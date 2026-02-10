@@ -7,7 +7,8 @@
 from datetime import datetime, timedelta
 import re
 from db.database import (
-    get_recommendations, get_all_bloggers, add_blogger, add_recommendation, get_db
+    get_recommendations, get_all_bloggers, add_blogger, add_recommendation,
+    get_db, get_scanned_dates, query_scan_results
 )
 
 
@@ -338,6 +339,31 @@ def _search_web_posts(query: str, limit: int = 15):
         return []
 
 
+def _build_symbol_universe():
+    """用最新扫描结果构建可交易代码集合，降低误识别噪音。"""
+    uni = {"US": set(), "CN": set()}
+    try:
+        us_dates = get_scanned_dates(market="US")
+        if us_dates:
+            us_rows = query_scan_results(scan_date=us_dates[0], market="US", limit=5000) or []
+            uni["US"] = {str(x.get("symbol", "")).upper().strip() for x in us_rows if str(x.get("symbol", "")).strip()}
+    except Exception:
+        pass
+    try:
+        cn_dates = get_scanned_dates(market="CN")
+        if cn_dates:
+            cn_rows = query_scan_results(scan_date=cn_dates[0], market="CN", limit=5000) or []
+            uni["CN"] = {str(x.get("symbol", "")).upper().strip() for x in cn_rows if str(x.get("symbol", "")).strip()}
+            # 兼容裸六码
+            for s in list(uni["CN"]):
+                code = s.split(".")[0]
+                if code and code.isdigit() and len(code) == 6:
+                    uni["CN"].add(code)
+    except Exception:
+        pass
+    return uni
+
+
 def collect_social_kol_recommendations(kol_configs, portfolio_tag="AUTO_SOCIAL_KOL", max_results_per_kol=20):
     """
     抓取社交大V帖子（公开搜索）并转成推荐记录。
@@ -352,7 +378,9 @@ def collect_social_kol_recommendations(kol_configs, portfolio_tag="AUTO_SOCIAL_K
         "added_recommendations": 0,
         "skipped_duplicates": 0,
         "errors": [],
+        "kol_stats": [],
     }
+    symbol_uni = _build_symbol_universe()
 
     for cfg in (kol_configs or []):
         try:
@@ -387,6 +415,10 @@ def collect_social_kol_recommendations(kol_configs, portfolio_tag="AUTO_SOCIAL_K
             results = _search_web_posts(query, limit=max_results_per_kol)
             summary["processed_kols"] += 1
             today = datetime.now().strftime("%Y-%m-%d")
+            kol_posts = len(results)
+            kol_ticker_hits = 0
+            kol_added = 0
+            kol_dup = 0
 
             for it in results:
                 title = str(it.get("title") or "")
@@ -398,14 +430,24 @@ def collect_social_kol_recommendations(kol_configs, portfolio_tag="AUTO_SOCIAL_K
                 if not tickers:
                     tickers = _extract_tickers_from_url(href)
 
+                filtered = []
                 for tk in tickers[:5]:
                     mkt, normalized = _detect_market_from_ticker(tk)
                     if not normalized:
                         continue
                     if default_market and mkt and default_market in ("US", "CN") and mkt != default_market:
                         continue
+                    # 用扫描代码池过滤，减少噪音词被误识别为ticker
+                    if mkt in ("US", "CN") and symbol_uni.get(mkt):
+                        if normalized.upper() not in symbol_uni[mkt]:
+                            continue
+                    filtered.append((mkt, normalized))
+
+                kol_ticker_hits += len(filtered)
+                for mkt, normalized in filtered:
                     if _source_already_exists(blogger_id, normalized, href):
                         summary["skipped_duplicates"] += 1
+                        kol_dup += 1
                         continue
                     add_recommendation(
                         blogger_id=blogger_id,
@@ -421,6 +463,16 @@ def collect_social_kol_recommendations(kol_configs, portfolio_tag="AUTO_SOCIAL_K
                         source_url=href[:500] if href else None,
                     )
                     summary["added_recommendations"] += 1
+                    kol_added += 1
+            summary["kol_stats"].append({
+                "name": name,
+                "platform": platform,
+                "handle": handle,
+                "posts": kol_posts,
+                "ticker_hits": kol_ticker_hits,
+                "added": kol_added,
+                "duplicates": kol_dup,
+            })
         except Exception as e:
             summary["errors"].append(str(e)[:160])
     return summary
