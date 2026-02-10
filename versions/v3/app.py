@@ -629,12 +629,15 @@ def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
     ]
 
     table = [baseline] + combos
+    base_n = int(baseline.get("样本") or 0)
     for r in table:
         wr = r.get("胜率(%)")
         if wr is None:
             r["相对基线提升(%)"] = None
         else:
             r["相对基线提升(%)"] = round(float(wr) - base_wr, 1)
+        cur_n = int(r.get("样本") or 0)
+        r["占基线比例(%)"] = round(cur_n / base_n * 100.0, 2) if base_n > 0 else None
         r["样本可靠性"] = "低(样本<20)" if (r.get("样本") or 0) < 20 else "正常"
 
     return {
