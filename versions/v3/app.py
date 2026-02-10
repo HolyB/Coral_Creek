@@ -8930,8 +8930,37 @@ def render_strategy_optimizer_tab():
             xaxis_title="BLUE日线阈值",
             yaxis_title="ADX阈值",
             legend_title="策略",
+            hovermode="closest",
+        )
+        fig_hover.update_traces(
+            hovertemplate=(
+                "<b>%{hovertext}</b><br>"
+                "BLUE日线: %{x}<br>"
+                "ADX: %{y}<br>"
+                "说明: %{customdata[0]}<br>"
+                "BLUE周线: %{customdata[1]}<br>"
+                "黑马: %{customdata[2]} | 掘地: %{customdata[3]}<br>"
+                "止损: %{customdata[4]} | 止盈: %{customdata[5]}<extra></extra>"
+            )
         )
         st.plotly_chart(fig_hover, width="stretch")
+
+        # 云端/移动端有时悬停不稳定，提供同等信息的手动查看兜底
+        st.caption("若悬停无反应，可用下方选择器查看同样的策略细节")
+        detail_pick = st.selectbox(
+            "策略详情（手动查看）",
+            options=hover_df["策略名称"].tolist(),
+            key="strategy_hover_fallback_pick",
+        )
+        detail_row = hover_df[hover_df["策略名称"] == detail_pick].iloc[0]
+        d1, d2, d3, d4 = st.columns(4)
+        d1.metric("BLUE日线", int(detail_row["BLUE日线"]))
+        d2.metric("BLUE周线", int(detail_row["BLUE周线"]))
+        d3.metric("ADX", int(detail_row["ADX"]))
+        d4.metric("止损/止盈", f"{detail_row['止损']} / {detail_row['止盈']}")
+        st.info(
+            f"{detail_pick}: {detail_row['说明']} | 黑马: {detail_row['黑马']} | 掘地: {detail_row['掘地']}"
+        )
 
         st.divider()
         st.markdown("### 🧭 各策略最优参数与极致点")
