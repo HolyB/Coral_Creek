@@ -282,6 +282,16 @@ def _get_action_health_rows():
             "延迟(小时)": None,
             "最近信息": str(e),
         }]
+    # 强制清洗列类型，避免 Arrow 因历史缓存/混型数据报错
+    for r in rows:
+        v = r.get("延迟(小时)")
+        if v in ("-", "", "None"):
+            r["延迟(小时)"] = None
+        else:
+            try:
+                r["延迟(小时)"] = float(v) if v is not None else None
+            except Exception:
+                r["延迟(小时)"] = None
     return rows
 
 
@@ -292,7 +302,10 @@ def render_action_health_panel():
         if rows:
             df = pd.DataFrame(rows)
             if "延迟(小时)" in df.columns:
-                df["延迟(小时)"] = pd.to_numeric(df["延迟(小时)"], errors="coerce")
+                df["延迟(小时)"] = pd.to_numeric(
+                    df["延迟(小时)"].replace({"-": None, "": None}),
+                    errors="coerce",
+                )
             st.dataframe(df, use_container_width=True, hide_index=True)
         else:
             st.info("暂无可展示的 Action 状态")
@@ -490,10 +503,8 @@ def init_scheduler():
             from datetime import datetime
             print(f"📱 盘中监控 - {datetime.now()}")
             try:
-                # 运行美股扫描
-                monitor_portfolio(market='US', run_once=True)
-                # 运行A股扫描 (如果是在交易时段)
-                monitor_portfolio(market='CN', run_once=True)
+                # 统一监控当前持仓（函数签名无 market/run_once）
+                monitor_portfolio()
             except Exception as e:
                 print(f"⚠️ [Scheduler] Job failed: {e}")
         

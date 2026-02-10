@@ -316,6 +316,9 @@ class PicksPerformanceTracker:
             }
             
         except Exception as e:
+            if "daily_picks_performance" in str(e) and "PGRST205" in str(e):
+                # 云端未建该表时静默降级，避免刷屏
+                return {}
             print(f"Failed to get performance summary: {e}")
             return {}
 
@@ -343,6 +346,8 @@ class FeatureAnalyzer:
             
             return pd.DataFrame(data)
         except Exception as e:
+            if "daily_picks_performance" in str(e) and "PGRST205" in str(e):
+                return pd.DataFrame()
             print(f"Failed to get data: {e}")
             return pd.DataFrame()
     

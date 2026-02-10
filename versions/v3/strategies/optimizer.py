@@ -334,6 +334,8 @@ class StrategyOptimizer:
             
             return pd.DataFrame(response.data or [])
         except Exception as e:
+            if "daily_picks_performance" in str(e) and "PGRST205" in str(e):
+                return pd.DataFrame()
             print(f"Failed to load data: {e}")
             return pd.DataFrame()
     
