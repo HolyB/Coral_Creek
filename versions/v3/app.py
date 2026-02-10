@@ -1786,6 +1786,68 @@ def render_todays_picks_page():
             delta=f"{total_pnl:+.1f}%" if total_positions > 0 else None,
             delta_color="normal" if total_pnl >= 0 else "inverse"
         )
+
+    # ============================================
+    # 📈 信号质量总览（先看质量再行动）
+    # ============================================
+    with st.expander("📈 信号质量总览（近360天）", expanded=True):
+        if tracking_rows_for_action:
+            q1, q2, q3 = st.columns(3)
+            with q1:
+                combo_quality = build_combo_stats(tracking_rows_for_action, min_samples=12)
+                combo_df = pd.DataFrame(combo_quality) if combo_quality else pd.DataFrame()
+                st.markdown("**策略组合（按当前胜率）**")
+                if not combo_df.empty:
+                    combo_df = combo_df.sort_values(["当前胜率(%)", "当前平均收益(%)"], ascending=False).head(12)
+                    st.dataframe(combo_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("组合样本不足")
+
+            with q2:
+                cap_quality = build_segment_stats(tracking_rows_for_action, by="cap_category")
+                cap_df = pd.DataFrame(cap_quality) if cap_quality else pd.DataFrame()
+                st.markdown("**市值层（按胜率）**")
+                if not cap_df.empty:
+                    if "样本数" in cap_df.columns:
+                        cap_df = cap_df[cap_df["样本数"] >= 8]
+                    if "胜率(%)" in cap_df.columns:
+                        cap_df = cap_df.sort_values("胜率(%)", ascending=False)
+                    st.dataframe(cap_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("暂无市值层统计")
+
+            with q3:
+                ind_quality = build_segment_stats(tracking_rows_for_action, by="industry")
+                ind_df = pd.DataFrame(ind_quality) if ind_quality else pd.DataFrame()
+                st.markdown("**板块/行业（按胜率）**")
+                if not ind_df.empty:
+                    if "样本数" in ind_df.columns:
+                        ind_df = ind_df[ind_df["样本数"] >= 8]
+                    if "胜率(%)" in ind_df.columns:
+                        ind_df = ind_df.sort_values("胜率(%)", ascending=False).head(12)
+                    st.dataframe(ind_df, use_container_width=True, hide_index=True)
+                else:
+                    st.info("暂无行业统计")
+
+            # 给出可执行建议（顶级交易员视角）
+            top_combo_txt = "-"
+            top_cap_txt = "-"
+            top_ind_txt = "-"
+            try:
+                if not combo_df.empty:
+                    top_combo = combo_df.iloc[0]
+                    top_combo_txt = f"{top_combo.get('组合', '-')}"
+                if not cap_df.empty:
+                    top_cap = cap_df.iloc[0]
+                    top_cap_txt = f"{top_cap.get('分组', '-')}"
+                if not ind_df.empty:
+                    top_ind = ind_df.iloc[0]
+                    top_ind_txt = f"{top_ind.get('分组', '-')}"
+            except Exception:
+                pass
+            st.success(f"今日优先级建议: 先做 `{top_combo_txt}` 组合，其次聚焦 `{top_cap_txt}` 市值层与 `{top_ind_txt}` 板块。")
+        else:
+            st.info("暂无候选追踪样本，先运行扫描并回填历史。")
     
     st.divider()
     
