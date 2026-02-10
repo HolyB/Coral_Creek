@@ -554,7 +554,9 @@ def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
                 "heima_daily": bool(r.get("heima_daily")),
                 "heima_weekly": bool(r.get("heima_weekly")),
                 "heima_monthly": bool(r.get("heima_monthly")),
-                "is_juedi": bool(juedi_map.get((sym, dt), 0)),
+                "juedi_daily": bool(r.get("juedi_daily")) or bool(juedi_map.get((sym, dt), 0)),
+                "juedi_weekly": bool(r.get("juedi_weekly")),
+                "juedi_monthly": bool(r.get("juedi_monthly")),
             }
         )
 
@@ -573,27 +575,56 @@ def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
     baseline = _eval("基线(全部候选)", lambda x: True)
     base_wr = float(baseline.get("胜率(%)") or 0.0)
 
+    def _base_200(x):
+        return x["blue_daily"] >= 200 and x["blue_weekly"] >= 200
+
+    def _any_heima(x):
+        return x["heima_daily"] or x["heima_weekly"] or x["heima_monthly"]
+
+    def _any_juedi(x):
+        return x["juedi_daily"] or x["juedi_weekly"] or x["juedi_monthly"]
+
     combos = [
-        _eval("日200+周200", lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200),
+        _eval("日200+周200", lambda x: _base_200(x)),
         _eval(
             "日200+周200+日/周黑马",
-            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and (x["heima_daily"] or x["heima_weekly"]),
+            lambda x: _base_200(x) and (x["heima_daily"] or x["heima_weekly"]),
         ),
         _eval(
-            "日200+周200+日/周黑马+掘地",
-            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and (x["heima_daily"] or x["heima_weekly"]) and x["is_juedi"],
+            "日200+周200+日黑马+周黑马(同时)",
+            lambda x: _base_200(x) and x["heima_daily"] and x["heima_weekly"],
+        ),
+        _eval(
+            "日200+周200+任一黑马",
+            lambda x: _base_200(x) and _any_heima(x),
+        ),
+        _eval(
+            "日200+周200+日/周黑马+任一掘地",
+            lambda x: _base_200(x) and (x["heima_daily"] or x["heima_weekly"]) and _any_juedi(x),
+        ),
+        _eval(
+            "日200+周200+日黑马+周黑马+任一掘地(同时)",
+            lambda x: _base_200(x) and x["heima_daily"] and x["heima_weekly"] and _any_juedi(x),
         ),
         _eval(
             "日200+周200+月200",
-            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and x["blue_monthly"] >= 200,
+            lambda x: _base_200(x) and x["blue_monthly"] >= 200,
+        ),
+        _eval(
+            "日200+周200+月200+日+周+月黑马(同时)",
+            lambda x: _base_200(x) and x["blue_monthly"] >= 200 and x["heima_daily"] and x["heima_weekly"] and x["heima_monthly"],
         ),
         _eval(
             "日200+周200+月200+任一黑马",
-            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and x["blue_monthly"] >= 200 and (x["heima_daily"] or x["heima_weekly"] or x["heima_monthly"]),
+            lambda x: _base_200(x) and x["blue_monthly"] >= 200 and _any_heima(x),
         ),
         _eval(
-            "日200+周200+月200+任一黑马+掘地",
-            lambda x: x["blue_daily"] >= 200 and x["blue_weekly"] >= 200 and x["blue_monthly"] >= 200 and (x["heima_daily"] or x["heima_weekly"] or x["heima_monthly"]) and x["is_juedi"],
+            "日200+周200+月200+日+周+月黑马(同时)+任一掘地",
+            lambda x: _base_200(x) and x["blue_monthly"] >= 200 and x["heima_daily"] and x["heima_weekly"] and x["heima_monthly"] and _any_juedi(x),
+        ),
+        _eval(
+            "日200+周200+月200+任一黑马+任一掘地",
+            lambda x: _base_200(x) and x["blue_monthly"] >= 200 and _any_heima(x) and _any_juedi(x),
         ),
     ]
 
@@ -604,6 +635,7 @@ def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
             r["相对基线提升(%)"] = None
         else:
             r["相对基线提升(%)"] = round(float(wr) - base_wr, 1)
+        r["样本可靠性"] = "低(样本<20)" if (r.get("样本") or 0) < 20 else "正常"
 
     return {
         "ok": True,
