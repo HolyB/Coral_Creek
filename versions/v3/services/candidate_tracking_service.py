@@ -23,6 +23,9 @@ CORE_TAGS = [
     "DAY_HEIMA",
     "WEEK_HEIMA",
     "MONTH_HEIMA",
+    "DAY_JUEDI",
+    "WEEK_JUEDI",
+    "MONTH_JUEDI",
     "CHIP_DENSE",
     "CHIP_BREAKOUT",
     "CHIP_OVERHANG",
@@ -78,6 +81,9 @@ def _ensure_tracking_table() -> None:
                 heima_daily BOOLEAN,
                 heima_weekly BOOLEAN,
                 heima_monthly BOOLEAN,
+                juedi_daily BOOLEAN,
+                juedi_weekly BOOLEAN,
+                juedi_monthly BOOLEAN,
                 vp_rating VARCHAR(20),
                 profit_ratio REAL,
                 status VARCHAR(20) DEFAULT 'tracking',
@@ -94,6 +100,11 @@ def _ensure_tracking_table() -> None:
             cursor.execute("SELECT first_nonpositive_after_positive_day FROM candidate_tracking LIMIT 1")
         except Exception:
             cursor.execute("ALTER TABLE candidate_tracking ADD COLUMN first_nonpositive_after_positive_day INTEGER")
+        for col_name in ["juedi_daily", "juedi_weekly", "juedi_monthly"]:
+            try:
+                cursor.execute(f"ALTER TABLE candidate_tracking ADD COLUMN {col_name} BOOLEAN")
+            except Exception:
+                pass
 
 
 def _to_bool(v) -> bool:
@@ -115,6 +126,17 @@ def _to_float(v, default: float = 0.0) -> float:
         return float(v)
     except Exception:
         return default
+
+
+def _pick_first_value(row: Dict, keys: Sequence[str]):
+    for key in keys:
+        if key in row and row.get(key) is not None:
+            return row.get(key)
+    return None
+
+
+def _pick_bool(row: Dict, keys: Sequence[str]) -> bool:
+    return _to_bool(_pick_first_value(row, keys))
 
 
 def _parse_date(text: str) -> Optional[datetime]:
@@ -145,12 +167,18 @@ def derive_signal_tags(row: Dict, rules: Optional[Dict] = None) -> List[str]:
     if month_blue >= _to_float(cfg.get("month_blue_min"), 60.0):
         tags.append("MONTH_BLUE")
 
-    if _to_bool(row.get("heima_daily")):
+    if _pick_bool(row, ["heima_daily", "Heima_Daily", "is_heima", "Is_Heima"]):
         tags.append("DAY_HEIMA")
-    if _to_bool(row.get("heima_weekly")):
+    if _pick_bool(row, ["heima_weekly", "Heima_Weekly"]):
         tags.append("WEEK_HEIMA")
-    if _to_bool(row.get("heima_monthly")):
+    if _pick_bool(row, ["heima_monthly", "Heima_Monthly"]):
         tags.append("MONTH_HEIMA")
+    if _pick_bool(row, ["juedi_daily", "Juedi_Daily", "is_juedi", "Is_Juedi"]):
+        tags.append("DAY_JUEDI")
+    if _pick_bool(row, ["juedi_weekly", "Juedi_Weekly"]):
+        tags.append("WEEK_JUEDI")
+    if _pick_bool(row, ["juedi_monthly", "Juedi_Monthly"]):
+        tags.append("MONTH_JUEDI")
 
     if vp_rating in ("Good", "Excellent") or profit_ratio >= _to_float(cfg.get("chip_dense_profit_ratio_min"), 0.7):
         tags.append("CHIP_DENSE")
@@ -162,18 +190,25 @@ def derive_signal_tags(row: Dict, rules: Optional[Dict] = None) -> List[str]:
     return sorted(set(tags))
 
 
-def _upsert_snapshot(row: Dict, signal_date: str, market: str, source: str, rules: Optional[Dict] = None) -> None:
+def _upsert_snapshot(row: Dict, signal_date: str, market: str, source: str, rules: Optional[Dict] = None) -> bool:
     symbol = (row.get("symbol") or "").strip()
     if not symbol:
-        return
+        return False
 
     tags = derive_signal_tags(row, rules=rules)
     if not tags:
-        return
+        return False
 
-    snapshot_price = _to_float(row.get("price"), 0.0)
+    snapshot_price = _to_float(_pick_first_value(row, ["price", "Price"]), 0.0)
     if snapshot_price <= 0:
-        return
+        return False
+
+    heima_daily = int(_pick_bool(row, ["heima_daily", "Heima_Daily", "is_heima", "Is_Heima"]))
+    heima_weekly = int(_pick_bool(row, ["heima_weekly", "Heima_Weekly"]))
+    heima_monthly = int(_pick_bool(row, ["heima_monthly", "Heima_Monthly"]))
+    juedi_daily = int(_pick_bool(row, ["juedi_daily", "Juedi_Daily", "is_juedi", "Is_Juedi"]))
+    juedi_weekly = int(_pick_bool(row, ["juedi_weekly", "Juedi_Weekly"]))
+    juedi_monthly = int(_pick_bool(row, ["juedi_monthly", "Juedi_Monthly"]))
 
     with get_db() as conn:
         cursor = conn.cursor()
@@ -186,9 +221,10 @@ def _upsert_snapshot(row: Dict, signal_date: str, market: str, source: str, rule
                 cap_category, industry, signal_tags,
                 blue_daily, blue_weekly, blue_monthly,
                 heima_daily, heima_weekly, heima_monthly,
+                juedi_daily, juedi_weekly, juedi_monthly,
                 vp_rating, profit_ratio, status,
                 updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, NULL, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'tracking', CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, NULL, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'tracking', CURRENT_TIMESTAMP)
             ON CONFLICT(symbol, market, signal_date) DO UPDATE SET
                 source = excluded.source,
                 signal_price = excluded.signal_price,
@@ -201,6 +237,9 @@ def _upsert_snapshot(row: Dict, signal_date: str, market: str, source: str, rule
                 heima_daily = excluded.heima_daily,
                 heima_weekly = excluded.heima_weekly,
                 heima_monthly = excluded.heima_monthly,
+                juedi_daily = excluded.juedi_daily,
+                juedi_weekly = excluded.juedi_weekly,
+                juedi_monthly = excluded.juedi_monthly,
                 vp_rating = excluded.vp_rating,
                 profit_ratio = excluded.profit_ratio,
                 updated_at = CURRENT_TIMESTAMP
@@ -218,13 +257,17 @@ def _upsert_snapshot(row: Dict, signal_date: str, market: str, source: str, rule
                 _to_float(row.get("blue_daily")),
                 _to_float(row.get("blue_weekly")),
                 _to_float(row.get("blue_monthly")),
-                int(_to_bool(row.get("heima_daily"))),
-                int(_to_bool(row.get("heima_weekly"))),
-                int(_to_bool(row.get("heima_monthly"))),
+                heima_daily,
+                heima_weekly,
+                heima_monthly,
+                juedi_daily,
+                juedi_weekly,
+                juedi_monthly,
                 row.get("vp_rating"),
                 _to_float(row.get("profit_ratio")),
             ),
         )
+        return cursor.rowcount > 0
 
 
 def capture_daily_candidates(
@@ -241,9 +284,8 @@ def capture_daily_candidates(
 
     inserted = 0
     for row in rows:
-        before = inserted
-        _upsert_snapshot(row=row, signal_date=signal_date, market=market, source=source, rules=rules)
-        inserted = before + 1
+        if _upsert_snapshot(row=row, signal_date=signal_date, market=market, source=source, rules=rules):
+            inserted += 1
     return inserted
 
 
@@ -439,6 +481,7 @@ def reclassify_tracking_tags(market: Optional[str] = None, rules: Optional[Dict]
     query = """
         SELECT id, blue_daily, blue_weekly, blue_monthly,
                heima_daily, heima_weekly, heima_monthly,
+               juedi_daily, juedi_weekly, juedi_monthly,
                vp_rating, profit_ratio
         FROM candidate_tracking
         WHERE 1=1

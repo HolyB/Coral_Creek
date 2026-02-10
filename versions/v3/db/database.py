@@ -209,6 +209,9 @@ def init_db():
                 heima_daily BOOLEAN,
                 heima_weekly BOOLEAN,
                 heima_monthly BOOLEAN,
+                juedi_daily BOOLEAN,
+                juedi_weekly BOOLEAN,
+                juedi_monthly BOOLEAN,
                 vp_rating VARCHAR(20),
                 profit_ratio REAL,
                 status VARCHAR(20) DEFAULT 'tracking',
@@ -224,6 +227,11 @@ def init_db():
             cursor.execute("SELECT first_nonpositive_after_positive_day FROM candidate_tracking LIMIT 1")
         except Exception:
             cursor.execute("ALTER TABLE candidate_tracking ADD COLUMN first_nonpositive_after_positive_day INTEGER")
+        for col_name in ["juedi_daily", "juedi_weekly", "juedi_monthly"]:
+            try:
+                cursor.execute(f"ALTER TABLE candidate_tracking ADD COLUMN {col_name} BOOLEAN")
+            except Exception:
+                pass
         
         # Baseline 扫描结果表 (用于对比)
         cursor.execute("""

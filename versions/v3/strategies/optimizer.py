@@ -161,6 +161,25 @@ class StrategyOptimizer:
     def __init__(self):
         self.results: List[OptimizationResult] = []
         self._supabase = None
+        self.table_name = "daily_picks_performance"
+        self._table_checked = False
+
+    def _is_missing_table_error(self, err: Exception) -> bool:
+        s = str(err)
+        return ("PGRST205" in s) and ("daily_picks_performance" in s)
+
+    def _ensure_table_name(self):
+        if self._table_checked:
+            return
+        self._table_checked = True
+        supabase = self._supabase
+        if not supabase:
+            return
+        try:
+            supabase.table(self.table_name).select("symbol").limit(1).execute()
+        except Exception as e:
+            if self._is_missing_table_error(e):
+                self.table_name = "signal_performance"
     
     def _get_supabase(self):
         if self._supabase is None:
@@ -172,6 +191,7 @@ class StrategyOptimizer:
                     self._supabase = create_client(url, key)
             except:
                 pass
+        self._ensure_table_name()
         return self._supabase
     
     def generate_parameter_grid(self, 
@@ -328,15 +348,16 @@ class StrategyOptimizer:
             return pd.DataFrame()
         
         try:
-            response = supabase.table('daily_picks_performance').select('*').not_.is_(
+            response = supabase.table(self.table_name).select('*').not_.is_(
                 'return_d5', 'null'
             ).execute()
             
             return pd.DataFrame(response.data or [])
         except Exception as e:
-            if "daily_picks_performance" in str(e) and "PGRST205" in str(e):
+            if self._is_missing_table_error(e):
+                self.table_name = "signal_performance"
                 try:
-                    response = supabase.table('signal_performance').select('*').not_.is_(
+                    response = supabase.table(self.table_name).select('*').not_.is_(
                         'return_d5', 'null'
                     ).execute()
                     return pd.DataFrame(response.data or [])

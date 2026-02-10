@@ -512,7 +512,7 @@ def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
 
     target_col = _pick_target_col(rows)
 
-    # 从 scan_results 取掘地字段（candidate_tracking 当前未持久化 juedi）
+    # 兼容历史数据：若旧 candidate_tracking 尚未持久化 juedi 字段，则从 scan_results 回补
     min_date = min(str(r.get("signal_date") or "9999-12-31") for r in rows)
     juedi_map = {}
     try:
