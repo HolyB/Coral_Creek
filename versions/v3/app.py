@@ -8850,6 +8850,168 @@ def render_strategy_optimizer_tab():
         ])
         
         st.dataframe(template_df, width='stretch', hide_index=True)
+
+        st.divider()
+        st.markdown("### 🧭 各策略最优参数与极致点")
+        st.caption("逐个策略做参数网格评估，给出最高胜率参数、最高收益参数，以及“放松/收紧”后的衰减情况")
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            lookback_days = st.selectbox("评估窗口", [60, 120, 180, 360, 9999], index=2, key="opt_extreme_days")
+        with c2:
+            min_samples = st.slider("最小样本数", 10, 300, 40, step=10, key="opt_extreme_min_samples")
+        with c3:
+            market_scope = st.selectbox("市场过滤", ["全部", "US", "CN"], index=0, key="opt_extreme_market")
+
+        if st.button("🧪 生成策略极致报告", key="run_extreme_report"):
+            with st.spinner("正在评估各策略参数组合..."):
+                df_hist = optimizer._load_historical_data()
+                if df_hist is None or df_hist.empty:
+                    st.warning("历史样本为空，无法生成策略极致报告")
+                else:
+                    work_df = df_hist.copy()
+
+                    # 按市场筛选
+                    if market_scope != "全部" and "market" in work_df.columns:
+                        work_df = work_df[work_df["market"].astype(str) == market_scope]
+
+                    # 按时间窗口筛选
+                    if lookback_days < 9999 and "pick_date" in work_df.columns:
+                        cutoff = (datetime.now() - timedelta(days=int(lookback_days))).strftime("%Y-%m-%d")
+                        try:
+                            work_df = work_df[work_df["pick_date"].astype(str) >= cutoff]
+                        except Exception:
+                            pass
+
+                    if work_df.empty:
+                        st.warning("筛选后样本为空，请放宽市场或时间窗口")
+                    else:
+                        eval_rows = []
+                        for strat_name, base_cfg in templates.items():
+                            day_vals = sorted(set([
+                                max(40, int(base_cfg.blue_daily_min - 40)),
+                                max(40, int(base_cfg.blue_daily_min - 20)),
+                                int(base_cfg.blue_daily_min),
+                                min(260, int(base_cfg.blue_daily_min + 20)),
+                                min(260, int(base_cfg.blue_daily_min + 40)),
+                            ]))
+                            week_vals = sorted(set([
+                                max(0, int(base_cfg.blue_weekly_min - 40)),
+                                max(0, int(base_cfg.blue_weekly_min - 20)),
+                                int(base_cfg.blue_weekly_min),
+                                min(180, int(base_cfg.blue_weekly_min + 20)),
+                                min(180, int(base_cfg.blue_weekly_min + 40)),
+                            ]))
+                            adx_vals = sorted(set([
+                                max(10, int(base_cfg.adx_min - 10)),
+                                max(10, int(base_cfg.adx_min - 5)),
+                                int(base_cfg.adx_min),
+                                min(80, int(base_cfg.adx_min + 5)),
+                                min(80, int(base_cfg.adx_min + 10)),
+                            ]))
+
+                            for d_val in day_vals:
+                                for w_val in week_vals:
+                                    for a_val in adx_vals:
+                                        cfg = StrategyConfig(
+                                            name=f"{strat_name}_d{d_val}_w{w_val}_a{a_val}",
+                                            blue_daily_min=float(d_val),
+                                            blue_daily_max=float(base_cfg.blue_daily_max),
+                                            blue_weekly_min=float(w_val),
+                                            blue_monthly_min=float(base_cfg.blue_monthly_min),
+                                            adx_min=float(a_val),
+                                            adx_max=float(base_cfg.adx_max),
+                                            turnover_min=float(base_cfg.turnover_min),
+                                            require_heima=bool(base_cfg.require_heima),
+                                            require_juedi=bool(base_cfg.require_juedi),
+                                            require_new_discovery=bool(base_cfg.require_new_discovery),
+                                            chip_patterns=list(base_cfg.chip_patterns or []),
+                                            max_positions=int(base_cfg.max_positions),
+                                            position_size_pct=float(base_cfg.position_size_pct),
+                                            stop_loss_pct=float(base_cfg.stop_loss_pct),
+                                            take_profit_pct=float(base_cfg.take_profit_pct),
+                                        )
+                                        result = optimizer.evaluate_strategy(cfg, work_df)
+                                        metrics = result.metrics or {}
+                                        n_samples = int(metrics.get("n_samples", 0) or 0)
+                                        if n_samples < int(min_samples):
+                                            continue
+                                        eval_rows.append({
+                                            "策略": strat_name,
+                                            "BLUE日线": int(d_val),
+                                            "BLUE周线": int(w_val),
+                                            "ADX": int(a_val),
+                                            "样本数": n_samples,
+                                            "胜率(%)": float(metrics.get("win_rate", 0) or 0),
+                                            "平均收益(%)": float(metrics.get("avg_return", 0) or 0),
+                                            "Sharpe": float(metrics.get("sharpe_like", 0) or 0),
+                                            "综合得分": float(result.score or 0),
+                                        })
+
+                        if not eval_rows:
+                            st.warning("没有满足最小样本数的参数组合，请降低最小样本或扩大窗口")
+                        else:
+                            eval_df = pd.DataFrame(eval_rows)
+                            st.caption(f"已评估组合数: {len(eval_df)}")
+
+                            summary_rows = []
+                            for strat_name in eval_df["策略"].unique():
+                                sub = eval_df[eval_df["策略"] == strat_name].copy()
+                                if sub.empty:
+                                    continue
+
+                                best_win = sub.sort_values(["胜率(%)", "平均收益(%)", "综合得分"], ascending=False).iloc[0]
+                                best_ret = sub.sort_values(["平均收益(%)", "胜率(%)", "综合得分"], ascending=False).iloc[0]
+                                best_score = sub.sort_values(["综合得分", "胜率(%)", "平均收益(%)"], ascending=False).iloc[0]
+
+                                lower = sub[sub["BLUE日线"] < best_score["BLUE日线"]]
+                                upper = sub[sub["BLUE日线"] > best_score["BLUE日线"]]
+
+                                left_neighbor = None
+                                right_neighbor = None
+                                if not lower.empty:
+                                    left_neighbor = lower.assign(
+                                        _dist=(best_score["BLUE日线"] - lower["BLUE日线"]).abs()
+                                    ).sort_values(["_dist", "综合得分"], ascending=[True, False]).iloc[0]
+                                if not upper.empty:
+                                    right_neighbor = upper.assign(
+                                        _dist=(upper["BLUE日线"] - best_score["BLUE日线"]).abs()
+                                    ).sort_values(["_dist", "综合得分"], ascending=[True, False]).iloc[0]
+
+                                def _delta_text(nei):
+                                    if nei is None:
+                                        return "无样本"
+                                    d_win = float(nei["胜率(%)"]) - float(best_score["胜率(%)"])
+                                    d_ret = float(nei["平均收益(%)"]) - float(best_score["平均收益(%)"])
+                                    d_n = int(nei["样本数"]) - int(best_score["样本数"])
+                                    return f"胜率{d_win:+.1f} 收益{d_ret:+.2f} 样本{d_n:+d}"
+
+                                summary_rows.append({
+                                    "策略": strat_name,
+                                    "最高胜率参数": f"D{int(best_win['BLUE日线'])}/W{int(best_win['BLUE周线'])}/ADX{int(best_win['ADX'])}",
+                                    "最高胜率(%)": round(float(best_win["胜率(%)"]), 1),
+                                    "最高收益参数": f"D{int(best_ret['BLUE日线'])}/W{int(best_ret['BLUE周线'])}/ADX{int(best_ret['ADX'])}",
+                                    "最高收益(%)": round(float(best_ret["平均收益(%)"]), 2),
+                                    "极致点参数(综合)": f"D{int(best_score['BLUE日线'])}/W{int(best_score['BLUE周线'])}/ADX{int(best_score['ADX'])}",
+                                    "极致点样本数": int(best_score["样本数"]),
+                                    "放松后变化": _delta_text(left_neighbor),
+                                    "收紧后变化": _delta_text(right_neighbor),
+                                })
+
+                            summary_df = pd.DataFrame(summary_rows).sort_values("最高胜率(%)", ascending=False)
+                            st.markdown("#### 1) 每个策略的最优参数与极致点")
+                            st.dataframe(summary_df, width='stretch', hide_index=True)
+
+                            st.markdown("#### 2) 全部策略参数Top榜（按胜率）")
+                            top_df = eval_df.sort_values(["胜率(%)", "平均收益(%)", "样本数"], ascending=False).head(30).copy()
+                            top_df["参数组合"] = top_df.apply(
+                                lambda r: f"D{int(r['BLUE日线'])}/W{int(r['BLUE周线'])}/ADX{int(r['ADX'])}", axis=1
+                            )
+                            st.dataframe(
+                                top_df[["策略", "参数组合", "样本数", "胜率(%)", "平均收益(%)", "Sharpe", "综合得分"]],
+                                width='stretch',
+                                hide_index=True
+                            )
         
     except Exception as e:
         st.error(f"加载失败: {e}")
