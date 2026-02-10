@@ -8638,7 +8638,7 @@ def render_parameter_lab():
                                         delta="低风险" if mc_result['bankruptcy_probability'] < 10 else "高风险",
                                         delta_color="inverse")
                             mc_m3.metric("平均收益", f"{mc_result['mean_return_pct']:.1f}%")
-                            mc_m4.metric("平均最大回撤", f"-{mc_result['mean_max_drawdown']:.1f}%")
+                            mc_m4.metric("平均最大回撤", f"{mc_result['mean_max_drawdown']:.1f}%")
                             
                             # 置信区间
                             st.markdown(f"""

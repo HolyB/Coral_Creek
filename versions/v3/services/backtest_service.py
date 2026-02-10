@@ -108,7 +108,7 @@ def calculate_backtest_metrics(returns_list: List[float]) -> Dict[str, float]:
             'losing_signals': 0
         }
     
-    returns = np.array([r for r in returns_list if r is not None])
+    returns = np.array([r for r in returns_list if r is not None], dtype=float)
     
     if len(returns) == 0:
         return {
@@ -123,6 +123,13 @@ def calculate_backtest_metrics(returns_list: List[float]) -> Dict[str, float]:
             'losing_signals': 0
         }
     
+    # 容错：若误传百分比（如 5 代表 5%），自动缩放到小数口径
+    if len(returns) > 0 and np.nanmedian(np.abs(returns)) > 1.5:
+        returns = returns / 100.0
+
+    # 物理边界：收益率下限不应 <= -100%
+    returns = np.clip(returns, -0.999, 5.0)
+
     # 基础统计
     wins = returns[returns > 0]
     losses = returns[returns <= 0]
@@ -141,7 +148,7 @@ def calculate_backtest_metrics(returns_list: List[float]) -> Dict[str, float]:
     cumulative = np.cumprod(1 + returns)
     running_max = np.maximum.accumulate(cumulative)
     drawdowns = (cumulative - running_max) / running_max
-    max_drawdown = np.min(drawdowns) if len(drawdowns) > 0 else 0
+    max_drawdown = abs(np.min(drawdowns)) if len(drawdowns) > 0 else 0
     
     # Profit Factor
     gross_profit = np.sum(wins) if len(wins) > 0 else 0
@@ -153,7 +160,7 @@ def calculate_backtest_metrics(returns_list: List[float]) -> Dict[str, float]:
         'avg_return': round(avg_return * 100, 2),  # 百分比
         'sharpe': round(sharpe, 2),
         'sortino': round(sortino, 2),
-        'max_drawdown': round(max_drawdown * 100, 2),  # 百分比
+        'max_drawdown': round(max_drawdown * 100, 2),  # 正值百分比
         'profit_factor': round(profit_factor, 2),
         'total_signals': len(returns),
         'winning_signals': len(wins),

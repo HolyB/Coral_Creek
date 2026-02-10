@@ -62,6 +62,8 @@ def calculate_signal_returns(symbol: str, signal_date: str, market: str = 'US',
         
         # 入场价格（信号日收盘价）
         entry_price = df_after['Close'].iloc[0]
+        if entry_price is None or float(entry_price) <= 0:
+            return None
         entry_date = df_after.index[0]
         
         result = {
@@ -83,10 +85,15 @@ def calculate_signal_returns(symbol: str, signal_date: str, market: str = 'US',
         # 计算追踪期间的最大涨幅和最大回撤
         track_data = df_after.head(max(days_list) + 1)
         if len(track_data) > 1:
-            max_price = track_data['High'].max()
-            min_price = track_data['Low'].min()
+            # 过滤无效价格（0 或负数会把回撤错误放大到 -100%）
+            valid_high = track_data['High'][track_data['High'] > 0]
+            valid_low = track_data['Low'][track_data['Low'] > 0]
+            if valid_high.empty or valid_low.empty:
+                return result
+            max_price = valid_high.max()
+            min_price = valid_low.min()
             result['max_gain'] = round((max_price - entry_price) / entry_price * 100, 2)
-            result['max_drawdown'] = round((min_price - entry_price) / entry_price * 100, 2)
+            result['max_drawdown'] = round(max((min_price - entry_price) / entry_price * 100, -99.9), 2)
         
         # 当前价格和收益
         current_price = df['Close'].iloc[-1]
