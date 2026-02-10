@@ -9587,7 +9587,11 @@ def render_blogger_page():
         init_blogger_tables, get_all_bloggers, add_blogger, delete_blogger,
         get_recommendations, add_recommendation, delete_recommendation, get_blogger_stats
     )
-    from services.blogger_service import get_recommendations_with_returns, get_blogger_performance
+    from services.blogger_service import (
+        get_recommendations_with_returns,
+        get_blogger_performance,
+        collect_social_kol_recommendations,
+    )
     
     # 确保表存在
     init_blogger_tables()
@@ -9815,6 +9819,52 @@ def render_blogger_page():
     with tab_eval:
         st.subheader("🎯 买卖点有效性评估")
         st.caption("按博主/组合标签评估：方向命中率、方向收益、最大有利/不利波动、目标止损触发情况")
+
+        with st.expander("🤖 一键抓取社交大V喊单", expanded=False):
+            st.caption("按行填写：平台,名称,账号,市场(US/CN，可留空)。例如：Twitter,Roaring Kitty,TheRoaringKitty,US")
+            default_kols = "\n".join([
+                "Twitter,Roaring Kitty,TheRoaringKitty,US",
+                "Twitter,Nancy Pelosi Tracker,pelosi_tracker,US",
+                "Reddit,WallStreetBets,wallstreetbets,US",
+                "雪球,雪球热榜,xueqiu,US",
+                "微博,财经博主样本,sinafinance,CN",
+            ])
+            kol_text = st.text_area(
+                "大V清单",
+                value=default_kols,
+                height=140,
+                key="social_kol_list_text",
+            )
+            auto_tag = st.text_input("自动组合标签", value="AUTO_SOCIAL_KOL", key="social_kol_auto_tag")
+            max_per_kol = st.slider("每位抓取上限", min_value=5, max_value=60, value=20, step=5, key="social_kol_max_per")
+            if st.button("🚀 开始抓取并入库", key="run_social_kol_ingest_btn"):
+                kol_configs = []
+                for line in (kol_text or "").splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    parts = [x.strip() for x in line.split(",")]
+                    if len(parts) < 3:
+                        continue
+                    cfg = {
+                        "platform": parts[0],
+                        "name": parts[1],
+                        "handle": parts[2],
+                        "market": parts[3] if len(parts) >= 4 else "",
+                    }
+                    kol_configs.append(cfg)
+                with st.spinner("抓取社交帖子并识别股票中..."):
+                    ret = collect_social_kol_recommendations(
+                        kol_configs=kol_configs,
+                        portfolio_tag=(auto_tag or "AUTO_SOCIAL_KOL").strip(),
+                        max_results_per_kol=int(max_per_kol),
+                    )
+                st.success(
+                    f"完成：处理KOL {ret.get('processed_kols', 0)} | 新增博主 {ret.get('new_bloggers', 0)} | "
+                    f"新增推荐 {ret.get('added_recommendations', 0)} | 去重跳过 {ret.get('skipped_duplicates', 0)}"
+                )
+                if ret.get("errors"):
+                    st.caption("⚠️ 部分错误: " + " | ".join(ret.get("errors", [])[:3]))
 
         bloggers = get_all_bloggers()
         if not bloggers:

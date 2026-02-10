@@ -5,8 +5,9 @@
 计算推荐收益、博主业绩统计
 """
 from datetime import datetime, timedelta
+import re
 from db.database import (
-    get_recommendations, get_all_bloggers
+    get_recommendations, get_all_bloggers, add_blogger, add_recommendation, get_db
 )
 
 
@@ -254,6 +255,175 @@ def get_blogger_performance(blogger_id=None, horizon_days=10, portfolio_tag=None
     # 按平均收益排序
     results.sort(key=lambda x: x['avg_return'], reverse=True)
     return results
+
+
+def _detect_market_from_ticker(token: str):
+    t = (token or "").upper().strip()
+    if re.fullmatch(r"\d{6}", t):
+        return "CN", f"{t}.SZ"
+    if re.fullmatch(r"\d{6}\.(SZ|SH)", t):
+        return "CN", t
+    if re.fullmatch(r"[A-Z]{1,5}", t):
+        return "US", t
+    return None, None
+
+
+def _extract_tickers_from_text(text: str):
+    s = str(text or "")
+    found = set()
+    # US: $NVDA / NVDA
+    for m in re.findall(r"\$([A-Z]{1,5})", s.upper()):
+        found.add(m)
+    for m in re.findall(r"\b([A-Z]{2,5})\b", s.upper()):
+        if m in {"THE", "AND", "FOR", "WITH", "THIS", "THAT", "FROM", "WILL", "HOLD", "SELL", "BUY"}:
+            continue
+        found.add(m)
+    # CN: 6位代码
+    for m in re.findall(r"\b(\d{6})(?:\.(?:SZ|SH))?\b", s.upper()):
+        found.add(m)
+    return sorted(found)
+
+
+def _extract_tickers_from_url(url: str):
+    s = str(url or "").upper()
+    found = set()
+    # 常见路径: /ticker/NVDA, /symbol/TSLA, /quote/AAPL
+    for m in re.findall(r"/(?:TICKER|SYMBOL|QUOTE)/([A-Z]{1,5})", s):
+        found.add(m)
+    # A股可能直接出现 6 位代码
+    for m in re.findall(r"(?<!\d)(\d{6})(?!\d)", s):
+        found.add(m)
+    return sorted(found)
+
+
+def _guess_rec_type(text: str):
+    t = str(text or "").lower()
+    bearish = ["sell", "short", "bear", "put", "看空", "卖出", "减仓", "止损"]
+    bullish = ["buy", "long", "bull", "call", "看多", "买入", "加仓", "突破"]
+    b1 = any(x in t for x in bearish)
+    b2 = any(x in t for x in bullish)
+    if b1 and not b2:
+        return "SELL"
+    return "BUY"
+
+
+def _source_already_exists(blogger_id: int, ticker: str, source_url: str):
+    if not source_url:
+        return False
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT 1 FROM recommendations
+            WHERE blogger_id = ? AND ticker = ? AND source_url = ?
+            LIMIT 1
+            """,
+            (blogger_id, ticker.upper(), source_url),
+        )
+        return cursor.fetchone() is not None
+
+
+def _search_web_posts(query: str, limit: int = 15):
+    try:
+        from duckduckgo_search import DDGS
+    except Exception:
+        try:
+            from ddgs import DDGS
+        except Exception:
+            return []
+    try:
+        with DDGS() as ddgs:
+            return list(ddgs.text(query, max_results=limit) or [])
+    except Exception:
+        return []
+
+
+def collect_social_kol_recommendations(kol_configs, portfolio_tag="AUTO_SOCIAL_KOL", max_results_per_kol=20):
+    """
+    抓取社交大V帖子（公开搜索）并转成推荐记录。
+    kol_configs: [{"name","platform","handle","market"}]
+    """
+    bloggers = get_all_bloggers()
+    blogger_map = {b["name"]: b for b in bloggers}
+
+    summary = {
+        "processed_kols": 0,
+        "new_bloggers": 0,
+        "added_recommendations": 0,
+        "skipped_duplicates": 0,
+        "errors": [],
+    }
+
+    for cfg in (kol_configs or []):
+        try:
+            name = str(cfg.get("name") or "").strip()
+            platform = str(cfg.get("platform") or "social").strip()
+            handle = str(cfg.get("handle") or "").strip()
+            default_market = str(cfg.get("market") or "").upper().strip() or None
+            if not name or not handle:
+                continue
+
+            # ensure blogger exists
+            b = blogger_map.get(name)
+            if not b:
+                bid = add_blogger(name=name, platform=platform, specialty=default_market or "混合", url="")
+                b = {"id": bid, "name": name, "platform": platform}
+                blogger_map[name] = b
+                summary["new_bloggers"] += 1
+            blogger_id = int(b["id"])
+
+            platform_l = platform.lower()
+            if "reddit" in platform_l:
+                query = f"site:reddit.com/user/{handle} (stock OR 股票 OR $)"
+            elif "x" in platform_l or "twitter" in platform_l:
+                query = f"(site:x.com/{handle} OR site:twitter.com/{handle}) (stock OR $ OR buy OR sell)"
+            elif "微博" in platform_l or "weibo" in platform_l:
+                query = f"site:weibo.com {handle} (股票 OR 买入 OR 卖出)"
+            elif "雪球" in platform_l or "xueqiu" in platform_l:
+                query = f"site:xueqiu.com {handle} (股票 OR 买入 OR 卖出 OR 组合)"
+            else:
+                query = f"{handle} (stock OR 股票) (buy OR sell OR 买入 OR 卖出)"
+
+            results = _search_web_posts(query, limit=max_results_per_kol)
+            summary["processed_kols"] += 1
+            today = datetime.now().strftime("%Y-%m-%d")
+
+            for it in results:
+                title = str(it.get("title") or "")
+                body = str(it.get("body") or "")
+                href = str(it.get("href") or "")
+                content = f"{title}\n{body}"
+                rec_type = _guess_rec_type(content)
+                tickers = _extract_tickers_from_text(content)
+                if not tickers:
+                    tickers = _extract_tickers_from_url(href)
+
+                for tk in tickers[:5]:
+                    mkt, normalized = _detect_market_from_ticker(tk)
+                    if not normalized:
+                        continue
+                    if default_market and mkt and default_market in ("US", "CN") and mkt != default_market:
+                        continue
+                    if _source_already_exists(blogger_id, normalized, href):
+                        summary["skipped_duplicates"] += 1
+                        continue
+                    add_recommendation(
+                        blogger_id=blogger_id,
+                        ticker=normalized,
+                        market=mkt or (default_market or "US"),
+                        rec_date=today,
+                        rec_price=None,
+                        rec_type=rec_type,
+                        target_price=None,
+                        stop_loss=None,
+                        portfolio_tag=portfolio_tag,
+                        notes=f"[AUTO]{platform}:{handle} | {title[:120]}",
+                        source_url=href[:500] if href else None,
+                    )
+                    summary["added_recommendations"] += 1
+        except Exception as e:
+            summary["errors"].append(str(e)[:160])
+    return summary
 
 
 if __name__ == "__main__":
