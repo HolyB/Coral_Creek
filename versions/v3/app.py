@@ -349,6 +349,119 @@ def _run_network_diagnostics():
     return pd.DataFrame(rows)
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def _evaluate_ml_vs_baseline(
+    market: str,
+    days_back: int,
+    topk_per_day: int,
+    exit_rule: str,
+    take_profit_pct: float,
+    stop_loss_pct: float,
+    max_hold_days: int,
+    max_eval_rows: int = 600,
+):
+    """同口径评估: 基线TopK(按BLUE) vs 排序模型TopK"""
+    from services.candidate_tracking_service import get_candidate_tracking_rows, evaluate_exit_rule
+    from ml.smart_picker import SmartPicker
+    from data_fetcher import get_stock_data
+
+    rows = get_candidate_tracking_rows(market=market, days_back=days_back) or []
+    if not rows:
+        return {
+            "ok": False,
+            "reason": "no_tracking_rows",
+            "base": {"sample": 0},
+            "ml": {"sample": 0},
+        }
+
+    rows = rows[: int(max_eval_rows)]
+    picker = SmartPicker(market=market, horizon="short")
+
+    per_day = {}
+    for r in rows:
+        d = str(r.get("signal_date") or "")
+        if d:
+            per_day.setdefault(d, []).append(r)
+
+    baseline_rows = []
+    ml_rows = []
+    ranked_cnt = 0
+    fallback_cnt = 0
+
+    for _, day_rows in per_day.items():
+        base_sorted = sorted(day_rows, key=lambda x: float(x.get("blue_daily") or 0), reverse=True)
+        baseline_rows.extend(base_sorted[: int(topk_per_day)])
+
+        scored = []
+        for r in day_rows:
+            sym = str(r.get("symbol") or "").strip().upper()
+            sig_date = str(r.get("signal_date") or "")
+            score = None
+            if sym and sig_date:
+                try:
+                    hist = get_stock_data(sym, market=market, days=420)
+                    if hist is not None and not hist.empty:
+                        hist2 = hist[hist.index <= pd.to_datetime(sig_date)]
+                        if hist2 is not None and len(hist2) >= 80:
+                            signal_series = pd.Series({
+                                "symbol": sym,
+                                "price": float(r.get("signal_price") or r.get("current_price") or 0.0),
+                                "blue_daily": float(r.get("blue_daily") or 0.0),
+                                "blue_weekly": float(r.get("blue_weekly") or 0.0),
+                                "blue_monthly": float(r.get("blue_monthly") or 0.0),
+                                "is_heima": bool(r.get("heima_daily") or r.get("heima_weekly") or r.get("heima_monthly")),
+                            })
+                            rank_map = picker._rank_score(signal_series, hist2)
+                            w = picker.rank_weights or {"short": 0.55, "medium": 0.30, "long": 0.15}
+                            score = (
+                                float(w.get("short", 0.0)) * float(rank_map.get("short", 0.0))
+                                + float(w.get("medium", 0.0)) * float(rank_map.get("medium", 0.0))
+                                + float(w.get("long", 0.0)) * float(rank_map.get("long", 0.0))
+                            )
+                            ranked_cnt += 1
+                except Exception:
+                    score = None
+
+            if score is None:
+                score = float(r.get("blue_daily") or 0.0) * 0.7 + float(r.get("blue_weekly") or 0.0) * 0.3
+                fallback_cnt += 1
+            scored.append((score, r))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        ml_rows.extend([x[1] for x in scored[: int(topk_per_day)]])
+
+    base_eval = evaluate_exit_rule(
+        baseline_rows,
+        rule_name=exit_rule,
+        take_profit_pct=take_profit_pct,
+        stop_loss_pct=stop_loss_pct,
+        max_hold_days=max_hold_days,
+        max_rows=max_eval_rows,
+    )
+    ml_eval = evaluate_exit_rule(
+        ml_rows,
+        rule_name=exit_rule,
+        take_profit_pct=take_profit_pct,
+        stop_loss_pct=stop_loss_pct,
+        max_hold_days=max_hold_days,
+        max_rows=max_eval_rows,
+    )
+
+    return {
+        "ok": True,
+        "base": base_eval,
+        "ml": ml_eval,
+        "meta": {
+            "days_back": days_back,
+            "topk_per_day": topk_per_day,
+            "input_rows": len(rows),
+            "n_days": len(per_day),
+            "ranked_cnt": ranked_cnt,
+            "fallback_cnt": fallback_cnt,
+        },
+    }
+
+
 # --- 后台调度器 (In-App Scheduler) ---
 # 替代 GitHub Actions，直接在应用内运行监控
 # 避免支付问题和数据同步问题
@@ -13564,8 +13677,8 @@ def render_ml_prediction_page():
     # ==================================
     st.markdown("### 📊 模型概览")
     
-    model_tab1, model_tab2, model_tab3, model_tab4, model_tab5, model_tab6 = st.tabs([
-        "📈 收益预测模型", "🏆 排序模型", "🔧 特征重要性", "⚙️ 超参数调优", "🔗 模型对比", "🧪 稳定性"
+    model_tab1, model_tab2, model_tab3, model_tab4, model_tab5, model_tab6, model_tab7 = st.tabs([
+        "📈 收益预测模型", "🏆 排序模型", "🔧 特征重要性", "⚙️ 超参数调优", "🔗 模型对比", "🧪 稳定性", "⚖️ 交易口径评估"
     ])
     
     with model_tab1:
@@ -13940,7 +14053,119 @@ def render_ml_prediction_page():
         - `pred_momentum`: 长短期预测差异
         - `pred_direction_consistency`: 方向一致性
         """)
-    
+
+    with model_tab7:
+        st.markdown("**同一交易口径评估** - 基线策略 vs ML 排序模型")
+        st.caption("在相同平仓规则下对比胜率/收益，避免“规则不一致”导致的误判。")
+
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            eval_days_back = st.slider("评估回溯天数", 15, 240, 90, 5, key=f"ml_eval_days_back_{market}")
+        with c2:
+            eval_topk = st.slider("每日入选数 TopK", 1, 20, 5, 1, key=f"ml_eval_topk_{market}")
+        with c3:
+            eval_max_rows = st.slider("最大样本数", 120, 1500, 600, 60, key=f"ml_eval_max_rows_{market}")
+
+        r1, r2, r3, r4 = st.columns(4)
+        with r1:
+            eval_exit_rule = st.selectbox(
+                "平仓规则",
+                ["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time"],
+                index=1,
+                key=f"ml_eval_exit_rule_{market}",
+            )
+        with r2:
+            eval_tp = st.slider("止盈(%)", 3.0, 30.0, 10.0, 0.5, key=f"ml_eval_tp_{market}")
+        with r3:
+            eval_sl = st.slider("止损(%)", 2.0, 20.0, 6.0, 0.5, key=f"ml_eval_sl_{market}")
+        with r4:
+            eval_hold = st.slider("最大持有天数", 3, 60, 20, 1, key=f"ml_eval_hold_{market}")
+
+        if eval_exit_rule != "tp_sl_time":
+            st.caption("提示: 当前规则为固定持有，止盈/止损/最大持有参数不会参与计算。")
+
+        if st.button("🚀 运行同口径评估", key=f"ml_vs_baseline_run_{market}", type="primary"):
+            with st.spinner("评估中，正在按日重排并回放平仓规则..."):
+                eval_ret = _evaluate_ml_vs_baseline(
+                    market=market,
+                    days_back=eval_days_back,
+                    topk_per_day=eval_topk,
+                    exit_rule=eval_exit_rule,
+                    take_profit_pct=eval_tp,
+                    stop_loss_pct=eval_sl,
+                    max_hold_days=eval_hold,
+                    max_eval_rows=eval_max_rows,
+                )
+
+            if not eval_ret.get("ok"):
+                st.warning("暂无可评估样本。请先在“每日机会”里完成候选追踪快照。")
+            else:
+                base = eval_ret.get("base", {}) or {}
+                ml = eval_ret.get("ml", {}) or {}
+                meta_eval = eval_ret.get("meta", {}) or {}
+
+                base_sample = int(base.get("sample") or 0)
+                ml_sample = int(ml.get("sample") or 0)
+                if base_sample == 0 or ml_sample == 0:
+                    st.warning("样本不足，暂时无法形成有效对比。")
+
+                base_wr = float(base.get("win_rate_pct") or 0.0)
+                ml_wr = float(ml.get("win_rate_pct") or 0.0)
+                base_ret = float(base.get("avg_return_pct") or 0.0)
+                ml_ret = float(ml.get("avg_return_pct") or 0.0)
+                base_exit = float(base.get("avg_exit_day") or 0.0)
+                ml_exit = float(ml.get("avg_exit_day") or 0.0)
+
+                d_wr = ml_wr - base_wr
+                d_ret = ml_ret - base_ret
+                d_exit = ml_exit - base_exit
+
+                m1, m2, m3, m4 = st.columns(4)
+                with m1:
+                    st.metric("基线胜率", f"{base_wr:.1f}%", help=f"样本 {base_sample}")
+                with m2:
+                    st.metric("ML胜率", f"{ml_wr:.1f}%", f"{d_wr:+.1f}%", help=f"样本 {ml_sample}")
+                with m3:
+                    st.metric("基线平均收益", f"{base_ret:+.2f}%")
+                with m4:
+                    st.metric("ML平均收益", f"{ml_ret:+.2f}%", f"{d_ret:+.2f}%")
+
+                n1, n2, n3 = st.columns(3)
+                with n1:
+                    st.metric("基线平均持有", f"{base_exit:.1f} 天")
+                with n2:
+                    st.metric("ML平均持有", f"{ml_exit:.1f} 天", f"{d_exit:+.1f} 天")
+                with n3:
+                    ranked_cnt = int(meta_eval.get("ranked_cnt") or 0)
+                    fallback_cnt = int(meta_eval.get("fallback_cnt") or 0)
+                    fallback_ratio = (fallback_cnt / (ranked_cnt + fallback_cnt) * 100.0) if (ranked_cnt + fallback_cnt) > 0 else 0.0
+                    st.metric("排序回退占比", f"{fallback_ratio:.1f}%", help="回退表示该样本未成功走到ML排序，使用BLUE加权替代")
+
+                cmp_df = pd.DataFrame(
+                    [
+                        {
+                            "策略": "基线 TopK(BLUE)",
+                            "样本数": base_sample,
+                            "胜率(%)": round(base_wr, 1),
+                            "平均收益(%)": round(base_ret, 2),
+                            "平均平仓天数": round(base_exit, 1),
+                        },
+                        {
+                            "策略": "ML TopK(排序模型)",
+                            "样本数": ml_sample,
+                            "胜率(%)": round(ml_wr, 1),
+                            "平均收益(%)": round(ml_ret, 2),
+                            "平均平仓天数": round(ml_exit, 1),
+                        },
+                    ]
+                )
+                st.dataframe(cmp_df, hide_index=True, use_container_width=True)
+                st.caption(
+                    f"评估范围: 最近 {int(meta_eval.get('days_back') or 0)} 天 | "
+                    f"覆盖交易日 {int(meta_eval.get('n_days') or 0)} | "
+                    f"输入样本 {int(meta_eval.get('input_rows') or 0)}"
+                )
+
     st.divider()
     
     # ==================================
