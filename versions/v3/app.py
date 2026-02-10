@@ -10,6 +10,7 @@ import urllib.error
 import urllib.request
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 from datetime import datetime, timedelta
 from typing import Dict
 
