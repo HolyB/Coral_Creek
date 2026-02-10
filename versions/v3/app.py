@@ -1914,6 +1914,8 @@ def render_todays_picks_page():
                 rule_sl = st.slider("止损(%)", min_value=2, max_value=20, value=6, step=1, key=f"action_rule_sl_{market}")
             with r4:
                 rule_max_hold = st.slider("最长持有天", min_value=5, max_value=60, value=20, step=1, key=f"action_rule_hold_{market}")
+            if exit_rule != "tp_sl_time":
+                st.caption("当前为固定持有规则，止盈/止损参数不会生效；仅 `tp_sl_time` 使用这些参数。")
 
             eval_ret = evaluate_exit_rule(
                 rows=tracking_rows_for_action,
