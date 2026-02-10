@@ -2812,6 +2812,46 @@ def render_todays_picks_page():
         st.subheader("📌 信号组合持续追踪")
         st.caption("自动追踪：日/周/月BLUE、日/周/月黑马与筹码标签的各种组合表现")
 
+        combo_templates = {
+            "不使用模板": {"required_all": [], "required_any_groups": [], "keyword": ""},
+            "日BLUE 基础线": {"required_all": ["DAY_BLUE"], "required_any_groups": [], "keyword": "DAY_BLUE"},
+            "周BLUE 趋势线": {"required_all": ["WEEK_BLUE"], "required_any_groups": [], "keyword": "WEEK_BLUE"},
+            "月BLUE 中长线": {"required_all": ["MONTH_BLUE"], "required_any_groups": [], "keyword": "MONTH_BLUE"},
+            "日+周 共振": {"required_all": ["DAY_BLUE", "WEEK_BLUE"], "required_any_groups": [], "keyword": "DAY_BLUE+WEEK_BLUE"},
+            "日+月 共振": {"required_all": ["DAY_BLUE", "MONTH_BLUE"], "required_any_groups": [], "keyword": "DAY_BLUE+MONTH_BLUE"},
+            "日周月 三线共振": {"required_all": ["DAY_BLUE", "WEEK_BLUE", "MONTH_BLUE"], "required_any_groups": [], "keyword": "DAY_BLUE+MONTH_BLUE+WEEK_BLUE"},
+            "黑马(日/周/月 任一)+日BLUE": {
+                "required_all": ["DAY_BLUE"],
+                "required_any_groups": [["DAY_HEIMA", "WEEK_HEIMA", "MONTH_HEIMA"]],
+                "keyword": "",
+            },
+            "筹码突破 + 日周共振": {
+                "required_all": ["DAY_BLUE", "WEEK_BLUE", "CHIP_BREAKOUT"],
+                "required_any_groups": [],
+                "keyword": "",
+            },
+            "中长线强共振(三线+黑马任一+筹码密集)": {
+                "required_all": ["DAY_BLUE", "WEEK_BLUE", "MONTH_BLUE", "CHIP_DENSE"],
+                "required_any_groups": [["DAY_HEIMA", "WEEK_HEIMA", "MONTH_HEIMA"]],
+                "keyword": "",
+            },
+        }
+
+        t1, t2 = st.columns([2, 2])
+        with t1:
+            selected_template_name = st.selectbox(
+                "组合模板",
+                options=list(combo_templates.keys()),
+                index=0,
+                key=f"track_template_{market}",
+            )
+        with t2:
+            use_template = st.checkbox(
+                "应用模板过滤",
+                value=(selected_template_name != "不使用模板"),
+                key=f"track_template_enable_{market}",
+            )
+
         c1, c2, c3, c4 = st.columns(4)
         with c1:
             days_back = st.slider("回看天数", min_value=30, max_value=720, value=180, step=30, key=f"track_days_{market}")
@@ -2892,10 +2932,29 @@ def render_todays_picks_page():
                     key=f"track_combo_filter_{market}",
                 ).strip().upper()
 
-            if required_tags:
+            template_cfg = combo_templates.get(selected_template_name, combo_templates["不使用模板"])
+            effective_required = list(required_tags)
+            effective_keyword = combo_contains
+            required_any_groups = []
+
+            if use_template:
+                for tag in template_cfg.get("required_all", []):
+                    if tag not in effective_required:
+                        effective_required.append(tag)
+                required_any_groups = template_cfg.get("required_any_groups", []) or []
+                if not effective_keyword:
+                    effective_keyword = str(template_cfg.get("keyword", "") or "").upper()
+
+            if effective_required:
                 rows = [
                     r for r in rows
-                    if set(required_tags).issubset(set(r.get("signal_tags_list") or []))
+                    if set(effective_required).issubset(set(r.get("signal_tags_list") or []))
+                ]
+
+            for any_group in required_any_groups:
+                rows = [
+                    r for r in rows
+                    if any(tag in set(r.get("signal_tags_list") or []) for tag in any_group)
                 ]
 
             # 顶部总览
@@ -2917,8 +2976,8 @@ def render_todays_picks_page():
             st.markdown("### 🧩 组合绩效矩阵")
             combo_stats = build_combo_stats(rows, min_samples=min_samples)
             if combo_stats:
-                if combo_contains:
-                    combo_stats = [x for x in combo_stats if combo_contains in str(x.get("组合", "")).upper()]
+                if effective_keyword:
+                    combo_stats = [x for x in combo_stats if effective_keyword in str(x.get("组合", "")).upper()]
                 combo_df = pd.DataFrame(combo_stats)
                 st.dataframe(combo_df, use_container_width=True, hide_index=True)
             else:
@@ -2966,6 +3025,65 @@ def render_todays_picks_page():
                     }
                 )
                 st.dataframe(show_df, use_container_width=True, hide_index=True)
+
+            # 组合 -> 个股钻取
+            if combo_stats:
+                st.markdown("### 🔎 组合钻取")
+                combo_names = [x.get("组合", "") for x in combo_stats if x.get("组合")]
+                selected_combo = st.selectbox(
+                    "选择一个组合查看个股明细",
+                    options=combo_names,
+                    key=f"combo_drill_{market}",
+                )
+                combo_parts = [p for p in str(selected_combo).split("+") if p]
+                drill_rows = [
+                    r for r in rows
+                    if set(combo_parts).issubset(set(r.get("signal_tags_list") or []))
+                ]
+                if drill_rows:
+                    drill_df = pd.DataFrame(drill_rows)
+                    drill_df["标签"] = drill_df["signal_tags_list"].apply(
+                        lambda x: ",".join(x[:8]) if isinstance(x, list) else ""
+                    )
+                    drill_show = drill_df.rename(
+                        columns={
+                            "symbol": "代码",
+                            "signal_date": "信号日",
+                            "signal_price": "信号价",
+                            "current_price": "现价",
+                            "pnl_pct": "当前收益%",
+                            "days_since_signal": "追踪天数",
+                            "first_positive_day": "首次转正天",
+                            "cap_category": "市值层",
+                            "industry": "行业",
+                        }
+                    )
+                    keep_cols = [
+                        "代码", "信号日", "信号价", "现价", "当前收益%",
+                        "追踪天数", "首次转正天", "市值层", "行业", "标签",
+                    ]
+                    keep_cols = [c for c in keep_cols if c in drill_show.columns]
+                    st.dataframe(drill_show[keep_cols], use_container_width=True, hide_index=True)
+
+                    symbol_options = [f"{r.get('symbol')} | {r.get('signal_date')}" for r in drill_rows]
+                    selected_symbol_row = st.selectbox(
+                        "查看个股详细分析",
+                        options=symbol_options,
+                        key=f"combo_drill_symbol_{market}",
+                    )
+                    selected_symbol = selected_symbol_row.split("|")[0].strip()
+                    if st.button("📊 打开个股详情", key=f"combo_open_detail_{market}"):
+                        render_unified_stock_detail(
+                            symbol=selected_symbol,
+                            market=market,
+                            show_charts=True,
+                            show_chips=True,
+                            show_news=False,
+                            show_actions=False,
+                            key_prefix=f"combo_drill_{market}_{selected_symbol}",
+                        )
+                else:
+                    st.info("该组合暂无对应个股样本。")
 
     
     # ============================================
