@@ -82,6 +82,8 @@ class Backtester:
                     gross = (exit_price - entry_price) / entry_price * 100
                     round_trip_cost = 2.0 * (self.commission + self.slippage) * 100
                     pnl = gross - round_trip_cost
+                    # 单笔收益率物理边界保护（防止出现 <= -100% 导致回撤失真）
+                    pnl = max(float(pnl), -99.9)
                     
                     self.trades.append({
                         'symbol': symbol,
@@ -171,7 +173,7 @@ class Backtester:
         total_return = trades_df['pnl_pct'].sum()
         
         # 标准差和夏普比率
-        returns = trades_df['pnl_pct'].values
+        returns = trades_df['pnl_pct'].clip(lower=-99.9).values
         std_return = np.std(returns) if len(returns) > 1 else 0
         sharpe_ratio = (avg_return / std_return * np.sqrt(252)) if std_return > 0 else 0
         
@@ -181,7 +183,7 @@ class Backtester:
         profit_factor = avg_win / avg_loss if avg_loss > 0 else 0
         
         # 最大回撤 (近似)
-        cumulative = (1 + trades_df['pnl_pct'] / 100).cumprod()
+        cumulative = (1 + trades_df['pnl_pct'].clip(lower=-99.9) / 100).cumprod()
         peak = cumulative.expanding().max()
         drawdown = (cumulative - peak) / peak * 100
         max_drawdown = abs(drawdown.min())
@@ -310,6 +312,7 @@ class Backtester:
                 if df is not None and len(df) > holding_days:
                     exit_price = df.iloc[-1]['Close']
                     pnl = (exit_price - pos['entry_price']) / pos['entry_price'] * 100
+                    pnl = max(float(pnl), -99.9)
                     
                     all_trades.append({
                         'symbol': symbol,

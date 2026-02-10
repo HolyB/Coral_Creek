@@ -267,11 +267,29 @@ class StrategyOptimizer:
         if len(filtered) < 5:
             return OptimizationResult(config=config, metrics={'n_samples': len(filtered)})
         
-        returns = filtered['return_d5'].dropna()
+        # 兼容 daily_picks_performance / signal_performance 的列名差异
+        ret_col = None
+        for c in ['return_d5', 'return_5d']:
+            if c in filtered.columns:
+                ret_col = c
+                break
+        if ret_col is None:
+            return OptimizationResult(config=config, metrics={'n_samples': 0})
+
+        returns = pd.to_numeric(filtered[ret_col], errors='coerce').dropna()
+        returns = returns[np.isfinite(returns)]
+        # 异常保护：收益率物理边界（小于 -100% 不成立）
+        returns = returns.clip(lower=-99.9, upper=500.0)
         
         if len(returns) < 5:
             return OptimizationResult(config=config, metrics={'n_samples': len(returns)})
         
+        # 用资金曲线计算最大回撤，而不是单笔最差收益
+        equity = (1.0 + returns / 100.0).cumprod()
+        running_max = equity.cummax()
+        drawdown = (equity / running_max) - 1.0
+        max_drawdown_pct = abs(float(drawdown.min())) * 100.0 if len(drawdown) > 0 else 0.0
+
         metrics = {
             'n_samples': len(returns),
             'avg_return': round(returns.mean(), 2),
@@ -279,7 +297,7 @@ class StrategyOptimizer:
             'std_return': round(returns.std(), 2),
             'sharpe_like': round(returns.mean() / returns.std(), 3) if returns.std() > 0 else 0,
             'max_gain': round(returns.max(), 2),
-            'max_drawdown': round(returns.min(), 2),
+            'max_drawdown': round(max_drawdown_pct, 2),
             'median_return': round(returns.median(), 2)
         }
         

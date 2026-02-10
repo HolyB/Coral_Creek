@@ -8327,7 +8327,7 @@ def render_parameter_lab():
                          delta="好" if results.get('win_rate', 0) > 50 else "差")
                 m3.metric("平均收益", f"{results.get('avg_return', 0):.2f}%")
                 m4.metric("总收益", f"{results.get('total_return', 0):.2f}%")
-                m5.metric("最大回撤", f"-{results.get('max_drawdown', 0):.2f}%", delta_color="inverse")
+                m5.metric("最大回撤", f"{results.get('max_drawdown', 0):.2f}%", delta_color="inverse")
                 
                 # 增强指标
                 col_a, col_b, col_c, col_d, col_e = st.columns(5)
