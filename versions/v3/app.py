@@ -11426,13 +11426,15 @@ def render_paper_trading_tab():
             with auto_col4:
                 auto_deploy_pct = st.slider("资金使用率(%)", min_value=10, max_value=100, value=90, step=5, key="auto_basket_deploy_pct")
 
-            auto_col5, auto_col6, auto_col7 = st.columns(3)
+            auto_col5, auto_col6, auto_col7, auto_col8 = st.columns(4)
             with auto_col5:
                 auto_seed_cap = st.number_input("新账户初始资金($)", min_value=1000.0, value=20000.0, step=1000.0, key="auto_basket_seed_cap")
             with auto_col6:
                 auto_full_cap = st.number_input("全买策略上限只数", min_value=20, max_value=300, value=120, step=10, key="auto_basket_full_cap")
             with auto_col7:
                 auto_reset_before_buy = st.checkbox("执行前重置目标子账户", value=False, key="auto_basket_reset_before_buy")
+            with auto_col8:
+                auto_track_days = st.slider("追踪统计天数", min_value=30, max_value=720, value=180, step=30, key="auto_basket_track_days")
 
             _set_active_market(auto_market)
 
@@ -11611,6 +11613,13 @@ def render_paper_trading_tab():
                                         st.rerun()
 
                 st.markdown("**默认组合绩效对比**")
+                tracking_rows_all = []
+                try:
+                    from services.candidate_tracking_service import get_candidate_tracking_rows as get_candidate_tracking_rows_for_perf
+                    tracking_rows_all = get_candidate_tracking_rows_for_perf(market=auto_market, days_back=int(auto_track_days)) or []
+                except Exception as e:
+                    st.caption(f"⚠️ 候选追踪统计不可用: {e}")
+
                 perf_rows = []
                 for sd in strategy_defs:
                     acc_name = f"auto_{auto_market.lower()}_{sd['account_tag']}"
@@ -11621,12 +11630,35 @@ def render_paper_trading_tab():
                     pos = acc_data.get("positions", []) or []
                     open_winners = sum(1 for p in pos if float(p.get("unrealized_pnl", 0.0) or 0.0) > 0)
                     open_win_rate = (open_winners / len(pos) * 100.0) if pos else 0.0
+
+                    matched_track_rows = []
+                    if tracking_rows_all:
+                        for tr in tracking_rows_all:
+                            tf = _extract_signal_fields(tr)
+                            if _strategy_match(sd["id"], tf):
+                                matched_track_rows.append(tr)
+                    track_total = len(matched_track_rows)
+                    if track_total > 0:
+                        track_wins = sum(1 for r in matched_track_rows if float(r.get("pnl_pct") or 0) > 0)
+                        track_win_rate = track_wins / track_total * 100.0
+                        track_avg_pnl = float(np.mean([float(r.get("pnl_pct") or 0) for r in matched_track_rows]))
+                        d2p_vals = [int(r["first_positive_day"]) for r in matched_track_rows if r.get("first_positive_day") is not None]
+                        track_median_d2p = int(np.median(d2p_vals)) if d2p_vals else None
+                    else:
+                        track_win_rate = None
+                        track_avg_pnl = None
+                        track_median_d2p = None
+
                     perf_rows.append({
                         "策略": sd["name"],
                         "子账户": acc_name,
                         "总收益率": f"{float(perf.get('total_return_pct', 0.0)):+.2f}%",
                         "胜率(已平仓)": f"{float(perf.get('win_rate_pct', 0.0)):.1f}%",
                         "赢面(当前持仓)": f"{open_win_rate:.1f}%",
+                        "追踪样本": track_total,
+                        "追踪胜率": f"{track_win_rate:.1f}%" if track_win_rate is not None else "-",
+                        "追踪均收": f"{track_avg_pnl:+.2f}%" if track_avg_pnl is not None else "-",
+                        "转正中位天": f"{track_median_d2p}天" if track_median_d2p is not None else "-",
                         "盈亏比": "∞" if perf.get("profit_factor") == float("inf") else f"{float(perf.get('profit_factor', 0.0)):.2f}",
                         "总盈亏": f"${float(perf.get('total_pnl', 0.0)):+,.2f}",
                         "持仓数": len(pos),
