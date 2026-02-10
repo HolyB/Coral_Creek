@@ -165,10 +165,17 @@ def _normalize_ohlcv(df: Optional[pd.DataFrame]) -> pd.DataFrame:
 def _resample_ohlcv(df: pd.DataFrame, rule: str) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
-    out = df.resample(rule).agg(
-        {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
-    ).dropna()
-    return out
+    agg_map = {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
+    try:
+        return df.resample(rule).agg(agg_map).dropna()
+    except Exception:
+        # 兼容不同 pandas 版本（部分环境不支持 "ME" 别名）
+        if rule == "ME":
+            try:
+                return df.resample("M").agg(agg_map).dropna()
+            except Exception:
+                return pd.DataFrame()
+        return pd.DataFrame()
 
 
 def _detect_caisen_16(df: pd.DataFrame, timeframe_label: str) -> List[Dict[str, str]]:
