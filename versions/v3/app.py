@@ -9094,6 +9094,44 @@ def render_strategy_optimizer_tab():
                                 width='stretch',
                                 hide_index=True
                             )
+
+                            st.markdown("#### 3) 策略参数路径（宽松 → 极致 → 收紧）")
+                            strat_list = sorted(eval_df["策略"].unique().tolist())
+                            selected_path_strat = st.selectbox(
+                                "选择要查看路径的策略",
+                                strat_list,
+                                index=0,
+                                key="opt_extreme_path_strategy",
+                            )
+                            sub_path = eval_df[eval_df["策略"] == selected_path_strat].copy()
+                            if sub_path.empty:
+                                st.info("该策略暂无参数路径数据")
+                            else:
+                                peak_row = sub_path.sort_values(
+                                    ["综合得分", "胜率(%)", "平均收益(%)"],
+                                    ascending=False
+                                ).iloc[0]
+                                peak_blue = int(peak_row["BLUE日线"])
+                                sub_path["阶段"] = sub_path["BLUE日线"].apply(
+                                    lambda v: "宽松段" if int(v) < peak_blue else ("收紧段" if int(v) > peak_blue else "极致点")
+                                )
+                                path_cols = ["阶段", "BLUE日线", "BLUE周线", "ADX", "样本数", "胜率(%)", "平均收益(%)", "Sharpe", "综合得分"]
+                                path_df = sub_path[path_cols].sort_values(
+                                    ["BLUE日线", "BLUE周线", "ADX"],
+                                    ascending=True
+                                )
+                                st.dataframe(path_df, width="stretch", hide_index=True)
+
+                                fig_path = px.line(
+                                    path_df,
+                                    x="BLUE日线",
+                                    y="胜率(%)",
+                                    color="阶段",
+                                    markers=True,
+                                    hover_data=["BLUE周线", "ADX", "样本数", "平均收益(%)", "Sharpe", "综合得分"],
+                                    title=f"{selected_path_strat} 参数路径 - 胜率随 BLUE日线 变化",
+                                )
+                                st.plotly_chart(fig_path, width="stretch")
         
     except Exception as e:
         st.error(f"加载失败: {e}")
