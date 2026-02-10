@@ -189,6 +189,7 @@ def init_db():
                 pnl_pct REAL DEFAULT 0,
                 days_since_signal INTEGER DEFAULT 0,
                 first_positive_day INTEGER,
+                first_nonpositive_after_positive_day INTEGER,
                 max_up_pct REAL DEFAULT 0,
                 max_drawdown_pct REAL DEFAULT 0,
                 pnl_d1 REAL,
@@ -216,6 +217,10 @@ def init_db():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_date ON candidate_tracking(signal_date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_market ON candidate_tracking(market)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_status ON candidate_tracking(status)")
+        try:
+            cursor.execute("SELECT first_nonpositive_after_positive_day FROM candidate_tracking LIMIT 1")
+        except Exception:
+            cursor.execute("ALTER TABLE candidate_tracking ADD COLUMN first_nonpositive_after_positive_day INTEGER")
         
         # Baseline 扫描结果表 (用于对比)
         cursor.execute("""

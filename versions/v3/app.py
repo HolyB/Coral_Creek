@@ -1520,6 +1520,7 @@ def render_todays_picks_page():
             build_segment_stats,
             reclassify_tracking_tags,
             derive_signal_tags,
+            evaluate_exit_rule,
             CORE_TAGS,
             DEFAULT_TAG_RULES,
             backfill_candidates_from_scan_history,
@@ -1547,6 +1548,17 @@ def render_todays_picks_page():
         
         def derive_signal_tags(*args, **kwargs):
             return []
+        
+        def evaluate_exit_rule(*args, **kwargs):
+            return {
+                "sample": 0,
+                "win_rate_pct": None,
+                "avg_return_pct": None,
+                "avg_exit_day": None,
+                "avg_first_profit_day": None,
+                "avg_first_nonprofit_day": None,
+                "avg_profit_span_days": None,
+            }
 
         def backfill_candidates_from_scan_history(*args, **kwargs):
             return 0
@@ -1886,6 +1898,39 @@ def render_todays_picks_page():
             except Exception:
                 pass
             st.success(f"今日优先级建议: 先做 `{top_combo_txt}` 组合，再优先 `{top_strat_cap_txt}`，并聚焦 `{top_ind_txt}` 板块。")
+
+            st.markdown("### 🧪 规则平仓评估（交易口径）")
+            r1, r2, r3, r4 = st.columns(4)
+            with r1:
+                exit_rule = st.selectbox(
+                    "平仓规则",
+                    options=["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time"],
+                    index=1,
+                    key=f"action_exit_rule_{market}",
+                )
+            with r2:
+                rule_tp = st.slider("止盈(%)", min_value=3, max_value=25, value=10, step=1, key=f"action_rule_tp_{market}")
+            with r3:
+                rule_sl = st.slider("止损(%)", min_value=2, max_value=20, value=6, step=1, key=f"action_rule_sl_{market}")
+            with r4:
+                rule_max_hold = st.slider("最长持有天", min_value=5, max_value=60, value=20, step=1, key=f"action_rule_hold_{market}")
+
+            eval_ret = evaluate_exit_rule(
+                rows=tracking_rows_for_action,
+                rule_name=exit_rule,
+                take_profit_pct=float(rule_tp),
+                stop_loss_pct=float(rule_sl),
+                max_hold_days=int(rule_max_hold),
+                max_rows=1200,
+            )
+
+            e1, e2, e3, e4, e5 = st.columns(5)
+            e1.metric("规则样本", int(eval_ret.get("sample") or 0))
+            e2.metric("规则胜率", f"{float(eval_ret.get('win_rate_pct') or 0):.1f}%")
+            e3.metric("规则均收", f"{float(eval_ret.get('avg_return_pct') or 0):+.2f}%")
+            e4.metric("平均开始赚钱天数", f"{eval_ret.get('avg_first_profit_day') or '-'}")
+            e5.metric("平均开始不赚钱天数", f"{eval_ret.get('avg_first_nonprofit_day') or '-'}")
+            st.caption(f"平均盈利持续天数: {eval_ret.get('avg_profit_span_days') or '-'} 天（= 由盈转亏天 - 首次盈利天）")
         else:
             st.info("暂无候选追踪样本，先运行扫描并回填历史。")
     

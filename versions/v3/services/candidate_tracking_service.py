@@ -11,6 +11,7 @@ import json
 from datetime import datetime
 from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Sequence
+import numpy as np
 
 from db.database import get_db, init_db, get_scanned_dates, query_scan_results
 
@@ -60,6 +61,7 @@ def _ensure_tracking_table() -> None:
                 pnl_pct REAL DEFAULT 0,
                 days_since_signal INTEGER DEFAULT 0,
                 first_positive_day INTEGER,
+                first_nonpositive_after_positive_day INTEGER,
                 max_up_pct REAL DEFAULT 0,
                 max_drawdown_pct REAL DEFAULT 0,
                 pnl_d1 REAL,
@@ -88,6 +90,10 @@ def _ensure_tracking_table() -> None:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_date ON candidate_tracking(signal_date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_market ON candidate_tracking(market)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_candidate_status ON candidate_tracking(status)")
+        try:
+            cursor.execute("SELECT first_nonpositive_after_positive_day FROM candidate_tracking LIMIT 1")
+        except Exception:
+            cursor.execute("ALTER TABLE candidate_tracking ADD COLUMN first_nonpositive_after_positive_day INTEGER")
 
 
 def _to_bool(v) -> bool:
@@ -336,6 +342,12 @@ def refresh_candidate_tracking(market: Optional[str] = None, max_rows: int = 200
             if p > signal_price:
                 first_positive_day = idx
                 break
+        first_nonpositive_after_positive_day = None
+        if first_positive_day is not None:
+            for idx in range(first_positive_day + 1, len(prices)):
+                if prices[idx] <= signal_price:
+                    first_nonpositive_after_positive_day = idx
+                    break
 
         max_price = max(prices)
         min_price = min(prices)
@@ -361,6 +373,7 @@ def refresh_candidate_tracking(market: Optional[str] = None, max_rows: int = 200
                 UPDATE candidate_tracking
                 SET current_price = ?, pnl_pct = ?, days_since_signal = ?,
                     first_positive_day = COALESCE(first_positive_day, ?),
+                    first_nonpositive_after_positive_day = COALESCE(first_nonpositive_after_positive_day, ?),
                     max_up_pct = ?, max_drawdown_pct = ?,
                     pnl_d1 = ?, pnl_d3 = ?, pnl_d5 = ?, pnl_d10 = ?, pnl_d20 = ?,
                     status = ?, updated_at = CURRENT_TIMESTAMP
@@ -371,6 +384,7 @@ def refresh_candidate_tracking(market: Optional[str] = None, max_rows: int = 200
                     pnl_pct,
                     days_since_signal,
                     first_positive_day,
+                    first_nonpositive_after_positive_day,
                     max_up_pct,
                     max_drawdown_pct,
                     pnl_d1,
@@ -565,3 +579,143 @@ def build_segment_stats(rows: Sequence[Dict], by: str = "cap_category") -> List[
         )
     out.sort(key=lambda x: x["样本数"], reverse=True)
     return out
+
+
+def evaluate_exit_rule(
+    rows: Sequence[Dict],
+    rule_name: str = "fixed_10d",
+    take_profit_pct: float = 10.0,
+    stop_loss_pct: float = 6.0,
+    max_hold_days: int = 20,
+    max_rows: int = 1200,
+) -> Dict:
+    """
+    规则平仓评估：
+    - fixed_5d / fixed_10d / fixed_20d
+    - tp_sl_time: 先触发止盈/止损，否则 max_hold_days 强平
+    """
+    use_rows = list(rows or [])[: int(max_rows)]
+    if not use_rows:
+        return {
+            "rule_name": rule_name,
+            "sample": 0,
+            "win_rate_pct": None,
+            "avg_return_pct": None,
+            "avg_exit_day": None,
+            "avg_first_profit_day": None,
+            "avg_first_nonprofit_day": None,
+            "avg_profit_span_days": None,
+        }
+
+    exits = []
+    for row in use_rows:
+        signal_price = _to_float(row.get("signal_price"), 0.0)
+        if signal_price <= 0:
+            continue
+        symbol = str(row.get("symbol") or "")
+        market = str(row.get("market") or "US")
+        signal_date = str(row.get("signal_date") or "")
+
+        series = _get_price_series(symbol=symbol, market=market, signal_date=signal_date)
+        prices = [_to_float(x.get("price"), 0.0) for x in series if _to_float(x.get("price"), 0.0) > 0]
+        if not prices:
+            continue
+
+        exit_day = None
+        exit_ret = None
+
+        if rule_name == "fixed_5d":
+            day = min(5, len(prices) - 1)
+            exit_day = day
+            exit_ret = (prices[day] / signal_price - 1.0) * 100.0
+        elif rule_name == "fixed_20d":
+            day = min(20, len(prices) - 1)
+            exit_day = day
+            exit_ret = (prices[day] / signal_price - 1.0) * 100.0
+        elif rule_name == "tp_sl_time":
+            tp = signal_price * (1.0 + take_profit_pct / 100.0)
+            sl = signal_price * (1.0 - stop_loss_pct / 100.0)
+            limit_day = min(int(max_hold_days), len(prices) - 1)
+            for i in range(1, limit_day + 1):
+                p = prices[i]
+                if p >= tp:
+                    exit_day = i
+                    exit_ret = (p / signal_price - 1.0) * 100.0
+                    break
+                if p <= sl:
+                    exit_day = i
+                    exit_ret = (p / signal_price - 1.0) * 100.0
+                    break
+            if exit_day is None:
+                exit_day = limit_day
+                exit_ret = (prices[limit_day] / signal_price - 1.0) * 100.0
+        else:
+            day = min(10, len(prices) - 1)
+            exit_day = day
+            exit_ret = (prices[day] / signal_price - 1.0) * 100.0
+
+        exits.append(
+            {
+                "symbol": symbol,
+                "market": market,
+                "signal_date": signal_date,
+                "exit_day": int(exit_day),
+                "exit_return_pct": float(exit_ret),
+                "first_positive_day": row.get("first_positive_day"),
+                "first_nonpositive_after_positive_day": row.get("first_nonpositive_after_positive_day"),
+            }
+        )
+
+    if not exits:
+        return {
+            "rule_name": rule_name,
+            "sample": 0,
+            "win_rate_pct": None,
+            "avg_return_pct": None,
+            "avg_exit_day": None,
+            "avg_first_profit_day": None,
+            "avg_first_nonprofit_day": None,
+            "avg_profit_span_days": None,
+        }
+
+    exit_returns = [x["exit_return_pct"] for x in exits]
+    wins = sum(1 for x in exit_returns if x > 0)
+    exit_days = [x["exit_day"] for x in exits]
+
+    profit_days = []
+    nonprofit_days = []
+    span_days = []
+    for x in exits:
+        fp = x.get("first_positive_day")
+        fn = x.get("first_nonpositive_after_positive_day")
+        if fp is not None:
+            try:
+                fp_i = int(fp)
+                profit_days.append(fp_i)
+            except Exception:
+                pass
+        if fn is not None:
+            try:
+                fn_i = int(fn)
+                nonprofit_days.append(fn_i)
+                if fp is not None:
+                    try:
+                        fp_i2 = int(fp)
+                        if fn_i >= fp_i2:
+                            span_days.append(fn_i - fp_i2)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    return {
+        "rule_name": rule_name,
+        "sample": len(exits),
+        "win_rate_pct": round(wins / len(exits) * 100.0, 1),
+        "avg_return_pct": round(float(np.mean(exit_returns)), 2),
+        "avg_exit_day": round(float(np.mean(exit_days)), 1) if exit_days else None,
+        "avg_first_profit_day": round(float(np.mean(profit_days)), 1) if profit_days else None,
+        "avg_first_nonprofit_day": round(float(np.mean(nonprofit_days)), 1) if nonprofit_days else None,
+        "avg_profit_span_days": round(float(np.mean(span_days)), 1) if span_days else None,
+        "details": exits,
+    }
