@@ -2329,13 +2329,17 @@ def render_todays_picks_page():
                             "综合执行分(0-100)",
                             "建议仓位(%)",
                             "建议金额($)",
+                            "距信号天数",
+                            "信号价",
+                            "现价",
+                            "价格变化($)",
+                            "价格变化(%)",
                             "blue_daily",
                             "blue_weekly",
-                            "当前收益(%)",
                         ]
                         today_plan_df = today_plan_df[[c for c in show_cols_plan if c in today_plan_df.columns]]
                         st.dataframe(today_plan_df, width="stretch", hide_index=True)
-                        st.caption("口径: 综合执行分=策略权重合计×信号强度归一化；建议仓位/金额按候选内部相对分数分配。")
+                        st.caption("口径: 综合执行分=策略权重合计×信号强度归一化；价格变化=现价相对信号价变化；建议仓位/金额按候选内部相对分数分配。")
                     else:
                         st.info("今日暂无满足组合规则的候选。")
             else:

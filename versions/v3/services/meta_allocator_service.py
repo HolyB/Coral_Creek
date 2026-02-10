@@ -292,15 +292,28 @@ def build_today_meta_plan(
 
         existing = picked.get(sym)
         if (existing is None) or (raw_exec > _to_float(existing.get("_raw_exec"))):
+            signal_price = _to_float(r.get("signal_price"), 0.0)
+            current_price = _to_float(r.get("current_price"), 0.0)
+            if current_price <= 0:
+                current_price = signal_price
+            px_change_pct = 0.0
+            px_change_abs = 0.0
+            if signal_price > 0 and current_price > 0:
+                px_change_abs = current_price - signal_price
+                px_change_pct = (px_change_abs / signal_price) * 100.0
             picked[sym] = {
                 "日期": latest_date,
                 "symbol": sym,
                 "命中策略数": len(hit_strategies),
                 "命中策略": "、".join(sorted(set(hit_strategies))),
                 "策略权重合计(%)": round(weight_sum, 1),
+                "距信号天数": int(_to_float(r.get("days_since_signal"), 0)),
+                "信号价": round(signal_price, 3) if signal_price > 0 else None,
+                "现价": round(current_price, 3) if current_price > 0 else None,
+                "价格变化($)": round(px_change_abs, 3),
+                "价格变化(%)": round(px_change_pct, 2),
                 "blue_daily": round(day_blue, 1),
                 "blue_weekly": round(week_blue, 1),
-                "当前收益(%)": round(_to_float(r.get("pnl_pct")), 2),
                 "_raw_exec": raw_exec,
             }
 
