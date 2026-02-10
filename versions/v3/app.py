@@ -11666,7 +11666,46 @@ def render_paper_trading_tab():
                     })
 
                 if perf_rows:
-                    st.dataframe(pd.DataFrame(perf_rows), use_container_width=True, hide_index=True)
+                    perf_df = pd.DataFrame(perf_rows)
+                    st.dataframe(perf_df, use_container_width=True, hide_index=True)
+
+                    if st.button("📣 推送默认组合绩效", key=f"push_auto_basket_perf_{auto_market}"):
+                        try:
+                            from services.notification import NotificationManager
+
+                            top_rows = perf_df.head(5).to_dict("records")
+                            lines = [
+                                f"*🧩 默认组合绩效 | {auto_market}*",
+                                f"日期: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                                f"追踪窗口: 最近 {int(auto_track_days)} 天",
+                                "",
+                            ]
+                            for row in top_rows:
+                                lines.append(
+                                    f"- {row['策略']}: 总收益 {row['总收益率']} | 追踪胜率 {row['追踪胜率']} | "
+                                    f"追踪均收 {row['追踪均收']} | 样本 {row['追踪样本']} | 子账户 `{row['子账户']}`"
+                                )
+                            lines.append("")
+                            lines.append("仅供研究，不构成投资建议。")
+                            msg = "\n".join(lines)
+
+                            nm = NotificationManager()
+                            tg_ok = nm.send_telegram(msg) if nm.telegram_token else False
+                            wc_ok = nm.send_wecom(msg, msg_type="markdown") if nm.wecom_webhook else False
+                            wx_ok = nm.send_wxpusher(
+                                title=f"Coral Creek 默认组合绩效 {auto_market}",
+                                content=msg,
+                            ) if nm.wxpusher_app_token else False
+                            bark_ok = nm.send_bark(
+                                title=f"默认组合绩效 {auto_market}",
+                                content=msg,
+                            ) if nm.bark_url else False
+
+                            st.success(
+                                f"推送完成 | telegram={tg_ok}, wecom={wc_ok}, wxpusher={wx_ok}, bark={bark_ok}"
+                            )
+                        except Exception as e:
+                            st.error(f"推送失败: {e}")
                 else:
                     st.info("默认组合子账户尚未创建。先点上方任一策略“执行买入”。")
         
