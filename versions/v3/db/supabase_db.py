@@ -181,6 +181,8 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
             'wave_desc': result_dict.get('Wave_Desc') or result_dict.get('wave_desc'),
             'chan_signal': result_dict.get('Chan_Signal') or result_dict.get('chan_signal'),
             'chan_desc': result_dict.get('Chan_Desc') or result_dict.get('chan_desc'),
+            'duokongwang_buy': result_dict.get('Duokongwang_Buy') if result_dict.get('Duokongwang_Buy') is not None else result_dict.get('duokongwang_buy'),
+            'duokongwang_sell': result_dict.get('Duokongwang_Sell') if result_dict.get('Duokongwang_Sell') is not None else result_dict.get('duokongwang_sell'),
         }
         
         # 移除 None 值的字段（Supabase 不接受某些 null）
@@ -191,11 +193,13 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
             return True
         except Exception as e:
             msg = str(e).lower()
-            if "day_high" in msg or "day_low" in msg or "day_close" in msg:
+            if "day_high" in msg or "day_low" in msg or "day_close" in msg or "duokongwang_" in msg:
                 # 兼容云端尚未迁移新列的场景：降级写入旧字段
                 record.pop('day_high', None)
                 record.pop('day_low', None)
                 record.pop('day_close', None)
+                record.pop('duokongwang_buy', None)
+                record.pop('duokongwang_sell', None)
                 supabase.table('scan_results').upsert(record, on_conflict='symbol,scan_date,market').execute()
                 return True
             raise

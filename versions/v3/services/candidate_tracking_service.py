@@ -29,6 +29,8 @@ CORE_TAGS = [
     "CHIP_DENSE",
     "CHIP_BREAKOUT",
     "CHIP_OVERHANG",
+    "DUOKONGWANG_BUY",
+    "DUOKONGWANG_SELL",
 ]
 
 DEFAULT_TAG_RULES = {
@@ -186,6 +188,11 @@ def derive_signal_tags(row: Dict, rules: Optional[Dict] = None) -> List[str]:
         tags.append("CHIP_BREAKOUT")
     if vp_rating == "Poor" or (0 < profit_ratio <= _to_float(cfg.get("chip_overhang_profit_ratio_max"), 0.3)):
         tags.append("CHIP_OVERHANG")
+
+    if _pick_bool(row, ["duokongwang_buy", "Duokongwang_Buy"]):
+        tags.append("DUOKONGWANG_BUY")
+    if _pick_bool(row, ["duokongwang_sell", "Duokongwang_Sell"]):
+        tags.append("DUOKONGWANG_SELL")
 
     return sorted(set(tags))
 
@@ -660,6 +667,7 @@ def evaluate_exit_rule(
     - tp_sl_time: 先触发止盈/止损，否则 max_hold_days 强平
     - kdj_dead_cross: KDJ(收盘价近似)出现死叉或过热回落即退出
     - top_divergence_guard: 价格创新高但动量不创新高（顶背离近似）时保护退出
+    - duokongwang_sell: 多空王卖出（通道转弱 + KDJ/RSI过热回落 + 九转衰竭）
     """
     use_rows = list(rows or [])[: int(max_rows)]
     if not use_rows:
@@ -717,6 +725,78 @@ def evaluate_exit_rule(
             out_.append({"k": k, "d": d, "j": j})
             k_prev, d_prev = k, d
         return out_
+
+    def _ema(values: List[float], period: int) -> List[float]:
+        if not values:
+            return []
+        alpha = 2.0 / (period + 1.0)
+        out = [float(values[0])]
+        for v in values[1:]:
+            out.append(alpha * float(v) + (1.0 - alpha) * out[-1])
+        return out
+
+    def _sma_cn(values: List[float], n: int, m: int = 1) -> List[float]:
+        # 通达信SMA: Y=(M*X+(N-M)*Y')/N
+        if not values:
+            return []
+        out = [float(values[0])]
+        for x in values[1:]:
+            out.append((m * float(x) + (n - m) * out[-1]) / float(n))
+        return out
+
+    def _calc_duokongwang_sell_flags(highs_: List[float], lows_: List[float], closes_: List[float]) -> List[bool]:
+        n = len(closes_)
+        if n == 0:
+            return []
+
+        # 近似开盘（无开盘价存储时用前收代替）
+        opens_ = [closes_[0]] + closes_[:-1]
+
+        up = _ema(highs_, 13)
+        dw = _ema(lows_, 13)
+
+        # KDJ(14,3,3)
+        rsv = []
+        for i in range(n):
+            s = max(0, i - 14 + 1)
+            llv = min(lows_[s : i + 1])
+            hhv = max(highs_[s : i + 1])
+            if hhv <= llv:
+                rsv.append(50.0)
+            else:
+                rsv.append((closes_[i] - llv) / (hhv - llv) * 100.0)
+        k = _sma_cn(rsv, 3, 1)
+        d = _sma_cn(k, 3, 1)
+        j = [3.0 * k[i] - 2.0 * d[i] for i in range(n)]
+
+        # RSI2(TGN1=9, 通达信口径)
+        lc = [closes_[0]] + closes_[:-1]
+        up_move = [max(closes_[i] - lc[i], 0.0) for i in range(n)]
+        abs_move = [abs(closes_[i] - lc[i]) for i in range(n)]
+        rsi_num = _sma_cn(up_move, 9, 1)
+        rsi_den = _sma_cn(abs_move, 9, 1)
+        rsi2 = [((rsi_num[i] / rsi_den[i]) * 100.0 if rsi_den[i] > 1e-12 else 50.0) for i in range(n)]
+
+        # 九转上升计数: A1=C>REF(C,4)
+        nt = [0] * n
+        for i in range(n):
+            a1 = i >= 4 and closes_[i] > closes_[i - 4]
+            nt[i] = (nt[i - 1] + 1) if (a1 and i > 0) else (1 if a1 else 0)
+
+        flags = [False] * n
+        for i in range(1, n):
+            cond = (closes_[i] > opens_[i] and (opens_[i] > up[i] or closes_[i] < dw[i])) or (
+                closes_[i] < opens_[i] and (opens_[i] < dw[i] or closes_[i] > up[i])
+            )
+            cond2 = up[i] < up[i - 1] and dw[i] < dw[i - 1]  # 通道下行
+            channel_weak = cond and cond2
+
+            kdj_overheat_fade = (j[i - 1] >= 100.0 and j[i] < 95.0) or (j[i - 1] >= 90.0 and j[i] < j[i - 1] - 8.0)
+            rsi_overbought_turn = rsi2[i - 1] >= 79.0 and rsi2[i] < 80.0
+            nine_turn_exhaust = nt[i - 1] >= 9 and closes_[i] < closes_[i - 1]
+
+            flags[i] = bool(channel_weak or kdj_overheat_fade or rsi_overbought_turn or nine_turn_exhaust)
+        return flags
 
     for row in use_rows:
         signal_price = _to_float(row.get("signal_price"), 0.0)
@@ -821,6 +901,18 @@ def evaluate_exit_rule(
                 if h >= tp:
                     exit_day = i
                     exit_ret = (tp / signal_price - 1.0) * 100.0
+                    break
+            if exit_day is None:
+                exit_day = limit_day
+                exit_ret = (closes[limit_day] / signal_price - 1.0) * 100.0
+        elif rule_name == "duokongwang_sell":
+            # 多空王卖出组合：以“见弱就走”为主，避免利润回吐
+            limit_day = min(int(max_hold_days), len(closes) - 1)
+            flags = _calc_duokongwang_sell_flags(highs, lows, closes)
+            for i in range(1, limit_day + 1):
+                if i < len(flags) and flags[i]:
+                    exit_day = i
+                    exit_ret = (closes[i] / signal_price - 1.0) * 100.0
                     break
             if exit_day is None:
                 exit_day = limit_day

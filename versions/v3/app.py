@@ -2220,7 +2220,7 @@ def render_todays_picks_page():
             with r1:
                 exit_rule = st.selectbox(
                     "平仓规则",
-                    options=["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time", "kdj_dead_cross", "top_divergence_guard"],
+                    options=["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time", "kdj_dead_cross", "top_divergence_guard", "duokongwang_sell"],
                     index=1,
                     key=f"action_exit_rule_{market}",
                 )
@@ -2285,6 +2285,7 @@ def render_todays_picks_page():
                     {"rule_name": "tp_sl_time", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
                     {"rule_name": "kdj_dead_cross", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
                     {"rule_name": "top_divergence_guard", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
+                    {"rule_name": "duokongwang_sell", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
                 ]
                 perf_rows = evaluate_strategy_baskets_best_exit(
                     rows=tracking_rows_for_action,
@@ -14792,7 +14793,7 @@ def render_ml_prediction_page():
         with r1:
             eval_exit_rule = st.selectbox(
                 "平仓规则",
-                ["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time", "kdj_dead_cross", "top_divergence_guard"],
+                ["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time", "kdj_dead_cross", "top_divergence_guard", "duokongwang_sell"],
                 index=1,
                 key=f"ml_eval_exit_rule_{market}",
             )

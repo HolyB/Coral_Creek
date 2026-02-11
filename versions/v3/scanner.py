@@ -226,7 +226,75 @@ def analyze_stock(symbol, market='US', account_size=100000):
         except:
             pass
         
-        # 8. 风控建议
+        # 8. 多空王买入/卖出信号（执行版）
+        def _ema(vals, n):
+            alpha = 2.0 / (n + 1.0)
+            out = [float(vals[0])]
+            for v in vals[1:]:
+                out.append(alpha * float(v) + (1 - alpha) * out[-1])
+            return np.array(out, dtype=float)
+
+        def _sma_cn(vals, n, m=1):
+            out = [float(vals[0])]
+            for x in vals[1:]:
+                out.append((m * float(x) + (n - m) * out[-1]) / float(n))
+            return np.array(out, dtype=float)
+
+        duokongwang_buy = False
+        duokongwang_sell = False
+        try:
+            n = len(closes)
+            if n >= 30:
+                opens_proxy = np.concatenate([[closes[0]], closes[:-1]])
+                up = _ema(highs, 13)
+                dw = _ema(lows, 13)
+
+                rsv = np.zeros(n)
+                for i in range(n):
+                    s = max(0, i - 14 + 1)
+                    llv = np.min(lows[s:i + 1])
+                    hhv = np.max(highs[s:i + 1])
+                    rsv[i] = 50.0 if hhv <= llv else (closes[i] - llv) / (hhv - llv) * 100.0
+                k = _sma_cn(rsv, 3, 1)
+                d = _sma_cn(k, 3, 1)
+                j = 3.0 * k - 2.0 * d
+
+                lc = np.concatenate([[closes[0]], closes[:-1]])
+                up_move = np.maximum(closes - lc, 0.0)
+                abs_move = np.abs(closes - lc)
+                rsi_num = _sma_cn(up_move, 9, 1)
+                rsi_den = _sma_cn(abs_move, 9, 1)
+                rsi2 = np.where(rsi_den > 1e-12, rsi_num / rsi_den * 100.0, 50.0)
+
+                nt = np.zeros(n, dtype=int)
+                nt0 = np.zeros(n, dtype=int)
+                for i in range(n):
+                    a1 = (i >= 4 and closes[i] > closes[i - 4])
+                    b1 = (i >= 4 and closes[i] < closes[i - 4])
+                    nt[i] = (nt[i - 1] + 1) if (a1 and i > 0) else (1 if a1 else 0)
+                    nt0[i] = (nt0[i - 1] + 1) if (b1 and i > 0) else (1 if b1 else 0)
+
+                i = n - 1
+                cond = ((closes[i] > opens_proxy[i] and (opens_proxy[i] > up[i] or closes[i] < dw[i])) or
+                        (closes[i] < opens_proxy[i] and (opens_proxy[i] < dw[i] or closes[i] > up[i])))
+                cond1 = (up[i] > up[i - 1] and dw[i] > dw[i - 1]) if i >= 1 else False
+                cond2 = (up[i] < up[i - 1] and dw[i] < dw[i - 1]) if i >= 1 else False
+
+                kdj_cross_up_30 = (i >= 1 and j[i - 1] <= 30.0 and j[i] > 30.0)
+                kdj_oversold_turn = (i >= 1 and j[i - 1] < 20.0 and j[i] > j[i - 1])
+                rsi_oversold_turn = (i >= 1 and rsi2[i - 1] <= 22.0 and rsi2[i] > 20.0)
+                nine_down_exhaust = (nt0[i] >= 9)
+                duokongwang_buy = bool((cond and cond1 and (kdj_cross_up_30 or rsi_oversold_turn)) or kdj_oversold_turn or nine_down_exhaust)
+
+                kdj_overheat_fade = (i >= 1 and ((j[i - 1] >= 100.0 and j[i] < 95.0) or (j[i - 1] >= 90.0 and j[i] < j[i - 1] - 8.0)))
+                rsi_overbought_turn = (i >= 1 and rsi2[i - 1] >= 79.0 and rsi2[i] < 80.0)
+                nine_up_exhaust = (nt[i] >= 9 and i >= 1 and closes[i] < closes[i - 1])
+                duokongwang_sell = bool((cond and cond2) or kdj_overheat_fade or rsi_overbought_turn or nine_up_exhaust)
+        except Exception:
+            duokongwang_buy = False
+            duokongwang_sell = False
+
+        # 9. 风控建议
         stop_loss_price = curr_price - (stop_mult * curr_atr)
         risk_amt = account_size * risk_pct
         shares = int(risk_amt / (stop_mult * curr_atr)) if curr_atr > 0 else 0
@@ -262,6 +330,8 @@ def analyze_stock(symbol, market='US', account_size=100000):
             'Wave_Desc': wave_res['desc'],
             'Chan_Signal': chan_res['signal'],
             'Chan_Desc': chan_res['desc'],
+            'Duokongwang_Buy': bool(duokongwang_buy),
+            'Duokongwang_Sell': bool(duokongwang_sell),
             
             # 基本面
             'Market_Cap': market_cap,

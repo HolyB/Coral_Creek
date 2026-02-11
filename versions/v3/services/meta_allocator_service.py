@@ -18,6 +18,8 @@ STRATEGY_TAG_DEFS = {
     "heima": {"name": "黑马策略", "tags_any": ["DAY_HEIMA", "WEEK_HEIMA", "MONTH_HEIMA"]},
     "chip": {"name": "筹码突破", "tags_any": ["CHIP_BREAKOUT", "CHIP_DENSE"]},
     "defensive": {"name": "防守均衡", "tags_any": ["DAY_BLUE", "CHIP_DENSE"]},
+    "duokongwang": {"name": "多空王买点", "tags_all": ["DUOKONGWANG_BUY"]},
+    "duokongwang_blue": {"name": "多空王+蓝线", "tags_all": ["DUOKONGWANG_BUY", "DAY_BLUE"]},
 }
 
 
@@ -28,6 +30,8 @@ def _build_exit_rule_label(rule_name: str, take_profit_pct: float, stop_loss_pct
         return f"top_divergence_guard(TP={float(take_profit_pct):.0f}%,SL={float(stop_loss_pct):.0f}%,Hold={int(max_hold_days)}d)"
     if str(rule_name) == "kdj_dead_cross":
         return f"kdj_dead_cross(Hold={int(max_hold_days)}d)"
+    if str(rule_name) == "duokongwang_sell":
+        return f"duokongwang_sell(Hold={int(max_hold_days)}d)"
     return str(rule_name)
 
 

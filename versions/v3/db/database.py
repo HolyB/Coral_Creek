@@ -91,6 +91,8 @@ def init_db():
                 wave_desc VARCHAR(100),
                 chan_signal VARCHAR(50),
                 chan_desc VARCHAR(100),
+                duokongwang_buy BOOLEAN,
+                duokongwang_sell BOOLEAN,
                 market_cap REAL,
                 cap_category VARCHAR(30),
                 company_name VARCHAR(200),
@@ -130,6 +132,12 @@ def init_db():
                 pass  # 列已存在
         # 日线OHLC补充字段（用于更精确的KDJ/背离评估）
         for col_name, col_type in [("day_high", "REAL"), ("day_low", "REAL"), ("day_close", "REAL")]:
+            try:
+                cursor.execute(f"ALTER TABLE scan_results ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
+        # 多空王买卖点标记
+        for col_name, col_type in [("duokongwang_buy", "BOOLEAN"), ("duokongwang_sell", "BOOLEAN")]:
             try:
                 cursor.execute(f"ALTER TABLE scan_results ADD COLUMN {col_name} {col_type}")
             except Exception:
@@ -466,9 +474,9 @@ def insert_scan_result(result_dict):
                 heima_daily, heima_weekly, heima_monthly, juedi_daily, juedi_weekly, juedi_monthly,
                 strat_d_trend, strat_c_resonance,
                 legacy_signal, regime, adaptive_thresh, vp_rating, profit_ratio,
-                wave_phase, wave_desc, chan_signal, chan_desc, market_cap, cap_category,
-                company_name, industry, day_high, day_low, day_close, stop_loss, shares_rec, risk_reward_score, market, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                wave_phase, wave_desc, chan_signal, chan_desc, duokongwang_buy, duokongwang_sell,
+                market_cap, cap_category, company_name, industry, day_high, day_low, day_close, stop_loss, shares_rec, risk_reward_score, market, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(symbol, scan_date) DO UPDATE SET
                 price = excluded.price,
                 turnover_m = excluded.turnover_m,
@@ -496,6 +504,8 @@ def insert_scan_result(result_dict):
                 wave_desc = excluded.wave_desc,
                 chan_signal = excluded.chan_signal,
                 chan_desc = excluded.chan_desc,
+                duokongwang_buy = excluded.duokongwang_buy,
+                duokongwang_sell = excluded.duokongwang_sell,
                 market_cap = excluded.market_cap,
                 cap_category = excluded.cap_category,
                 company_name = excluded.company_name,
@@ -537,6 +547,8 @@ def insert_scan_result(result_dict):
             result_dict.get('Wave_Desc'),
             result_dict.get('Chan_Signal'),
             result_dict.get('Chan_Desc'),
+            result_dict.get('Duokongwang_Buy'),
+            result_dict.get('Duokongwang_Sell'),
             result_dict.get('Market_Cap'),
             result_dict.get('Cap_Category'),
             result_dict.get('Company_Name'),
