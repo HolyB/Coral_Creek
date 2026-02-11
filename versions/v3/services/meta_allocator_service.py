@@ -82,21 +82,28 @@ def _calc_trade_metrics_from_details(details: Sequence[Dict], avg_hold_days: flo
     trades_per_year = 252.0 / hold
     n = len(rets)
 
-    # 原始几何年化（诊断用）
-    if n > 0 and curve[-1] > 0:
-        ann_raw = float(curve[-1] ** (trades_per_year / n) - 1.0)
+    # 原始几何年化（不截尾，诊断用）
+    if n > 0:
+        try:
+            ann_raw = float(np.expm1(np.mean(np.log1p(rets)) * trades_per_year))
+        except Exception:
+            ann_raw = -1.0
     else:
-        ann_raw = -1.0 if n > 0 else 0.0
+        ann_raw = 0.0
 
-    # 稳健年化：截尾后用均值×年交易次数，避免几何年化被极端尾部放大/击穿
-    rets_robust = np.clip(rets, -0.25, 0.25)
-    ann = float(np.mean(rets_robust) * trades_per_year) if n > 0 else 0.0
-    # 与总收益方向保持一致，避免“总收益为负但年化为正”的解释冲突
-    if total_ret < 0 and ann > 0:
-        ann = min(float(ann_raw), total_ret)
-    elif total_ret > 0 and ann < 0:
-        ann = max(float(ann_raw), total_ret)
-    ann = float(np.clip(ann, -0.95, 3.0))
+    # 主口径：稳健几何年化（对单笔收益做截尾后再按log-return复利年化）
+    rets_robust = np.clip(rets, -0.35, 0.35)
+    try:
+        ann = float(np.expm1(np.mean(np.log1p(rets_robust)) * trades_per_year)) if n > 0 else 0.0
+    except Exception:
+        ann = 0.0
+
+    # 期望年化（算术均值法，仅作辅助对照）
+    ann_expect = float(np.mean(rets) * trades_per_year) if n > 0 else 0.0
+
+    ann_raw = float(np.clip(ann_raw, -0.99, 5.0))
+    ann = float(np.clip(ann, -0.99, 5.0))
+    ann_expect = float(np.clip(ann_expect, -0.99, 5.0))
 
     mu = float(np.mean(rets)) if n > 0 else 0.0
     sigma = float(np.std(rets, ddof=1)) if n > 1 else 0.0
@@ -112,6 +119,7 @@ def _calc_trade_metrics_from_details(details: Sequence[Dict], avg_hold_days: flo
         "total_return_pct": round(total_ret * 100.0, 2),
         "ann_return_pct": round(ann * 100.0, 2),
         "ann_return_raw_pct": round(ann_raw * 100.0, 2),
+        "ann_return_expect_pct": round(ann_expect * 100.0, 2),
         "sharpe": round(sharpe, 3),
         "max_drawdown_pct": round(max_dd * 100.0, 2),
         "profit_factor": round(profit_factor, 2),
