@@ -2249,6 +2249,14 @@ def render_todays_picks_page():
                 st.warning("当前规则评估样本为 0。请先在“组合追踪”里执行“回填历史扫描 + 刷新追踪”，再比较规则参数。")
 
             st.markdown("### 🧩 策略组合层（Meta Allocator）")
+            st.caption(
+                f"当前卖出规则口径: `{exit_rule}`"
+                + (
+                    f" (止盈{float(rule_tp):.0f}% / 止损{float(rule_sl):.0f}% / 最长持有{int(rule_max_hold)}天)"
+                    if exit_rule == "tp_sl_time"
+                    else " (固定持有；止盈止损参数不参与)"
+                )
+            )
             a1, a2, a3, a4 = st.columns(4)
             with a1:
                 alloc_fee_bps = st.slider("手续费(bps)", min_value=0.0, max_value=30.0, value=5.0, step=0.5, key=f"alloc_fee_bps_{market}")
