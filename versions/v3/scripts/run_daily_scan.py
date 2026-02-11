@@ -58,11 +58,15 @@ def main():
         strat_d = sum(1 for r in results if r.get('Strat_D_Trend'))
         strat_c = sum(1 for r in results if r.get('Strat_C_Resonance'))
         legacy = sum(1 for r in results if r.get('Legacy_Signal'))
+        duokong_buy = sum(1 for r in results if r.get('Duokongwang_Buy'))
+        duokong_sell = sum(1 for r in results if r.get('Duokongwang_Sell'))
         
         print(f"\n📈 Strategy Distribution:")
         print(f"   Strategy D (Trend):     {strat_d}")
         print(f"   Strategy C (Resonance): {strat_c}")
         print(f"   Legacy (BLUE > 100):    {legacy}")
+        print(f"   Duokongwang Buy:        {duokong_buy}")
+        print(f"   Duokongwang Sell:       {duokong_sell}")
     else:
         print("\n⚠️  No signals found today.")
     
@@ -76,7 +80,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
 

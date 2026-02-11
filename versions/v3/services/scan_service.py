@@ -159,9 +159,98 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
         is_strat_d = day_blue_val >= adaptive_threshold
         is_strat_c = (day_blue_val >= adaptive_threshold * 0.8) and (curr_heima or curr_juedi or week_blue_val > 100)
         legacy_signal = day_blue_val >= 100
+
+        # === 多空王买卖信号（执行版） ===
+        def _ema(vals, n):
+            alpha = 2.0 / (n + 1.0)
+            out = [float(vals[0])]
+            for v in vals[1:]:
+                out.append(alpha * float(v) + (1 - alpha) * out[-1])
+            return out
+
+        def _sma_cn(vals, n, m=1):
+            out = [float(vals[0])]
+            for x in vals[1:]:
+                out.append((m * float(x) + (n - m) * out[-1]) / float(n))
+            return out
+
+        profile = str(os.environ.get("DUOKONGWANG_PROFILE", "balanced")).lower()
+        duokongwang_buy = False
+        duokongwang_sell = False
+        try:
+            n = len(closes)
+            if n >= 30:
+                opens_proxy = [float(closes[0])] + [float(x) for x in closes[:-1]]
+                up = _ema(highs, 13)
+                dw = _ema(lows, 13)
+
+                # KDJ(14,3,3)
+                rsv = []
+                for i in range(n):
+                    s = max(0, i - 13)
+                    llv = float(np.min(lows[s:i + 1]))
+                    hhv = float(np.max(highs[s:i + 1]))
+                    rsv.append(50.0 if hhv <= llv else (float(closes[i]) - llv) / (hhv - llv) * 100.0)
+                k = _sma_cn(rsv, 3, 1)
+                d = _sma_cn(k, 3, 1)
+                j = [3.0 * k[i] - 2.0 * d[i] for i in range(n)]
+
+                # RSI2(9)
+                lc = [float(closes[0])] + [float(x) for x in closes[:-1]]
+                up_move = [max(float(closes[i]) - lc[i], 0.0) for i in range(n)]
+                abs_move = [abs(float(closes[i]) - lc[i]) for i in range(n)]
+                rsi_num = _sma_cn(up_move, 9, 1)
+                rsi_den = _sma_cn(abs_move, 9, 1)
+                rsi2 = [(rsi_num[i] / rsi_den[i] * 100.0) if rsi_den[i] > 1e-12 else 50.0 for i in range(n)]
+
+                # 九转计数（简化）
+                nt = [0] * n
+                nt0 = [0] * n
+                for i in range(n):
+                    a1 = i >= 4 and float(closes[i]) > float(closes[i - 4])
+                    b1 = i >= 4 and float(closes[i]) < float(closes[i - 4])
+                    nt[i] = (nt[i - 1] + 1) if (a1 and i > 0) else (1 if a1 else 0)
+                    nt0[i] = (nt0[i - 1] + 1) if (b1 and i > 0) else (1 if b1 else 0)
+
+                i = n - 1
+                cond = (
+                    (float(closes[i]) > opens_proxy[i] and (opens_proxy[i] > up[i] or float(closes[i]) < dw[i]))
+                    or (float(closes[i]) < opens_proxy[i] and (opens_proxy[i] < dw[i] or float(closes[i]) > up[i]))
+                )
+                cond1 = bool(i >= 1 and up[i] > up[i - 1] and dw[i] > dw[i - 1])
+                cond2 = bool(i >= 1 and up[i] < up[i - 1] and dw[i] < dw[i - 1])
+
+                if profile == "aggressive":
+                    j_cross_level, j_oversold_prev = 20.0, 28.0
+                    rsi_prev_th, rsi_now_th, nine_min = 30.0, 26.0, 7
+                elif profile == "conservative":
+                    j_cross_level, j_oversold_prev = 35.0, 18.0
+                    rsi_prev_th, rsi_now_th, nine_min = 20.0, 18.0, 9
+                else:  # balanced
+                    j_cross_level, j_oversold_prev = 30.0, 22.0
+                    rsi_prev_th, rsi_now_th, nine_min = 24.0, 20.0, 9
+
+                kdj_cross_up = bool(i >= 1 and j[i - 1] <= j_cross_level and j[i] > j_cross_level)
+                kdj_oversold_turn = bool(i >= 1 and j[i - 1] < j_oversold_prev and j[i] > j[i - 1])
+                rsi_oversold_turn = bool(i >= 1 and rsi2[i - 1] <= rsi_prev_th and rsi2[i] > rsi_now_th)
+                nine_down_exhaust = bool(nt0[i] >= nine_min)
+                duokongwang_buy = bool(
+                    (cond and cond1 and (kdj_cross_up or rsi_oversold_turn))
+                    or kdj_oversold_turn
+                    or rsi_oversold_turn
+                    or nine_down_exhaust
+                )
+
+                kdj_overheat_fade = bool(i >= 1 and ((j[i - 1] >= 100.0 and j[i] < 95.0) or (j[i - 1] >= 90.0 and j[i] < j[i - 1] - 8.0)))
+                rsi_overbought_turn = bool(i >= 1 and rsi2[i - 1] >= 79.0 and rsi2[i] < 80.0)
+                nine_up_exhaust = bool(nt[i] >= 9 and i >= 1 and float(closes[i]) < float(closes[i - 1]))
+                duokongwang_sell = bool((cond and cond2) or kdj_overheat_fade or rsi_overbought_turn or nine_up_exhaust)
+        except Exception:
+            duokongwang_buy = False
+            duokongwang_sell = False
         
-        # 只保存有信号的股票
-        has_signal = is_strat_d or is_strat_c or legacy_signal or week_blue_val > 100
+        # 只保存有信号的股票（新增多空王买点）
+        has_signal = is_strat_d or is_strat_c or legacy_signal or week_blue_val > 100 or duokongwang_buy
         
         if not has_signal:
             return None
@@ -211,6 +300,9 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
             'Blue_Daily': round(day_blue_val, 1),
             'Blue_Weekly': round(week_blue_val, 1),
             'Blue_Monthly': round(month_blue_val, 1),
+            'Day_High': round(float(highs[-1]), 4) if len(highs) else round(curr_price, 4),
+            'Day_Low': round(float(lows[-1]), 4) if len(lows) else round(curr_price, 4),
+            'Day_Close': round(float(closes[-1]), 4) if len(closes) else round(curr_price, 4),
             'ADX': round(adx_val, 1),
             'Volatility': round(volatility, 2),
             'Is_Heima': heima_daily or heima_weekly or heima_monthly,  # 任何周期有黑马
@@ -232,6 +324,8 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
             'Wave_Desc': wave_desc,
             'Chan_Signal': str(chan_signal),
             'Chan_Desc': chan_desc,
+            'Duokongwang_Buy': bool(duokongwang_buy),
+            'Duokongwang_Sell': bool(duokongwang_sell),
             'Market_Cap': None,  # 稍后填充
             'Cap_Category': 'Unknown',
             'Company_Name': None,
@@ -443,7 +537,5 @@ if __name__ == "__main__":
         sorted_results = sorted(results, key=lambda x: x['Blue_Daily'], reverse=True)[:10]
         for r in sorted_results:
             print(f"  {r['Symbol']:6} | Price: ${r['Price']:8.2f} | Day BLUE: {r['Blue_Daily']:5.1f} | Week BLUE: {r['Blue_Weekly']:5.1f}")
-
-
 
 

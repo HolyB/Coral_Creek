@@ -132,7 +132,8 @@ def fetch_stock_data(symbol: str, days: int = 250) -> pd.DataFrame:
 
 def batch_fetch_and_store(market: str = 'US', 
                           max_symbols: int = 500,
-                          delay: float = 0.2) -> dict:
+                          delay: float = 0.2,
+                          all_tickers: bool = False) -> dict:
     """
     批量拉取并存储历史数据
     
@@ -157,21 +158,36 @@ def batch_fetch_and_store(market: str = 'US',
     print(f"{'='*60}\n")
     
     # 获取需要拉取的股票列表
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    # 获取信号最多的股票
-    cursor.execute("""
-        SELECT symbol, COUNT(*) as cnt
-        FROM scan_results
-        WHERE market = ?
-        GROUP BY symbol
-        ORDER BY cnt DESC
-        LIMIT ?
-    """, (market, max_symbols))
-    
-    symbols = [row['symbol'] for row in cursor.fetchall()]
-    conn.close()
+    symbols = []
+    if all_tickers:
+        try:
+            if market == 'US':
+                from data_fetcher import get_all_us_tickers
+                symbols = get_all_us_tickers() or []
+            elif market == 'CN':
+                from data_fetcher import get_all_cn_tickers
+                symbols = get_all_cn_tickers() or []
+        except Exception as e:
+            print(f"⚠️ 获取全市场股票列表失败: {e}")
+            symbols = []
+        if max_symbols > 0:
+            symbols = symbols[:max_symbols]
+    else:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # 获取信号最多的股票
+        cursor.execute("""
+            SELECT symbol, COUNT(*) as cnt
+            FROM scan_results
+            WHERE market = ?
+            GROUP BY symbol
+            ORDER BY cnt DESC
+            LIMIT ?
+        """, (market, max_symbols))
+        
+        symbols = [row['symbol'] for row in cursor.fetchall()]
+        conn.close()
     
     print(f"📋 待拉取股票: {len(symbols)}")
     
@@ -295,6 +311,7 @@ if __name__ == "__main__":
     parser.add_argument('--market', default='US')
     parser.add_argument('--max', type=int, default=200, help='最大股票数')
     parser.add_argument('--delay', type=float, default=0.5, help='请求延迟(秒)')
+    parser.add_argument('--all-tickers', action='store_true', help='从全市场股票池拉取（非仅信号股）')
     parser.add_argument('--quick', nargs='+', help='快速拉取指定股票')
     
     args = parser.parse_args()
@@ -302,4 +319,4 @@ if __name__ == "__main__":
     if args.quick:
         quick_fetch(args.quick, args.market, args.delay)
     else:
-        batch_fetch_and_store(args.market, args.max, args.delay)
+        batch_fetch_and_store(args.market, args.max, args.delay, all_tickers=args.all_tickers)

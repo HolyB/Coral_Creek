@@ -8,12 +8,14 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import datetime
 from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Sequence
 import numpy as np
 
 from db.database import get_db, init_db, get_scanned_dates, query_scan_results
+from db.stock_history import get_history_db_path
 
 
 CORE_TAGS = [
@@ -326,6 +328,32 @@ def backfill_candidates_from_scan_history(
 
 
 def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
+    # 1) 优先从全量历史库读取（覆盖非候选日，更接近真实连续K线）
+    try:
+        hist_conn = sqlite3.connect(get_history_db_path())
+        hist_conn.row_factory = sqlite3.Row
+        hcur = hist_conn.cursor()
+        hcur.execute(
+            """
+            SELECT trade_date as scan_date, close as price, high as day_high, low as day_low, close as day_close
+            FROM stock_history
+            WHERE symbol = ? AND market = ? AND trade_date >= ?
+              AND close IS NOT NULL AND close > 0
+            ORDER BY trade_date ASC
+            """,
+            (symbol, market, signal_date),
+        )
+        hist_rows = [dict(x) for x in hcur.fetchall()]
+        hist_conn.close()
+        if hist_rows:
+            return hist_rows
+    except Exception:
+        try:
+            hist_conn.close()
+        except Exception:
+            pass
+
+    # 2) 回退 scan_results（仅候选日快照）
     with get_db() as conn:
         cursor = conn.cursor()
         try:

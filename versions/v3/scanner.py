@@ -236,6 +236,7 @@ def analyze_stock(symbol, market='US', account_size=100000):
                 out.append((m * float(x) + (n - m) * out[-1]) / float(n))
             return np.array(out, dtype=float)
 
+        profile = str(os.environ.get("DUOKONGWANG_PROFILE", "balanced")).lower()
         duokongwang_buy = False
         duokongwang_sell = False
         try:
@@ -276,11 +277,26 @@ def analyze_stock(symbol, market='US', account_size=100000):
                 cond1 = (up[i] > up[i - 1] and dw[i] > dw[i - 1]) if i >= 1 else False
                 cond2 = (up[i] < up[i - 1] and dw[i] < dw[i - 1]) if i >= 1 else False
 
-                kdj_cross_up_30 = (i >= 1 and j[i - 1] <= 30.0 and j[i] > 30.0)
-                kdj_oversold_turn = (i >= 1 and j[i - 1] < 20.0 and j[i] > j[i - 1])
-                rsi_oversold_turn = (i >= 1 and rsi2[i - 1] <= 22.0 and rsi2[i] > 20.0)
-                nine_down_exhaust = (nt0[i] >= 9)
-                duokongwang_buy = bool((cond and cond1 and (kdj_cross_up_30 or rsi_oversold_turn)) or kdj_oversold_turn or nine_down_exhaust)
+                if profile == "aggressive":
+                    j_cross_level, j_oversold_prev = 20.0, 28.0
+                    rsi_prev_th, rsi_now_th, nine_min = 30.0, 26.0, 7
+                elif profile == "conservative":
+                    j_cross_level, j_oversold_prev = 35.0, 18.0
+                    rsi_prev_th, rsi_now_th, nine_min = 20.0, 18.0, 9
+                else:  # balanced
+                    j_cross_level, j_oversold_prev = 30.0, 22.0
+                    rsi_prev_th, rsi_now_th, nine_min = 24.0, 20.0, 9
+
+                kdj_cross_up = (i >= 1 and j[i - 1] <= j_cross_level and j[i] > j_cross_level)
+                kdj_oversold_turn = (i >= 1 and j[i - 1] < j_oversold_prev and j[i] > j[i - 1])
+                rsi_oversold_turn = (i >= 1 and rsi2[i - 1] <= rsi_prev_th and rsi2[i] > rsi_now_th)
+                nine_down_exhaust = (nt0[i] >= nine_min)
+                duokongwang_buy = bool(
+                    (cond and cond1 and (kdj_cross_up or rsi_oversold_turn))
+                    or kdj_oversold_turn
+                    or rsi_oversold_turn
+                    or nine_down_exhaust
+                )
 
                 kdj_overheat_fade = (i >= 1 and ((j[i - 1] >= 100.0 and j[i] < 95.0) or (j[i - 1] >= 90.0 and j[i] < j[i - 1] - 8.0)))
                 rsi_overbought_turn = (i >= 1 and rsi2[i - 1] >= 79.0 and rsi2[i] < 80.0)
