@@ -229,7 +229,7 @@ def _chip_good(f: Dict) -> bool:
     return (vp in ("good", "excellent")) or (pr >= 0.7)
 
 
-def _strategy_match(rule_id: str, f: Dict, min_blue: float) -> bool:
+def _strategy_match(rule_id: str, f: Dict, min_blue: float, ignore_cap: bool = True) -> bool:
     _ = min_blue  # 兼容旧参数
     cfg = None
     for x in _strategy_defs():
@@ -264,17 +264,18 @@ def _strategy_match(rule_id: str, f: Dict, min_blue: float) -> bool:
     if not _chip_good(f):
         return False
 
-    cap = str(f.get("cap_category") or "UNKNOWN")
-    cap_group_proxy = _cap_group_by_proxy(
-        cap_category=cap,
-        market=str(f.get("market") or "US"),
-        turnover_m=_to_float(f.get("turnover_m"), 0.0),
-    )
-    cap_group = str(cfg.get("cap_group") or "")
-    if cap_group == "small" and cap_group_proxy != "small":
-        return False
-    if cap_group == "mid_large" and cap_group_proxy != "mid_large":
-        return False
+    if not ignore_cap:
+        cap = str(f.get("cap_category") or "UNKNOWN")
+        cap_group_proxy = _cap_group_by_proxy(
+            cap_category=cap,
+            market=str(f.get("market") or "US"),
+            turnover_m=_to_float(f.get("turnover_m"), 0.0),
+        )
+        cap_group = str(cfg.get("cap_group") or "")
+        if cap_group == "small" and cap_group_proxy != "small":
+            return False
+        if cap_group == "mid_large" and cap_group_proxy != "mid_large":
+            return False
 
     blue_scope = str(cfg.get("blue_scope") or "dwm")
     if blue_scope == "dwm":
@@ -300,13 +301,14 @@ def _build_segment_industry_weights(
     tracking_rows: List[Dict],
     strategy_id: str,
     min_blue: float,
+    ignore_cap: bool = True,
 ) -> Dict[str, Dict[str, float]]:
     seg_stat: Dict[str, Dict[str, float]] = {}
     ind_stat: Dict[str, Dict[str, float]] = {}
     used = 0
     for tr in tracking_rows or []:
         tf = _extract_signal_fields(tr)
-        if not _strategy_match(strategy_id, tf, min_blue=min_blue):
+        if not _strategy_match(strategy_id, tf, min_blue=min_blue, ignore_cap=ignore_cap):
             continue
         used += 1
         pnl = _to_float(tr.get("pnl_pct"), 0.0)
@@ -392,6 +394,7 @@ def run_market(
     seed_capital: float = 20000,
     track_days: int = 180,
     recent_scan_days: int = 20,
+    ignore_cap: bool = True,
     reset_before_buy: bool = False,
     dry_run: bool = False,
 ) -> Dict:
@@ -458,6 +461,7 @@ def run_market(
             tracking_rows=tracking_rows,
             strategy_id=sd["id"],
             min_blue=min_blue,
+            ignore_cap=ignore_cap,
         )
         segment_weight_map_by_rule[sd["id"]] = w.get("segment", {})
         industry_weight_map_by_rule[sd["id"]] = w.get("industry", {})
@@ -475,7 +479,7 @@ def run_market(
                 continue
             if sym in assigned_symbols:
                 continue
-            if not _strategy_match(sd["id"], f, min_blue):
+            if not _strategy_match(sd["id"], f, min_blue, ignore_cap=ignore_cap):
                 continue
             seg = _cap_group_by_proxy(
                 cap_category=str(r.get("cap_category") or "UNKNOWN"),
@@ -575,7 +579,7 @@ def run_market(
         if tracking_rows:
             for tr in tracking_rows:
                 tf = _extract_signal_fields(tr)
-                if _strategy_match(sd["id"], tf, min_blue=min_blue):
+                if _strategy_match(sd["id"], tf, min_blue=min_blue, ignore_cap=ignore_cap):
                     matched_track_rows.append(tr)
         track_total = len(matched_track_rows)
         if track_total > 0:
@@ -628,6 +632,7 @@ def run_market(
         "scan_pool_days": int(recent_scan_days),
         "track_days": int(track_days),
         "sample_count": len(rows),
+        "ignore_cap": bool(ignore_cap),
         "rows": exec_rows,
     }
 
@@ -643,7 +648,7 @@ def _format_markdown_report(results: List[Dict], dry_run: bool) -> str:
             lines.append("")
             continue
         lines.append(
-            f"📊 *{market}* | 扫描日 `{res.get('scan_date')}` | 候选池 {res.get('scan_pool_days', 20)}天 | 样本 {res.get('sample_count', 0)} | 追踪窗 {res.get('track_days', 180)}天"
+            f"📊 *{market}* | 扫描日 `{res.get('scan_date')}` | 候选池 {res.get('scan_pool_days', 20)}天 | 样本 {res.get('sample_count', 0)} | 追踪窗 {res.get('track_days', 180)}天 | 市值过滤 {'关' if res.get('ignore_cap', True) else '开'}"
         )
         lines.append("策略 | 权重 | 候选 | 成功 | 跳过 | 失败 | 收益率 | 胜率(平仓) | 赢面(持仓) | 追踪样本 | 追踪胜率 | 追踪均收 | 转正中位天 | TOP")
         for r in res.get("rows", []):
@@ -686,6 +691,7 @@ def main():
     parser.add_argument("--seed-capital", type=float, default=20000)
     parser.add_argument("--track-days", type=int, default=180)
     parser.add_argument("--recent-scan-days", type=int, default=20)
+    parser.add_argument("--enforce-cap", action="store_true", help="开启市值过滤（默认关闭）")
     parser.add_argument("--reset-before-buy", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -702,6 +708,7 @@ def main():
             seed_capital=args.seed_capital,
             track_days=args.track_days,
             recent_scan_days=args.recent_scan_days,
+            ignore_cap=(not args.enforce_cap),
             reset_before_buy=args.reset_before_buy,
             dry_run=args.dry_run,
         )

@@ -102,7 +102,7 @@ def _calc_duokongwang_flags(highs: np.ndarray, lows: np.ndarray, closes: np.ndar
     return buy, sell
 
 
-def run_backfill(market: str, profile: str = "balanced") -> None:
+def run_backfill(market: str, profile: str = "balanced", since_days: int = 0) -> None:
     main_conn = sqlite3.connect(DB_PATH)
     main_conn.row_factory = sqlite3.Row
     hist_conn = sqlite3.connect(get_history_db_path())
@@ -112,29 +112,44 @@ def run_backfill(market: str, profile: str = "balanced") -> None:
     hc = hist_conn.cursor()
 
     # 先把OHLC补齐
-    mc.execute("SELECT COUNT(*) FROM scan_results WHERE market=? AND (day_high IS NULL OR day_low IS NULL OR day_close IS NULL)", (market,))
+    since_filter = ""
+    params_tail: Tuple = ()
+    if int(since_days or 0) > 0:
+        since_filter = " AND scan_date >= date('now', ?)"
+        params_tail = (f"-{int(since_days)} day",)
+
+    mc.execute(
+        f"SELECT COUNT(*) FROM scan_results WHERE market=? AND (day_high IS NULL OR day_low IS NULL OR day_close IS NULL){since_filter}",
+        (market, *params_tail),
+    )
     need_ohlc = int(mc.fetchone()[0] or 0)
     print(f"[{market}] OHLC 待补: {need_ohlc}")
 
     # 从历史库取OHLC映射，再更新主库
+    hist_since_filter = ""
+    hist_params: Tuple = (market,)
+    if int(since_days or 0) > 0:
+        hist_since_filter = " AND trade_date >= date('now', ?)"
+        hist_params = (market, f"-{int(since_days)} day")
+
     hc.execute(
-        """
+        f"""
         SELECT symbol, trade_date, high, low, close
         FROM stock_history
-        WHERE market=?
+        WHERE market=?{hist_since_filter}
         """,
-        (market,),
+        hist_params,
     )
     ohlc_map = {(str(x["symbol"]), str(x["trade_date"])): (float(x["high"]), float(x["low"]), float(x["close"])) for x in hc.fetchall()}
 
     mc.execute(
-        """
+        f"""
         SELECT symbol, scan_date
         FROM scan_results
         WHERE market = ?
-          AND (day_high IS NULL OR day_low IS NULL OR day_close IS NULL)
+          AND (day_high IS NULL OR day_low IS NULL OR day_close IS NULL){since_filter}
         """,
-        (market,),
+        (market, *params_tail),
     )
     rows = []
     for rr in mc.fetchall():
@@ -154,18 +169,21 @@ def run_backfill(market: str, profile: str = "balanced") -> None:
     print(f"[{market}] OHLC 已补: {len(rows)}")
 
     # 回填多空王
-    mc.execute("SELECT COUNT(*) FROM scan_results WHERE market=? AND (duokongwang_buy IS NULL OR duokongwang_sell IS NULL)", (market,))
+    mc.execute(
+        f"SELECT COUNT(*) FROM scan_results WHERE market=? AND (duokongwang_buy IS NULL OR duokongwang_sell IS NULL){since_filter}",
+        (market, *params_tail),
+    )
     need_dkw = int(mc.fetchone()[0] or 0)
     print(f"[{market}] 多空王待补: {need_dkw}")
 
     hc.execute(
-        """
+        f"""
         SELECT symbol, trade_date, high, low, close
         FROM stock_history
-        WHERE market=?
+        WHERE market=?{hist_since_filter}
         ORDER BY symbol, trade_date
         """,
-        (market,),
+        hist_params,
     )
     by_symbol: Dict[str, List[sqlite3.Row]] = defaultdict(list)
     for r in hc.fetchall():
@@ -276,13 +294,14 @@ def main():
     parser = argparse.ArgumentParser(description="Backfill scan_results OHLC + duokongwang fields")
     parser.add_argument("--market", choices=["US", "CN", "ALL"], default="ALL")
     parser.add_argument("--profile", choices=["aggressive", "balanced", "conservative"], default="balanced")
+    parser.add_argument("--since-days", type=int, default=0, help="仅回填最近N天(0=全部)")
     parser.add_argument("--recalc-chip", action="store_true", help="重算最近信号的筹码字段(vp_rating/profit_ratio)")
     parser.add_argument("--chip-recent-days", type=int, default=120)
     args = parser.parse_args()
 
     markets = ["US", "CN"] if args.market == "ALL" else [args.market]
     for m in markets:
-        run_backfill(market=m, profile=args.profile)
+        run_backfill(market=m, profile=args.profile, since_days=int(args.since_days))
         if args.recalc_chip:
             recalc_chip_latest_signals(market=m, recent_days=int(args.chip_recent_days))
 
