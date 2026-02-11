@@ -71,6 +71,12 @@ def _extract_signal_fields(row: Dict) -> Dict:
     is_heima = _to_bool(_pick_first(row, ["is_heima", "Is_Heima", "heima_daily", "Heima_Daily"], False))
     week_heima = _to_bool(_pick_first(row, ["heima_weekly", "Heima_Weekly"], False))
     month_heima = _to_bool(_pick_first(row, ["heima_monthly", "Heima_Monthly"], False))
+    day_juedi = _to_bool(_pick_first(row, ["juedi_daily", "Juedi_Daily", "is_juedi", "Is_Juedi"], False))
+    week_juedi = _to_bool(_pick_first(row, ["juedi_weekly", "Juedi_Weekly"], False))
+    month_juedi = _to_bool(_pick_first(row, ["juedi_monthly", "Juedi_Monthly"], False))
+    vp_rating = str(_pick_first(row, ["vp_rating", "VP_Rating"], "") or "")
+    profit_ratio = _to_float(_pick_first(row, ["profit_ratio", "Profit_Ratio"], 0.0), 0.0)
+    cap_category = str(_pick_first(row, ["cap_category", "Cap_Category"], "UNKNOWN") or "UNKNOWN")
 
     strategy_text = str(_pick_first(row, ["strategy", "Strategy"], "") or "")
     if ("黑马" in strategy_text) and not (is_heima or week_heima or month_heima):
@@ -85,44 +91,92 @@ def _extract_signal_fields(row: Dict) -> Dict:
         "is_heima": is_heima,
         "week_heima": week_heima,
         "month_heima": month_heima,
+        "day_juedi": day_juedi,
+        "week_juedi": week_juedi,
+        "month_juedi": month_juedi,
+        "vp_rating": vp_rating,
+        "profit_ratio": profit_ratio,
+        "cap_category": cap_category,
     }
 
 
 def _strategy_defs():
     return [
-        {"id": "daily_equal", "name": "每日组合等权", "account_tag": "daily_equal", "full_buy": False},
-        {"id": "month_heima_all", "name": "月黑马全买", "account_tag": "month_heima_all", "full_buy": True},
-        {"id": "week_heima_all", "name": "周黑马全买", "account_tag": "week_heima_all", "full_buy": True},
-        {"id": "day_week_resonance", "name": "日周共振", "account_tag": "day_week_res", "full_buy": False},
-        {"id": "core_resonance", "name": "核心共振", "account_tag": "core_res", "full_buy": False},
+        {"id": "p1_mid_large_200", "name": "P1 中大盘 200三蓝", "account_tag": "p1_ml_200", "full_buy": False, "priority": 1},
+        {"id": "p2_small_200", "name": "P2 小盘 200三蓝", "account_tag": "p2_s_200", "full_buy": False, "priority": 2},
+        {"id": "p3_mid_large_150", "name": "P3 中大盘 150三蓝", "account_tag": "p3_ml_150", "full_buy": False, "priority": 3},
+        {"id": "p4_small_150", "name": "P4 小盘 150三蓝", "account_tag": "p4_s_150", "full_buy": False, "priority": 4},
+        {"id": "p5_mid_large_100", "name": "P5 中大盘 100三蓝", "account_tag": "p5_ml_100", "full_buy": False, "priority": 5},
+        {"id": "p6_small_100", "name": "P6 小盘 100三蓝", "account_tag": "p6_s_100", "full_buy": False, "priority": 6},
+        {"id": "p7_mid_large_50", "name": "P7 中大盘 50三蓝", "account_tag": "p7_ml_50", "full_buy": False, "priority": 7},
+        {"id": "p8_small_50", "name": "P8 小盘 50三蓝", "account_tag": "p8_s_50", "full_buy": False, "priority": 8},
     ]
 
 
 def _strategy_key_map() -> Dict[str, str]:
     return {
-        "daily_equal": "blue_day_week",
-        "month_heima_all": "heima",
-        "week_heima_all": "heima",
-        "day_week_resonance": "blue_day_week",
-        "core_resonance": "blue_triple",
+        "p1_mid_large_200": "blue_triple",
+        "p2_small_200": "blue_triple",
+        "p3_mid_large_150": "blue_day_week",
+        "p4_small_150": "blue_day_week",
+        "p5_mid_large_100": "heima",
+        "p6_small_100": "heima",
+        "p7_mid_large_50": "defensive",
+        "p8_small_50": "defensive",
     }
 
 
+def _is_small_cap(cap_category: str) -> bool:
+    txt = str(cap_category or "").lower()
+    return ("small" in txt) or ("micro" in txt) or ("小盘" in txt) or ("微盘" in txt)
+
+
+def _is_mid_large_cap(cap_category: str) -> bool:
+    txt = str(cap_category or "").lower()
+    return ("mid" in txt) or ("large" in txt) or ("mega" in txt) or ("中盘" in txt) or ("大盘" in txt) or ("巨头" in txt)
+
+
+def _chip_good(f: Dict) -> bool:
+    vp = str(f.get("vp_rating") or "").lower()
+    pr = _to_float(f.get("profit_ratio"), 0.0)
+    return (vp in ("good", "excellent")) or (pr >= 0.7)
+
+
 def _strategy_match(rule_id: str, f: Dict, min_blue: float) -> bool:
-    d = f["day_blue"]
-    w = f["week_blue"]
-    m = f["month_blue"]
-    h_any = f["is_heima"] or f["week_heima"] or f["month_heima"]
-    if rule_id == "daily_equal":
-        return d >= min_blue
-    if rule_id == "month_heima_all":
-        return f["month_heima"] or (m >= min_blue and h_any)
-    if rule_id == "week_heima_all":
-        return f["week_heima"] or (w >= min_blue and h_any)
-    if rule_id == "day_week_resonance":
-        return d >= min_blue and w >= min_blue
-    if rule_id == "core_resonance":
-        return d >= min_blue and w >= min_blue and (m >= min_blue or h_any)
+    _ = min_blue  # 兼容旧参数
+    d = _to_float(f.get("day_blue"), 0.0)
+    w = _to_float(f.get("week_blue"), 0.0)
+    m = _to_float(f.get("month_blue"), 0.0)
+
+    day_hj = bool(f.get("is_heima")) or bool(f.get("day_juedi"))
+    week_hj = bool(f.get("week_heima")) or bool(f.get("week_juedi"))
+    month_hj = bool(f.get("month_heima")) or bool(f.get("month_juedi"))
+    hj_all = day_hj and week_hj and month_hj
+    if not hj_all:
+        return False
+    if not _chip_good(f):
+        return False
+
+    cap = str(f.get("cap_category") or "UNKNOWN")
+    is_small = _is_small_cap(cap)
+    is_mid_large = _is_mid_large_cap(cap)
+
+    if rule_id == "p1_mid_large_200":
+        return is_mid_large and d >= 200 and w >= 200 and m >= 200
+    if rule_id == "p2_small_200":
+        return is_small and d >= 200 and w >= 200 and m >= 200
+    if rule_id == "p3_mid_large_150":
+        return is_mid_large and d > 150 and w > 150 and m > 150
+    if rule_id == "p4_small_150":
+        return is_small and d > 150 and w > 150 and m > 150
+    if rule_id == "p5_mid_large_100":
+        return is_mid_large and d > 100 and w > 100 and m > 100
+    if rule_id == "p6_small_100":
+        return is_small and d > 100 and w > 100 and m > 100
+    if rule_id == "p7_mid_large_50":
+        return is_mid_large and d > 50 and w > 50 and m > 50
+    if rule_id == "p8_small_50":
+        return is_small and d > 50 and w > 50 and m > 50
     return False
 
 
@@ -255,6 +309,8 @@ def run_market(
     segment_weight_map_by_rule: Dict[str, Dict[str, float]] = {}
     industry_weight_map_by_rule: Dict[str, Dict[str, float]] = {}
     strategy_weight_by_rule: Dict[str, float] = {}
+    defs = sorted(defs, key=lambda x: int(x.get("priority", 999)))
+    assigned_symbols = set()
     for sd in defs:
         w = _build_segment_industry_weights(
             tracking_rows=tracking_rows,
@@ -274,6 +330,8 @@ def run_market(
             f = _extract_signal_fields(r)
             sym = f["symbol"]
             if not sym or f["price"] <= 0:
+                continue
+            if sym in assigned_symbols:
                 continue
             if not _strategy_match(sd["id"], f, min_blue):
                 continue
@@ -301,6 +359,8 @@ def run_market(
         picks = sorted(sym_map.values(), key=lambda x: x["score"], reverse=True)
         picks = picks[:full_cap] if sd["full_buy"] else picks[:top_n]
         basket_results[sd["id"]] = picks
+        for p in picks:
+            assigned_symbols.add(str(p.get("symbol") or ""))
 
     exec_rows = []
     for sd in defs:
