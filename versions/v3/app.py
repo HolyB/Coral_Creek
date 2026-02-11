@@ -2304,6 +2304,12 @@ def render_todays_picks_page():
                         st.info("暂无可分配策略")
                 with b2:
                     st.markdown("**当日组合候选（按权重）**")
+                    candidate_mode = st.radio(
+                        "候选池口径",
+                        options=["仅当日新信号", "含历史延续信号"],
+                        horizontal=True,
+                        key=f"alloc_candidate_mode_{market}",
+                    )
                     exec_capital = st.number_input(
                         "执行资金($)",
                         min_value=1000.0,
@@ -2312,34 +2318,63 @@ def render_todays_picks_page():
                         step=1000.0,
                         key=f"alloc_exec_capital_{market}",
                     )
+                    history_days = 20
+                    if candidate_mode == "含历史延续信号":
+                        history_days = st.slider(
+                            "历史延续窗口(天)",
+                            min_value=3,
+                            max_value=60,
+                            value=20,
+                            step=1,
+                            key=f"alloc_history_days_{market}",
+                        )
                     today_plan = build_today_meta_plan(
                         rows=tracking_rows_for_action,
                         weight_rows=weight_rows,
                         top_n=int(alloc_top_n),
                         total_capital=float(exec_capital),
+                        include_history=(candidate_mode == "含历史延续信号"),
+                        max_signal_age_days=int(history_days),
                     )
                     today_plan_df = pd.DataFrame(today_plan) if today_plan else pd.DataFrame()
                     if not today_plan_df.empty:
-                        show_cols_plan = [
-                            "日期",
-                            "symbol",
-                            "命中策略数",
-                            "命中策略",
-                            "策略权重合计(%)",
-                            "综合执行分(0-100)",
-                            "建议仓位(%)",
-                            "建议金额($)",
-                            "距信号天数",
-                            "信号价",
-                            "现价",
-                            "价格变化($)",
-                            "价格变化(%)",
-                            "blue_daily",
-                            "blue_weekly",
-                        ]
+                        if candidate_mode == "仅当日新信号":
+                            show_cols_plan = [
+                                "信号日期",
+                                "symbol",
+                                "命中策略数",
+                                "命中策略",
+                                "策略权重合计(%)",
+                                "综合执行分(0-100)",
+                                "建议仓位(%)",
+                                "建议金额($)",
+                                "blue_daily",
+                                "blue_weekly",
+                            ]
+                        else:
+                            show_cols_plan = [
+                                "信号日期",
+                                "symbol",
+                                "距信号天数",
+                                "命中策略数",
+                                "命中策略",
+                                "策略权重合计(%)",
+                                "综合执行分(0-100)",
+                                "建议仓位(%)",
+                                "建议金额($)",
+                                "信号价",
+                                "现价",
+                                "价格变化($)",
+                                "价格变化(%)",
+                                "blue_daily",
+                                "blue_weekly",
+                            ]
                         today_plan_df = today_plan_df[[c for c in show_cols_plan if c in today_plan_df.columns]]
                         st.dataframe(today_plan_df, width="stretch", hide_index=True)
-                        st.caption("口径: 综合执行分=策略权重合计×信号强度归一化；价格变化=现价相对信号价变化；建议仓位/金额按候选内部相对分数分配。")
+                        if candidate_mode == "仅当日新信号":
+                            st.caption("口径: 仅展示最新扫描日的新信号执行池。综合执行分=策略权重合计×信号强度归一化。")
+                        else:
+                            st.caption("口径: 历史延续跟踪池。价格变化=现价相对信号价变化；建议仓位/金额按候选内部相对分数分配。")
                     else:
                         st.info("今日暂无满足组合规则的候选。")
             else:

@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Dict, List, Sequence
 import numpy as np
 
@@ -255,18 +256,44 @@ def build_today_meta_plan(
     weight_rows: Sequence[Dict],
     top_n: int = 10,
     total_capital: float = 100000.0,
+    include_history: bool = False,
+    max_signal_age_days: int = 20,
 ) -> List[Dict]:
     if not rows or not weight_rows:
         return []
 
     latest_date = max(str(r.get("signal_date") or "") for r in rows if r.get("signal_date"))
-    latest_rows = [r for r in rows if str(r.get("signal_date") or "") == latest_date]
+    latest_dt = None
+    try:
+        latest_dt = datetime.strptime(latest_date, "%Y-%m-%d")
+    except Exception:
+        latest_dt = None
+
+    selected_rows = []
+    for r in rows:
+        sig_date = str(r.get("signal_date") or "")
+        if not sig_date:
+            continue
+        if not include_history:
+            if sig_date == latest_date:
+                selected_rows.append(r)
+            continue
+        if latest_dt is None:
+            selected_rows.append(r)
+            continue
+        try:
+            sig_dt = datetime.strptime(sig_date, "%Y-%m-%d")
+            age_days = (latest_dt - sig_dt).days
+            if 0 <= age_days <= int(max_signal_age_days):
+                selected_rows.append(r)
+        except Exception:
+            continue
 
     key2cfg = STRATEGY_TAG_DEFS
     picked: Dict[str, Dict] = {}
     w_map = {str(w.get("strategy_key")): _to_float(w.get("建议权重(%)")) for w in weight_rows}
 
-    for r in latest_rows:
+    for r in selected_rows:
         sym = str(r.get("symbol") or "")
         if not sym:
             continue
@@ -296,18 +323,26 @@ def build_today_meta_plan(
             current_price = _to_float(r.get("current_price"), 0.0)
             if current_price <= 0:
                 current_price = signal_price
+            sig_date_txt = str(r.get("signal_date") or latest_date)
+            age_days = int(_to_float(r.get("days_since_signal"), 0))
+            if latest_dt is not None:
+                try:
+                    sig_dt = datetime.strptime(sig_date_txt, "%Y-%m-%d")
+                    age_days = max((latest_dt - sig_dt).days, 0)
+                except Exception:
+                    pass
             px_change_pct = 0.0
             px_change_abs = 0.0
             if signal_price > 0 and current_price > 0:
                 px_change_abs = current_price - signal_price
                 px_change_pct = (px_change_abs / signal_price) * 100.0
             picked[sym] = {
-                "日期": latest_date,
+                "信号日期": sig_date_txt,
                 "symbol": sym,
                 "命中策略数": len(hit_strategies),
                 "命中策略": "、".join(sorted(set(hit_strategies))),
                 "策略权重合计(%)": round(weight_sum, 1),
-                "距信号天数": int(_to_float(r.get("days_since_signal"), 0)),
+                "距信号天数": int(age_days),
                 "信号价": round(signal_price, 3) if signal_price > 0 else None,
                 "现价": round(current_price, 3) if current_price > 0 else None,
                 "价格变化($)": round(px_change_abs, 3),
