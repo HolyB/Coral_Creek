@@ -328,6 +328,27 @@ def _already_bought_today(account_name: str, symbol: str, market: str, strategy_
     return row is not None
 
 
+def _query_scan_results_local(scan_date: str, market: str, limit: int = 3000) -> List[Dict]:
+    """
+    组合执行优先读取本地 SQLite（保证与本地补齐后的字段一致）。
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT *
+        FROM scan_results
+        WHERE scan_date = ? AND market = ?
+        ORDER BY blue_daily DESC
+        LIMIT ?
+        """,
+        (scan_date, market, int(limit)),
+    )
+    rows = [dict(x) for x in cur.fetchall()]
+    conn.close()
+    return rows
+
+
 def run_market(
     market: str,
     min_blue: float = 100,
@@ -336,6 +357,7 @@ def run_market(
     deploy_pct: float = 90,
     seed_capital: float = 20000,
     track_days: int = 180,
+    recent_scan_days: int = 20,
     reset_before_buy: bool = False,
     dry_run: bool = False,
 ) -> Dict:
@@ -344,7 +366,23 @@ def run_market(
         return {"ok": False, "market": market, "error": "无扫描数据", "rows": []}
 
     latest_date = dates[0]
-    rows = query_scan_results(scan_date=latest_date, market=market, limit=3000) or []
+    use_dates = dates[: max(1, int(recent_scan_days))]
+    pool_rows = []
+    for d in use_dates:
+        local_rows = _query_scan_results_local(scan_date=d, market=market, limit=3000)
+        if local_rows:
+            pool_rows.extend(local_rows)
+        else:
+            pool_rows.extend(query_scan_results(scan_date=d, market=market, limit=3000) or [])
+    # 同一股票保留最近信号，扩大候选池但不重复买同票
+    latest_by_symbol = {}
+    for r in sorted(pool_rows, key=lambda x: str(x.get("scan_date") or ""), reverse=True):
+        sym = str(_pick_first(r, ["symbol", "Symbol"], "") or "").upper().strip()
+        if not sym:
+            continue
+        if sym not in latest_by_symbol:
+            latest_by_symbol[sym] = r
+    rows = list(latest_by_symbol.values())
     defs = _strategy_defs()
     basket_results = {}
     tracking_rows = []
@@ -549,6 +587,7 @@ def run_market(
         "ok": True,
         "market": market,
         "scan_date": latest_date,
+        "scan_pool_days": int(recent_scan_days),
         "track_days": int(track_days),
         "sample_count": len(rows),
         "rows": exec_rows,
@@ -566,7 +605,7 @@ def _format_markdown_report(results: List[Dict], dry_run: bool) -> str:
             lines.append("")
             continue
         lines.append(
-            f"📊 *{market}* | 扫描日 `{res.get('scan_date')}` | 样本 {res.get('sample_count', 0)} | 追踪窗 {res.get('track_days', 180)}天"
+            f"📊 *{market}* | 扫描日 `{res.get('scan_date')}` | 候选池 {res.get('scan_pool_days', 20)}天 | 样本 {res.get('sample_count', 0)} | 追踪窗 {res.get('track_days', 180)}天"
         )
         lines.append("策略 | 权重 | 候选 | 成功 | 跳过 | 失败 | 收益率 | 胜率(平仓) | 赢面(持仓) | 追踪样本 | 追踪胜率 | 追踪均收 | 转正中位天 | TOP")
         for r in res.get("rows", []):
@@ -608,6 +647,7 @@ def main():
     parser.add_argument("--deploy-pct", type=float, default=90)
     parser.add_argument("--seed-capital", type=float, default=20000)
     parser.add_argument("--track-days", type=int, default=180)
+    parser.add_argument("--recent-scan-days", type=int, default=20)
     parser.add_argument("--reset-before-buy", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -623,6 +663,7 @@ def main():
             deploy_pct=args.deploy_pct,
             seed_capital=args.seed_capital,
             track_days=args.track_days,
+            recent_scan_days=args.recent_scan_days,
             reset_before_buy=args.reset_before_buy,
             dry_run=args.dry_run,
         )
