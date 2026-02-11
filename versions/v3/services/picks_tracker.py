@@ -257,6 +257,12 @@ class PicksTracker:
                 'backfilled_picks': 0,
                 'win_rate_5d': 0,
                 'avg_return_5d': 0,
+                'avg_return_10d': 0,
+                'hit_target_rate': 0,
+                'hit_stop_rate': 0,
+                'avg_pred_return': 0,
+                'prediction_accuracy': 0,
+                'by_star_rating': {},
                 'message': '无已回填的记录'
             }
         
@@ -357,10 +363,13 @@ def daily_picks_job(market: str = 'US', max_picks: int = 5):
     print(f"\n=== {market} 推荐追踪报告 ===")
     print(f"今日推荐: {len(picks)} 只")
     print(f"回填: {backfilled} 条")
-    print(f"总推荐: {report['total_picks']}")
-    print(f"5天胜率: {report['win_rate_5d']}%")
-    print(f"5天平均收益: {report['avg_return_5d']}%")
-    print(f"预测准确度: {report['prediction_accuracy']}%")
+    print(f"总推荐: {report.get('total_picks', 0)}")
+    print(f"5天胜率: {report.get('win_rate_5d', 0)}%")
+    print(f"5天平均收益: {report.get('avg_return_5d', 0)}%")
+    if 'prediction_accuracy' in report:
+        print(f"预测准确度: {report.get('prediction_accuracy', 0)}%")
+    if report.get("message"):
+        print(f"说明: {report['message']}")
     
     return report
 
