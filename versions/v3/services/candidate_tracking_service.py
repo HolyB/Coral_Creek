@@ -636,6 +636,8 @@ def evaluate_exit_rule(
     规则平仓评估：
     - fixed_5d / fixed_10d / fixed_20d
     - tp_sl_time: 先触发止盈/止损，否则 max_hold_days 强平
+    - kdj_dead_cross: KDJ(收盘价近似)出现死叉或过热回落即退出
+    - top_divergence_guard: 价格创新高但动量不创新高（顶背离近似）时保护退出
     """
     use_rows = list(rows or [])[: int(max_rows)]
     if not use_rows:
@@ -651,6 +653,27 @@ def evaluate_exit_rule(
         }
 
     exits = []
+
+    def _calc_kdj_close(prices_: List[float], period: int = 9) -> List[Dict]:
+        # 无 OHLC 时，用 close 的 rolling min/max 近似 RSV
+        out_: List[Dict] = []
+        k_prev, d_prev = 50.0, 50.0
+        for i, c in enumerate(prices_):
+            s = max(0, i - period + 1)
+            w = prices_[s : i + 1]
+            lo = min(w)
+            hi = max(w)
+            if hi <= lo:
+                rsv = 50.0
+            else:
+                rsv = (c - lo) / (hi - lo) * 100.0
+            k = (2.0 / 3.0) * k_prev + (1.0 / 3.0) * rsv
+            d = (2.0 / 3.0) * d_prev + (1.0 / 3.0) * k
+            j = 3.0 * k - 2.0 * d
+            out_.append({"k": k, "d": d, "j": j})
+            k_prev, d_prev = k, d
+        return out_
+
     for row in use_rows:
         signal_price = _to_float(row.get("signal_price"), 0.0)
         if signal_price <= 0:
@@ -688,6 +711,57 @@ def evaluate_exit_rule(
                 if p <= sl:
                     exit_day = i
                     exit_ret = (p / signal_price - 1.0) * 100.0
+                    break
+            if exit_day is None:
+                exit_day = limit_day
+                exit_ret = (prices[limit_day] / signal_price - 1.0) * 100.0
+        elif rule_name == "kdj_dead_cross":
+            # 顶级交易员口径：过热区死叉优先离场，避免回撤吃掉利润
+            kdj = _calc_kdj_close(prices)
+            limit_day = min(int(max_hold_days), len(prices) - 1)
+            for i in range(2, limit_day + 1):
+                k0, d0 = kdj[i - 1]["k"], kdj[i - 1]["d"]
+                k1, d1 = kdj[i]["k"], kdj[i]["d"]
+                j1 = kdj[i]["j"]
+                # 死叉: 前一日K>=D，当日K<D；或 J>95 后快速回落
+                dead_cross = (k0 >= d0 and k1 < d1)
+                overheat_fade = (j1 > 95.0) or (i >= 2 and kdj[i - 1]["j"] > 95.0 and j1 < kdj[i - 1]["j"] - 8.0)
+                if dead_cross and (k1 > 60.0 or d1 > 60.0):
+                    exit_day = i
+                    exit_ret = (prices[i] / signal_price - 1.0) * 100.0
+                    break
+                if overheat_fade:
+                    exit_day = i
+                    exit_ret = (prices[i] / signal_price - 1.0) * 100.0
+                    break
+            if exit_day is None:
+                exit_day = limit_day
+                exit_ret = (prices[limit_day] / signal_price - 1.0) * 100.0
+        elif rule_name == "top_divergence_guard":
+            # 顶背离近似：价格新高但J值不创新高，且出现回落时保护退出
+            kdj = _calc_kdj_close(prices)
+            limit_day = min(int(max_hold_days), len(prices) - 1)
+            peak_price = prices[0]
+            peak_j = kdj[0]["j"]
+            for i in range(1, limit_day + 1):
+                p = prices[i]
+                j = kdj[i]["j"]
+                made_new_high = p > peak_price * 1.001
+                if made_new_high:
+                    # 新高但J没跟上，记为潜在背离；若随后单日转弱则离场
+                    if j < peak_j - 5.0:
+                        weak_today = i >= 1 and prices[i] < prices[i - 1]
+                        if weak_today:
+                            exit_day = i
+                            exit_ret = (prices[i] / signal_price - 1.0) * 100.0
+                            break
+                    peak_price = p
+                    peak_j = max(peak_j, j)
+                # 防守底线：沿用统一止损/止盈
+                cur_ret = (p / signal_price - 1.0) * 100.0
+                if cur_ret >= float(take_profit_pct) or cur_ret <= -float(stop_loss_pct):
+                    exit_day = i
+                    exit_ret = cur_ret
                     break
             if exit_day is None:
                 exit_day = limit_day

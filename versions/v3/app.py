@@ -2220,7 +2220,7 @@ def render_todays_picks_page():
             with r1:
                 exit_rule = st.selectbox(
                     "平仓规则",
-                    options=["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time"],
+                    options=["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time", "kdj_dead_cross", "top_divergence_guard"],
                     index=1,
                     key=f"action_exit_rule_{market}",
                 )
@@ -2230,8 +2230,9 @@ def render_todays_picks_page():
                 rule_sl = st.slider("止损(%)", min_value=2, max_value=20, value=6, step=1, key=f"action_rule_sl_{market}")
             with r4:
                 rule_max_hold = st.slider("最长持有天", min_value=5, max_value=60, value=20, step=1, key=f"action_rule_hold_{market}")
-            if exit_rule != "tp_sl_time":
-                st.caption("当前为固定持有规则，止盈/止损参数不会生效；仅 `tp_sl_time` 使用这些参数。")
+            rules_use_risk_params = {"tp_sl_time", "top_divergence_guard"}
+            if exit_rule not in rules_use_risk_params:
+                st.caption("当前规则不使用止盈/止损参数；仅 `tp_sl_time` 与 `top_divergence_guard` 使用这些参数。")
 
             eval_ret = evaluate_exit_rule(
                 rows=tracking_rows_for_action,
@@ -2257,8 +2258,8 @@ def render_todays_picks_page():
                 f"当前卖出规则口径: `{exit_rule}`"
                 + (
                     f" (止盈{float(rule_tp):.0f}% / 止损{float(rule_sl):.0f}% / 最长持有{int(rule_max_hold)}天)"
-                    if exit_rule == "tp_sl_time"
-                    else " (固定持有；止盈止损参数不参与)"
+                    if exit_rule in rules_use_risk_params
+                    else " (技术规则/固定持有；止盈止损参数不参与)"
                 )
             )
             a1, a2, a3, a4 = st.columns(4)
@@ -2282,6 +2283,8 @@ def render_todays_picks_page():
                     {"rule_name": "fixed_10d", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
                     {"rule_name": "fixed_20d", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
                     {"rule_name": "tp_sl_time", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
+                    {"rule_name": "kdj_dead_cross", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
+                    {"rule_name": "top_divergence_guard", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
                 ]
                 perf_rows = evaluate_strategy_baskets_best_exit(
                     rows=tracking_rows_for_action,
@@ -14789,7 +14792,7 @@ def render_ml_prediction_page():
         with r1:
             eval_exit_rule = st.selectbox(
                 "平仓规则",
-                ["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time"],
+                ["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time", "kdj_dead_cross", "top_divergence_guard"],
                 index=1,
                 key=f"ml_eval_exit_rule_{market}",
             )
@@ -14800,8 +14803,8 @@ def render_ml_prediction_page():
         with r4:
             eval_hold = st.slider("最大持有天数", 3, 60, 20, 1, key=f"ml_eval_hold_{market}")
 
-        if eval_exit_rule != "tp_sl_time":
-            st.caption("提示: 当前规则为固定持有，止盈/止损/最大持有参数不会参与计算。")
+        if eval_exit_rule not in {"tp_sl_time", "top_divergence_guard"}:
+            st.caption("提示: 当前规则不使用止盈/止损参数；仅 `tp_sl_time` 与 `top_divergence_guard` 使用这些参数。")
 
         if st.button("🚀 运行同口径评估", key=f"ml_vs_baseline_run_{market}", type="primary"):
             with st.spinner("评估中，正在按日重排并回放平仓规则..."):

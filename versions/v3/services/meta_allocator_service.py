@@ -24,6 +24,10 @@ STRATEGY_TAG_DEFS = {
 def _build_exit_rule_label(rule_name: str, take_profit_pct: float, stop_loss_pct: float, max_hold_days: int) -> str:
     if str(rule_name) == "tp_sl_time":
         return f"tp_sl_time(TP={float(take_profit_pct):.0f}%,SL={float(stop_loss_pct):.0f}%,Hold={int(max_hold_days)}d)"
+    if str(rule_name) == "top_divergence_guard":
+        return f"top_divergence_guard(TP={float(take_profit_pct):.0f}%,SL={float(stop_loss_pct):.0f}%,Hold={int(max_hold_days)}d)"
+    if str(rule_name) == "kdj_dead_cross":
+        return f"kdj_dead_cross(Hold={int(max_hold_days)}d)"
     return str(rule_name)
 
 
