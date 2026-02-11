@@ -2734,7 +2734,15 @@ def render_todays_picks_page():
                         company_name = row.get('company_name', '')
                         blue_d = row.get('blue_daily', 0)
                         blue_w = row.get('blue_weekly', 0)
-                        price = row.get('price', 0)
+                        signal_price = float(row.get('price', 0) or 0)
+                        current_price = signal_price
+                        try:
+                            hist_px = _cached_stock_data(symbol, market=market, days=10)
+                            if hist_px is not None and not hist_px.empty and 'Close' in hist_px.columns:
+                                current_price = float(hist_px['Close'].iloc[-1] or signal_price)
+                        except Exception:
+                            current_price = signal_price
+                        price_change_pct = ((current_price / signal_price - 1.0) * 100.0) if signal_price > 0 else 0.0
                         
                         # 价格符号和名称显示
                         price_sym = "¥" if market == "CN" else "$"
@@ -2752,9 +2760,12 @@ def render_todays_picks_page():
                                         <span style="font-size: 1.1em; font-weight: bold;">{display_name}</span>
                                         <span style="font-size: 0.8em; color: #888; margin-left: 4px;">{display_code}</span>
                                     </div>
-                                    <span style="color: #00C853;">{price_sym}{price:.2f}</span>
+                                    <span style="color: #00C853;">现价 {price_sym}{current_price:.2f}</span>
                                 </div>
                                 <div style="font-size: 0.9em; color: #888; margin-top: 4px;">
+                                    信号价 {price_sym}{signal_price:.2f} → 现价 {price_sym}{current_price:.2f} ({price_change_pct:+.2f}%)
+                                </div>
+                                <div style="font-size: 0.9em; color: #888; margin-top: 2px;">
                                     日BLUE {blue_d:.0f} | 周BLUE {blue_w:.0f}
                                 </div>
                             </div>
@@ -4467,6 +4478,39 @@ def render_scan_page():
         with col2:
             st.info("💡 **方式二**: 批量回填历史数据\n```bash\ncd versions/v2\npython scripts/backfill.py --start 2025-12-01 --end 2026-01-07\n```")
         return
+
+    # === 价格口径统一：信号价(触发当日) + 现价(最新扫描) ===
+    try:
+        if 'Price' in df.columns and 'Ticker' in df.columns:
+            df['信号价'] = pd.to_numeric(df['Price'], errors='coerce')
+            latest_dates_for_market = _cached_scanned_dates(market=selected_market) or []
+            latest_date_for_market = latest_dates_for_market[0] if latest_dates_for_market else selected_date
+            latest_price_map = {}
+            if latest_date_for_market:
+                latest_rows = _cached_scan_results(
+                    scan_date=latest_date_for_market,
+                    market=selected_market,
+                    limit=5000,
+                ) or []
+                for r in latest_rows:
+                    sym = str(r.get('symbol') or '').upper().strip()
+                    if not sym:
+                        continue
+                    px = pd.to_numeric(r.get('price'), errors='coerce')
+                    if pd.notna(px):
+                        latest_price_map[sym] = float(px)
+            df['现价'] = df['Ticker'].map(lambda t: latest_price_map.get(str(t).upper().strip()))
+            df['现价'] = pd.to_numeric(df['现价'], errors='coerce').fillna(df['信号价'])
+            base_px = pd.to_numeric(df['信号价'], errors='coerce')
+            curr_px = pd.to_numeric(df['现价'], errors='coerce')
+            df['价格变化(%)'] = np.where(
+                (base_px > 0) & np.isfinite(base_px) & np.isfinite(curr_px),
+                (curr_px / base_px - 1.0) * 100.0,
+                np.nan,
+            )
+    except Exception:
+        # 价格增强仅影响展示，不阻断主流程
+        pass
             
     # === Qlib 结果加载 (用于融合) ===
     def _load_qlib_latest_pack(market: str) -> dict:
@@ -4885,6 +4929,9 @@ def render_scan_page():
         "Name": st.column_config.TextColumn("名称", width="medium"),
         "Mkt Cap": st.column_config.NumberColumn("市值 ($B)", format="%.2f", help="市值 (十亿美元)"),
         "Price": st.column_config.NumberColumn("现价", format="$%.2f"),
+        "信号价": st.column_config.NumberColumn("信号价", format="$%.2f", help="该信号触发当日价格"),
+        "现价": st.column_config.NumberColumn("现价", format="$%.2f", help="最新扫描日价格"),
+        "价格变化(%)": st.column_config.NumberColumn("价格变化", format="%.2f%%", help="现价相对信号价变化"),
         "Turnover": st.column_config.NumberColumn("成交额 ($M)", format="%.1f", help="日成交额 (百万美元)"),
         "Day BLUE": st.column_config.ProgressColumn(
             "日 BLUE", format="%.0f", min_value=0, max_value=200,
@@ -5289,7 +5336,7 @@ def render_scan_page():
         df = df[(df['日掘地'] == True) | (df['周掘地'] == True) | (df['月掘地'] == True)]
 
     # 显示列顺序
-    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', 'Price', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', '信号价', '现价', '价格变化(%)', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
