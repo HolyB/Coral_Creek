@@ -125,10 +125,6 @@ def analyze_stock(symbol, market='US', account_size=100000):
         # [Legacy] 旧版信号: 严格 100
         is_legacy = (curr_blue > 100)
         
-        # 如果没有任何策略命中，直接返回 None (节省空间)
-        if not (is_strat_d or is_strat_c):
-            return None
-            
         # 风控参数计算
         stop_mult = 2.0
         risk_pct = 0.02
@@ -293,6 +289,11 @@ def analyze_stock(symbol, market='US', account_size=100000):
         except Exception:
             duokongwang_buy = False
             duokongwang_sell = False
+
+        # 如果没有任何策略命中，直接返回 None (节省空间)
+        # 新增：多空王买点也可单独入库，避免被蓝线策略过滤
+        if not (is_strat_d or is_strat_c or duokongwang_buy):
+            return None
 
         # 9. 风控建议
         stop_loss_price = curr_price - (stop_mult * curr_atr)
