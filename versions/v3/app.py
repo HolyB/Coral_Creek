@@ -2330,14 +2330,30 @@ def render_todays_picks_page():
                             step=1,
                             key=f"alloc_history_days_{market}",
                         )
-                    today_plan = build_today_meta_plan(
-                        rows=tracking_rows_for_action,
-                        weight_rows=weight_rows,
-                        top_n=int(alloc_top_n),
-                        total_capital=float(exec_capital),
-                        include_history=(candidate_mode == "含历史延续信号"),
-                        max_signal_age_days=int(history_days),
-                    )
+                    # 兼容云端旧缓存：meta_allocator_service 可能尚未包含新参数
+                    try:
+                        today_plan = build_today_meta_plan(
+                            rows=tracking_rows_for_action,
+                            weight_rows=weight_rows,
+                            top_n=int(alloc_top_n),
+                            total_capital=float(exec_capital),
+                            include_history=(candidate_mode == "含历史延续信号"),
+                            max_signal_age_days=int(history_days),
+                        )
+                    except TypeError:
+                        try:
+                            today_plan = build_today_meta_plan(
+                                rows=tracking_rows_for_action,
+                                weight_rows=weight_rows,
+                                top_n=int(alloc_top_n),
+                                total_capital=float(exec_capital),
+                            )
+                        except TypeError:
+                            today_plan = build_today_meta_plan(
+                                rows=tracking_rows_for_action,
+                                weight_rows=weight_rows,
+                                top_n=int(alloc_top_n),
+                            )
                     today_plan_df = pd.DataFrame(today_plan) if today_plan else pd.DataFrame()
                     if not today_plan_df.empty:
                         if candidate_mode == "仅当日新信号":
