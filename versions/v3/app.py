@@ -560,6 +560,12 @@ def _analyze_extreme_lift(
             continue
         enriched.append(
             {
+                "symbol": sym,
+                "signal_date": dt,
+                "market": mk,
+                "signal_price": _to_float(r.get("signal_price"), np.nan),
+                "current_price": _to_float(r.get("current_price"), np.nan),
+                "exit_day": int(_to_float(d.get("exit_day"), 0)),
                 "ret": ret,
                 "blue_daily": _to_float(r.get("blue_daily")),
                 "blue_weekly": _to_float(r.get("blue_weekly")),
@@ -576,14 +582,48 @@ def _analyze_extreme_lift(
     if not enriched:
         return {"ok": False, "reason": "no_valid_returns", "table": [], "target_col": "exit_return_pct"}
 
+    def _signal_text(x: Dict) -> str:
+        labels = []
+        if x.get("heima_daily"):
+            labels.append("日黑马")
+        if x.get("heima_weekly"):
+            labels.append("周黑马")
+        if x.get("heima_monthly"):
+            labels.append("月黑马")
+        if x.get("juedi_daily"):
+            labels.append("日掘地")
+        if x.get("juedi_weekly"):
+            labels.append("周掘地")
+        if x.get("juedi_monthly"):
+            labels.append("月掘地")
+        return "、".join(labels) if labels else "无"
+
     def _eval(name, fn):
         picked = [x for x in enriched if fn(x)]
         n = len(picked)
         if n == 0:
-            return {"组合": name, "样本": 0, "胜率(%)": None, "均收(%)": None, "相对基线提升(%)": None}
+            return {"组合": name, "样本": 0, "胜率(%)": None, "均收(%)": None, "相对基线提升(%)": None, "__details": []}
         wr = float(sum(1 for x in picked if x["ret"] > 0) / n * 100.0)
         avg = float(np.mean([x["ret"] for x in picked]))
-        return {"组合": name, "样本": n, "胜率(%)": round(wr, 1), "均收(%)": round(avg, 2)}
+        detail_rows = []
+        for x in picked:
+            detail_rows.append(
+                {
+                    "symbol": x.get("symbol"),
+                    "signal_date": x.get("signal_date"),
+                    "signal_price": round(_to_float(x.get("signal_price"), np.nan), 4) if np.isfinite(_to_float(x.get("signal_price"), np.nan)) else None,
+                    "current_price": round(_to_float(x.get("current_price"), np.nan), 4) if np.isfinite(_to_float(x.get("current_price"), np.nan)) else None,
+                    "exit_day": int(x.get("exit_day") or 0),
+                    "exit_return_pct": round(_to_float(x.get("ret"), 0.0), 2),
+                    "is_win": 1 if _to_float(x.get("ret"), 0.0) > 0 else 0,
+                    "signal_tags": _signal_text(x),
+                    "blue_daily": round(_to_float(x.get("blue_daily"), 0.0), 1),
+                    "blue_weekly": round(_to_float(x.get("blue_weekly"), 0.0), 1),
+                    "blue_monthly": round(_to_float(x.get("blue_monthly"), 0.0), 1),
+                }
+            )
+        detail_rows.sort(key=lambda z: str(z.get("signal_date") or ""), reverse=True)
+        return {"组合": name, "样本": n, "胜率(%)": round(wr, 1), "均收(%)": round(avg, 2), "__details": detail_rows}
 
     baseline = _eval("基线(全部候选)", lambda x: True)
     base_wr = float(baseline.get("胜率(%)") or 0.0)
@@ -641,7 +681,9 @@ def _analyze_extreme_lift(
         ),
     ]
 
-    table = [baseline] + combos
+    table_raw = [baseline] + combos
+    combo_details = {str(x.get("组合")): list(x.get("__details") or []) for x in table_raw}
+    table = [{k: v for k, v in x.items() if k != "__details"} for x in table_raw]
     base_n = int(baseline.get("样本") or 0)
     for r in table:
         wr = r.get("胜率(%)")
@@ -657,6 +699,7 @@ def _analyze_extreme_lift(
         "ok": True,
         "target_col": "exit_return_pct",
         "table": table,
+        "combo_details": combo_details,
         "base_sample": int(baseline.get("样本") or 0),
         "rule_name": exit_rule,
     }
@@ -2610,6 +2653,56 @@ def render_todays_picks_page():
                         f"收益口径={lift_ret.get('target_col')}（规则={lift_ret.get('rule_name') or exit_rule}）。"
                         "建议关注样本数，样本<20仅作参考。"
                     )
+                    combo_details = lift_ret.get("combo_details") or {}
+                    combo_options = [str(x) for x in lift_df["组合"].tolist() if str(x) in combo_details]
+                    if combo_options:
+                        st.markdown("**点击查看组合明细（逐笔）**")
+                        selected_combo = st.selectbox(
+                            "选择组合",
+                            options=combo_options,
+                            key=f"lift_combo_select_{market}",
+                        )
+                        detail_rows = list(combo_details.get(selected_combo) or [])
+                        if detail_rows:
+                            detail_df = pd.DataFrame(detail_rows)
+                            win_cnt = int((detail_df["is_win"] == 1).sum()) if "is_win" in detail_df.columns else 0
+                            sample_cnt = int(len(detail_df))
+                            wr_calc = (win_cnt / sample_cnt * 100.0) if sample_cnt > 0 else 0.0
+                            st.caption(
+                                f"胜率计算: 胜率 = 盈利笔数 / 样本数 = {win_cnt}/{sample_cnt} = {wr_calc:.1f}%"
+                            )
+                            show_cols = [
+                                "symbol",
+                                "signal_date",
+                                "signal_price",
+                                "current_price",
+                                "exit_day",
+                                "exit_return_pct",
+                                "is_win",
+                                "signal_tags",
+                                "blue_daily",
+                                "blue_weekly",
+                                "blue_monthly",
+                            ]
+                            detail_df = detail_df[[c for c in show_cols if c in detail_df.columns]]
+                            detail_df = detail_df.rename(
+                                columns={
+                                    "symbol": "股票",
+                                    "signal_date": "信号日期",
+                                    "signal_price": "信号价",
+                                    "current_price": "现价",
+                                    "exit_day": "退出天数",
+                                    "exit_return_pct": "规则收益(%)",
+                                    "is_win": "是否盈利(1/0)",
+                                    "signal_tags": "触发信号",
+                                    "blue_daily": "日BLUE",
+                                    "blue_weekly": "周BLUE",
+                                    "blue_monthly": "月BLUE",
+                                }
+                            )
+                            st.dataframe(detail_df, width="stretch", hide_index=True)
+                        else:
+                            st.info("该组合暂无逐笔明细。")
                 else:
                     st.info("暂无可用组合统计")
             else:
