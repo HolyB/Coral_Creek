@@ -189,7 +189,23 @@ def run_backfill(market: str, profile: str = "balanced", since_days: int = 0) ->
         rows,
     )
     main_conn.commit()
-    print(f"[{market}] OHLC 已补: {len(rows)} (fallback_prev_trade_day={fallback_used})")
+    # 兜底: 对仍缺失OHLC但有当日快照价(price)的记录，用快照价补齐
+    mc.execute(
+        f"""
+        UPDATE scan_results
+        SET day_high = COALESCE(day_high, price),
+            day_low = COALESCE(day_low, price),
+            day_close = COALESCE(day_close, price),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE market = ?
+          AND (day_high IS NULL OR day_low IS NULL OR day_close IS NULL)
+          AND price IS NOT NULL AND price > 0{since_filter}
+        """,
+        (market, *params_tail),
+    )
+    snapshot_fill = int(mc.rowcount or 0)
+    main_conn.commit()
+    print(f"[{market}] OHLC 已补: {len(rows)} (fallback_prev_trade_day={fallback_used}, from_snapshot={snapshot_fill})")
 
     # 回填多空王
     mc.execute(
@@ -256,7 +272,21 @@ def run_backfill(market: str, profile: str = "balanced", since_days: int = 0) ->
         updates,
     )
     main_conn.commit()
-    print(f"[{market}] 多空王已回填: {len(updates)} (fallback_prev_trade_day={dkw_fallback})")
+    # 兜底: 仍缺失多空王信号的记录，先标记为0，避免后续流程因NULL中断
+    mc.execute(
+        f"""
+        UPDATE scan_results
+        SET duokongwang_buy = COALESCE(duokongwang_buy, 0),
+            duokongwang_sell = COALESCE(duokongwang_sell, 0),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE market = ?
+          AND (duokongwang_buy IS NULL OR duokongwang_sell IS NULL){since_filter}
+        """,
+        (market, *params_tail),
+    )
+    dkw_default = int(mc.rowcount or 0)
+    main_conn.commit()
+    print(f"[{market}] 多空王已回填: {len(updates)} (fallback_prev_trade_day={dkw_fallback}, default_zero={dkw_default})")
 
     main_conn.close()
     hist_conn.close()
