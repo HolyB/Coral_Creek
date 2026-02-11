@@ -77,6 +77,8 @@ def _extract_signal_fields(row: Dict) -> Dict:
     vp_rating = str(_pick_first(row, ["vp_rating", "VP_Rating"], "") or "")
     profit_ratio = _to_float(_pick_first(row, ["profit_ratio", "Profit_Ratio"], 0.0), 0.0)
     cap_category = str(_pick_first(row, ["cap_category", "Cap_Category"], "UNKNOWN") or "UNKNOWN")
+    market = str(_pick_first(row, ["market", "Market"], "US") or "US").upper()
+    turnover_m = _to_float(_pick_first(row, ["turnover_m", "Turnover_M"], 0.0), 0.0)
 
     strategy_text = str(_pick_first(row, ["strategy", "Strategy"], "") or "")
     if ("黑马" in strategy_text) and not (is_heima or week_heima or month_heima):
@@ -97,6 +99,8 @@ def _extract_signal_fields(row: Dict) -> Dict:
         "vp_rating": vp_rating,
         "profit_ratio": profit_ratio,
         "cap_category": cap_category,
+        "market": market,
+        "turnover_m": turnover_m,
     }
 
 
@@ -194,6 +198,31 @@ def _is_mid_large_cap(cap_category: str) -> bool:
     return ("mid" in txt) or ("large" in txt) or ("mega" in txt) or ("中盘" in txt) or ("大盘" in txt) or ("巨头" in txt)
 
 
+def _cap_group_by_proxy(cap_category: str, market: str, turnover_m: float) -> str:
+    """
+    市值缺失时的兜底分层:
+    - 优先 cap_category 文本识别
+    - 其次用成交额(百万)做代理分层（CN 尤其常见）
+    """
+    if _is_small_cap(cap_category):
+        return "small"
+    if _is_mid_large_cap(cap_category):
+        return "mid_large"
+
+    mkt = str(market or "US").upper()
+    tv = _to_float(turnover_m, 0.0)
+    if tv <= 0:
+        return "unknown"
+
+    # 经验阈值（单位: 百万本币）
+    # CN: >= 120 视作中大盘流动性层；US: >= 40 视作中大盘流动性层
+    if mkt == "CN":
+        return "mid_large" if tv >= 120.0 else "small"
+    if mkt == "US":
+        return "mid_large" if tv >= 40.0 else "small"
+    return "mid_large" if tv >= 80.0 else "small"
+
+
 def _chip_good(f: Dict) -> bool:
     vp = str(f.get("vp_rating") or "").lower()
     pr = _to_float(f.get("profit_ratio"), 0.0)
@@ -236,10 +265,15 @@ def _strategy_match(rule_id: str, f: Dict, min_blue: float) -> bool:
         return False
 
     cap = str(f.get("cap_category") or "UNKNOWN")
+    cap_group_proxy = _cap_group_by_proxy(
+        cap_category=cap,
+        market=str(f.get("market") or "US"),
+        turnover_m=_to_float(f.get("turnover_m"), 0.0),
+    )
     cap_group = str(cfg.get("cap_group") or "")
-    if cap_group == "small" and not _is_small_cap(cap):
+    if cap_group == "small" and cap_group_proxy != "small":
         return False
-    if cap_group == "mid_large" and not _is_mid_large_cap(cap):
+    if cap_group == "mid_large" and cap_group_proxy != "mid_large":
         return False
 
     blue_scope = str(cfg.get("blue_scope") or "dwm")
@@ -443,7 +477,11 @@ def run_market(
                 continue
             if not _strategy_match(sd["id"], f, min_blue):
                 continue
-            seg = str(r.get("cap_category") or "UNKNOWN")
+            seg = _cap_group_by_proxy(
+                cap_category=str(r.get("cap_category") or "UNKNOWN"),
+                market=str(r.get("market") or market),
+                turnover_m=_to_float(r.get("turnover_m"), 0.0),
+            )
             ind = str(r.get("industry") or "UNKNOWN")
             seg_w = segment_weight_map_by_rule.get(sd["id"], {}).get(seg, 1.0)
             ind_w = industry_weight_map_by_rule.get(sd["id"], {}).get(ind, 1.0)
