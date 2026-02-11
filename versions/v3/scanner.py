@@ -234,6 +234,9 @@ def analyze_stock(symbol, market='US', account_size=100000):
         return {
             'Symbol': symbol,
             'Price': curr_price,
+            'Day_High': float(highs[-1]) if len(highs) else curr_price,
+            'Day_Low': float(lows[-1]) if len(lows) else curr_price,
+            'Day_Close': curr_price,
             'Turnover_M': round(curr_vol / 1000000, 2),
             'Date': df.index[-1].strftime('%Y-%m-%d'),
             

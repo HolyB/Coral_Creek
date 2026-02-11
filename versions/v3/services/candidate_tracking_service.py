@@ -321,6 +321,22 @@ def backfill_candidates_from_scan_history(
 def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
     with get_db() as conn:
         cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                SELECT scan_date, price, day_high, day_low, day_close
+                FROM scan_results
+                WHERE symbol = ? AND market = ? AND scan_date >= ? AND price IS NOT NULL AND price > 0
+                ORDER BY scan_date ASC
+                """,
+                (symbol, market, signal_date),
+            )
+            rows = [dict(x) for x in cursor.fetchall()]
+            if rows:
+                return rows
+        except Exception:
+            pass
+        # 兼容旧表结构：没有 day_high/day_low/day_close 时回退
         cursor.execute(
             """
             SELECT scan_date, price
@@ -374,7 +390,13 @@ def refresh_candidate_tracking(market: Optional[str] = None, max_rows: int = 200
         if not series:
             continue
 
-        prices = [_to_float(x["price"], 0.0) for x in series if _to_float(x["price"], 0.0) > 0]
+        prices = []
+        for x in series:
+            px = _to_float(x.get("day_close"), 0.0)
+            if px <= 0:
+                px = _to_float(x.get("price"), 0.0)
+            if px > 0:
+                prices.append(px)
         if not prices:
             continue
         current_price = prices[-1]
@@ -654,15 +676,37 @@ def evaluate_exit_rule(
 
     exits = []
 
-    def _calc_kdj_close(prices_: List[float], period: int = 9) -> List[Dict]:
-        # 无 OHLC 时，用 close 的 rolling min/max 近似 RSV
+    def _prepare_ohlc(series_: List[Dict]) -> Dict[str, List[float]]:
+        closes_: List[float] = []
+        highs_: List[float] = []
+        lows_: List[float] = []
+        for item in series_:
+            close_px = _to_float(item.get("day_close"), 0.0)
+            if close_px <= 0:
+                close_px = _to_float(item.get("price"), 0.0)
+            if close_px <= 0:
+                continue
+            high_px = _to_float(item.get("day_high"), close_px)
+            low_px = _to_float(item.get("day_low"), close_px)
+            if high_px <= 0:
+                high_px = close_px
+            if low_px <= 0:
+                low_px = close_px
+            high_px = max(high_px, close_px)
+            low_px = min(low_px, close_px)
+            closes_.append(close_px)
+            highs_.append(high_px)
+            lows_.append(low_px)
+        return {"close": closes_, "high": highs_, "low": lows_}
+
+    def _calc_kdj_ohlc(highs_: List[float], lows_: List[float], closes_: List[float], period: int = 9) -> List[Dict]:
+        # 标准 KDJ: RSV = (C-LLV(L,n)) / (HHV(H,n)-LLV(L,n)) * 100
         out_: List[Dict] = []
         k_prev, d_prev = 50.0, 50.0
-        for i, c in enumerate(prices_):
+        for i, c in enumerate(closes_):
             s = max(0, i - period + 1)
-            w = prices_[s : i + 1]
-            lo = min(w)
-            hi = max(w)
+            lo = min(lows_[s : i + 1])
+            hi = max(highs_[s : i + 1])
             if hi <= lo:
                 rsv = 50.0
             else:
@@ -683,42 +727,50 @@ def evaluate_exit_rule(
         signal_date = str(row.get("signal_date") or "")
 
         series = _get_price_series(symbol=symbol, market=market, signal_date=signal_date)
-        prices = [_to_float(x.get("price"), 0.0) for x in series if _to_float(x.get("price"), 0.0) > 0]
-        if not prices:
+        ohlc = _prepare_ohlc(series)
+        closes = ohlc["close"]
+        highs = ohlc["high"]
+        lows = ohlc["low"]
+        if not closes:
             continue
 
         exit_day = None
         exit_ret = None
 
         if rule_name == "fixed_5d":
-            day = min(5, len(prices) - 1)
+            day = min(5, len(closes) - 1)
             exit_day = day
-            exit_ret = (prices[day] / signal_price - 1.0) * 100.0
+            exit_ret = (closes[day] / signal_price - 1.0) * 100.0
         elif rule_name == "fixed_20d":
-            day = min(20, len(prices) - 1)
+            day = min(20, len(closes) - 1)
             exit_day = day
-            exit_ret = (prices[day] / signal_price - 1.0) * 100.0
+            exit_ret = (closes[day] / signal_price - 1.0) * 100.0
         elif rule_name == "tp_sl_time":
             tp = signal_price * (1.0 + take_profit_pct / 100.0)
             sl = signal_price * (1.0 - stop_loss_pct / 100.0)
-            limit_day = min(int(max_hold_days), len(prices) - 1)
+            limit_day = min(int(max_hold_days), len(closes) - 1)
             for i in range(1, limit_day + 1):
-                p = prices[i]
-                if p >= tp:
+                h = highs[i]
+                l = lows[i]
+                c = closes[i]
+                # 同日同时触发时，按更保守口径先记止损
+                if l <= sl:
                     exit_day = i
-                    exit_ret = (p / signal_price - 1.0) * 100.0
+                    exit_ret = (sl / signal_price - 1.0) * 100.0
                     break
-                if p <= sl:
+                if h >= tp:
                     exit_day = i
-                    exit_ret = (p / signal_price - 1.0) * 100.0
+                    exit_ret = (tp / signal_price - 1.0) * 100.0
                     break
+                # 未触发时以当日收盘继续持有
+                _ = c
             if exit_day is None:
                 exit_day = limit_day
-                exit_ret = (prices[limit_day] / signal_price - 1.0) * 100.0
+                exit_ret = (closes[limit_day] / signal_price - 1.0) * 100.0
         elif rule_name == "kdj_dead_cross":
-            # 顶级交易员口径：过热区死叉优先离场，避免回撤吃掉利润
-            kdj = _calc_kdj_close(prices)
-            limit_day = min(int(max_hold_days), len(prices) - 1)
+            # 顶级交易员口径：过热区死叉优先离场，避免回撤吃掉利润（标准OHLC KDJ）
+            kdj = _calc_kdj_ohlc(highs, lows, closes)
+            limit_day = min(int(max_hold_days), len(closes) - 1)
             for i in range(2, limit_day + 1):
                 k0, d0 = kdj[i - 1]["k"], kdj[i - 1]["d"]
                 k1, d1 = kdj[i]["k"], kdj[i]["d"]
@@ -728,48 +780,55 @@ def evaluate_exit_rule(
                 overheat_fade = (j1 > 95.0) or (i >= 2 and kdj[i - 1]["j"] > 95.0 and j1 < kdj[i - 1]["j"] - 8.0)
                 if dead_cross and (k1 > 60.0 or d1 > 60.0):
                     exit_day = i
-                    exit_ret = (prices[i] / signal_price - 1.0) * 100.0
+                    exit_ret = (closes[i] / signal_price - 1.0) * 100.0
                     break
                 if overheat_fade:
                     exit_day = i
-                    exit_ret = (prices[i] / signal_price - 1.0) * 100.0
+                    exit_ret = (closes[i] / signal_price - 1.0) * 100.0
                     break
             if exit_day is None:
                 exit_day = limit_day
-                exit_ret = (prices[limit_day] / signal_price - 1.0) * 100.0
+                exit_ret = (closes[limit_day] / signal_price - 1.0) * 100.0
         elif rule_name == "top_divergence_guard":
             # 顶背离近似：价格新高但J值不创新高，且出现回落时保护退出
-            kdj = _calc_kdj_close(prices)
-            limit_day = min(int(max_hold_days), len(prices) - 1)
-            peak_price = prices[0]
+            kdj = _calc_kdj_ohlc(highs, lows, closes)
+            limit_day = min(int(max_hold_days), len(closes) - 1)
+            peak_price = highs[0]
             peak_j = kdj[0]["j"]
             for i in range(1, limit_day + 1):
-                p = prices[i]
+                h = highs[i]
+                l = lows[i]
+                p = closes[i]
                 j = kdj[i]["j"]
-                made_new_high = p > peak_price * 1.001
+                made_new_high = h > peak_price * 1.001
                 if made_new_high:
                     # 新高但J没跟上，记为潜在背离；若随后单日转弱则离场
                     if j < peak_j - 5.0:
-                        weak_today = i >= 1 and prices[i] < prices[i - 1]
+                        weak_today = i >= 1 and closes[i] < closes[i - 1]
                         if weak_today:
                             exit_day = i
-                            exit_ret = (prices[i] / signal_price - 1.0) * 100.0
+                            exit_ret = (p / signal_price - 1.0) * 100.0
                             break
-                    peak_price = p
+                    peak_price = h
                     peak_j = max(peak_j, j)
                 # 防守底线：沿用统一止损/止盈
-                cur_ret = (p / signal_price - 1.0) * 100.0
-                if cur_ret >= float(take_profit_pct) or cur_ret <= -float(stop_loss_pct):
+                tp = signal_price * (1.0 + take_profit_pct / 100.0)
+                sl = signal_price * (1.0 - stop_loss_pct / 100.0)
+                if l <= sl:
                     exit_day = i
-                    exit_ret = cur_ret
+                    exit_ret = (sl / signal_price - 1.0) * 100.0
+                    break
+                if h >= tp:
+                    exit_day = i
+                    exit_ret = (tp / signal_price - 1.0) * 100.0
                     break
             if exit_day is None:
                 exit_day = limit_day
-                exit_ret = (prices[limit_day] / signal_price - 1.0) * 100.0
+                exit_ret = (closes[limit_day] / signal_price - 1.0) * 100.0
         else:
-            day = min(10, len(prices) - 1)
+            day = min(10, len(closes) - 1)
             exit_day = day
-            exit_ret = (prices[day] / signal_price - 1.0) * 100.0
+            exit_ret = (closes[day] / signal_price - 1.0) * 100.0
 
         exits.append(
             {

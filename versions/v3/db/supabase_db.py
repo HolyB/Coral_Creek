@@ -165,6 +165,9 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
             'industry': result_dict.get('Industry') or result_dict.get('industry'),
             'market_cap': result_dict.get('Market_Cap') or result_dict.get('market_cap'),
             'cap_category': result_dict.get('Cap_Category') or result_dict.get('cap_category'),
+            'day_high': result_dict.get('Day_High') or result_dict.get('day_high'),
+            'day_low': result_dict.get('Day_Low') or result_dict.get('day_low'),
+            'day_close': result_dict.get('Day_Close') or result_dict.get('day_close') or result_dict.get('Price') or result_dict.get('price'),
             # 补充缺失的字段
             'stop_loss': result_dict.get('Stop_Loss') or result_dict.get('stop_loss'),
             'strat_d_trend': result_dict.get('Strat_D_Trend') or result_dict.get('strat_d_trend'),
@@ -183,8 +186,19 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
         # 移除 None 值的字段（Supabase 不接受某些 null）
         record = {k: v for k, v in record.items() if v is not None}
         
-        supabase.table('scan_results').upsert(record, on_conflict='symbol,scan_date,market').execute()
-        return True
+        try:
+            supabase.table('scan_results').upsert(record, on_conflict='symbol,scan_date,market').execute()
+            return True
+        except Exception as e:
+            msg = str(e).lower()
+            if "day_high" in msg or "day_low" in msg or "day_close" in msg:
+                # 兼容云端尚未迁移新列的场景：降级写入旧字段
+                record.pop('day_high', None)
+                record.pop('day_low', None)
+                record.pop('day_close', None)
+                supabase.table('scan_results').upsert(record, on_conflict='symbol,scan_date,market').execute()
+                return True
+            raise
     except Exception as e:
         print(f"⚠️ Supabase 插入失败: {e}")
         return False
@@ -228,4 +242,3 @@ def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dic
     except Exception as e:
         print(f"⚠️ 获取首次日期失败: {e}")
         return {}
-

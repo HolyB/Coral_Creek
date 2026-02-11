@@ -95,6 +95,9 @@ def init_db():
                 cap_category VARCHAR(30),
                 company_name VARCHAR(200),
                 industry VARCHAR(200),
+                day_high REAL,
+                day_low REAL,
+                day_close REAL,
                 stop_loss REAL,
                 shares_rec INTEGER,
                 risk_reward_score REAL,
@@ -125,6 +128,12 @@ def init_db():
                 cursor.execute(f"ALTER TABLE scan_results ADD COLUMN {col_name} {col_type}")
             except:
                 pass  # 列已存在
+        # 日线OHLC补充字段（用于更精确的KDJ/背离评估）
+        for col_name, col_type in [("day_high", "REAL"), ("day_low", "REAL"), ("day_close", "REAL")]:
+            try:
+                cursor.execute(f"ALTER TABLE scan_results ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
         
         # 扫描任务表
         cursor.execute("""
@@ -458,8 +467,8 @@ def insert_scan_result(result_dict):
                 strat_d_trend, strat_c_resonance,
                 legacy_signal, regime, adaptive_thresh, vp_rating, profit_ratio,
                 wave_phase, wave_desc, chan_signal, chan_desc, market_cap, cap_category,
-                company_name, industry, stop_loss, shares_rec, risk_reward_score, market, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                company_name, industry, day_high, day_low, day_close, stop_loss, shares_rec, risk_reward_score, market, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(symbol, scan_date) DO UPDATE SET
                 price = excluded.price,
                 turnover_m = excluded.turnover_m,
@@ -491,6 +500,9 @@ def insert_scan_result(result_dict):
                 cap_category = excluded.cap_category,
                 company_name = excluded.company_name,
                 industry = excluded.industry,
+                day_high = excluded.day_high,
+                day_low = excluded.day_low,
+                day_close = excluded.day_close,
                 stop_loss = excluded.stop_loss,
                 shares_rec = excluded.shares_rec,
                 risk_reward_score = excluded.risk_reward_score,
@@ -529,6 +541,9 @@ def insert_scan_result(result_dict):
             result_dict.get('Cap_Category'),
             result_dict.get('Company_Name'),
             result_dict.get('Industry'),
+            result_dict.get('Day_High'),
+            result_dict.get('Day_Low'),
+            result_dict.get('Day_Close') if result_dict.get('Day_Close') is not None else result_dict.get('Price'),
             result_dict.get('Stop_Loss'),
             result_dict.get('Shares_Rec'),
             result_dict.get('Risk_Reward_Score'),
