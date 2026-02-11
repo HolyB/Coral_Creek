@@ -22,6 +22,16 @@ STRATEGY_TAG_DEFS = {
     "duokongwang_blue": {"name": "多空王+蓝线", "tags_all": ["DUOKONGWANG_BUY", "DAY_BLUE"]},
 }
 
+_PRIMARY_STRATEGY_ORDER = [
+    "blue_triple",
+    "duokongwang_blue",
+    "blue_day_week",
+    "heima",
+    "chip",
+    "duokongwang",
+    "defensive",
+]
+
 
 def _build_exit_rule_label(rule_name: str, take_profit_pct: float, stop_loss_pct: float, max_hold_days: int) -> str:
     if str(rule_name) == "tp_sl_time":
@@ -53,6 +63,14 @@ def _match_strategy(row: Dict, cfg: Dict) -> bool:
     if tags_any and tags.isdisjoint(tags_any):
         return False
     return bool(tags)
+
+
+def _pick_primary_strategy_key(row: Dict) -> str:
+    for key in _PRIMARY_STRATEGY_ORDER:
+        cfg = STRATEGY_TAG_DEFS.get(key) or {}
+        if _match_strategy(row, cfg):
+            return key
+    return ""
 
 
 def _calc_trade_metrics_from_details(details: Sequence[Dict], avg_hold_days: float) -> Dict:
@@ -222,14 +240,23 @@ def evaluate_strategy_baskets(
     slippage_bps: float = 5.0,
     min_samples: int = 15,
     max_rows: int = 1200,
+    primary_only: bool = True,
 ) -> List[Dict]:
     out: List[Dict] = []
     data = list(rows or [])
     if not data:
         return out
 
+    primary_map = {}
+    if primary_only:
+        for r in data:
+            primary_map[id(r)] = _pick_primary_strategy_key(r)
+
     for key, cfg in STRATEGY_TAG_DEFS.items():
-        picked = [r for r in data if _match_strategy(r, cfg)]
+        if primary_only:
+            picked = [r for r in data if primary_map.get(id(r)) == key]
+        else:
+            picked = [r for r in data if _match_strategy(r, cfg)]
         metrics = evaluate_strategy_unified(
             rows=picked,
             rule_name=rule_name,
@@ -263,6 +290,7 @@ def evaluate_strategy_baskets_best_exit(
     slippage_bps: float = 5.0,
     min_samples: int = 15,
     max_rows: int = 1200,
+    primary_only: bool = True,
 ) -> List[Dict]:
     """
     多规则评估后，对每个策略仅保留最优卖出规则。
@@ -291,6 +319,7 @@ def evaluate_strategy_baskets_best_exit(
             slippage_bps=slippage_bps,
             min_samples=min_samples,
             max_rows=max_rows,
+            primary_only=primary_only,
         )
         for row in rows_now:
             k = str(row.get("strategy_key") or "")
@@ -330,7 +359,8 @@ def allocate_meta_weights(
     raw_scores = []
     for r in rows:
         sample = max(_to_float(r.get("sample"), 0.0), 1.0)
-        sample_factor = min(sample / 120.0, 1.0)
+        # 样本可靠性：样本越多，策略评分越可信；避免小样本冲榜
+        sample_factor = min(np.sqrt(sample / 120.0), 1.0)
         score = (
             0.40 * max(_to_float(r.get("sharpe"), 0.0), 0.0)
             + 0.25 * max(_to_float(r.get("ann_return_pct"), 0.0), 0.0) / 30.0
@@ -338,13 +368,19 @@ def allocate_meta_weights(
             # 回撤越小越好（正值口径）
             + 0.15 * max(20.0 - _to_float(r.get("max_drawdown_pct"), 0.0), 0.0) / 20.0
         ) * sample_factor
+        # 强制纳入总收益方向，避免“年化高但净值为负”的策略拿高权重
+        if _to_float(r.get("total_return_pct"), 0.0) < 0:
+            score *= 0.35
         raw_scores.append(max(score, 0.0))
 
     raw = np.array(raw_scores, dtype=float)
     if raw.sum() <= 1e-12:
         raw = np.ones_like(raw) / len(raw)
     else:
-        raw = raw / raw.sum()
+        # softmax 稳定化，避免一两个策略吃掉全部权重
+        z = raw - np.max(raw)
+        e = np.exp(z)
+        raw = e / np.sum(e)
 
     clipped = np.clip(raw, min_weight, max_weight)
     clipped = clipped / clipped.sum()
@@ -407,30 +443,34 @@ def build_today_meta_plan(
     key2cfg = STRATEGY_TAG_DEFS
     picked: Dict[str, Dict] = {}
     w_map = {str(w.get("strategy_key")): _to_float(w.get("建议权重(%)")) for w in weight_rows}
+    name_map = {k: (v.get("name") or k) for k, v in key2cfg.items()}
 
     for r in selected_rows:
         sym = str(r.get("symbol") or "")
         if not sym:
             continue
 
-        hit_strategies = []
-        weight_sum = 0.0
-        for key, cfg in key2cfg.items():
-            if key not in w_map:
-                continue
-            if not _match_strategy(r, cfg):
-                continue
-            hit_strategies.append(cfg.get("name", key))
-            weight_sum += _to_float(w_map.get(key))
-
-        if not hit_strategies:
+        primary_key = _pick_primary_strategy_key(r)
+        if not primary_key:
             continue
+        if primary_key not in w_map:
+            continue
+        hit_strategies = [name_map.get(primary_key, primary_key)]
+        weight_sum = _to_float(w_map.get(primary_key))
 
         day_blue = _to_float(r.get("blue_daily"))
         week_blue = _to_float(r.get("blue_weekly"))
         # 信号强度压缩到相对可解释区间，避免纯数值过大失真
         signal_strength = 0.7 * min(day_blue / 200.0, 1.5) + 0.3 * min(week_blue / 200.0, 1.5)
-        raw_exec = max(weight_sum * signal_strength, 0.0)
+        age_decay = 1.0
+        if include_history and latest_dt is not None:
+            try:
+                sig_dt = datetime.strptime(str(r.get("signal_date") or latest_date), "%Y-%m-%d")
+                age_days_now = max((latest_dt - sig_dt).days, 0)
+                age_decay = float(np.exp(-age_days_now / 18.0))
+            except Exception:
+                age_decay = 1.0
+        raw_exec = max(weight_sum * signal_strength * age_decay, 0.0)
 
         existing = picked.get(sym)
         if (existing is None) or (raw_exec > _to_float(existing.get("_raw_exec"))):
@@ -482,6 +522,7 @@ def build_today_meta_plan(
                 "symbol": sym,
                 "命中策略数": len(hit_strategies),
                 "命中策略": "、".join(sorted(set(hit_strategies))),
+                "主策略": hit_strategies[0],
                 "策略权重合计(%)": round(weight_sum, 1),
                 "距信号天数": int(age_days),
                 "信号价": round(signal_price, 3) if signal_price > 0 else None,

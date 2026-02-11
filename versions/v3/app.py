@@ -481,37 +481,47 @@ def _evaluate_ml_vs_baseline(
 
 
 @st.cache_data(ttl=900, show_spinner=False)
-def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
+def _analyze_extreme_lift(
+    market: str,
+    days_back: int = 360,
+    exit_rule: str = "fixed_10d",
+    take_profit_pct: float = 10.0,
+    stop_loss_pct: float = 6.0,
+    max_hold_days: int = 20,
+    max_rows: int = 1500,
+) -> Dict:
     """
     极致条件 Lift 分析:
     例如 日BLUE>=200 + 周BLUE>=200 + 黑马/掘地 的胜率提升。
     """
-    from services.candidate_tracking_service import get_candidate_tracking_rows
+    from services.candidate_tracking_service import get_candidate_tracking_rows, evaluate_exit_rule
     from db.database import get_connection
 
     rows = get_candidate_tracking_rows(market=market, days_back=days_back) or []
     if not rows:
         return {"ok": False, "reason": "no_tracking_rows", "table": [], "target_col": None}
 
-    # 选择尽量稳定的收益口径：优先 pnl_d10，再 pnl_d5，最后当前 pnl_pct
-    def _pick_target_col(rs):
-        cands = ["pnl_d10", "pnl_d5", "pnl_pct"]
-        for c in cands:
-            valid = 0
-            for r in rs:
-                v = r.get(c)
-                if v is None:
-                    continue
-                try:
-                    _ = float(v)
-                    valid += 1
-                except Exception:
-                    pass
-            if valid >= max(20, int(len(rs) * 0.25)):
-                return c
-        return "pnl_pct"
+    # 统一口径：Lift 直接使用同一平仓规则下的交易收益，不再混用 pnl_d*
+    eval_ret = evaluate_exit_rule(
+        rows=rows,
+        rule_name=exit_rule,
+        take_profit_pct=float(take_profit_pct),
+        stop_loss_pct=float(stop_loss_pct),
+        max_hold_days=int(max_hold_days),
+        max_rows=int(max_rows),
+    )
+    details = list(eval_ret.get("details") or [])
+    if not details:
+        return {"ok": False, "reason": "no_exit_details", "table": [], "target_col": "exit_return_pct"}
 
-    target_col = _pick_target_col(rows)
+    row_map = {}
+    for r in rows:
+        key = (
+            str(r.get("symbol") or "").upper(),
+            str(r.get("signal_date") or ""),
+            str(r.get("market") or market),
+        )
+        row_map[key] = r
 
     # 兼容历史数据：若旧 candidate_tracking 尚未持久化 juedi 字段，则从 scan_results 回补
     min_date = min(str(r.get("signal_date") or "9999-12-31") for r in rows)
@@ -540,10 +550,12 @@ def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
             return float(d)
 
     enriched = []
-    for r in rows:
-        sym = str(r.get("symbol") or "").upper()
-        dt = str(r.get("signal_date") or "")
-        ret = _to_float(r.get(target_col), np.nan)
+    for d in details:
+        sym = str(d.get("symbol") or "").upper()
+        dt = str(d.get("signal_date") or "")
+        mk = str(d.get("market") or market)
+        r = row_map.get((sym, dt, mk)) or row_map.get((sym, dt, market)) or {}
+        ret = _to_float(d.get("exit_return_pct"), np.nan)
         if np.isnan(ret):
             continue
         enriched.append(
@@ -562,7 +574,7 @@ def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
         )
 
     if not enriched:
-        return {"ok": False, "reason": "no_valid_returns", "table": [], "target_col": target_col}
+        return {"ok": False, "reason": "no_valid_returns", "table": [], "target_col": "exit_return_pct"}
 
     def _eval(name, fn):
         picked = [x for x in enriched if fn(x)]
@@ -643,9 +655,10 @@ def _analyze_extreme_lift(market: str, days_back: int = 360) -> Dict:
 
     return {
         "ok": True,
-        "target_col": target_col,
+        "target_col": "exit_return_pct",
         "table": table,
         "base_sample": int(baseline.get("样本") or 0),
+        "rule_name": exit_rule,
     }
 
 
@@ -2407,6 +2420,7 @@ def render_todays_picks_page():
                             show_cols_plan = [
                                 "信号日期",
                                 "symbol",
+                                "主策略",
                                 "命中策略数",
                                 "命中策略",
                                 "策略权重合计(%)",
@@ -2425,6 +2439,7 @@ def render_todays_picks_page():
                             show_cols_plan = [
                                 "信号日期",
                                 "symbol",
+                                "主策略",
                                 "距信号天数",
                                 "命中策略数",
                                 "命中策略",
@@ -2457,14 +2472,22 @@ def render_todays_picks_page():
                 st.info("组合层样本不足：请先积累更多候选追踪样本。")
 
             st.markdown("### 🔬 极致条件提升（Lift）")
-            lift_ret = _analyze_extreme_lift(market=market, days_back=360)
+            lift_ret = _analyze_extreme_lift(
+                market=market,
+                days_back=360,
+                exit_rule=exit_rule,
+                take_profit_pct=float(rule_tp),
+                stop_loss_pct=float(rule_sl),
+                max_hold_days=int(rule_max_hold),
+                max_rows=1500,
+            )
             if lift_ret.get("ok"):
                 lift_df = pd.DataFrame(lift_ret.get("table") or [])
                 if not lift_df.empty:
                     st.dataframe(lift_df, width="stretch", hide_index=True)
                     st.caption(
                         "说明: 胜率提升=组合胜率-基线胜率；"
-                        f"收益口径={lift_ret.get('target_col')}。"
+                        f"收益口径={lift_ret.get('target_col')}（规则={lift_ret.get('rule_name') or exit_rule}）。"
                         "建议关注样本数，样本<20仅作参考。"
                     )
                 else:
