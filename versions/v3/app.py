@@ -2274,14 +2274,17 @@ def render_todays_picks_page():
             if not perf_df.empty:
                 show_cols = [
                     "策略", "sample", "net_win_rate_pct", "net_avg_return_pct",
-                    "ann_return_pct", "sharpe", "max_drawdown_pct",
+                    "total_return_pct", "ann_return_pct", "ann_return_raw_pct",
+                    "sharpe", "max_drawdown_pct",
                     "profit_factor", "turnover_per_year",
                 ]
                 col_map = {
                     "sample": "样本",
                     "net_win_rate_pct": "净胜率(%)",
-                    "net_avg_return_pct": "净均收(%)",
-                    "ann_return_pct": "年化(%)",
+                    "net_avg_return_pct": "单笔净均收(%)",
+                    "total_return_pct": "总收益(%)",
+                    "ann_return_pct": "稳健年化(%)",
+                    "ann_return_raw_pct": "原始几何年化(%)",
                     "sharpe": "Sharpe",
                     "max_drawdown_pct": "最大回撤(%)",
                     "profit_factor": "盈亏比",
@@ -2293,7 +2296,7 @@ def render_todays_picks_page():
                     hide_index=True,
                 )
                 if "ann_return_raw_pct" in perf_df.columns:
-                    st.caption("注: 年化(%)为稳健年化（winsorize后）；原始几何年化可用于诊断极端样本影响。")
+                    st.caption("解释: 单笔净均收是算术平均；年化是复利口径。单笔均值为正时，总收益/年化仍可能为负（由大回撤与复利路径决定）。")
 
                 weight_rows = allocate_meta_weights(perf_rows, max_weight=0.45, min_weight=0.05)
                 weight_df = pd.DataFrame(weight_rows) if weight_rows else pd.DataFrame()
