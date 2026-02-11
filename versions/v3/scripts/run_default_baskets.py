@@ -101,29 +101,87 @@ def _extract_signal_fields(row: Dict) -> Dict:
 
 
 def _strategy_defs():
-    return [
-        {"id": "p1_mid_large_200", "name": "P1 中大盘 200三蓝", "account_tag": "p1_ml_200", "full_buy": False, "priority": 1},
-        {"id": "p2_small_200", "name": "P2 小盘 200三蓝", "account_tag": "p2_s_200", "full_buy": False, "priority": 2},
-        {"id": "p3_mid_large_150", "name": "P3 中大盘 150三蓝", "account_tag": "p3_ml_150", "full_buy": False, "priority": 3},
-        {"id": "p4_small_150", "name": "P4 小盘 150三蓝", "account_tag": "p4_s_150", "full_buy": False, "priority": 4},
-        {"id": "p5_mid_large_100", "name": "P5 中大盘 100三蓝", "account_tag": "p5_ml_100", "full_buy": False, "priority": 5},
-        {"id": "p6_small_100", "name": "P6 小盘 100三蓝", "account_tag": "p6_s_100", "full_buy": False, "priority": 6},
-        {"id": "p7_mid_large_50", "name": "P7 中大盘 50三蓝", "account_tag": "p7_ml_50", "full_buy": False, "priority": 7},
-        {"id": "p8_small_50", "name": "P8 小盘 50三蓝", "account_tag": "p8_s_50", "full_buy": False, "priority": 8},
-    ]
+    defs = []
+    pr = 1
+
+    def _add_pair(prefix: str, title: str, th: int, strict_gt: bool, hj_scope: str, blue_scope: str):
+        nonlocal pr, defs
+        defs.append({
+            "id": f"{prefix}_mid_large_{th}",
+            "name": f"P{pr} 中大盘 {th}{title}",
+            "account_tag": f"p{pr}_ml_{th}",
+            "full_buy": False,
+            "priority": pr,
+            "cap_group": "mid_large",
+            "blue_min": float(th),
+            "strict_gt": bool(strict_gt),
+            "hj_scope": hj_scope,     # day_week_month / day_week / day_only
+            "blue_scope": blue_scope, # dwm / dw / d
+        })
+        pr += 1
+        defs.append({
+            "id": f"{prefix}_small_{th}",
+            "name": f"P{pr} 小盘 {th}{title}",
+            "account_tag": f"p{pr}_s_{th}",
+            "full_buy": False,
+            "priority": pr,
+            "cap_group": "small",
+            "blue_min": float(th),
+            "strict_gt": bool(strict_gt),
+            "hj_scope": hj_scope,
+            "blue_scope": blue_scope,
+        })
+        pr += 1
+
+    # P1-P8: 日周月 黑马/掘地 + 日周月Blue
+    for th in (200, 150, 100, 50):
+        _add_pair(
+            prefix="p_dwm_hj_dwm_blue",
+            title="三蓝",
+            th=th,
+            strict_gt=(th != 200),
+            hj_scope="day_week_month",
+            blue_scope="dwm",
+        )
+
+    # P9-P16: 日周 黑马/掘地 + 日周Blue
+    for th in (200, 150, 100, 50):
+        _add_pair(
+            prefix="p_dw_hj_dw_blue",
+            title="日周蓝",
+            th=th,
+            strict_gt=(th != 200),
+            hj_scope="day_week",
+            blue_scope="dw",
+        )
+
+    # P17-P24: 日 黑马/掘地 + 日Blue
+    for th in (200, 150, 100, 50):
+        _add_pair(
+            prefix="p_d_hj_d_blue",
+            title="日蓝",
+            th=th,
+            strict_gt=(th != 200),
+            hj_scope="day_only",
+            blue_scope="d",
+        )
+
+    return defs
 
 
 def _strategy_key_map() -> Dict[str, str]:
-    return {
-        "p1_mid_large_200": "blue_triple",
-        "p2_small_200": "blue_triple",
-        "p3_mid_large_150": "blue_day_week",
-        "p4_small_150": "blue_day_week",
-        "p5_mid_large_100": "heima",
-        "p6_small_100": "heima",
-        "p7_mid_large_50": "defensive",
-        "p8_small_50": "defensive",
-    }
+    out = {}
+    for d in _strategy_defs():
+        sid = str(d.get("id") or "")
+        if sid.startswith("p_dwm_hj_dwm_blue"):
+            out[sid] = "blue_triple"
+        elif sid.startswith("p_dw_hj_dw_blue"):
+            out[sid] = "blue_day_week"
+        elif sid.startswith("p_d_hj_d_blue"):
+            out[sid] = "duokongwang"
+        else:
+            out[sid] = "defensive"
+    return out
 
 
 def _is_small_cap(cap_category: str) -> bool:
@@ -144,40 +202,52 @@ def _chip_good(f: Dict) -> bool:
 
 def _strategy_match(rule_id: str, f: Dict, min_blue: float) -> bool:
     _ = min_blue  # 兼容旧参数
+    cfg = None
+    for x in _strategy_defs():
+        if str(x.get("id")) == str(rule_id):
+            cfg = x
+            break
+    if not cfg:
+        return False
+
     d = _to_float(f.get("day_blue"), 0.0)
     w = _to_float(f.get("week_blue"), 0.0)
     m = _to_float(f.get("month_blue"), 0.0)
+    threshold = _to_float(cfg.get("blue_min"), 100.0)
+    strict_gt = bool(cfg.get("strict_gt", False))
+
+    def _pass(v: float) -> bool:
+        return v > threshold if strict_gt else v >= threshold
 
     day_hj = bool(f.get("is_heima")) or bool(f.get("day_juedi"))
     week_hj = bool(f.get("week_heima")) or bool(f.get("week_juedi"))
     month_hj = bool(f.get("month_heima")) or bool(f.get("month_juedi"))
-    hj_all = day_hj and week_hj and month_hj
-    if not hj_all:
+
+    hj_scope = str(cfg.get("hj_scope") or "day_week_month")
+    if hj_scope == "day_week_month":
+        hj_ok = day_hj and week_hj and month_hj
+    elif hj_scope == "day_week":
+        hj_ok = day_hj and week_hj
+    else:
+        hj_ok = day_hj
+    if not hj_ok:
         return False
     if not _chip_good(f):
         return False
 
     cap = str(f.get("cap_category") or "UNKNOWN")
-    is_small = _is_small_cap(cap)
-    is_mid_large = _is_mid_large_cap(cap)
+    cap_group = str(cfg.get("cap_group") or "")
+    if cap_group == "small" and not _is_small_cap(cap):
+        return False
+    if cap_group == "mid_large" and not _is_mid_large_cap(cap):
+        return False
 
-    if rule_id == "p1_mid_large_200":
-        return is_mid_large and d >= 200 and w >= 200 and m >= 200
-    if rule_id == "p2_small_200":
-        return is_small and d >= 200 and w >= 200 and m >= 200
-    if rule_id == "p3_mid_large_150":
-        return is_mid_large and d > 150 and w > 150 and m > 150
-    if rule_id == "p4_small_150":
-        return is_small and d > 150 and w > 150 and m > 150
-    if rule_id == "p5_mid_large_100":
-        return is_mid_large and d > 100 and w > 100 and m > 100
-    if rule_id == "p6_small_100":
-        return is_small and d > 100 and w > 100 and m > 100
-    if rule_id == "p7_mid_large_50":
-        return is_mid_large and d > 50 and w > 50 and m > 50
-    if rule_id == "p8_small_50":
-        return is_small and d > 50 and w > 50 and m > 50
-    return False
+    blue_scope = str(cfg.get("blue_scope") or "dwm")
+    if blue_scope == "dwm":
+        return _pass(d) and _pass(w) and _pass(m)
+    if blue_scope == "dw":
+        return _pass(d) and _pass(w)
+    return _pass(d)
 
 
 def _strategy_score(f: Dict) -> float:
