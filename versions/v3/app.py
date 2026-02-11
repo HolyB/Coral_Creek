@@ -2743,6 +2743,20 @@ def render_todays_picks_page():
                         except Exception:
                             current_price = signal_price
                         price_change_pct = ((current_price / signal_price - 1.0) * 100.0) if signal_price > 0 else 0.0
+                        signal_labels = []
+                        if bool(row.get('heima_daily') or row.get('is_heima')):
+                            signal_labels.append('日黑马')
+                        if bool(row.get('heima_weekly')):
+                            signal_labels.append('周黑马')
+                        if bool(row.get('heima_monthly')):
+                            signal_labels.append('月黑马')
+                        if bool(row.get('juedi_daily') or row.get('is_juedi')):
+                            signal_labels.append('日掘地')
+                        if bool(row.get('juedi_weekly')):
+                            signal_labels.append('周掘地')
+                        if bool(row.get('juedi_monthly')):
+                            signal_labels.append('月掘地')
+                        signal_text = "、".join(signal_labels) if signal_labels else "无特殊信号"
                         
                         # 价格符号和名称显示
                         price_sym = "¥" if market == "CN" else "$"
@@ -2767,6 +2781,9 @@ def render_todays_picks_page():
                                 </div>
                                 <div style="font-size: 0.9em; color: #888; margin-top: 2px;">
                                     日BLUE {blue_d:.0f} | 周BLUE {blue_w:.0f}
+                                </div>
+                                <div style="font-size: 0.9em; color: #BDBDBD; margin-top: 2px;">
+                                    信号类型: {signal_text}
                                 </div>
                             </div>
                             """, unsafe_allow_html=True)
@@ -5347,6 +5364,24 @@ def render_scan_page():
     df['日⛏️'] = df['日掘地'].apply(lambda x: '⛏️' if x else '')
     df['周⛏️'] = df['周掘地'].apply(lambda x: '⛏️' if x else '')
     df['月⛏️'] = df['月掘地'].apply(lambda x: '⛏️' if x else '')
+
+    # 文本信号标签（清晰标注触发类型）
+    def _build_signal_text(row):
+        labels = []
+        if bool(row.get('日黑马')):
+            labels.append('日黑马')
+        if bool(row.get('周黑马')):
+            labels.append('周黑马')
+        if bool(row.get('月黑马')):
+            labels.append('月黑马')
+        if bool(row.get('日掘地')):
+            labels.append('日掘地')
+        if bool(row.get('周掘地')):
+            labels.append('周掘地')
+        if bool(row.get('月掘地')):
+            labels.append('月掘地')
+        return "、".join(labels) if labels else "无"
+    df['信号类型'] = df.apply(_build_signal_text, axis=1)
     
     # 更新列配置
     column_config.update({
@@ -5356,6 +5391,7 @@ def render_scan_page():
         "日⛏️": st.column_config.TextColumn("日⛏️", width="small", help="日线掘地"),
         "周⛏️": st.column_config.TextColumn("周⛏️", width="small", help="周线掘地"),
         "月⛏️": st.column_config.TextColumn("月⛏️", width="small", help="月线掘地"),
+        "信号类型": st.column_config.TextColumn("信号类型", width="large", help="明确标注触发的是哪类信号"),
     })
     
     # === 应用信号筛选 ===
@@ -5390,7 +5426,7 @@ def render_scan_page():
         df = df[(df['日掘地'] == True) | (df['周掘地'] == True) | (df['月掘地'] == True)]
 
     # 显示列顺序
-    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', '信号日期', '信号价', '现价', '价格变化(%)', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    display_cols = ['Rank_Score', '新发现', '信号类型', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', '信号日期', '信号价', '现价', '价格变化(%)', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
