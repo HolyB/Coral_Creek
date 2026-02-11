@@ -489,6 +489,7 @@ def _analyze_extreme_lift(
     stop_loss_pct: float = 6.0,
     max_hold_days: int = 20,
     max_rows: int = 1500,
+    schema_ver: int = 2,
 ) -> Dict:
     """
     极致条件 Lift 分析:
@@ -702,6 +703,7 @@ def _analyze_extreme_lift(
         "combo_details": combo_details,
         "base_sample": int(baseline.get("样本") or 0),
         "rule_name": exit_rule,
+        "schema_ver": int(schema_ver),
     }
 
 
@@ -2643,6 +2645,7 @@ def render_todays_picks_page():
                 stop_loss_pct=float(rule_sl),
                 max_hold_days=int(rule_max_hold),
                 max_rows=1500,
+                schema_ver=2,
             )
             if lift_ret.get("ok"):
                 lift_df = pd.DataFrame(lift_ret.get("table") or [])
@@ -2703,6 +2706,8 @@ def render_todays_picks_page():
                             st.dataframe(detail_df, width="stretch", hide_index=True)
                         else:
                             st.info("该组合暂无逐笔明细。")
+                    else:
+                        st.warning("当前缓存未包含逐笔明细，请点击侧边栏“🔄 刷新数据”后重试。")
                 else:
                     st.info("暂无可用组合统计")
             else:
