@@ -451,6 +451,32 @@ def build_today_meta_plan(
             if signal_price > 0 and current_price > 0:
                 px_change_abs = current_price - signal_price
                 px_change_pct = (px_change_abs / signal_price) * 100.0
+
+            # 交易执行价位（不新增页面，直接给可执行买卖点）
+            tags = set(r.get("signal_tags_list") or [])
+            has_heima = bool(tags.intersection({"DAY_HEIMA", "WEEK_HEIMA", "MONTH_HEIMA"}))
+            has_blue = bool(tags.intersection({"DAY_BLUE", "WEEK_BLUE", "MONTH_BLUE"}))
+
+            # 黑马更容易假突破，买点更严格；仅蓝线则略宽松
+            if has_heima and has_blue:
+                trigger_mult = 1.004
+            elif has_heima:
+                trigger_mult = 1.005
+            else:
+                trigger_mult = 1.002
+
+            buy_trigger = signal_price * trigger_mult if signal_price > 0 else 0.0
+            # 无ATR时用稳健风险单位近似，避免“信号有了但失效价不明确”
+            risk_unit = max(signal_price * 0.018, signal_price * 0.012) if signal_price > 0 else 0.0
+            invalid_price = max(signal_price * 0.988, buy_trigger - risk_unit) if signal_price > 0 else 0.0
+            r_value = max(buy_trigger - invalid_price, 0.0)
+            tp_2r = buy_trigger + 2.0 * r_value
+
+            status = "未触发"
+            if current_price > 0 and invalid_price > 0 and current_price <= invalid_price:
+                status = "失效"
+            elif current_price > 0 and buy_trigger > 0 and current_price >= buy_trigger:
+                status = "已触发"
             picked[sym] = {
                 "信号日期": sig_date_txt,
                 "symbol": sym,
@@ -462,6 +488,11 @@ def build_today_meta_plan(
                 "现价": round(current_price, 3) if current_price > 0 else None,
                 "价格变化($)": round(px_change_abs, 3),
                 "价格变化(%)": round(px_change_pct, 2),
+                "买入触发价": round(buy_trigger, 3) if buy_trigger > 0 else None,
+                "失效价": round(invalid_price, 3) if invalid_price > 0 else None,
+                "R值": round(r_value, 3) if r_value > 0 else None,
+                "第一止盈价(2R)": round(tp_2r, 3) if tp_2r > 0 else None,
+                "执行状态": status,
                 "blue_daily": round(day_blue, 1),
                 "blue_weekly": round(week_blue, 1),
                 "_raw_exec": raw_exec,
