@@ -1825,6 +1825,7 @@ def render_todays_picks_page():
         )
         from services.meta_allocator_service import (
             evaluate_strategy_baskets,
+            evaluate_strategy_baskets_best_exit,
             allocate_meta_weights,
             build_today_meta_plan,
         )
@@ -1867,6 +1868,9 @@ def render_todays_picks_page():
             return 0
 
         def evaluate_strategy_baskets(*args, **kwargs):
+            return []
+
+        def evaluate_strategy_baskets_best_exit(*args, **kwargs):
             return []
 
         def allocate_meta_weights(*args, **kwargs):
@@ -2266,26 +2270,50 @@ def render_todays_picks_page():
                 alloc_min_samples = st.slider("最小样本", min_value=8, max_value=120, value=20, step=2, key=f"alloc_min_samples_{market}")
             with a4:
                 alloc_top_n = st.slider("当日候选数", min_value=5, max_value=30, value=12, step=1, key=f"alloc_topn_{market}")
-
-            perf_rows = evaluate_strategy_baskets(
-                rows=tracking_rows_for_action,
-                rule_name=exit_rule,
-                take_profit_pct=float(rule_tp),
-                stop_loss_pct=float(rule_sl),
-                max_hold_days=int(rule_max_hold),
-                fee_bps=float(alloc_fee_bps),
-                slippage_bps=float(alloc_slip_bps),
-                min_samples=int(alloc_min_samples),
-                max_rows=1200,
+            auto_best_exit = st.checkbox(
+                "每个策略自动选择最优卖出规则",
+                value=True,
+                key=f"alloc_auto_best_exit_{market}",
             )
+
+            if auto_best_exit:
+                exit_rule_candidates = [
+                    {"rule_name": "fixed_5d", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
+                    {"rule_name": "fixed_10d", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
+                    {"rule_name": "fixed_20d", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
+                    {"rule_name": "tp_sl_time", "take_profit_pct": float(rule_tp), "stop_loss_pct": float(rule_sl), "max_hold_days": int(rule_max_hold)},
+                ]
+                perf_rows = evaluate_strategy_baskets_best_exit(
+                    rows=tracking_rows_for_action,
+                    exit_rule_candidates=exit_rule_candidates,
+                    fee_bps=float(alloc_fee_bps),
+                    slippage_bps=float(alloc_slip_bps),
+                    min_samples=int(alloc_min_samples),
+                    max_rows=1200,
+                )
+                st.caption("当前按“每个策略最优卖出规则”排序与分配权重。")
+            else:
+                perf_rows = evaluate_strategy_baskets(
+                    rows=tracking_rows_for_action,
+                    rule_name=exit_rule,
+                    take_profit_pct=float(rule_tp),
+                    stop_loss_pct=float(rule_sl),
+                    max_hold_days=int(rule_max_hold),
+                    fee_bps=float(alloc_fee_bps),
+                    slippage_bps=float(alloc_slip_bps),
+                    min_samples=int(alloc_min_samples),
+                    max_rows=1200,
+                )
             perf_df = pd.DataFrame(perf_rows) if perf_rows else pd.DataFrame()
             if not perf_df.empty:
                 show_cols = [
                     "策略", "sample", "net_win_rate_pct", "net_avg_return_pct",
                     "total_return_pct", "ann_return_pct", "ann_return_raw_pct",
                     "sharpe", "max_drawdown_pct",
-                    "profit_factor", "turnover_per_year",
+                    "profit_factor", "turnover_per_year", "meta_score",
                 ]
+                if "exit_rule_desc" in perf_df.columns:
+                    show_cols.extend(["exit_rule", "exit_rule_desc"])
                 col_map = {
                     "sample": "样本",
                     "net_win_rate_pct": "净胜率(%)",
@@ -2297,6 +2325,9 @@ def render_todays_picks_page():
                     "max_drawdown_pct": "最大回撤(%)",
                     "profit_factor": "盈亏比",
                     "turnover_per_year": "年换手(次)",
+                    "meta_score": "组合评分",
+                    "exit_rule": "最优卖出规则",
+                    "exit_rule_desc": "规则参数",
                 }
                 st.dataframe(
                     perf_df[show_cols].rename(columns=col_map),

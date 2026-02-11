@@ -21,6 +21,12 @@ STRATEGY_TAG_DEFS = {
 }
 
 
+def _build_exit_rule_label(rule_name: str, take_profit_pct: float, stop_loss_pct: float, max_hold_days: int) -> str:
+    if str(rule_name) == "tp_sl_time":
+        return f"tp_sl_time(TP={float(take_profit_pct):.0f}%,SL={float(stop_loss_pct):.0f}%,Hold={int(max_hold_days)}d)"
+    return str(rule_name)
+
+
 def _to_float(v, default: float = 0.0) -> float:
     try:
         if v is None:
@@ -111,6 +117,21 @@ def _calc_trade_metrics_from_details(details: Sequence[Dict], avg_hold_days: flo
         "profit_factor": round(profit_factor, 2),
         "turnover_per_year": round(trades_per_year, 2),
     }
+
+
+def _calc_meta_score(row: Dict) -> float:
+    """
+    统一策略排序分：用于“按最优组合排序”与权重计算前的稳定排序。
+    """
+    sample = max(_to_float(row.get("sample"), 0.0), 1.0)
+    sample_factor = min(sample / 120.0, 1.0)
+    score = (
+        0.45 * max(_to_float(row.get("sharpe"), 0.0), 0.0)
+        + 0.30 * max(_to_float(row.get("ann_return_pct"), 0.0), 0.0) / 30.0
+        + 0.15 * max(_to_float(row.get("net_win_rate_pct"), 0.0) - 50.0, 0.0) / 20.0
+        + 0.10 * max(25.0 - _to_float(row.get("max_drawdown_pct"), 0.0), 0.0) / 25.0
+    ) * sample_factor
+    return round(float(max(score, 0.0)), 4)
 
 
 def evaluate_strategy_unified(
@@ -210,9 +231,74 @@ def evaluate_strategy_baskets(
                 "strategy_key": key,
                 "策略": cfg.get("name", key),
                 **metrics,
+                "meta_score": _calc_meta_score(metrics),
+                "exit_rule": rule_name,
+                "exit_rule_desc": _build_exit_rule_label(rule_name, take_profit_pct, stop_loss_pct, max_hold_days),
             }
         )
-    out.sort(key=lambda x: (x.get("sharpe", 0.0), x.get("ann_return_pct", 0.0)), reverse=True)
+    out.sort(key=lambda x: (x.get("meta_score", 0.0), x.get("sharpe", 0.0), x.get("ann_return_pct", 0.0)), reverse=True)
+    return out
+
+
+def evaluate_strategy_baskets_best_exit(
+    rows: Sequence[Dict],
+    exit_rule_candidates: Sequence[Dict],
+    fee_bps: float = 5.0,
+    slippage_bps: float = 5.0,
+    min_samples: int = 15,
+    max_rows: int = 1200,
+) -> List[Dict]:
+    """
+    多规则评估后，对每个策略仅保留最优卖出规则。
+    exit_rule_candidates 元素示例:
+    {"rule_name":"fixed_10d","take_profit_pct":10,"stop_loss_pct":6,"max_hold_days":20}
+    """
+    if not rows:
+        return []
+    cands = list(exit_rule_candidates or [])
+    if not cands:
+        return []
+
+    best_map: Dict[str, Dict] = {}
+    for cand in cands:
+        rule_name = str(cand.get("rule_name") or "fixed_10d")
+        tp = _to_float(cand.get("take_profit_pct"), 10.0)
+        sl = _to_float(cand.get("stop_loss_pct"), 6.0)
+        hold = int(_to_float(cand.get("max_hold_days"), 20.0))
+        rows_now = evaluate_strategy_baskets(
+            rows=rows,
+            rule_name=rule_name,
+            take_profit_pct=tp,
+            stop_loss_pct=sl,
+            max_hold_days=hold,
+            fee_bps=fee_bps,
+            slippage_bps=slippage_bps,
+            min_samples=min_samples,
+            max_rows=max_rows,
+        )
+        for row in rows_now:
+            k = str(row.get("strategy_key") or "")
+            if not k:
+                continue
+            prev = best_map.get(k)
+            if prev is None:
+                best_map[k] = row
+                continue
+            prev_key = (
+                _to_float(prev.get("meta_score"), 0.0),
+                _to_float(prev.get("sharpe"), 0.0),
+                _to_float(prev.get("ann_return_pct"), 0.0),
+            )
+            now_key = (
+                _to_float(row.get("meta_score"), 0.0),
+                _to_float(row.get("sharpe"), 0.0),
+                _to_float(row.get("ann_return_pct"), 0.0),
+            )
+            if now_key > prev_key:
+                best_map[k] = row
+
+    out = list(best_map.values())
+    out.sort(key=lambda x: (x.get("meta_score", 0.0), x.get("sharpe", 0.0), x.get("ann_return_pct", 0.0)), reverse=True)
     return out
 
 
