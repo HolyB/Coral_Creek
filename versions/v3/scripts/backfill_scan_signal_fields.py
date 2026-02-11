@@ -11,6 +11,7 @@
 import argparse
 import sqlite3
 from collections import defaultdict
+from bisect import bisect_right
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -140,7 +141,11 @@ def run_backfill(market: str, profile: str = "balanced", since_days: int = 0) ->
         """,
         hist_params,
     )
-    ohlc_map = {(str(x["symbol"]), str(x["trade_date"])): (float(x["high"]), float(x["low"]), float(x["close"])) for x in hc.fetchall()}
+    hist_rows = hc.fetchall()
+    ohlc_map = {(str(x["symbol"]), str(x["trade_date"])): (float(x["high"]), float(x["low"]), float(x["close"])) for x in hist_rows}
+    hist_dates_by_symbol: Dict[str, List[str]] = defaultdict(list)
+    for x in hist_rows:
+        hist_dates_by_symbol[str(x["symbol"])].append(str(x["trade_date"]))
 
     mc.execute(
         f"""
@@ -152,11 +157,29 @@ def run_backfill(market: str, profile: str = "balanced", since_days: int = 0) ->
         (market, *params_tail),
     )
     rows = []
+    fallback_used = 0
     for rr in mc.fetchall():
-        key = (str(rr["symbol"]), str(rr["scan_date"]))
+        sym = str(rr["symbol"])
+        sdate = str(rr["scan_date"])
+        key = (sym, sdate)
         if key in ohlc_map:
             h, l, c = ohlc_map[key]
-            rows.append((h, l, c, market, key[0], key[1]))
+            rows.append((h, l, c, market, sym, sdate))
+            continue
+        # 非交易日/缺失日：回退到最近一个交易日
+        dlist = hist_dates_by_symbol.get(sym, [])
+        if not dlist:
+            continue
+        i = bisect_right(dlist, sdate) - 1
+        if i < 0:
+            continue
+        d_prev = dlist[i]
+        val = ohlc_map.get((sym, d_prev))
+        if not val:
+            continue
+        h, l, c = val
+        rows.append((h, l, c, market, sym, sdate))
+        fallback_used += 1
     mc.executemany(
         """
         UPDATE scan_results
@@ -166,7 +189,7 @@ def run_backfill(market: str, profile: str = "balanced", since_days: int = 0) ->
         rows,
     )
     main_conn.commit()
-    print(f"[{market}] OHLC 已补: {len(rows)}")
+    print(f"[{market}] OHLC 已补: {len(rows)} (fallback_prev_trade_day={fallback_used})")
 
     # 回填多空王
     mc.execute(
@@ -189,14 +212,40 @@ def run_backfill(market: str, profile: str = "balanced", since_days: int = 0) ->
     for r in hc.fetchall():
         by_symbol[str(r["symbol"])].append(r)
 
+    # 仅更新缺失多空王的行，并支持回退到最近交易日
+    mc.execute(
+        f"""
+        SELECT symbol, scan_date
+        FROM scan_results
+        WHERE market = ?
+          AND (duokongwang_buy IS NULL OR duokongwang_sell IS NULL){since_filter}
+        """,
+        (market, *params_tail),
+    )
+    need_dkw_keys = {(str(x["symbol"]), str(x["scan_date"])) for x in mc.fetchall()}
     updates = []
+    dkw_fallback = 0
     for sym, bars in by_symbol.items():
+        dlist = [str(x["trade_date"]) for x in bars]
         highs = np.array([float(x["high"]) for x in bars], dtype=float)
         lows = np.array([float(x["low"]) for x in bars], dtype=float)
         closes = np.array([float(x["close"]) for x in bars], dtype=float)
         buy, sell = _calc_duokongwang_flags(highs, lows, closes, profile=profile)
-        for i, b in enumerate(bars):
-            updates.append((int(bool(buy[i])), int(bool(sell[i])), market, sym, str(b["trade_date"])))
+        dkw_by_date = {str(bars[i]["trade_date"]): (int(bool(buy[i])), int(bool(sell[i]))) for i in range(len(bars))}
+        # 对该 symbol 的缺失键做映射
+        sym_need = [k for k in need_dkw_keys if k[0] == sym]
+        for _, sdate in sym_need:
+            pair = dkw_by_date.get(sdate)
+            if pair is None:
+                j = bisect_right(dlist, sdate) - 1
+                if j < 0:
+                    continue
+                pair = dkw_by_date.get(dlist[j])
+                if pair is None:
+                    continue
+                dkw_fallback += 1
+            bflag, sflag = pair
+            updates.append((bflag, sflag, market, sym, sdate))
 
     mc.executemany(
         """
@@ -207,7 +256,7 @@ def run_backfill(market: str, profile: str = "balanced", since_days: int = 0) ->
         updates,
     )
     main_conn.commit()
-    print(f"[{market}] 多空王已回填: {len(updates)} (按历史K线映射更新)")
+    print(f"[{market}] 多空王已回填: {len(updates)} (fallback_prev_trade_day={dkw_fallback})")
 
     main_conn.close()
     hist_conn.close()
