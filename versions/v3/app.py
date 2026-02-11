@@ -4970,6 +4970,7 @@ def render_scan_page():
     if 'Ticker' in df.columns and len(df) > 0:
         tickers = df['Ticker'].tolist()
         first_dates = get_first_scan_dates(tickers, market=selected_market)
+        df['信号日期'] = df['Ticker'].map(first_dates)
         
         def get_newness_label(ticker):
             first_date = first_dates.get(ticker)
@@ -4996,6 +4997,59 @@ def render_scan_page():
                     return "📅老股"
         
         df['新发现'] = df['Ticker'].apply(get_newness_label)
+
+        # 用“首次信号日价格”覆盖信号价，避免与现价同值导致无信息量
+        try:
+            from db.database import get_connection
+
+            if tickers:
+                conn = get_connection()
+                cursor = conn.cursor()
+                placeholders = ",".join(["?"] * len(tickers))
+                cursor.execute(
+                    f"""
+                    SELECT symbol, scan_date, price
+                    FROM scan_results
+                    WHERE market = ?
+                      AND symbol IN ({placeholders})
+                      AND price IS NOT NULL
+                    ORDER BY symbol ASC, scan_date ASC
+                    """,
+                    [selected_market] + tickers,
+                )
+                rows_px = cursor.fetchall()
+                conn.close()
+
+                first_row_px = {}
+                first_signal_px = {}
+                for rr in rows_px:
+                    sym = str(rr["symbol"])
+                    sdt = str(rr["scan_date"])
+                    px = pd.to_numeric(rr["price"], errors="coerce")
+                    if pd.isna(px):
+                        continue
+                    if sym not in first_row_px:
+                        first_row_px[sym] = float(px)
+                    if sym in first_dates and sdt == str(first_dates.get(sym)) and sym not in first_signal_px:
+                        first_signal_px[sym] = float(px)
+
+                signal_px_map = {
+                    sym: first_signal_px.get(sym, first_row_px.get(sym))
+                    for sym in tickers
+                }
+                df['信号价'] = df['Ticker'].map(signal_px_map).fillna(df.get('信号价', df.get('Price')))
+
+                # 重新计算价格变化(%)，口径=现价相对首次信号价
+                if '现价' in df.columns:
+                    sig_px = pd.to_numeric(df['信号价'], errors='coerce')
+                    cur_px = pd.to_numeric(df['现价'], errors='coerce')
+                    df['价格变化(%)'] = np.where(
+                        (sig_px > 0) & np.isfinite(sig_px) & np.isfinite(cur_px),
+                        (cur_px / sig_px - 1.0) * 100.0,
+                        np.nan,
+                    )
+        except Exception:
+            pass
 
 
 
@@ -5336,7 +5390,7 @@ def render_scan_page():
         df = df[(df['日掘地'] == True) | (df['周掘地'] == True) | (df['月掘地'] == True)]
 
     # 显示列顺序
-    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', '信号价', '现价', '价格变化(%)', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    display_cols = ['Rank_Score', '新发现', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', '信号日期', '信号价', '现价', '价格变化(%)', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
