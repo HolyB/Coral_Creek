@@ -2292,6 +2292,8 @@ def render_todays_picks_page():
                     width="stretch",
                     hide_index=True,
                 )
+                if "ann_return_raw_pct" in perf_df.columns:
+                    st.caption("注: 年化(%)为稳健年化（winsorize后）；原始几何年化可用于诊断极端样本影响。")
 
                 weight_rows = allocate_meta_weights(perf_rows, max_weight=0.45, min_weight=0.05)
                 weight_df = pd.DataFrame(weight_rows) if weight_rows else pd.DataFrame()
