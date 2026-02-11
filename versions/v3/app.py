@@ -662,6 +662,104 @@ def _analyze_extreme_lift(
     }
 
 
+def _primary_strategy_bucket(tags: list) -> str:
+    t = set(tags or [])
+    if {"DAY_BLUE", "WEEK_BLUE", "MONTH_BLUE"}.issubset(t):
+        return "三线共振"
+    if {"DUOKONGWANG_BUY", "DAY_BLUE"}.issubset(t):
+        return "多空王+蓝线"
+    if {"DAY_BLUE", "WEEK_BLUE"}.issubset(t):
+        return "日周共振"
+    if {"DAY_HEIMA", "WEEK_HEIMA", "MONTH_HEIMA"} & t:
+        return "黑马系"
+    if {"CHIP_BREAKOUT", "CHIP_DENSE"} & t:
+        return "筹码系"
+    if "DUOKONGWANG_BUY" in t:
+        return "多空王买点"
+    if "DAY_BLUE" in t:
+        return "日线趋势"
+    if "WEEK_BLUE" in t:
+        return "周线趋势"
+    if "MONTH_BLUE" in t:
+        return "月线趋势"
+    return "其他"
+
+
+def _combo_bucket(tags: list) -> str:
+    t = set(tags or [])
+    if {"DAY_BLUE", "WEEK_BLUE", "MONTH_BLUE"}.issubset(t):
+        return "三线共振"
+    if {"DAY_BLUE", "WEEK_BLUE"}.issubset(t):
+        return "日周共振"
+    if {"DAY_HEIMA", "WEEK_HEIMA"}.issubset(t):
+        return "日周黑马同现"
+    if {"DAY_HEIMA", "WEEK_HEIMA", "MONTH_HEIMA"} & t:
+        return "任一黑马"
+    if "DUOKONGWANG_BUY" in t and "DAY_BLUE" in t:
+        return "多空王+日蓝"
+    if "DUOKONGWANG_BUY" in t:
+        return "多空王买点"
+    if {"CHIP_BREAKOUT", "CHIP_DENSE"} & t:
+        return "筹码结构"
+    if "DAY_BLUE" in t:
+        return "日蓝"
+    if "WEEK_BLUE" in t:
+        return "周蓝"
+    return "其他"
+
+
+def _build_unified_trade_facts(
+    rows: list,
+    exit_rule: str,
+    take_profit_pct: float,
+    stop_loss_pct: float,
+    max_hold_days: int,
+    max_rows: int = 1500,
+) -> pd.DataFrame:
+    from services.candidate_tracking_service import evaluate_exit_rule
+
+    if not rows:
+        return pd.DataFrame()
+    eval_ret = evaluate_exit_rule(
+        rows=rows,
+        rule_name=exit_rule,
+        take_profit_pct=float(take_profit_pct),
+        stop_loss_pct=float(stop_loss_pct),
+        max_hold_days=int(max_hold_days),
+        max_rows=int(max_rows),
+    )
+    details = list(eval_ret.get("details") or [])
+    if not details:
+        return pd.DataFrame()
+
+    row_map = {}
+    for r in rows:
+        row_map[(str(r.get("symbol") or "").upper(), str(r.get("signal_date") or ""), str(r.get("market") or ""))] = r
+
+    facts = []
+    for d in details:
+        sym = str(d.get("symbol") or "").upper()
+        dt = str(d.get("signal_date") or "")
+        mk = str(d.get("market") or "")
+        src = row_map.get((sym, dt, mk)) or row_map.get((sym, dt, "")) or {}
+        tags = src.get("signal_tags_list") or []
+        ret = float(d.get("exit_return_pct") or 0.0)
+        facts.append(
+            {
+                "symbol": sym,
+                "signal_date": dt,
+                "market": mk,
+                "ret": ret,
+                "win": 1 if ret > 0 else 0,
+                "strategy_bucket": _primary_strategy_bucket(tags),
+                "combo_bucket": _combo_bucket(tags),
+                "cap_category": str(src.get("cap_category") or "未知"),
+                "industry": str(src.get("industry") or "Unknown"),
+            }
+        )
+    return pd.DataFrame(facts)
+
+
 # --- 后台调度器 (In-App Scheduler) ---
 # 替代 GitHub Actions，直接在应用内运行监控
 # 避免支付问题和数据同步问题
@@ -2133,82 +2231,100 @@ def render_todays_picks_page():
     # ============================================
     with st.expander("📈 信号质量总览（近360天）", expanded=True):
         if tracking_rows_for_action:
+            # 统一口径：三张表都基于同一交易事实样本（同一平仓规则）
+            preview_exit_rule = st.session_state.get(f"action_exit_rule_{market}", "fixed_10d")
+            preview_tp = float(st.session_state.get(f"action_rule_tp_{market}", 10))
+            preview_sl = float(st.session_state.get(f"action_rule_sl_{market}", 6))
+            preview_hold = int(st.session_state.get(f"action_rule_hold_{market}", 20))
+            facts_df = _build_unified_trade_facts(
+                rows=tracking_rows_for_action,
+                exit_rule=preview_exit_rule,
+                take_profit_pct=preview_tp,
+                stop_loss_pct=preview_sl,
+                max_hold_days=preview_hold,
+                max_rows=1500,
+            )
+            min_samples_quality = 12
             q1, q2, q3 = st.columns(3)
             with q1:
-                combo_quality = build_combo_stats(tracking_rows_for_action, min_samples=12)
-                combo_df = pd.DataFrame(combo_quality) if combo_quality else pd.DataFrame()
+                combo_df = pd.DataFrame()
                 st.markdown("**策略组合（按当前胜率）**")
-                if not combo_df.empty:
-                    combo_df = combo_df.sort_values(["当前胜率(%)", "当前平均收益(%)"], ascending=False).head(12)
-                    st.dataframe(combo_df, width='stretch', hide_index=True)
-                else:
-                    st.info("组合样本不足")
-
-            with q2:
-                def _strategy_bucket(tags):
-                    t = set(tags or [])
-                    if {"DAY_BLUE", "WEEK_BLUE", "MONTH_BLUE"}.issubset(t):
-                        return "三线共振"
-                    if {"DAY_BLUE", "WEEK_BLUE"}.issubset(t):
-                        return "日周共振"
-                    if {"DAY_HEIMA", "WEEK_HEIMA", "MONTH_HEIMA"} & t:
-                        return "黑马系"
-                    if {"CHIP_BREAKOUT", "CHIP_DENSE"} & t:
-                        return "筹码系"
-                    if "DAY_BLUE" in t:
-                        return "日线趋势"
-                    if "WEEK_BLUE" in t:
-                        return "周线趋势"
-                    if "MONTH_BLUE" in t:
-                        return "月线趋势"
-                    return "其他"
-
-                strat_cap_rows = []
-                for r in tracking_rows_for_action:
-                    tags = r.get("signal_tags_list") or []
-                    strat_cap_rows.append({
-                        "策略": _strategy_bucket(tags),
-                        "市值层": str(r.get("cap_category") or "未知"),
-                        "pnl": float(r.get("pnl_pct") or 0),
-                    })
-                strat_cap_df = pd.DataFrame(strat_cap_rows)
-                st.markdown("**策略 × 市值（按胜率）**")
-                if not strat_cap_df.empty:
-                    grp = (
-                        strat_cap_df.groupby(["策略", "市值层"], as_index=False)
+                if not facts_df.empty:
+                    combo_df = (
+                        facts_df.groupby("combo_bucket", as_index=False)
                         .agg(
-                            样本数=("pnl", "count"),
-                            胜率=("pnl", lambda x: (x > 0).mean() * 100.0),
-                            平均收益=("pnl", "mean"),
+                            样本数=("ret", "count"),
+                            当前胜率=("win", lambda x: float(np.mean(x) * 100.0)),
+                            当前平均收益=("ret", "mean"),
                         )
                     )
-                    grp = grp[grp["样本数"] >= 8]
+                    combo_df = combo_df[combo_df["样本数"] >= min_samples_quality]
+                    combo_df = combo_df.sort_values(["当前胜率", "当前平均收益"], ascending=False).head(12)
+                    if not combo_df.empty:
+                        combo_df["当前胜率"] = combo_df["当前胜率"].round(1)
+                        combo_df["当前平均收益"] = combo_df["当前平均收益"].round(2)
+                        st.dataframe(
+                            combo_df.rename(columns={"combo_bucket": "组合", "当前胜率": "当前胜率(%)", "当前平均收益": "当前平均收益(%)"}),
+                            width='stretch',
+                            hide_index=True,
+                        )
+                    else:
+                        st.info("组合样本不足")
+                else:
+                    st.info("统一交易样本不足")
+
+            with q2:
+                st.markdown("**策略 × 市值（按胜率）**")
+                if not facts_df.empty:
+                    grp = (
+                        facts_df.groupby(["strategy_bucket", "cap_category"], as_index=False)
+                        .agg(
+                            样本数=("ret", "count"),
+                            胜率=("win", lambda x: float(np.mean(x) * 100.0)),
+                            平均收益=("ret", "mean"),
+                        )
+                    )
+                    grp = grp[grp["样本数"] >= min_samples_quality]
                     grp = grp.sort_values(["胜率", "平均收益"], ascending=False).head(15)
                     if not grp.empty:
                         grp["胜率"] = grp["胜率"].round(1)
                         grp["平均收益"] = grp["平均收益"].round(2)
                         st.dataframe(
-                            grp.rename(columns={"胜率": "胜率(%)", "平均收益": "平均收益(%)"}),
+                            grp.rename(columns={"strategy_bucket": "策略", "cap_category": "市值层", "胜率": "胜率(%)", "平均收益": "平均收益(%)"}),
                             width='stretch',
                             hide_index=True,
                         )
                     else:
                         st.info("策略×市值样本不足")
                 else:
-                    st.info("暂无策略×市值统计")
+                    st.info("统一交易样本不足")
 
             with q3:
-                ind_quality = build_segment_stats(tracking_rows_for_action, by="industry")
-                ind_df = pd.DataFrame(ind_quality) if ind_quality else pd.DataFrame()
+                ind_df = pd.DataFrame()
                 st.markdown("**板块/行业（按胜率）**")
-                if not ind_df.empty:
-                    if "样本数" in ind_df.columns:
-                        ind_df = ind_df[ind_df["样本数"] >= 8]
-                    if "胜率(%)" in ind_df.columns:
-                        ind_df = ind_df.sort_values("胜率(%)", ascending=False).head(12)
-                    st.dataframe(ind_df, width='stretch', hide_index=True)
+                if not facts_df.empty:
+                    ind_df = (
+                        facts_df.groupby("industry", as_index=False)
+                        .agg(
+                            样本数=("ret", "count"),
+                            胜率=("win", lambda x: float(np.mean(x) * 100.0)),
+                            平均收益=("ret", "mean"),
+                        )
+                    )
+                    ind_df = ind_df[ind_df["样本数"] >= min_samples_quality]
+                    ind_df = ind_df.sort_values(["胜率", "平均收益"], ascending=False).head(12)
+                    if not ind_df.empty:
+                        ind_df["胜率"] = ind_df["胜率"].round(1)
+                        ind_df["平均收益"] = ind_df["平均收益"].round(2)
+                        st.dataframe(
+                            ind_df.rename(columns={"industry": "分组", "胜率": "胜率(%)", "平均收益": "平均收益(%)"}),
+                            width='stretch',
+                            hide_index=True,
+                        )
+                    else:
+                        st.info("暂无行业统计")
                 else:
-                    st.info("暂无行业统计")
+                    st.info("统一交易样本不足")
 
             # 给出可执行建议（顶级交易员视角）
             top_combo_txt = "-"
@@ -2217,16 +2333,20 @@ def render_todays_picks_page():
             try:
                 if not combo_df.empty:
                     top_combo = combo_df.iloc[0]
-                    top_combo_txt = f"{top_combo.get('组合', '-')}"
+                    top_combo_txt = f"{top_combo.get('组合', top_combo.get('combo_bucket', '-'))}"
                 if 'grp' in locals() and not grp.empty:
                     top_sc = grp.iloc[0]
-                    top_strat_cap_txt = f"{top_sc.get('策略', '-')}/{top_sc.get('市值层', '-')}"
+                    top_strat_cap_txt = f"{top_sc.get('策略', top_sc.get('strategy_bucket', '-'))}/{top_sc.get('市值层', top_sc.get('cap_category', '-'))}"
                 if not ind_df.empty:
                     top_ind = ind_df.iloc[0]
-                    top_ind_txt = f"{top_ind.get('分组', '-')}"
+                    top_ind_txt = f"{top_ind.get('分组', top_ind.get('industry', '-'))}"
             except Exception:
                 pass
             st.success(f"今日优先级建议: 先做 `{top_combo_txt}` 组合，再优先 `{top_strat_cap_txt}`，并聚焦 `{top_ind_txt}` 板块。")
+            st.caption(
+                f"统一口径: rule={preview_exit_rule}, TP={preview_tp:.0f}%, SL={preview_sl:.0f}%, Hold={preview_hold}d, "
+                f"样本={len(facts_df) if not facts_df.empty else 0}, 最小样本={min_samples_quality}"
+            )
 
             st.markdown("### 🧪 规则平仓评估（交易口径）")
             r1, r2, r3, r4 = st.columns(4)
