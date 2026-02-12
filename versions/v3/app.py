@@ -3946,6 +3946,239 @@ def render_todays_picks_page():
     with work_tab7:
         st.subheader("📌 信号组合持续追踪")
         st.caption("自动追踪：日/周/月BLUE、日/周/月黑马与筹码标签的各种组合表现")
+        st.info("已将『策略组合层 / 动态权重 / 极致条件提升』并入本 Tab，避免分散在页面外。")
+
+        # 组合层 + 极致提升（Tab内版本）
+        st.markdown("### 🧩 策略组合层（Meta Allocator）")
+        if tracking_rows_for_action:
+            tab7_r1, tab7_r2, tab7_r3, tab7_r4 = st.columns(4)
+            with tab7_r1:
+                tab7_exit_rule = st.selectbox(
+                    "平仓规则",
+                    options=["fixed_5d", "fixed_10d", "fixed_20d", "tp_sl_time", "kdj_dead_cross", "top_divergence_guard", "duokongwang_sell"],
+                    index=1,
+                    key=f"track_exit_rule_tab7_{market}",
+                )
+            with tab7_r2:
+                tab7_rule_tp = st.slider("止盈(%)", min_value=3, max_value=25, value=10, step=1, key=f"track_rule_tp_tab7_{market}")
+            with tab7_r3:
+                tab7_rule_sl = st.slider("止损(%)", min_value=2, max_value=20, value=6, step=1, key=f"track_rule_sl_tab7_{market}")
+            with tab7_r4:
+                tab7_rule_max_hold = st.slider("最长持有天", min_value=5, max_value=60, value=20, step=1, key=f"track_rule_hold_tab7_{market}")
+
+            tab7_a1, tab7_a2, tab7_a3, tab7_a4 = st.columns(4)
+            with tab7_a1:
+                tab7_alloc_fee_bps = st.slider("手续费(bps)", min_value=0.0, max_value=30.0, value=5.0, step=0.5, key=f"track_alloc_fee_bps_tab7_{market}")
+            with tab7_a2:
+                tab7_alloc_slip_bps = st.slider("滑点(bps)", min_value=0.0, max_value=30.0, value=5.0, step=0.5, key=f"track_alloc_slip_bps_tab7_{market}")
+            with tab7_a3:
+                tab7_alloc_min_samples = st.slider("最小样本", min_value=8, max_value=120, value=20, step=2, key=f"track_alloc_min_samples_tab7_{market}")
+            with tab7_a4:
+                tab7_alloc_top_n = st.slider("当日候选数", min_value=5, max_value=30, value=12, step=1, key=f"track_alloc_topn_tab7_{market}")
+
+            tab7_auto_best_exit = st.checkbox(
+                "每个策略自动选择最优卖出规则",
+                value=True,
+                key=f"track_alloc_auto_best_exit_tab7_{market}",
+            )
+
+            if tab7_auto_best_exit:
+                tab7_exit_rule_candidates = [
+                    {"rule_name": "fixed_5d", "take_profit_pct": float(tab7_rule_tp), "stop_loss_pct": float(tab7_rule_sl), "max_hold_days": int(tab7_rule_max_hold)},
+                    {"rule_name": "fixed_10d", "take_profit_pct": float(tab7_rule_tp), "stop_loss_pct": float(tab7_rule_sl), "max_hold_days": int(tab7_rule_max_hold)},
+                    {"rule_name": "fixed_20d", "take_profit_pct": float(tab7_rule_tp), "stop_loss_pct": float(tab7_rule_sl), "max_hold_days": int(tab7_rule_max_hold)},
+                    {"rule_name": "tp_sl_time", "take_profit_pct": float(tab7_rule_tp), "stop_loss_pct": float(tab7_rule_sl), "max_hold_days": int(tab7_rule_max_hold)},
+                    {"rule_name": "kdj_dead_cross", "take_profit_pct": float(tab7_rule_tp), "stop_loss_pct": float(tab7_rule_sl), "max_hold_days": int(tab7_rule_max_hold)},
+                    {"rule_name": "top_divergence_guard", "take_profit_pct": float(tab7_rule_tp), "stop_loss_pct": float(tab7_rule_sl), "max_hold_days": int(tab7_rule_max_hold)},
+                    {"rule_name": "duokongwang_sell", "take_profit_pct": float(tab7_rule_tp), "stop_loss_pct": float(tab7_rule_sl), "max_hold_days": int(tab7_rule_max_hold)},
+                ]
+                tab7_perf_rows = evaluate_strategy_baskets_best_exit(
+                    rows=tracking_rows_for_action,
+                    exit_rule_candidates=tab7_exit_rule_candidates,
+                    fee_bps=float(tab7_alloc_fee_bps),
+                    slippage_bps=float(tab7_alloc_slip_bps),
+                    min_samples=int(tab7_alloc_min_samples),
+                    max_rows=1200,
+                )
+                st.caption("当前按“每个策略最优卖出规则”排序与分配权重。")
+            else:
+                tab7_perf_rows = evaluate_strategy_baskets(
+                    rows=tracking_rows_for_action,
+                    rule_name=tab7_exit_rule,
+                    take_profit_pct=float(tab7_rule_tp),
+                    stop_loss_pct=float(tab7_rule_sl),
+                    max_hold_days=int(tab7_rule_max_hold),
+                    fee_bps=float(tab7_alloc_fee_bps),
+                    slippage_bps=float(tab7_alloc_slip_bps),
+                    min_samples=int(tab7_alloc_min_samples),
+                    max_rows=1200,
+                )
+
+            tab7_perf_df = pd.DataFrame(tab7_perf_rows) if tab7_perf_rows else pd.DataFrame()
+            if not tab7_perf_df.empty:
+                tab7_show_cols = [
+                    "策略", "sample", "net_win_rate_pct", "net_avg_return_pct",
+                    "total_return_pct", "ann_return_pct", "ann_return_raw_pct", "ann_return_expect_pct",
+                    "sharpe", "max_drawdown_pct",
+                    "profit_factor", "turnover_per_year", "meta_score",
+                ]
+                if "exit_rule_desc" in tab7_perf_df.columns:
+                    tab7_show_cols.extend(["exit_rule", "exit_rule_desc"])
+                tab7_col_map = {
+                    "sample": "样本",
+                    "net_win_rate_pct": "净胜率(%)",
+                    "net_avg_return_pct": "单笔净均收(%)",
+                    "total_return_pct": "总收益(%)",
+                    "ann_return_pct": "几何年化(主,%)",
+                    "ann_return_raw_pct": "原始几何年化(%)",
+                    "ann_return_expect_pct": "期望年化(均值,%)",
+                    "sharpe": "Sharpe",
+                    "max_drawdown_pct": "最大回撤(%)",
+                    "profit_factor": "盈亏比",
+                    "turnover_per_year": "年换手(次)",
+                    "meta_score": "组合评分",
+                    "exit_rule": "最优卖出规则",
+                    "exit_rule_desc": "规则参数",
+                }
+                st.dataframe(
+                    tab7_perf_df[tab7_show_cols].rename(columns=tab7_col_map),
+                    width="stretch",
+                    hide_index=True,
+                )
+
+                tab7_weight_rows = allocate_meta_weights(tab7_perf_rows, max_weight=0.45, min_weight=0.05)
+                tab7_weight_df = pd.DataFrame(tab7_weight_rows) if tab7_weight_rows else pd.DataFrame()
+                tab7_b1, tab7_b2 = st.columns([1, 1])
+                with tab7_b1:
+                    st.markdown("**动态权重建议**")
+                    if not tab7_weight_df.empty:
+                        st.dataframe(tab7_weight_df, width="stretch", hide_index=True)
+                    else:
+                        st.info("暂无可分配策略")
+                with tab7_b2:
+                    st.markdown("**当日组合候选（按权重）**")
+                    tab7_candidate_mode = st.radio(
+                        "候选池口径",
+                        options=["仅当日新信号", "含历史延续信号"],
+                        horizontal=True,
+                        key=f"track_alloc_candidate_mode_tab7_{market}",
+                    )
+                    tab7_exec_capital = st.number_input(
+                        "执行资金($)",
+                        min_value=1000.0,
+                        max_value=5000000.0,
+                        value=100000.0,
+                        step=1000.0,
+                        key=f"track_alloc_exec_capital_tab7_{market}",
+                    )
+                    tab7_history_days = 20
+                    if tab7_candidate_mode == "含历史延续信号":
+                        tab7_history_days = st.slider(
+                            "历史延续窗口(天)",
+                            min_value=3,
+                            max_value=60,
+                            value=20,
+                            step=1,
+                            key=f"track_alloc_history_days_tab7_{market}",
+                        )
+                    try:
+                        tab7_today_plan = build_today_meta_plan(
+                            rows=tracking_rows_for_action,
+                            weight_rows=tab7_weight_rows,
+                            top_n=int(tab7_alloc_top_n),
+                            total_capital=float(tab7_exec_capital),
+                            include_history=(tab7_candidate_mode == "含历史延续信号"),
+                            max_signal_age_days=int(tab7_history_days),
+                        )
+                    except TypeError:
+                        try:
+                            tab7_today_plan = build_today_meta_plan(
+                                rows=tracking_rows_for_action,
+                                weight_rows=tab7_weight_rows,
+                                top_n=int(tab7_alloc_top_n),
+                                total_capital=float(tab7_exec_capital),
+                            )
+                        except TypeError:
+                            tab7_today_plan = build_today_meta_plan(
+                                rows=tracking_rows_for_action,
+                                weight_rows=tab7_weight_rows,
+                                top_n=int(tab7_alloc_top_n),
+                            )
+                    tab7_today_plan_df = pd.DataFrame(tab7_today_plan) if tab7_today_plan else pd.DataFrame()
+                    if not tab7_today_plan_df.empty:
+                        if tab7_candidate_mode == "仅当日新信号":
+                            tab7_show_cols_plan = [
+                                "信号日期",
+                                "symbol",
+                                "主策略",
+                                "命中策略数",
+                                "命中策略",
+                                "策略权重合计(%)",
+                                "综合执行分(0-100)",
+                                "建议仓位(%)",
+                                "建议金额($)",
+                                "买入触发价",
+                                "失效价",
+                                "R值",
+                                "第一止盈价(2R)",
+                                "执行状态",
+                                "blue_daily",
+                                "blue_weekly",
+                            ]
+                        else:
+                            tab7_show_cols_plan = [
+                                "信号日期",
+                                "symbol",
+                                "主策略",
+                                "距信号天数",
+                                "命中策略数",
+                                "命中策略",
+                                "策略权重合计(%)",
+                                "综合执行分(0-100)",
+                                "建议仓位(%)",
+                                "建议金额($)",
+                                "信号价",
+                                "现价",
+                                "价格变化($)",
+                                "价格变化(%)",
+                                "买入触发价",
+                                "失效价",
+                                "R值",
+                                "第一止盈价(2R)",
+                                "执行状态",
+                                "blue_daily",
+                                "blue_weekly",
+                            ]
+                        tab7_today_plan_df = tab7_today_plan_df[[c for c in tab7_show_cols_plan if c in tab7_today_plan_df.columns]]
+                        st.dataframe(tab7_today_plan_df, width="stretch", hide_index=True)
+                    else:
+                        st.info("今日暂无满足组合规则的候选。")
+            else:
+                st.info("组合层样本不足：请先积累更多候选追踪样本。")
+
+            st.markdown("### 🔬 极致条件提升（Lift）")
+            tab7_lift_ret = _analyze_extreme_lift(
+                market=market,
+                days_back=360,
+                exit_rule=tab7_exit_rule,
+                take_profit_pct=float(tab7_rule_tp),
+                stop_loss_pct=float(tab7_rule_sl),
+                max_hold_days=int(tab7_rule_max_hold),
+                max_rows=1500,
+                schema_ver=2,
+            )
+            if tab7_lift_ret.get("ok"):
+                tab7_lift_df = pd.DataFrame(tab7_lift_ret.get("table") or [])
+                if not tab7_lift_df.empty:
+                    st.dataframe(tab7_lift_df, width="stretch", hide_index=True)
+                else:
+                    st.info("暂无可用组合统计")
+            else:
+                st.info("极致条件统计暂无样本，请先执行回填与刷新。")
+        else:
+            st.info("暂无候选追踪样本，先运行扫描并回填历史。")
+
+        st.divider()
 
         combo_templates = {
             "不使用模板": {"required_all": [], "required_any_groups": [], "keyword": ""},
