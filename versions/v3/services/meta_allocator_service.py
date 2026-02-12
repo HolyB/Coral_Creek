@@ -176,7 +176,7 @@ def evaluate_strategy_unified(
     max_hold_days: int,
     fee_bps: float = 5.0,
     slippage_bps: float = 5.0,
-    max_rows: int = 1200,
+    max_rows: int = 20000,
 ) -> Dict:
     gross = evaluate_exit_rule(
         rows=rows,
@@ -239,7 +239,7 @@ def evaluate_strategy_baskets(
     fee_bps: float = 5.0,
     slippage_bps: float = 5.0,
     min_samples: int = 15,
-    max_rows: int = 1200,
+    max_rows: int = 20000,
     primary_only: bool = True,
 ) -> List[Dict]:
     out: List[Dict] = []
@@ -289,7 +289,7 @@ def evaluate_strategy_baskets_best_exit(
     fee_bps: float = 5.0,
     slippage_bps: float = 5.0,
     min_samples: int = 15,
-    max_rows: int = 1200,
+    max_rows: int = 20000,
     primary_only: bool = True,
 ) -> List[Dict]:
     """

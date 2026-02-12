@@ -727,7 +727,7 @@ def evaluate_exit_rule(
     take_profit_pct: float = 10.0,
     stop_loss_pct: float = 6.0,
     max_hold_days: int = 20,
-    max_rows: int = 1200,
+    max_rows: int = 20000,
 ) -> Dict:
     """
     规则平仓评估：

@@ -2164,7 +2164,7 @@ def render_todays_picks_page():
                 if not st.session_state.get(backfill_key):
                     backfill_candidates_from_scan_history(market=market, recent_days=30, max_per_day=300)
                     st.session_state[backfill_key] = True
-                refresh_candidate_tracking(market=market, max_rows=1200)
+                refresh_candidate_tracking(market=market, max_rows=20000)
                 st.session_state[refresh_key] = now_txt
         except Exception as e:
             st.caption(f"候选追踪初始化失败: {e}")
@@ -2352,7 +2352,7 @@ def render_todays_picks_page():
                 take_profit_pct=preview_tp,
                 stop_loss_pct=preview_sl,
                 max_hold_days=preview_hold,
-                max_rows=1500,
+                max_rows=20000,
             )
             min_samples_quality = 12
             min_samples_combo = 3
@@ -2486,7 +2486,7 @@ def render_todays_picks_page():
                 take_profit_pct=float(rule_tp),
                 stop_loss_pct=float(rule_sl),
                 max_hold_days=int(rule_max_hold),
-                max_rows=1200,
+                max_rows=20000,
             )
 
             e1, e2, e3, e4, e5 = st.columns(5)
@@ -2539,7 +2539,7 @@ def render_todays_picks_page():
                     fee_bps=float(alloc_fee_bps),
                     slippage_bps=float(alloc_slip_bps),
                     min_samples=int(alloc_min_samples),
-                    max_rows=1200,
+                    max_rows=20000,
                 )
                 st.caption("当前按“每个策略最优卖出规则”排序与分配权重。")
             else:
@@ -2552,7 +2552,7 @@ def render_todays_picks_page():
                     fee_bps=float(alloc_fee_bps),
                     slippage_bps=float(alloc_slip_bps),
                     min_samples=int(alloc_min_samples),
-                    max_rows=1200,
+                    max_rows=20000,
                 )
             perf_df = pd.DataFrame(perf_rows) if perf_rows else pd.DataFrame()
             if not perf_df.empty:
@@ -2712,7 +2712,7 @@ def render_todays_picks_page():
                 take_profit_pct=float(rule_tp),
                 stop_loss_pct=float(rule_sl),
                 max_hold_days=int(rule_max_hold),
-                max_rows=1500,
+                max_rows=20000,
                 schema_ver=2,
             )
             if lift_ret.get("ok"):
@@ -4060,7 +4060,7 @@ def render_todays_picks_page():
                     fee_bps=float(tab7_alloc_fee_bps),
                     slippage_bps=float(tab7_alloc_slip_bps),
                     min_samples=int(tab7_alloc_min_samples),
-                    max_rows=1200,
+                    max_rows=20000,
                 )
                 st.caption("当前按“每个策略最优卖出规则”排序与分配权重。")
             else:
@@ -4073,7 +4073,7 @@ def render_todays_picks_page():
                     fee_bps=float(tab7_alloc_fee_bps),
                     slippage_bps=float(tab7_alloc_slip_bps),
                     min_samples=int(tab7_alloc_min_samples),
-                    max_rows=1200,
+                    max_rows=20000,
                 )
 
             tab7_perf_df = pd.DataFrame(tab7_perf_rows) if tab7_perf_rows else pd.DataFrame()
@@ -4226,7 +4226,7 @@ def render_todays_picks_page():
                 take_profit_pct=float(tab7_rule_tp),
                 stop_loss_pct=float(tab7_rule_sl),
                 max_hold_days=int(tab7_rule_max_hold),
-                max_rows=1500,
+                max_rows=20000,
                 schema_ver=2,
             )
             if tab7_lift_ret.get("ok"):
