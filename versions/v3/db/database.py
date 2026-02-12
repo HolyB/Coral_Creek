@@ -19,7 +19,7 @@ try:
         insert_scan_result_supabase
     )
     SUPABASE_LAYER_AVAILABLE = True
-except Exception:
+except ImportError:
     SUPABASE_LAYER_AVAILABLE = False
 
 # 避免重复刷屏日志
@@ -34,7 +34,6 @@ DB_PATH = os.path.join(DB_DIR, "coral_creek.db")
 _DB_INIT_DONE = False
 _DB_RECOVERED_FROM_CORRUPTION = False
 _DB_REHYDRATED_AFTER_RECOVERY = False
-_DB_HEALTHCHECK_DONE = False
 
 
 def _is_malformed_error(err: Exception) -> bool:
@@ -57,38 +56,17 @@ def _quarantine_corrupted_db() -> str:
 
 def get_connection():
     """获取数据库连接"""
-    global _DB_RECOVERED_FROM_CORRUPTION, _DB_INIT_DONE, _DB_REHYDRATED_AFTER_RECOVERY, _DB_HEALTHCHECK_DONE
+    global _DB_RECOVERED_FROM_CORRUPTION, _DB_INIT_DONE, _DB_REHYDRATED_AFTER_RECOVERY
     try:
-        conn = sqlite3.connect(DB_PATH, timeout=15)
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row  # 返回字典格式
-
-        # 连接稳态参数：降低并发读写下的锁冲突与损坏风险
+        # 快速健康检查，提前发现损坏库
         cur = conn.cursor()
-        cur.execute("PRAGMA busy_timeout=5000")
-        try:
-            cur.execute("PRAGMA journal_mode=WAL")
-            cur.fetchone()
-        except Exception:
-            pass
-        try:
-            cur.execute("PRAGMA synchronous=NORMAL")
-        except Exception:
-            pass
-
-        # 轻量健康检查：避免每次连接都跑 quick_check 造成误判
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table' LIMIT 1")
-        cur.fetchone()
-
-        # 严格校验可通过环境变量开启（默认关闭）
-        if not _DB_HEALTHCHECK_DONE and os.environ.get("DB_STRICT_CHECK", "0") == "1":
-            try:
-                cur.execute("PRAGMA quick_check")
-                chk = cur.fetchone()
-                chk_txt = str(chk[0]).lower() if chk and len(chk) > 0 else "ok"
-                if chk_txt != "ok" and ("malformed" in chk_txt or "corrupt" in chk_txt):
-                    raise sqlite3.DatabaseError(f"quick_check failed: {chk_txt}")
-            finally:
-                _DB_HEALTHCHECK_DONE = True
+        cur.execute("PRAGMA quick_check")
+        chk = cur.fetchone()
+        chk_txt = str(chk[0]).lower() if chk and len(chk) > 0 else "ok"
+        if chk_txt != "ok":
+            raise sqlite3.DatabaseError(f"quick_check failed: {chk_txt}")
         return conn
     except sqlite3.DatabaseError as e:
         if not _is_malformed_error(e):
