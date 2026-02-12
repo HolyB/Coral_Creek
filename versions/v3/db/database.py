@@ -15,6 +15,7 @@ try:
         is_supabase_available, 
         query_scan_results_supabase,
         get_scanned_dates_supabase,
+        get_scan_date_counts_supabase,
         get_db_stats_supabase,
         insert_scan_result_supabase
     )
@@ -623,6 +624,40 @@ def get_scanned_dates(start_date=None, end_date=None, market=None):
 
     # SQLite 备用
     return _sqlite_dates()
+
+
+def get_scan_date_counts(market=None, limit=30):
+    """获取每个扫描日期的记录条数 - 轻量级 GROUP BY 查询
+
+    Returns:
+        [{'scan_date': '2026-02-11', 'count': 275}, ...]  按日期降序
+    """
+    # 优先 Supabase
+    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+        try:
+            rows = get_scan_date_counts_supabase(market=market, limit=limit)
+            if rows:
+                return rows
+        except Exception as e:
+            print(f"⚠️ Supabase 日期计数失败，回退 SQLite: {e}")
+
+    # SQLite
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            query = "SELECT scan_date, COUNT(*) as cnt FROM scan_results WHERE 1=1"
+            params = []
+            if market:
+                query += " AND market = ?"
+                params.append(market)
+            query += " GROUP BY scan_date ORDER BY scan_date DESC"
+            if limit:
+                query += f" LIMIT {int(limit)}"
+            cursor.execute(query, params)
+            return [{'scan_date': row['scan_date'], 'count': row['cnt']} for row in cursor.fetchall()]
+    except Exception as e:
+        print(f"⚠️ SQLite 日期计数查询失败: {e}")
+        return []
 
 
 def get_missing_dates(start_date, end_date):

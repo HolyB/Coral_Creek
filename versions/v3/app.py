@@ -24,7 +24,7 @@ from components.stock_detail import render_unified_stock_detail
 from indicator_utils import calculate_blue_signal_series, calculate_heima_signal_series, calculate_adx_series
 from backtester import SimpleBacktester
 from db.database import (
-    query_scan_results, get_scanned_dates, get_db_stats, 
+    query_scan_results, get_scanned_dates, get_scan_date_counts, get_db_stats, 
     get_stock_history, init_db, get_scan_job, get_stock_info_batch,
     get_first_scan_dates, USE_SUPABASE, SUPABASE_LAYER_AVAILABLE
 )
@@ -164,6 +164,11 @@ def _cached_stock_data(symbol, market='US', days=365):
 def _cached_scanned_dates(market=None):
     """缓存可用扫描日期列表 (5分钟TTL)"""
     return get_scanned_dates(market=market)
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _cached_scan_date_counts(market=None, limit=30):
+    """缓存每日扫描计数 (5分钟TTL) — 轻量 GROUP BY 查询"""
+    return get_scan_date_counts(market=market, limit=limit)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _cached_db_stats():
@@ -1979,12 +1984,111 @@ def get_market_mood(df):
     else:
         return f"扫描样本数: {total_count}", "gray"
 
+# --- 缓存: 逃顶&买入预警扫描 (避免每次交互重算 30 只股票) ---
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_escape_warning_scan(symbols: tuple, market: str):
+    """缓存逃顶/买入预警扫描结果 (15分钟TTL)。
+
+    对每只股票拉取 250 天数据并计算 phantom/heima_full/ADX 指标，
+    筛选三重逃顶、PINK逃顶、黄金底、趋势回调买入信号。
+    symbols 使用 tuple 以满足 st.cache_data 的 hashable 要求。
+    """
+    from indicator_utils import calculate_phantom_indicator, calculate_adx_series, calculate_heima_full
+    from data_fetcher import get_stock_data
+
+    escape_warnings = []
+    trend_pullbacks = []
+    golden_bottoms = []
+
+    for sym in symbols:
+        try:
+            sym_data = get_stock_data(sym, market=market, days=250)
+            if sym_data is None or len(sym_data) < 50:
+                continue
+            ph = calculate_phantom_indicator(
+                sym_data['Open'].values, sym_data['High'].values,
+                sym_data['Low'].values, sym_data['Close'].values,
+                sym_data['Volume'].values
+            )
+            hf = calculate_heima_full(
+                sym_data['High'].values, sym_data['Low'].values,
+                sym_data['Close'].values, sym_data['Open'].values
+            )
+            adx_arr = calculate_adx_series(
+                sym_data['High'].values, sym_data['Low'].values,
+                sym_data['Close'].values
+            )
+            adx_v = float(adx_arr[-1])
+            pink_v = float(ph['pink'][-1])
+            is_sell = bool(ph['sell_signal'][-1])
+            green_v = float(ph['green'][-1])
+            is_blue_dis = bool(ph['blue_disappear'][-1])
+
+            price_sym = "¥" if market == "CN" else "$"
+            price_val = float(sym_data['Close'].iloc[-1])
+            display_name = sym.split('.')[0] if '.' in sym else sym
+
+            # 三重逃顶 (最强)
+            has_top_div = bool(hf['top_divergence'][-1])
+            if has_top_div and pink_v > 80 and green_v < 0:
+                escape_warnings.append({
+                    'symbol': sym, 'name': display_name,
+                    'pink': pink_v, 'price': price_val, 'price_sym': price_sym,
+                    'level': 'critical', 'reason': '三重逃顶 (86%)'
+                })
+            elif is_sell and green_v < 0 and adx_v < 30:
+                escape_warnings.append({
+                    'symbol': sym, 'name': display_name,
+                    'pink': pink_v, 'price': price_val, 'price_sym': price_sym,
+                    'level': 'high', 'reason': 'PINK逃顶+流出'
+                })
+            elif has_top_div:
+                escape_warnings.append({
+                    'symbol': sym, 'name': display_name,
+                    'pink': pink_v, 'price': price_val, 'price_sym': price_sym,
+                    'level': 'low', 'reason': '顶背离(需确认)'
+                })
+
+            # 黄金底
+            has_golden = bool(hf['golden_bottom'][-1])
+            cci_val = float(hf['CCI'][-1])
+            if has_golden:
+                golden_bottoms.append({
+                    'symbol': sym, 'name': display_name,
+                    'cci': cci_val, 'price': price_val, 'price_sym': price_sym,
+                })
+
+            # 趋势回调买入
+            if is_blue_dis and adx_v >= 25:
+                trend_pullbacks.append({
+                    'symbol': sym, 'name': display_name,
+                    'adx': adx_v, 'price': price_val, 'price_sym': price_sym,
+                })
+        except Exception:
+            continue
+
+    return escape_warnings, golden_bottoms, trend_pullbacks
+
+
 # --- 页面逻辑 ---
 
 def render_todays_picks_page():
     """🎯 每日工作台 - 20年交易员的每日工作流"""
     st.header("🎯 每日工作台")
     st.caption("开盘前准备 → 盘中执行 → 收盘复盘 | 一站式管理你的交易")
+    
+    try:
+        _render_todays_picks_page_inner()
+    except Exception as e:
+        import traceback
+        st.error(f"⚠️ 每日工作台加载异常: {e}")
+        st.code(traceback.format_exc(), language='text')
+        st.info("请刷新页面重试。若持续出错请截图以上错误信息反馈。")
+
+
+def _render_todays_picks_page_inner():
+    """每日工作台完整渲染逻辑 (内部函数)"""
     
     # 导入模块
     try:
@@ -2137,28 +2241,34 @@ def render_todays_picks_page():
     # ============================================
     # 📊 顶部: 行动摘要卡片
     # ============================================
+    # --- 轻量日期计数：1次 GROUP BY 代替 30次全量查询 ---
     try:
-        dates = _cached_scanned_dates(market=market)
+        date_count_rows = _cached_scan_date_counts(market=market, limit=30)
     except Exception as e:
         st.warning(f"读取扫描日期失败，已降级为空数据模式: {e}")
-        dates = []
-    if not dates:
-        st.warning(f"暂无 {market} 市场扫描数据，已进入空数据模式（页面结构保留）。")
-        dates = [datetime.now().strftime("%Y-%m-%d")]
-    
-    # 扫描日期选择：避免“最新日期样本过少/为空”导致每日机会看起来消失
-    recent_dates = dates[:30]
-    date_rows_map = {}
-    preferred_date = recent_dates[0]
-    for d in recent_dates:
+        date_count_rows = []
+
+    if not date_count_rows:
+        # 回退：尝试 get_scanned_dates
         try:
-            rows_d = _cached_scan_results(scan_date=d, market=market, limit=2000) or []
+            fall_dates = _cached_scanned_dates(market=market) or []
         except Exception:
-            rows_d = []
-        n_d = len(rows_d)
-        date_rows_map[d] = n_d
-        if n_d >= 30 and preferred_date == recent_dates[0]:
-            preferred_date = d
+            fall_dates = []
+        if fall_dates:
+            date_count_rows = [{'scan_date': d, 'count': 0} for d in fall_dates[:30]]
+        else:
+            st.warning(f"暂无 {market} 市场扫描数据，已进入空数据模式（页面结构保留）。")
+            date_count_rows = [{'scan_date': datetime.now().strftime('%Y-%m-%d'), 'count': 0}]
+
+    recent_dates = [r['scan_date'] for r in date_count_rows]
+    date_rows_map = {r['scan_date']: r['count'] for r in date_count_rows}
+
+    # 找到第一个有足够数据(>=30)的日期作为默认选择
+    preferred_date = recent_dates[0]
+    for r in date_count_rows:
+        if r['count'] >= 30:
+            preferred_date = r['scan_date']
+            break
 
     with st.sidebar:
         date_labels = [
@@ -2184,24 +2294,22 @@ def render_todays_picks_page():
         results = []
     # 强兜底：若当前日期为空，自动回退到最近有数据的日期
     if not results:
+        # 利用已有的 date_count_rows 找到首个 count>0 的日期，只做1次查询
         fallback_date = None
-        fallback_rows = []
-        for d in recent_dates:
-            try:
-                rows_d = _cached_scan_results(scan_date=d, market=market, limit=2000) or []
-            except Exception:
-                rows_d = []
-            if rows_d:
-                fallback_date = d
-                fallback_rows = rows_d
+        for r in date_count_rows:
+            if r['count'] > 0 and r['scan_date'] != latest_date:
+                fallback_date = r['scan_date']
                 break
         if fallback_date:
-            latest_date = fallback_date
-            results = fallback_rows
-            st.warning(f"当前选择日期无数据，已自动回退到最近有数据日期：{latest_date}")
-        else:
+            try:
+                results = _cached_scan_results(scan_date=fallback_date, market=market, limit=2000) or []
+            except Exception:
+                results = []
+            if results:
+                latest_date = fallback_date
+                st.warning(f"当前选择日期无数据，已自动回退到最近有数据日期：{latest_date}")
+        if not results:
             st.error(f"{market} 最近30个扫描日均无可用结果。可先运行 Daily Scan 或检查数据源。")
-            # 继续渲染页面结构，避免“空白页”
             results = []
     df = pd.DataFrame(results) if results else pd.DataFrame()
     
@@ -3130,82 +3238,15 @@ def render_todays_picks_page():
             # === 逃顶预警 (幻影主力) ===
             st.markdown("### 🚨 逃顶 & 买入预警")
             try:
-                from indicator_utils import calculate_phantom_indicator, calculate_adx_series, calculate_heima_full
-                from data_fetcher import get_stock_data
+                # 使用缓存函数，避免每次交互重算 30 只股票的指标
+                scan_symbols = tuple(df['symbol'].tolist()[:30]) if not df.empty and 'symbol' in df.columns else ()
                 
-                escape_warnings = []
-                trend_pullbacks = []
-                golden_bottoms = []
-                # 扫描今日信号股
-                scan_symbols = df['symbol'].tolist()[:30] if not df.empty and 'symbol' in df.columns else []
-                
-                for sym in scan_symbols:
-                    try:
-                        sym_data = get_stock_data(sym, market=market, days=250)
-                        if sym_data is None or len(sym_data) < 50:
-                            continue
-                        ph = calculate_phantom_indicator(
-                            sym_data['Open'].values, sym_data['High'].values,
-                            sym_data['Low'].values, sym_data['Close'].values,
-                            sym_data['Volume'].values
-                        )
-                        hf = calculate_heima_full(
-                            sym_data['High'].values, sym_data['Low'].values,
-                            sym_data['Close'].values, sym_data['Open'].values
-                        )
-                        adx_arr = calculate_adx_series(
-                            sym_data['High'].values, sym_data['Low'].values,
-                            sym_data['Close'].values
-                        )
-                        adx_v = float(adx_arr[-1])
-                        pink_v = float(ph['pink'][-1])
-                        is_sell = bool(ph['sell_signal'][-1])
-                        green_v = float(ph['green'][-1])
-                        is_blue_dis = bool(ph['blue_disappear'][-1])
-                        
-                        price_sym = "¥" if market == "CN" else "$"
-                        price_val = float(sym_data['Close'].iloc[-1])
-                        display_name = sym.split('.')[0] if '.' in sym else sym
-                        
-                        # 三重逃顶 (最强): 顶背离 + PINK>80 + 资金流出
-                        has_top_div = bool(hf['top_divergence'][-1])
-                        if has_top_div and pink_v > 80 and green_v < 0:
-                            escape_warnings.append({
-                                'symbol': sym, 'name': display_name,
-                                'pink': pink_v, 'price': price_val, 'price_sym': price_sym,
-                                'level': 'critical', 'reason': '三重逃顶 (86%)'
-                            })
-                        # 逃顶: PINK下穿90 + 资金流出 + ADX<30
-                        elif is_sell and green_v < 0 and adx_v < 30:
-                            escape_warnings.append({
-                                'symbol': sym, 'name': display_name,
-                                'pink': pink_v, 'price': price_val, 'price_sym': price_sym,
-                                'level': 'high', 'reason': 'PINK逃顶+流出'
-                            })
-                        elif has_top_div:
-                            escape_warnings.append({
-                                'symbol': sym, 'name': display_name,
-                                'pink': pink_v, 'price': price_val, 'price_sym': price_sym,
-                                'level': 'low', 'reason': '顶背离(需确认)'
-                            })
-                        
-                        # 黄金底 (最强买入): 底部金叉 + CCI < -100
-                        has_golden = bool(hf['golden_bottom'][-1])
-                        cci_val = float(hf['CCI'][-1])
-                        if has_golden:
-                            golden_bottoms.append({
-                                'symbol': sym, 'name': display_name,
-                                'cci': cci_val, 'price': price_val, 'price_sym': price_sym,
-                            })
-                        
-                        # 趋势回调买入: BLUE消失 + ADX>25
-                        if is_blue_dis and adx_v >= 25:
-                            trend_pullbacks.append({
-                                'symbol': sym, 'name': display_name,
-                                'adx': adx_v, 'price': price_val, 'price_sym': price_sym,
-                            })
-                    except Exception:
-                        continue
+                if scan_symbols:
+                    escape_warnings, golden_bottoms, trend_pullbacks = _cached_escape_warning_scan(
+                        symbols=scan_symbols, market=market
+                    )
+                else:
+                    escape_warnings, golden_bottoms, trend_pullbacks = [], [], []
                 
                 if escape_warnings:
                     for ew in escape_warnings:

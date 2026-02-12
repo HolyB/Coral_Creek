@@ -208,6 +208,36 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
         return False
 
 
+def get_scan_date_counts_supabase(market: str = None, limit: int = 30) -> List[Dict]:
+    """从 Supabase 获取每个扫描日期的记录数（轻量查询，仅取 scan_date 列）
+
+    Returns:
+        [{'scan_date': '2026-02-11', 'count': 275}, ...]  按日期降序
+    """
+    supabase = get_supabase()
+    if not supabase:
+        return []
+
+    try:
+        query = supabase.table('scan_results').select('scan_date')
+        if market:
+            query = query.eq('market', market)
+        query = query.order('scan_date', desc=True)
+        result = query.execute()
+        if not result.data:
+            return []
+
+        # Python 端聚合计数
+        from collections import Counter
+        counter = Counter(r['scan_date'] for r in result.data)
+        rows = [{'scan_date': d, 'count': c} for d, c in counter.items()]
+        rows.sort(key=lambda x: x['scan_date'], reverse=True)
+        return rows[:limit]
+    except Exception as e:
+        print(f"⚠️ Supabase 日期计数查询失败: {e}")
+        return []
+
+
 def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dict[str, str]:
     """从 Supabase 获取股票首次出现的日期
     
