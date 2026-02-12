@@ -243,7 +243,7 @@ def send_alert_telegram(alerts: list) -> bool:
 
 # ==================== 主流程 ====================
 
-def monitor_portfolio(market=None, **_kwargs):
+def monitor_portfolio(market='US', **_kwargs):
     """监控持仓组合（兼容旧调度器传入 market 参数）"""
     print(f"\n{'='*50}")
     print(f"📱 盘中监控 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
