@@ -30,14 +30,16 @@ import runpy
 try:
     runpy.run_path(os.path.join(V3_PATH, "app.py"), run_name="__main__")
 except Exception as e:
+    original_tb = traceback.format_exc()
     try:
         import streamlit as st
-        st.set_page_config(page_title="Coral Creek - Error", page_icon="⚠️", layout="wide")
         st.error(f"应用启动失败: {e}")
-        st.code(traceback.format_exc())
+        st.code(original_tb)
         st.info("请把上面的错误栈发给我，我会立刻修复。")
     except Exception:
         # 最后兜底：保证日志里有完整栈
         print("Coral Creek bootstrap failed:")
+        print(original_tb)
+        print("Secondary error while rendering Streamlit fallback:")
         print(traceback.format_exc())
         raise
