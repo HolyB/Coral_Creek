@@ -759,6 +759,42 @@ def _combo_bucket(tags: list) -> str:
     return "其他"
 
 
+def _combo_bucket_full(tags: list) -> str:
+    """
+    全量标签组合（不压缩），用于查看真实组合分布。
+    例如: 日蓝+周蓝+月蓝+日黑马+筹码密集
+    """
+    t = {str(x).strip().upper() for x in (tags or []) if str(x).strip()}
+    if not t:
+        return "无标签"
+    order = [
+        ("DAY_BLUE", "日蓝"),
+        ("WEEK_BLUE", "周蓝"),
+        ("MONTH_BLUE", "月蓝"),
+        ("DAY_HEIMA", "日黑马"),
+        ("WEEK_HEIMA", "周黑马"),
+        ("MONTH_HEIMA", "月黑马"),
+        ("DAY_JUEDI", "日掘地"),
+        ("WEEK_JUEDI", "周掘地"),
+        ("MONTH_JUEDI", "月掘地"),
+        ("CHIP_BREAKOUT", "筹码突破"),
+        ("CHIP_DENSE", "筹码密集"),
+        ("CHIP_OVERHANG", "筹码套牢"),
+        ("DUOKONGWANG_BUY", "多空王买点"),
+    ]
+    labels = [cn for k, cn in order if k in t]
+    if not labels:
+        return "其他标签"
+    return "+".join(labels)
+
+
+def _strategy_bucket_full(tags: list) -> str:
+    """
+    策略明细口径：当前直接使用全量标签组合，避免被粗分类折叠。
+    """
+    return _combo_bucket_full(tags)
+
+
 def _build_unified_trade_facts(
     rows: list,
     exit_rule: str,
@@ -804,6 +840,8 @@ def _build_unified_trade_facts(
                 "win": 1 if ret > 0 else 0,
                 "strategy_bucket": _primary_strategy_bucket(tags),
                 "combo_bucket": _combo_bucket(tags),
+                "strategy_bucket_full": _strategy_bucket_full(tags),
+                "combo_bucket_full": _combo_bucket_full(tags),
                 "cap_category": str(src.get("cap_category") or "未知"),
                 "industry": str(src.get("industry") or "Unknown"),
             }
@@ -2296,26 +2334,28 @@ def render_todays_picks_page():
                 max_rows=1500,
             )
             min_samples_quality = 12
+            min_samples_combo = 3
             q1, q2, q3 = st.columns(3)
             with q1:
                 combo_df = pd.DataFrame()
-                st.markdown("**策略组合（按当前胜率）**")
+                st.markdown("**策略组合（全量标签，按当前胜率）**")
                 if not facts_df.empty:
+                    combo_key = "combo_bucket_full" if "combo_bucket_full" in facts_df.columns else "combo_bucket"
                     combo_df = (
-                        facts_df.groupby("combo_bucket", as_index=False)
+                        facts_df.groupby(combo_key, as_index=False)
                         .agg(
                             样本数=("ret", "count"),
                             当前胜率=("win", lambda x: float(np.mean(x) * 100.0)),
                             当前平均收益=("ret", "mean"),
                         )
                     )
-                    combo_df = combo_df[combo_df["样本数"] >= min_samples_quality]
-                    combo_df = combo_df.sort_values(["当前胜率", "当前平均收益"], ascending=False).head(12)
+                    combo_df = combo_df[combo_df["样本数"] >= min_samples_combo]
+                    combo_df = combo_df.sort_values(["当前胜率", "当前平均收益", "样本数"], ascending=[False, False, False]).head(30)
                     if not combo_df.empty:
                         combo_df["当前胜率"] = combo_df["当前胜率"].round(1)
                         combo_df["当前平均收益"] = combo_df["当前平均收益"].round(2)
                         st.dataframe(
-                            combo_df.rename(columns={"combo_bucket": "组合", "当前胜率": "当前胜率(%)", "当前平均收益": "当前平均收益(%)"}),
+                            combo_df.rename(columns={combo_key: "组合", "当前胜率": "当前胜率(%)", "当前平均收益": "当前平均收益(%)"}),
                             width='stretch',
                             hide_index=True,
                         )
@@ -2325,23 +2365,24 @@ def render_todays_picks_page():
                     st.info("统一交易样本不足")
 
             with q2:
-                st.markdown("**策略 × 市值（按胜率）**")
+                st.markdown("**策略 × 市值（明细口径，按胜率）**")
                 if not facts_df.empty:
+                    strat_key = "strategy_bucket_full" if "strategy_bucket_full" in facts_df.columns else "strategy_bucket"
                     grp = (
-                        facts_df.groupby(["strategy_bucket", "cap_category"], as_index=False)
+                        facts_df.groupby([strat_key, "cap_category"], as_index=False)
                         .agg(
                             样本数=("ret", "count"),
                             胜率=("win", lambda x: float(np.mean(x) * 100.0)),
                             平均收益=("ret", "mean"),
                         )
                     )
-                    grp = grp[grp["样本数"] >= min_samples_quality]
-                    grp = grp.sort_values(["胜率", "平均收益"], ascending=False).head(15)
+                    grp = grp[grp["样本数"] >= min_samples_combo]
+                    grp = grp.sort_values(["胜率", "平均收益", "样本数"], ascending=[False, False, False]).head(30)
                     if not grp.empty:
                         grp["胜率"] = grp["胜率"].round(1)
                         grp["平均收益"] = grp["平均收益"].round(2)
                         st.dataframe(
-                            grp.rename(columns={"strategy_bucket": "策略", "cap_category": "市值层", "胜率": "胜率(%)", "平均收益": "平均收益(%)"}),
+                            grp.rename(columns={strat_key: "策略", "cap_category": "市值层", "胜率": "胜率(%)", "平均收益": "平均收益(%)"}),
                             width='stretch',
                             hide_index=True,
                         )
