@@ -33,11 +33,51 @@ DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(DB_DIR, "coral_creek.db")
 
 
+def _is_malformed_error(err: Exception) -> bool:
+    msg = str(err).lower()
+    return ("malformed" in msg) or ("disk image is malformed" in msg)
+
+
+def _quarantine_corrupted_db() -> str:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    bad_path = f"{DB_PATH}.corrupt.{ts}"
+    try:
+        if os.path.exists(DB_PATH):
+            os.replace(DB_PATH, bad_path)
+        print(f"⚠️ 检测到损坏数据库，已隔离: {bad_path}")
+        return bad_path
+    except Exception as e:
+        print(f"⚠️ 隔离损坏数据库失败: {e}")
+        return ""
+
+
 def get_connection():
     """获取数据库连接"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # 返回字典格式
-    return conn
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row  # 返回字典格式
+        # 快速健康检查，提前发现损坏库
+        cur = conn.cursor()
+        cur.execute("PRAGMA quick_check")
+        chk = cur.fetchone()
+        chk_txt = str(chk[0]).lower() if chk and len(chk) > 0 else "ok"
+        if chk_txt != "ok":
+            raise sqlite3.DatabaseError(f"quick_check failed: {chk_txt}")
+        return conn
+    except sqlite3.DatabaseError as e:
+        if not _is_malformed_error(e):
+            raise
+        _quarantine_corrupted_db()
+        # 重建一个新库，保证应用可启动
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            return conn
+        except Exception as e2:
+            print(f"⚠️ 重建本地库失败，降级到内存库: {e2}")
+            mem = sqlite3.connect(":memory:")
+            mem.row_factory = sqlite3.Row
+            return mem
 
 
 @contextmanager
@@ -48,7 +88,10 @@ def get_db():
         yield conn
         conn.commit()
     except Exception as e:
-        conn.rollback()
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         raise e
     finally:
         conn.close()

@@ -354,36 +354,43 @@ def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
             pass
 
     # 2) 回退 scan_results（仅候选日快照）
-    with get_db() as conn:
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                """
-                SELECT scan_date, price, day_high, day_low, day_close
-                FROM scan_results
-                WHERE symbol = ? AND market = ? AND scan_date >= ? AND price IS NOT NULL AND price > 0
-                ORDER BY scan_date ASC
-                """,
-                (symbol, market, signal_date),
-            )
-            rows = [dict(x) for x in cursor.fetchall()]
-            if rows:
-                return rows
-        except Exception:
-            pass
-        # 兼容旧表结构：没有 day_high/day_low/day_close 时回退
-        cursor.execute(
-            """
-            SELECT scan_date, price
-            FROM scan_results
-            WHERE symbol = ? AND market = ? AND scan_date >= ? AND price IS NOT NULL AND price > 0
-            ORDER BY scan_date ASC
-            """,
-            (symbol, market, signal_date),
-        )
-        rows = [dict(x) for x in cursor.fetchall()]
-        if rows:
-            return rows
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute(
+                    """
+                    SELECT scan_date, price, day_high, day_low, day_close
+                    FROM scan_results
+                    WHERE symbol = ? AND market = ? AND scan_date >= ? AND price IS NOT NULL AND price > 0
+                    ORDER BY scan_date ASC
+                    """,
+                    (symbol, market, signal_date),
+                )
+                rows = [dict(x) for x in cursor.fetchall()]
+                if rows:
+                    return rows
+            except Exception:
+                pass
+            # 兼容旧表结构：没有 day_high/day_low/day_close 时回退
+            try:
+                cursor.execute(
+                    """
+                    SELECT scan_date, price
+                    FROM scan_results
+                    WHERE symbol = ? AND market = ? AND scan_date >= ? AND price IS NOT NULL AND price > 0
+                    ORDER BY scan_date ASC
+                    """,
+                    (symbol, market, signal_date),
+                )
+                rows = [dict(x) for x in cursor.fetchall()]
+                if rows:
+                    return rows
+            except Exception:
+                pass
+    except sqlite3.DatabaseError as e:
+        if "malformed" in str(e).lower():
+            print(f"⚠️ scan_results 查询失败(库损坏)，改用在线行情: {e}")
 
     # 3) 最后兜底：在线拉取从 signal_date 至今的日线（解决仅快照导致收益长期为0）
     try:
