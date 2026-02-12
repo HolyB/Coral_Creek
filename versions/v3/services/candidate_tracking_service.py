@@ -43,10 +43,15 @@ DEFAULT_TAG_RULES = {
     "chip_breakout_profit_ratio_min": 0.9,
     "chip_overhang_profit_ratio_max": 0.3,
 }
+_TRACKING_TABLE_READY = False
 
 
 def _ensure_tracking_table() -> None:
     """自愈建表：兼容旧数据库未迁移场景。"""
+    global _TRACKING_TABLE_READY
+    if _TRACKING_TABLE_READY:
+        return
+
     # 先触发全局初始化（包含其它依赖表）
     try:
         init_db()
@@ -109,6 +114,7 @@ def _ensure_tracking_table() -> None:
                 cursor.execute(f"ALTER TABLE candidate_tracking ADD COLUMN {col_name} BOOLEAN")
             except Exception:
                 pass
+    _TRACKING_TABLE_READY = True
 
 
 def _to_bool(v) -> bool:

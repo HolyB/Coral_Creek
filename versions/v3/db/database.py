@@ -31,6 +31,7 @@ USE_SUPABASE = os.environ.get('SUPABASE_URL') is not None
 # 数据库文件路径 (SQLite 备用)
 DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(DB_DIR, "coral_creek.db")
+_DB_INIT_DONE = False
 
 
 def _is_malformed_error(err: Exception) -> bool:
@@ -99,6 +100,10 @@ def get_db():
 
 def init_db():
     """初始化数据库表"""
+    global _DB_INIT_DONE
+    if _DB_INIT_DONE:
+        return
+
     with get_db() as conn:
         cursor = conn.cursor()
         
@@ -371,6 +376,7 @@ def init_db():
             cursor.execute("ALTER TABLE scan_results ADD COLUMN market VARCHAR(10) DEFAULT 'US'")
         
         print(f"✅ Database initialized at: {DB_PATH}")
+        _DB_INIT_DONE = True
 
 
 def get_app_setting(setting_key, default=None):
