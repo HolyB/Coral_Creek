@@ -56,7 +56,7 @@ def _quarantine_corrupted_db() -> str:
 
 def get_connection():
     """获取数据库连接"""
-    global _DB_RECOVERED_FROM_CORRUPTION
+    global _DB_RECOVERED_FROM_CORRUPTION, _DB_INIT_DONE, _DB_REHYDRATED_AFTER_RECOVERY
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row  # 返回字典格式
@@ -73,6 +73,9 @@ def get_connection():
             raise
         _quarantine_corrupted_db()
         _DB_RECOVERED_FROM_CORRUPTION = True
+        # 关键：库文件已替换，必须允许重新初始化表结构与回灌
+        _DB_INIT_DONE = False
+        _DB_REHYDRATED_AFTER_RECOVERY = False
         # 重建一个新库，保证应用可启动
         try:
             conn = sqlite3.connect(DB_PATH)

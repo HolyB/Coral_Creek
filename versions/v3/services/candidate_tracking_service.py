@@ -50,7 +50,18 @@ def _ensure_tracking_table() -> None:
     """自愈建表：兼容旧数据库未迁移场景。"""
     global _TRACKING_TABLE_READY
     if _TRACKING_TABLE_READY:
-        return
+        # 强校验：即使标志位为 True，也确认表实际存在（应对坏库替换后的同进程场景）
+        try:
+            with get_db() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='candidate_tracking'"
+                )
+                if cur.fetchone():
+                    return
+        except Exception:
+            pass
+        _TRACKING_TABLE_READY = False
 
     # 先触发全局初始化（包含其它依赖表）
     try:
