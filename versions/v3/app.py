@@ -2222,6 +2222,14 @@ def render_todays_picks_page():
                 signal_date=latest_date,
                 source="daily_workbench",
             )
+            # 轻量刷新一次（仅当日、仅一次），避免“信号质量总览”空白
+            refresh_once_key = f"candidate_refresh_once_{market}_{latest_date}"
+            if not st.session_state.get(refresh_once_key, False):
+                try:
+                    refresh_candidate_tracking(market=market, max_rows=1200)
+                except Exception:
+                    pass
+                st.session_state[refresh_once_key] = True
         except Exception as e:
             st.caption(f"候选追踪初始化失败: {e}")
 
@@ -2290,6 +2298,25 @@ def render_todays_picks_page():
         tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
     except Exception:
         tracking_rows_for_action = []
+
+    # 自动轻量补样本（仅在样本为空时触发一次），避免页面进入“空白总览”
+    if not tracking_rows_for_action:
+        auto_bootstrap_key = f"auto_bootstrap_tracking_{market}_{latest_date}"
+        if not st.session_state.get(auto_bootstrap_key, False):
+            try:
+                with st.spinner("正在自动补齐候选追踪样本..."):
+                    added_rows = backfill_candidates_from_scan_history(
+                        market=market,
+                        recent_days=45,
+                        max_per_day=300,
+                    )
+                    refresh_candidate_tracking(market=market, max_rows=3000)
+                    tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
+                st.caption(f"🔧 自动补齐完成: 回填 {added_rows} 条，当前样本 {len(tracking_rows_for_action)}")
+            except Exception as _auto_bootstrap_err:
+                st.caption(f"⚠️ 自动补齐候选追踪失败: {_auto_bootstrap_err}")
+            finally:
+                st.session_state[auto_bootstrap_key] = True
 
     # 手动重建：避免页面加载阶段触发大规模回填导致阻塞
     latest_scan_sample = len(results) if isinstance(results, list) else 0
@@ -2839,7 +2866,35 @@ def render_todays_picks_page():
             else:
                 st.info("极致条件统计暂无样本，请先在“组合追踪”完成回填与刷新。")
         else:
-            st.info("暂无候选追踪样本，先运行扫描并回填历史。")
+            st.info("暂无候选追踪样本，先运行扫描并回填历史。下面展示当日扫描替代视图。")
+            if not df.empty:
+                fallback_cols = [
+                    "symbol", "price", "blue_daily", "blue_weekly", "blue_monthly",
+                    "heima_daily", "heima_weekly", "heima_monthly",
+                    "juedi_daily", "juedi_weekly", "juedi_monthly",
+                    "cap_category", "industry",
+                ]
+                show_cols = [c for c in fallback_cols if c in df.columns]
+                if show_cols:
+                    fallback_df = df[show_cols].copy().head(50)
+                    fallback_df = fallback_df.rename(
+                        columns={
+                            "symbol": "股票",
+                            "price": "现价",
+                            "blue_daily": "日BLUE",
+                            "blue_weekly": "周BLUE",
+                            "blue_monthly": "月BLUE",
+                            "heima_daily": "日黑马",
+                            "heima_weekly": "周黑马",
+                            "heima_monthly": "月黑马",
+                            "juedi_daily": "日掘地",
+                            "juedi_weekly": "周掘地",
+                            "juedi_monthly": "月掘地",
+                            "cap_category": "市值层",
+                            "industry": "行业",
+                        }
+                    )
+                    st.dataframe(fallback_df, width="stretch", hide_index=True)
     
     st.divider()
     
