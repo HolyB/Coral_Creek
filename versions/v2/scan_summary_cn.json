@@ -1,7 +1,7 @@
 {
   "date": "2026-02-11",
   "market": "CN",
-  "total_signals": 45,
+  "total_signals": 48,
   "top_signals": [
     {
       "symbol": "920003.BJ",
@@ -60,6 +60,13 @@
       "week_blue": 86.8
     },
     {
+      "symbol": "300803.SZ",
+      "name": "指南针",
+      "price": 117.66,
+      "day_blue": 138.3,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "688198.SH",
       "name": "佰仁医疗",
       "price": 101.66,
@@ -99,13 +106,6 @@
       "name": "贝特瑞",
       "price": 29.53,
       "day_blue": 114.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603683.SH",
-      "name": "晶华新材",
-      "price": 24.4,
-      "day_blue": 113.2,
       "week_blue": 0.0
     }
   ]
