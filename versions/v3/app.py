@@ -854,7 +854,7 @@ def _build_unified_trade_facts(
 # 避免支付问题和数据同步问题
 
 @st.cache_resource
-def init_scheduler():
+def init_scheduler(_scheduler_rev: str = "2026-02-12-r1"):
     """初始化并启动后台调度器 (单例模式)"""
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
@@ -862,7 +862,7 @@ def init_scheduler():
         from scripts.intraday_monitor import monitor_portfolio
         import atexit
         
-        # 创建调度器
+        # 创建调度器（通过 _scheduler_rev 变更可强制刷新缓存中的旧任务定义）
         scheduler = BackgroundScheduler()
         
         # 防止重复添加
@@ -904,7 +904,7 @@ def init_scheduler():
         return None
 
 # 启动调度器
-init_scheduler()
+init_scheduler("2026-02-12-r1")
 
 # --- 登录验证 ---
 
@@ -4977,8 +4977,13 @@ def render_scan_page():
         if data_source and not data_source.startswith("📅"):
             data_source = f"📁 {data_source}"
     
-    # === 调试: 检查数据加载后的 Heima 列 ===
-    if df is not None and not df.empty and 'Heima_Daily' in df.columns:
+    # === 调试: 检查数据加载后的 Heima 列（仅在显式开启时输出） ===
+    if (
+        os.environ.get("APP_DEBUG_HEIMA", "false").lower() == "true"
+        and df is not None
+        and not df.empty
+        and 'Heima_Daily' in df.columns
+    ):
         heima_true_count = df['Heima_Daily'].sum()
         heima_sample = df['Heima_Daily'].head(5).tolist()
         heima_types = [type(v).__name__ for v in heima_sample]
