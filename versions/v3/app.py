@@ -2137,7 +2137,11 @@ def render_todays_picks_page():
     # ============================================
     # 📊 顶部: 行动摘要卡片
     # ============================================
-    dates = _cached_scanned_dates(market=market)
+    try:
+        dates = _cached_scanned_dates(market=market)
+    except Exception as e:
+        st.warning(f"读取扫描日期失败，已降级为空数据模式: {e}")
+        dates = []
     if not dates:
         st.warning(f"暂无 {market} 市场扫描数据，已进入空数据模式（页面结构保留）。")
         dates = [datetime.now().strftime("%Y-%m-%d")]
@@ -2147,7 +2151,10 @@ def render_todays_picks_page():
     date_rows_map = {}
     preferred_date = recent_dates[0]
     for d in recent_dates:
-        rows_d = _cached_scan_results(scan_date=d, market=market, limit=2000) or []
+        try:
+            rows_d = _cached_scan_results(scan_date=d, market=market, limit=2000) or []
+        except Exception:
+            rows_d = []
         n_d = len(rows_d)
         date_rows_map[d] = n_d
         if n_d >= 30 and preferred_date == recent_dates[0]:
@@ -2170,13 +2177,20 @@ def render_todays_picks_page():
             key=f"picks_scan_date_{market}",
         )
     latest_date = selected_date_label.split(" (", 1)[0]
-    results = _cached_scan_results(scan_date=latest_date, market=market, limit=2000)
+    try:
+        results = _cached_scan_results(scan_date=latest_date, market=market, limit=2000)
+    except Exception as e:
+        st.warning(f"读取扫描结果失败，已降级为空数据模式: {e}")
+        results = []
     # 强兜底：若当前日期为空，自动回退到最近有数据的日期
     if not results:
         fallback_date = None
         fallback_rows = []
         for d in recent_dates:
-            rows_d = _cached_scan_results(scan_date=d, market=market, limit=2000) or []
+            try:
+                rows_d = _cached_scan_results(scan_date=d, market=market, limit=2000) or []
+            except Exception:
+                rows_d = []
             if rows_d:
                 fallback_date = d
                 fallback_rows = rows_d
@@ -2208,18 +2222,6 @@ def render_todays_picks_page():
                 signal_date=latest_date,
                 source="daily_workbench",
             )
-            # 控制刷新频率，避免每次 rerun 都全量刷新
-            refresh_key = f"candidate_refresh_at_{market}"
-            last_refresh = st.session_state.get(refresh_key)
-            now_txt = datetime.now().strftime("%Y-%m-%d %H:%M")
-            if last_refresh != now_txt:
-                # 自动回填近30个交易日，避免历史扫描信号缺失
-                backfill_key = f"candidate_backfill_done_{market}_{datetime.now().strftime('%Y-%m-%d')}"
-                if not st.session_state.get(backfill_key):
-                    backfill_candidates_from_scan_history(market=market, recent_days=30, max_per_day=300)
-                    st.session_state[backfill_key] = True
-                refresh_candidate_tracking(market=market, max_rows=20000)
-                st.session_state[refresh_key] = now_txt
         except Exception as e:
             st.caption(f"候选追踪初始化失败: {e}")
 
@@ -2289,25 +2291,27 @@ def render_todays_picks_page():
     except Exception:
         tracking_rows_for_action = []
 
-    # 自愈：若追踪样本明显偏少，则自动回填+刷新一次（避免“胜率全0/样本过少”）
-    try:
-        sparse_guard_key = f"auto_rebuild_tracking_once_{market}_{latest_date}"
-        latest_scan_sample = len(results) if isinstance(results, list) else 0
-        sparse_floor = max(120, latest_scan_sample * 2)
-        if len(tracking_rows_for_action) < sparse_floor and not st.session_state.get(sparse_guard_key, False):
-            added_rows = backfill_candidates_from_scan_history(
-                market=market,
-                recent_days=min(int(action_days_back), 720),
-                max_per_day=1200,
-            )
-            refreshed_rows = refresh_candidate_tracking(market=market, max_rows=20000)
-            tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
-            st.session_state[sparse_guard_key] = True
-            st.caption(
-                f"🔧 已自动补齐候选追踪: 回填 {added_rows} 条, 刷新 {refreshed_rows} 条, 当前样本 {len(tracking_rows_for_action)}"
-            )
-    except Exception as _rebuild_err:
-        st.caption(f"⚠️ 候选追踪自动补齐失败: {_rebuild_err}")
+    # 手动重建：避免页面加载阶段触发大规模回填导致阻塞
+    latest_scan_sample = len(results) if isinstance(results, list) else 0
+    sparse_floor = max(120, latest_scan_sample * 2)
+    if len(tracking_rows_for_action) < sparse_floor:
+        st.caption(
+            f"⚠️ 候选追踪样本偏少（当前 {len(tracking_rows_for_action)}，建议 >= {sparse_floor}）。"
+            "如需补齐，点击下方按钮手动执行。"
+        )
+        if st.button("🔧 手动补齐候选追踪（近720天）", key=f"manual_rebuild_tracking_{market}"):
+            try:
+                with st.spinner("回填与刷新中，可能需要1-3分钟..."):
+                    added_rows = backfill_candidates_from_scan_history(
+                        market=market,
+                        recent_days=min(int(action_days_back), 720),
+                        max_per_day=1200,
+                    )
+                    refreshed_rows = refresh_candidate_tracking(market=market, max_rows=20000)
+                    tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
+                st.success(f"已补齐: 回填 {added_rows} 条, 刷新 {refreshed_rows} 条, 当前样本 {len(tracking_rows_for_action)}")
+            except Exception as _rebuild_err:
+                st.error(f"手动补齐失败: {_rebuild_err}")
 
     def _calc_signal_reliability(tags: list):
         if not tags or not tracking_rows_for_action:
