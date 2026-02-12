@@ -1,111 +1,111 @@
 {
-  "date": "2026-02-11",
+  "date": "2026-02-12",
   "market": "CN",
-  "total_signals": 50,
+  "total_signals": 84,
   "top_signals": [
     {
-      "symbol": "920003.BJ",
-      "name": "中诚咨询",
-      "price": 31.96,
+      "symbol": "301584.SZ",
+      "name": "建发致新",
+      "price": 28.71,
       "day_blue": 200.0,
-      "week_blue": 200.0
+      "week_blue": 0.0
     },
     {
       "symbol": "920122.BJ",
       "name": "中纺标",
-      "price": 33.1,
-      "day_blue": 196.3,
-      "week_blue": 157.0
-    },
-    {
-      "symbol": "920571.BJ",
-      "name": "国航远洋",
-      "price": 9.26,
-      "day_blue": 176.6,
-      "week_blue": 186.6
+      "price": 32.87,
+      "day_blue": 200.0,
+      "week_blue": 157.1
     },
     {
       "symbol": "920753.BJ",
       "name": "天纺标",
-      "price": 22.28,
-      "day_blue": 164.6,
+      "price": 22.13,
+      "day_blue": 189.9,
       "week_blue": 108.8
     },
     {
       "symbol": "920436.BJ",
       "name": "大地电气",
-      "price": 16.55,
-      "day_blue": 161.8,
+      "price": 16.58,
+      "day_blue": 177.6,
       "week_blue": 150.9
+    },
+    {
+      "symbol": "301096.SZ",
+      "name": "百诚医药",
+      "price": 49.11,
+      "day_blue": 162.1,
+      "week_blue": 0.0
     },
     {
       "symbol": "000656.SZ",
       "name": "*ST金科",
-      "price": 1.42,
-      "day_blue": 146.3,
+      "price": 1.43,
+      "day_blue": 151.5,
       "week_blue": 0.0
     },
     {
-      "symbol": "920857.BJ",
-      "name": "泓禧科技",
-      "price": 26.5,
-      "day_blue": 140.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688685.SH",
-      "name": "迈信林",
-      "price": 46.77,
-      "day_blue": 138.8,
-      "week_blue": 86.8
-    },
-    {
-      "symbol": "300803.SZ",
-      "name": "指南针",
-      "price": 117.66,
-      "day_blue": 138.3,
+      "symbol": "301108.SZ",
+      "name": "洁雅股份",
+      "price": 32.02,
+      "day_blue": 150.5,
       "week_blue": 0.0
     },
     {
       "symbol": "688198.SH",
       "name": "佰仁医疗",
-      "price": 101.66,
-      "day_blue": 135.6,
+      "price": 100.9,
+      "day_blue": 145.5,
       "week_blue": 0.0
     },
     {
-      "symbol": "300940.SZ",
-      "name": "南极光",
-      "price": 26.1,
-      "day_blue": 135.4,
+      "symbol": "605179.SH",
+      "name": "一鸣食品",
+      "price": 19.95,
+      "day_blue": 136.2,
       "week_blue": 0.0
     },
     {
-      "symbol": "001206.SZ",
-      "name": "依依股份",
-      "price": 24.55,
-      "day_blue": 129.9,
+      "symbol": "920765.BJ",
+      "name": "美之高",
+      "price": 18.14,
+      "day_blue": 134.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300478.SZ",
+      "name": "杭州高新",
+      "price": 24.62,
+      "day_blue": 133.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920339.BJ",
+      "name": "恒太照明",
+      "price": 9.65,
+      "day_blue": 132.8,
       "week_blue": 0.0
     },
     {
       "symbol": "920005.BJ",
       "name": "鼎佳精密",
-      "price": 39.27,
-      "day_blue": 123.7,
+      "price": 38.89,
+      "day_blue": 130.6,
       "week_blue": 200.0
     },
     {
-      "symbol": "920225.BJ",
-      "name": "利通科技",
-      "price": 29.1,
-      "day_blue": 116.6,
+      "symbol": "920821.BJ",
+      "name": "则成电子",
+      "price": 24.26,
+      "day_blue": 122.1,
       "week_blue": 0.0
     },
     {
       "symbol": "920185.BJ",
       "name": "贝特瑞",
-      "price": 29.53,
-      "day_blue": 114.2,
+      "price": 29.46,
+      "day_blue": 120.0,
       "week_blue": 0.0
     }
   ]
