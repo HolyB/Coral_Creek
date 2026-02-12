@@ -638,6 +638,16 @@ def _analyze_extreme_lift(
     def _any_juedi(x):
         return x["juedi_daily"] or x["juedi_weekly"] or x["juedi_monthly"]
 
+    def _heima_and_juedi_cross_cycle(x):
+        """
+        黑马/掘地在同一周期互斥，必须跨周期同时出现才算有效组合
+        """
+        return (
+            (x["heima_daily"] and (x["juedi_weekly"] or x["juedi_monthly"]))
+            or (x["heima_weekly"] and (x["juedi_daily"] or x["juedi_monthly"]))
+            or (x["heima_monthly"] and (x["juedi_daily"] or x["juedi_weekly"]))
+        )
+
     combos = [
         _eval("日200+周200", lambda x: _base_200(x)),
         _eval(
@@ -653,12 +663,12 @@ def _analyze_extreme_lift(
             lambda x: _base_200(x) and _any_heima(x),
         ),
         _eval(
-            "日200+周200+日/周黑马+任一掘地",
-            lambda x: _base_200(x) and (x["heima_daily"] or x["heima_weekly"]) and _any_juedi(x),
+            "日200+周200+日/周黑马+跨周期掘地",
+            lambda x: _base_200(x) and (x["heima_daily"] or x["heima_weekly"]) and _heima_and_juedi_cross_cycle(x),
         ),
         _eval(
-            "日200+周200+日黑马+周黑马+任一掘地(同时)",
-            lambda x: _base_200(x) and x["heima_daily"] and x["heima_weekly"] and _any_juedi(x),
+            "日200+周200+日黑马+周黑马+月掘地(跨周期)",
+            lambda x: _base_200(x) and x["heima_daily"] and x["heima_weekly"] and x["juedi_monthly"],
         ),
         _eval(
             "日200+周200+月200",
@@ -673,12 +683,8 @@ def _analyze_extreme_lift(
             lambda x: _base_200(x) and x["blue_monthly"] >= 200 and _any_heima(x),
         ),
         _eval(
-            "日200+周200+月200+日+周+月黑马(同时)+任一掘地",
-            lambda x: _base_200(x) and x["blue_monthly"] >= 200 and x["heima_daily"] and x["heima_weekly"] and x["heima_monthly"] and _any_juedi(x),
-        ),
-        _eval(
             "日200+周200+月200+任一黑马+任一掘地",
-            lambda x: _base_200(x) and x["blue_monthly"] >= 200 and _any_heima(x) and _any_juedi(x),
+            lambda x: _base_200(x) and x["blue_monthly"] >= 200 and _heima_and_juedi_cross_cycle(x),
         ),
     ]
 
