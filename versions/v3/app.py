@@ -2532,7 +2532,8 @@ def _render_todays_picks_page_inner():
     # ============================================
     # 📈 信号质量总览（先看质量再行动）
     # ============================================
-    with st.expander(f"📈 信号质量总览（近{action_days_back}天）", expanded=True):
+    try:
+      with st.expander(f"📈 信号质量总览（近{action_days_back}天）", expanded=False):
         if tracking_rows_for_action:
             # 统一口径：三张表都基于同一交易事实样本（同一平仓规则）
             preview_exit_rule = st.session_state.get(f"action_exit_rule_{market}", "fixed_10d")
@@ -3041,6 +3042,8 @@ def _render_todays_picks_page_inner():
                         }
                     )
                     st.dataframe(fallback_df, width="stretch", hide_index=True)
+    except Exception as _quality_err:
+        st.warning(f"信号质量总览加载失败（不影响下方 Tab 功能）: {_quality_err}")
     
     st.divider()
     
