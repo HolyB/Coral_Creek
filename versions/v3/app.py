@@ -854,7 +854,7 @@ def _build_unified_trade_facts(
 # 避免支付问题和数据同步问题
 
 @st.cache_resource
-def init_scheduler(_scheduler_rev: str = "2026-02-12-r1"):
+def init_scheduler(_scheduler_rev: str = "2026-02-12-r2-fix-kwargs"):
     """初始化并启动后台调度器 (单例模式)"""
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
@@ -4502,22 +4502,23 @@ def render_todays_picks_page():
 
             # 顶部总览
             total = len(rows)
+            combo_stats = []
             if total == 0:
-                st.info("当前过滤条件下无样本。")
-                return
-            wins = sum(1 for r in rows if float(r.get("pnl_pct") or 0) > 0)
-            avg_pnl = np.mean([float(r.get("pnl_pct") or 0) for r in rows]) if rows else 0
-            d2p_vals = [int(r["first_positive_day"]) for r in rows if r.get("first_positive_day") is not None]
-            median_d2p = int(np.median(d2p_vals)) if d2p_vals else None
+                st.info("当前过滤条件下无样本。请放宽过滤条件或关闭模板过滤。")
+            else:
+                wins = sum(1 for r in rows if float(r.get("pnl_pct") or 0) > 0)
+                avg_pnl = np.mean([float(r.get("pnl_pct") or 0) for r in rows]) if rows else 0
+                d2p_vals = [int(r["first_positive_day"]) for r in rows if r.get("first_positive_day") is not None]
+                median_d2p = int(np.median(d2p_vals)) if d2p_vals else None
 
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("追踪样本", total)
-            m2.metric("当前胜率", f"{(wins / total * 100):.1f}%")
-            m3.metric("当前平均收益", f"{avg_pnl:+.2f}%")
-            m4.metric("首次转正中位天数", f"{median_d2p}天" if median_d2p is not None else "-")
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("追踪样本", total)
+                m2.metric("当前胜率", f"{(wins / total * 100):.1f}%")
+                m3.metric("当前平均收益", f"{avg_pnl:+.2f}%")
+                m4.metric("首次转正中位天数", f"{median_d2p}天" if median_d2p is not None else "-")
 
-            st.markdown("### 🧩 组合绩效矩阵")
-            combo_stats = build_combo_stats(rows, min_samples=min_samples)
+                st.markdown("### 🧩 组合绩效矩阵")
+                combo_stats = build_combo_stats(rows, min_samples=min_samples)
             if combo_stats:
                 if effective_keyword:
                     combo_stats = [x for x in combo_stats if effective_keyword in str(x.get("组合", "")).upper()]
