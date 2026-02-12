@@ -2235,6 +2235,26 @@ def render_todays_picks_page():
     except Exception:
         tracking_rows_for_action = []
 
+    # 自愈：若追踪样本明显偏少，则自动回填+刷新一次（避免“胜率全0/样本过少”）
+    try:
+        sparse_guard_key = f"auto_rebuild_tracking_once_{market}_{latest_date}"
+        latest_scan_sample = len(results) if isinstance(results, list) else 0
+        sparse_floor = max(120, latest_scan_sample * 2)
+        if len(tracking_rows_for_action) < sparse_floor and not st.session_state.get(sparse_guard_key, False):
+            added_rows = backfill_candidates_from_scan_history(
+                market=market,
+                recent_days=min(int(action_days_back), 720),
+                max_per_day=1200,
+            )
+            refreshed_rows = refresh_candidate_tracking(market=market, max_rows=20000)
+            tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
+            st.session_state[sparse_guard_key] = True
+            st.caption(
+                f"🔧 已自动补齐候选追踪: 回填 {added_rows} 条, 刷新 {refreshed_rows} 条, 当前样本 {len(tracking_rows_for_action)}"
+            )
+    except Exception as _rebuild_err:
+        st.caption(f"⚠️ 候选追踪自动补齐失败: {_rebuild_err}")
+
     def _calc_signal_reliability(tags: list):
         if not tags or not tracking_rows_for_action:
             return {
