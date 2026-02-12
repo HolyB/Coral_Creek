@@ -29,7 +29,7 @@ os.chdir(V3_PATH)
 import runpy
 try:
     runpy.run_path(os.path.join(V3_PATH, "app.py"), run_name="__main__")
-except Exception as e:
+except BaseException as e:
     original_tb = traceback.format_exc()
     try:
         import streamlit as st
