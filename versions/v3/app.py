@@ -3494,16 +3494,25 @@ def render_todays_picks_page():
                     if not picks:
                         st.info("该策略当前无候选")
                         continue
-                    rows_show = []
-                    def _pick_val(item, key, default=None):
-                        if isinstance(item, dict):
-                            return item.get(key, default)
-                        return getattr(item, key, default)
+                    normalized_picks = []
                     for p in picks:
-                        sym = str(_pick_val(p, "symbol", "") or "")
-                        price = float(_pick_val(p, "price", 0.0) or 0.0)
-                        score = float(_pick_val(p, "score", 0.0) or 0.0)
-                        stop_loss = float(_pick_val(p, "stop_loss", 0.0) or 0.0)
+                        if isinstance(p, dict):
+                            normalized_picks.append(p)
+                        else:
+                            normalized_picks.append(
+                                {
+                                    "symbol": getattr(p, "symbol", ""),
+                                    "price": getattr(p, "price", 0.0),
+                                    "score": getattr(p, "score", 0.0),
+                                    "stop_loss": getattr(p, "stop_loss", 0.0),
+                                }
+                            )
+                    rows_show = []
+                    for p in normalized_picks:
+                        sym = str(p.get("symbol", "") or "")
+                        price = float(p.get("price", 0.0) or 0.0)
+                        score = float(p.get("score", 0.0) or 0.0)
+                        stop_loss = float(p.get("stop_loss", 0.0) or 0.0)
                         rows_show.append({
                             "代码": sym,
                             "评分": round(score, 2),
