@@ -2162,6 +2162,24 @@ def render_todays_picks_page():
         )
     latest_date = selected_date_label.split(" (", 1)[0]
     results = _cached_scan_results(scan_date=latest_date, market=market, limit=2000)
+    # 强兜底：若当前日期为空，自动回退到最近有数据的日期
+    if not results:
+        fallback_date = None
+        fallback_rows = []
+        for d in recent_dates:
+            rows_d = _cached_scan_results(scan_date=d, market=market, limit=2000) or []
+            if rows_d:
+                fallback_date = d
+                fallback_rows = rows_d
+                break
+        if fallback_date:
+            latest_date = fallback_date
+            results = fallback_rows
+            st.warning(f"当前选择日期无数据，已自动回退到最近有数据日期：{latest_date}")
+        else:
+            st.error(f"{market} 最近30个扫描日均无可用结果。可先运行 Daily Scan 或检查数据源。")
+            # 继续渲染页面结构，避免“空白页”
+            results = []
     df = pd.DataFrame(results) if results else pd.DataFrame()
     
     # 获取持仓数据
