@@ -2129,7 +2129,7 @@ def render_todays_picks_page():
         else:
             st.session_state['_picks_prev_market'] = market
         
-        top_n = st.slider("每策略选股数", 3, 10, 5, key="picks_topn")
+        top_n = st.slider("每策略选股数", 3, 20, 8, key="picks_topn")
         
         show_performance = st.checkbox("显示策略历史表现", value=True, key="picks_perf")
         show_backtest = st.checkbox("显示回测追踪", value=False, key="picks_backtest")
@@ -2307,8 +2307,8 @@ def render_todays_picks_page():
                 with st.spinner("正在自动补齐候选追踪样本..."):
                     added_rows = backfill_candidates_from_scan_history(
                         market=market,
-                        recent_days=45,
-                        max_per_day=300,
+                        recent_days=180,
+                        max_per_day=800,
                     )
                     refresh_candidate_tracking(market=market, max_rows=3000)
                     tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
@@ -2599,7 +2599,7 @@ def render_todays_picks_page():
             with a2:
                 alloc_slip_bps = st.slider("滑点(bps)", min_value=0.0, max_value=30.0, value=5.0, step=0.5, key=f"alloc_slip_bps_{market}")
             with a3:
-                alloc_min_samples = st.slider("最小样本", min_value=8, max_value=120, value=20, step=2, key=f"alloc_min_samples_{market}")
+                alloc_min_samples = st.slider("最小样本", min_value=4, max_value=120, value=12, step=2, key=f"alloc_min_samples_{market}")
             with a4:
                 alloc_top_n = st.slider("当日候选数", min_value=5, max_value=30, value=12, step=1, key=f"alloc_topn_{market}")
             auto_best_exit = st.checkbox(
@@ -2625,6 +2625,7 @@ def render_todays_picks_page():
                     slippage_bps=float(alloc_slip_bps),
                     min_samples=int(alloc_min_samples),
                     max_rows=20000,
+                    primary_only=False,
                 )
                 st.caption("当前按“每个策略最优卖出规则”排序与分配权重。")
             else:
@@ -2638,8 +2639,39 @@ def render_todays_picks_page():
                     slippage_bps=float(alloc_slip_bps),
                     min_samples=int(alloc_min_samples),
                     max_rows=20000,
+                    primary_only=False,
                 )
-            perf_df = pd.DataFrame(perf_rows) if perf_rows else pd.DataFrame()
+            display_perf_rows = list(perf_rows or [])
+            if len(display_perf_rows) < 4 and tracking_rows_for_action:
+                # 展示口径兜底：即使样本偏少，也尽量展示更多策略行供参考
+                try:
+                    if auto_best_exit:
+                        display_perf_rows = evaluate_strategy_baskets_best_exit(
+                            rows=tracking_rows_for_action,
+                            exit_rule_candidates=exit_rule_candidates,
+                            fee_bps=float(alloc_fee_bps),
+                            slippage_bps=float(alloc_slip_bps),
+                            min_samples=1,
+                            max_rows=20000,
+                            primary_only=False,
+                        )
+                    else:
+                        display_perf_rows = evaluate_strategy_baskets(
+                            rows=tracking_rows_for_action,
+                            rule_name=exit_rule,
+                            take_profit_pct=float(rule_tp),
+                            stop_loss_pct=float(rule_sl),
+                            max_hold_days=int(rule_max_hold),
+                            fee_bps=float(alloc_fee_bps),
+                            slippage_bps=float(alloc_slip_bps),
+                            min_samples=1,
+                            max_rows=20000,
+                            primary_only=False,
+                        )
+                except Exception:
+                    display_perf_rows = list(perf_rows or [])
+
+            perf_df = pd.DataFrame(display_perf_rows) if display_perf_rows else pd.DataFrame()
             if not perf_df.empty:
                 show_cols = [
                     "策略", "sample", "net_win_rate_pct", "net_avg_return_pct",
@@ -2673,7 +2705,13 @@ def render_todays_picks_page():
                 if "ann_return_raw_pct" in perf_df.columns:
                     st.caption("解释: 主口径=截尾后的几何复利年化；原始几何年化不截尾；期望年化为均值法，仅作对照。")
 
-                weight_rows = allocate_meta_weights(perf_rows, max_weight=0.45, min_weight=0.05)
+                weight_source_rows = list(perf_rows or [])
+                if not weight_source_rows:
+                    weight_source_rows = [r for r in display_perf_rows if int(r.get("sample", 0) or 0) >= 8]
+                if not weight_source_rows:
+                    weight_source_rows = list(display_perf_rows[:3])
+
+                weight_rows = allocate_meta_weights(weight_source_rows, max_weight=0.45, min_weight=0.05)
                 weight_df = pd.DataFrame(weight_rows) if weight_rows else pd.DataFrame()
                 b1, b2 = st.columns([1, 1])
                 with b1:
