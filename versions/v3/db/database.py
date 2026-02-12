@@ -32,6 +32,8 @@ USE_SUPABASE = os.environ.get('SUPABASE_URL') is not None
 DB_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(DB_DIR, "coral_creek.db")
 _DB_INIT_DONE = False
+_DB_RECOVERED_FROM_CORRUPTION = False
+_DB_REHYDRATED_AFTER_RECOVERY = False
 
 
 def _is_malformed_error(err: Exception) -> bool:
@@ -54,6 +56,7 @@ def _quarantine_corrupted_db() -> str:
 
 def get_connection():
     """获取数据库连接"""
+    global _DB_RECOVERED_FROM_CORRUPTION
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row  # 返回字典格式
@@ -69,6 +72,7 @@ def get_connection():
         if not _is_malformed_error(e):
             raise
         _quarantine_corrupted_db()
+        _DB_RECOVERED_FROM_CORRUPTION = True
         # 重建一个新库，保证应用可启动
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -79,6 +83,129 @@ def get_connection():
             mem = sqlite3.connect(":memory:")
             mem.row_factory = sqlite3.Row
             return mem
+
+
+def _rehydrate_scan_results_from_supabase(conn, recent_days: int = 14) -> int:
+    """恢复后从 Supabase 回灌最近 N 天 scan_results 到本地 SQLite。"""
+    if not (USE_SUPABASE and SUPABASE_LAYER_AVAILABLE):
+        return 0
+    try:
+        markets = ["US", "CN"]
+        inserted = 0
+        cursor = conn.cursor()
+        for mk in markets:
+            dates = get_scanned_dates_supabase(market=mk) or []
+            if not dates:
+                continue
+            use_dates = dates[: max(1, int(recent_days))]
+            for d in use_dates:
+                rows = query_scan_results_supabase(scan_date=d, market=mk, limit=5000) or []
+                for row in rows:
+                    cursor.execute(
+                        """
+                        INSERT INTO scan_results (
+                            symbol, scan_date, price, turnover_m, blue_daily, blue_weekly, blue_monthly,
+                            adx, volatility, is_heima, is_juedi,
+                            heima_daily, heima_weekly, heima_monthly, juedi_daily, juedi_weekly, juedi_monthly,
+                            strat_d_trend, strat_c_resonance, legacy_signal, regime, adaptive_thresh,
+                            vp_rating, profit_ratio, wave_phase, wave_desc, chan_signal, chan_desc,
+                            duokongwang_buy, duokongwang_sell, market_cap, cap_category, company_name, industry,
+                            day_high, day_low, day_close, stop_loss, shares_rec, risk_reward_score, market, updated_at
+                        ) VALUES (
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP
+                        )
+                        ON CONFLICT(symbol, scan_date) DO UPDATE SET
+                            price = excluded.price,
+                            turnover_m = excluded.turnover_m,
+                            blue_daily = excluded.blue_daily,
+                            blue_weekly = excluded.blue_weekly,
+                            blue_monthly = excluded.blue_monthly,
+                            adx = excluded.adx,
+                            volatility = excluded.volatility,
+                            is_heima = excluded.is_heima,
+                            is_juedi = excluded.is_juedi,
+                            heima_daily = excluded.heima_daily,
+                            heima_weekly = excluded.heima_weekly,
+                            heima_monthly = excluded.heima_monthly,
+                            juedi_daily = excluded.juedi_daily,
+                            juedi_weekly = excluded.juedi_weekly,
+                            juedi_monthly = excluded.juedi_monthly,
+                            strat_d_trend = excluded.strat_d_trend,
+                            strat_c_resonance = excluded.strat_c_resonance,
+                            legacy_signal = excluded.legacy_signal,
+                            regime = excluded.regime,
+                            adaptive_thresh = excluded.adaptive_thresh,
+                            vp_rating = excluded.vp_rating,
+                            profit_ratio = excluded.profit_ratio,
+                            wave_phase = excluded.wave_phase,
+                            wave_desc = excluded.wave_desc,
+                            chan_signal = excluded.chan_signal,
+                            chan_desc = excluded.chan_desc,
+                            duokongwang_buy = excluded.duokongwang_buy,
+                            duokongwang_sell = excluded.duokongwang_sell,
+                            market_cap = excluded.market_cap,
+                            cap_category = excluded.cap_category,
+                            company_name = excluded.company_name,
+                            industry = excluded.industry,
+                            day_high = excluded.day_high,
+                            day_low = excluded.day_low,
+                            day_close = excluded.day_close,
+                            stop_loss = excluded.stop_loss,
+                            shares_rec = excluded.shares_rec,
+                            risk_reward_score = excluded.risk_reward_score,
+                            market = excluded.market,
+                            updated_at = CURRENT_TIMESTAMP
+                        """,
+                        (
+                            row.get("symbol"),
+                            row.get("scan_date"),
+                            row.get("price"),
+                            row.get("turnover_m"),
+                            row.get("blue_daily"),
+                            row.get("blue_weekly"),
+                            row.get("blue_monthly"),
+                            row.get("adx"),
+                            row.get("volatility"),
+                            row.get("is_heima"),
+                            row.get("is_juedi"),
+                            row.get("heima_daily"),
+                            row.get("heima_weekly"),
+                            row.get("heima_monthly"),
+                            row.get("juedi_daily"),
+                            row.get("juedi_weekly"),
+                            row.get("juedi_monthly"),
+                            row.get("strat_d_trend"),
+                            row.get("strat_c_resonance"),
+                            row.get("legacy_signal"),
+                            row.get("regime"),
+                            row.get("adaptive_thresh"),
+                            row.get("vp_rating"),
+                            row.get("profit_ratio"),
+                            row.get("wave_phase"),
+                            row.get("wave_desc"),
+                            row.get("chan_signal"),
+                            row.get("chan_desc"),
+                            row.get("duokongwang_buy"),
+                            row.get("duokongwang_sell"),
+                            row.get("market_cap"),
+                            row.get("cap_category"),
+                            row.get("company_name"),
+                            row.get("industry"),
+                            row.get("day_high"),
+                            row.get("day_low"),
+                            row.get("day_close"),
+                            row.get("stop_loss"),
+                            row.get("shares_rec"),
+                            row.get("risk_reward_score"),
+                            row.get("market", mk),
+                        ),
+                    )
+                    inserted += 1
+        conn.commit()
+        return inserted
+    except Exception as e:
+        print(f"⚠️ Supabase 回灌失败: {e}")
+        return 0
 
 
 @contextmanager
@@ -100,7 +227,7 @@ def get_db():
 
 def init_db():
     """初始化数据库表"""
-    global _DB_INIT_DONE
+    global _DB_INIT_DONE, _DB_REHYDRATED_AFTER_RECOVERY
     if _DB_INIT_DONE:
         return
 
@@ -374,6 +501,13 @@ def init_db():
         except sqlite3.OperationalError:
             print("🔄 Adding market column to scan_results...")
             cursor.execute("ALTER TABLE scan_results ADD COLUMN market VARCHAR(10) DEFAULT 'US'")
+
+        # 仅在“坏库恢复后”执行一次最近数据回灌，避免恢复后页面全空
+        if _DB_RECOVERED_FROM_CORRUPTION and (not _DB_REHYDRATED_AFTER_RECOVERY):
+            recent_days = int(os.environ.get("DB_RECOVERY_REHYDRATE_DAYS", "14"))
+            inserted = _rehydrate_scan_results_from_supabase(conn, recent_days=recent_days)
+            _DB_REHYDRATED_AFTER_RECOVERY = True
+            print(f"🔄 恢复后自动回灌完成: {inserted} 条 (最近{recent_days}天)")
         
         print(f"✅ Database initialized at: {DB_PATH}")
         _DB_INIT_DONE = True
