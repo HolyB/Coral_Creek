@@ -3388,6 +3388,38 @@ def render_todays_picks_page():
         st.divider()
         st.markdown("📊 更多策略详情请下滑查看...")
         # 详细的策略选股在下方继续显示
+        if all_picks:
+            # 策略样本数总览
+            summary_rows = []
+            for strategy_name, picks in all_picks.items():
+                summary_rows.append({
+                    "策略": strategy_name,
+                    "候选数": len(picks or []),
+                })
+            if summary_rows:
+                st.dataframe(pd.DataFrame(summary_rows), width='stretch', hide_index=True)
+
+            st.markdown("#### 📚 各策略明细")
+            for strategy_name, picks in all_picks.items():
+                with st.expander(f"{strategy_name} ({len(picks or [])}只)", expanded=False):
+                    if not picks:
+                        st.info("该策略当前无候选")
+                        continue
+                    rows_show = []
+                    for p in picks:
+                        sym = str(p.get("symbol") or "")
+                        price = float(p.get("price") or 0.0)
+                        score = float(p.get("score") or 0.0)
+                        stop_loss = float(p.get("stop_loss") or 0.0)
+                        rows_show.append({
+                            "代码": sym,
+                            "评分": round(score, 2),
+                            "现价": round(price, 2) if price > 0 else None,
+                            "止损价": round(stop_loss, 2) if stop_loss > 0 else None,
+                        })
+                    st.dataframe(pd.DataFrame(rows_show), width='stretch', hide_index=True)
+        else:
+            st.warning("当前策略列表为空。请检查扫描数据是否已加载，或切换市场后重试。")
     
     # === Tab 4: 我的持仓 (重新设计 - 专注持仓管理) ===
     with work_tab4:
