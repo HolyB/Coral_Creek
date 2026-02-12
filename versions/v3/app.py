@@ -1991,8 +1991,17 @@ def render_todays_picks_page():
         from strategies.decision_system import get_strategy_manager
         from strategies.performance_tracker import get_all_strategy_performance
     except ImportError as e:
-        st.error(f"策略模块导入失败: {e}")
-        return
+        st.warning(f"策略模块导入失败（已降级）: {e}")
+
+        class _DummyStrategyManager:
+            def get_daily_picks(self, *args, **kwargs):
+                return {}
+
+        def get_strategy_manager():
+            return _DummyStrategyManager()
+
+        def get_all_strategy_performance():
+            return []
     
     from db.database import (
         query_scan_results,
@@ -2130,8 +2139,8 @@ def render_todays_picks_page():
     # ============================================
     dates = _cached_scanned_dates(market=market)
     if not dates:
-        st.warning(f"暂无 {market} 市场数据")
-        return
+        st.warning(f"暂无 {market} 市场扫描数据，已进入空数据模式（页面结构保留）。")
+        dates = [datetime.now().strftime("%Y-%m-%d")]
     
     # 扫描日期选择：避免“最新日期样本过少/为空”导致每日机会看起来消失
     recent_dates = dates[:30]
