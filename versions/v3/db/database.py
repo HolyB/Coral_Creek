@@ -10,8 +10,6 @@ from contextlib import contextmanager
 from datetime import datetime, date
 
 # 导入 Supabase 层
-# 注: Streamlit Cloud 热更新阶段偶发导入竞态（py3.13 下可能抛 KeyError），
-# 这里统一降级到 SQLite，避免应用启动失败。
 try:
     from db.supabase_db import (
         is_supabase_available, 
@@ -21,7 +19,7 @@ try:
         insert_scan_result_supabase
     )
     SUPABASE_LAYER_AVAILABLE = True
-except Exception:
+except ImportError:
     SUPABASE_LAYER_AVAILABLE = False
 
 # 避免重复刷屏日志

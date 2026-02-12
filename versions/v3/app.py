@@ -23,41 +23,11 @@ from data_fetcher import get_us_stock_data as fetch_data_from_polygon, get_ticke
 from components.stock_detail import render_unified_stock_detail
 from indicator_utils import calculate_blue_signal_series, calculate_heima_signal_series, calculate_adx_series
 from backtester import SimpleBacktester
-try:
-    from db.database import (
-        query_scan_results, get_scanned_dates, get_db_stats,
-        get_stock_history, init_db, get_scan_job, get_stock_info_batch,
-        get_first_scan_dates, USE_SUPABASE, SUPABASE_LAYER_AVAILABLE
-    )
-except Exception as _db_import_err:
-    print(f"⚠️ db.database 导入失败，进入降级模式: {_db_import_err}")
-
-    def query_scan_results(*args, **kwargs):
-        return []
-
-    def get_scanned_dates(*args, **kwargs):
-        return []
-
-    def get_db_stats(*args, **kwargs):
-        return {}
-
-    def get_stock_history(*args, **kwargs):
-        return []
-
-    def init_db(*args, **kwargs):
-        return None
-
-    def get_scan_job(*args, **kwargs):
-        return None
-
-    def get_stock_info_batch(*args, **kwargs):
-        return {}
-
-    def get_first_scan_dates(*args, **kwargs):
-        return {}
-
-    USE_SUPABASE = False
-    SUPABASE_LAYER_AVAILABLE = False
+from db.database import (
+    query_scan_results, get_scanned_dates, get_db_stats, 
+    get_stock_history, init_db, get_scan_job, get_stock_info_batch,
+    get_first_scan_dates, USE_SUPABASE, SUPABASE_LAYER_AVAILABLE
+)
 
 # 设置页面配置
 st.set_page_config(
