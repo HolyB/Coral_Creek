@@ -2330,14 +2330,6 @@ def _render_todays_picks_page_inner():
                 signal_date=latest_date,
                 source="daily_workbench",
             )
-            # 轻量刷新一次（仅当日、仅一次），避免“信号质量总览”空白
-            refresh_once_key = f"candidate_refresh_once_{market}_{latest_date}"
-            if not st.session_state.get(refresh_once_key, False):
-                try:
-                    refresh_candidate_tracking(market=market, max_rows=1200)
-                except Exception:
-                    pass
-                st.session_state[refresh_once_key] = True
         except Exception as e:
             st.caption(f"候选追踪初始化失败: {e}")
 
@@ -2407,24 +2399,8 @@ def _render_todays_picks_page_inner():
     except Exception:
         tracking_rows_for_action = []
 
-    # 自动轻量补样本（仅在样本为空时触发一次），避免页面进入“空白总览”
-    if not tracking_rows_for_action:
-        auto_bootstrap_key = f"auto_bootstrap_tracking_{market}_{latest_date}"
-        if not st.session_state.get(auto_bootstrap_key, False):
-            try:
-                with st.spinner("正在自动补齐候选追踪样本..."):
-                    added_rows = backfill_candidates_from_scan_history(
-                        market=market,
-                        recent_days=180,
-                        max_per_day=800,
-                    )
-                    refresh_candidate_tracking(market=market, max_rows=3000)
-                    tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
-                st.caption(f"🔧 自动补齐完成: 回填 {added_rows} 条，当前样本 {len(tracking_rows_for_action)}")
-            except Exception as _auto_bootstrap_err:
-                st.caption(f"⚠️ 自动补齐候选追踪失败: {_auto_bootstrap_err}")
-            finally:
-                st.session_state[auto_bootstrap_key] = True
+    # 自动轻量补样本已禁用（会阻塞页面加载数分钟）；
+    # 用户可通过下方手动按钮执行回填
 
     # 手动重建：避免页面加载阶段触发大规模回填导致阻塞
     latest_scan_sample = len(results) if isinstance(results, list) else 0
@@ -2530,11 +2506,15 @@ def _render_todays_picks_page_inner():
         )
 
     # ============================================
-    # 📈 信号质量总览（先看质量再行动）
+    # 📈 信号质量总览（按需加载，避免阻塞 tabs 渲染）
     # ============================================
+    _quality_key = f"quality_computed_{market}"
     try:
       with st.expander(f"📈 信号质量总览（近{action_days_back}天）", expanded=False):
-        if tracking_rows_for_action:
+        _run_quality = st.button("🔍 加载信号质量分析", key=f"run_quality_{market}")
+        if _run_quality:
+            st.session_state[_quality_key] = True
+        if st.session_state.get(_quality_key, False) and tracking_rows_for_action:
             # 统一口径：三张表都基于同一交易事实样本（同一平仓规则）
             preview_exit_rule = st.session_state.get(f"action_exit_rule_{market}", "fixed_10d")
             preview_tp = float(st.session_state.get(f"action_rule_tp_{market}", 10))
@@ -3012,6 +2992,8 @@ def _render_todays_picks_page_inner():
                     st.info("暂无可用组合统计")
             else:
                 st.info("极致条件统计暂无样本，请先在“组合追踪”完成回填与刷新。")
+        elif not st.session_state.get(_quality_key, False):
+            st.caption("💡 点击上方按钮加载信号质量分析（首次加载需要几秒钟）")
         else:
             st.info("暂无候选追踪样本，先运行扫描并回填历史。下面展示当日扫描替代视图。")
             if not df.empty:
