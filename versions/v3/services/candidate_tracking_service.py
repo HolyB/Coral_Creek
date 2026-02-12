@@ -381,7 +381,47 @@ def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
             """,
             (symbol, market, signal_date),
         )
-        return [dict(x) for x in cursor.fetchall()]
+        rows = [dict(x) for x in cursor.fetchall()]
+        if rows:
+            return rows
+
+    # 3) 最后兜底：在线拉取从 signal_date 至今的日线（解决仅快照导致收益长期为0）
+    try:
+        from datetime import datetime as _dt
+        from data_fetcher import get_stock_data
+
+        try:
+            sig_dt = _dt.strptime(str(signal_date), "%Y-%m-%d")
+            days_needed = max(90, (_dt.now() - sig_dt).days + 30)
+        except Exception:
+            days_needed = 180
+        days_needed = max(60, min(int(days_needed), 1200))
+
+        df = get_stock_data(symbol, market=market, days=days_needed)
+        if df is not None and len(df) > 0:
+            out = []
+            for idx, r in df.iterrows():
+                d = str(idx.date()) if hasattr(idx, "date") else str(idx)[:10]
+                if d < str(signal_date):
+                    continue
+                close_px = _to_float(r.get("Close"), 0.0)
+                if close_px <= 0:
+                    continue
+                out.append(
+                    {
+                        "scan_date": d,
+                        "price": close_px,
+                        "day_high": _to_float(r.get("High"), close_px),
+                        "day_low": _to_float(r.get("Low"), close_px),
+                        "day_close": close_px,
+                    }
+                )
+            if out:
+                return out
+    except Exception:
+        pass
+
+    return []
 
 
 def _horizon_return(prices: List[float], horizon: int) -> Optional[float]:

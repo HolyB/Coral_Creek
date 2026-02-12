@@ -2229,8 +2229,9 @@ def render_todays_picks_page():
                     })
 
     # 历史样本：用于给“今日行动”补充可执行置信度
+    action_days_back = 720
     try:
-        tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=360)
+        tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
     except Exception:
         tracking_rows_for_action = []
 
@@ -2318,7 +2319,7 @@ def render_todays_picks_page():
     # ============================================
     # 📈 信号质量总览（先看质量再行动）
     # ============================================
-    with st.expander("📈 信号质量总览（近360天）", expanded=True):
+    with st.expander(f"📈 信号质量总览（近{action_days_back}天）", expanded=True):
         if tracking_rows_for_action:
             # 统一口径：三张表都基于同一交易事实样本（同一平仓规则）
             preview_exit_rule = st.session_state.get(f"action_exit_rule_{market}", "fixed_10d")
@@ -2794,7 +2795,7 @@ def render_todays_picks_page():
             overall_wr = overall_win / len(tracking_rows_for_action) * 100.0
             overall_avg = float(np.mean([float(r.get("pnl_pct") or 0) for r in tracking_rows_for_action]))
             st.caption(
-                f"历史基准（{market}, 近360天）: 样本 {len(tracking_rows_for_action)} | "
+                f"历史基准（{market}, 近{action_days_back}天）: 样本 {len(tracking_rows_for_action)} | "
                 f"胜率 {overall_wr:.1f}% | 平均收益 {overall_avg:+.2f}%"
             )
 

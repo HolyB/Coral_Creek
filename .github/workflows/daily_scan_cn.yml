@@ -182,6 +182,15 @@ jobs:
           if [ -f scan_summary.json ]; then
             mv scan_summary.json scan_summary_cn.json
           fi
+
+      # 回填并刷新 candidate_tracking（避免策略统计样本为0或收益全0）
+      - name: Rebuild candidate tracking (CN)
+        working-directory: versions/v3
+        run: |
+          mkdir -p db
+          cp ../v2/db/coral_creek.db db/coral_creek.db || true
+          python scripts/backfill_candidate_tracking.py --market CN --recent-days 420 --max-per-day 800 --refresh-rows 12000
+          cp db/coral_creek.db ../v2/db/coral_creek.db || true
       
       # 提交数据库到仓库 - 用于 Render
       - name: Commit database to repo

@@ -223,6 +223,17 @@ jobs:
           BARK_GROUP: ${{ secrets.BARK_GROUP }}
         run: |
           python scripts/send_trading_signals.py --market US
+
+      # 回填并刷新 candidate_tracking（避免策略统计样本为0或收益全0）
+      - name: Rebuild candidate tracking (US)
+        working-directory: versions/v3
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: |
+          mkdir -p db
+          cp ../v2/db/coral_creek.db db/coral_creek.db || true
+          python scripts/backfill_candidate_tracking.py --market US --recent-days 420 --max-per-day 800 --refresh-rows 12000
+          cp db/coral_creek.db ../v2/db/coral_creek.db || true
       
       # 提交数据库到仓库 - 用于 Streamlit Cloud
       - name: Commit database to repo
