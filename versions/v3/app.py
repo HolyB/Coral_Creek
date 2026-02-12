@@ -2133,8 +2133,35 @@ def render_todays_picks_page():
         st.warning(f"暂无 {market} 市场数据")
         return
     
-    latest_date = dates[0]
-    results = _cached_scan_results(scan_date=latest_date, market=market, limit=500)
+    # 扫描日期选择：避免“最新日期样本过少/为空”导致每日机会看起来消失
+    recent_dates = dates[:30]
+    date_rows_map = {}
+    preferred_date = recent_dates[0]
+    for d in recent_dates:
+        rows_d = _cached_scan_results(scan_date=d, market=market, limit=2000) or []
+        n_d = len(rows_d)
+        date_rows_map[d] = n_d
+        if n_d >= 30 and preferred_date == recent_dates[0]:
+            preferred_date = d
+
+    with st.sidebar:
+        date_labels = [
+            f"{d} ({date_rows_map.get(d, 0)}条)"
+            for d in recent_dates
+        ]
+        default_idx = 0
+        for i, d in enumerate(recent_dates):
+            if d == preferred_date:
+                default_idx = i
+                break
+        selected_date_label = st.selectbox(
+            "机会扫描日期",
+            options=date_labels,
+            index=default_idx,
+            key=f"picks_scan_date_{market}",
+        )
+    latest_date = selected_date_label.split(" (", 1)[0]
+    results = _cached_scan_results(scan_date=latest_date, market=market, limit=2000)
     df = pd.DataFrame(results) if results else pd.DataFrame()
     
     # 获取持仓数据
