@@ -1,7 +1,7 @@
 {
   "date": "2026-02-12",
   "market": "CN",
-  "total_signals": 103,
+  "total_signals": 107,
   "top_signals": [
     {
       "symbol": "301584.SZ",
@@ -36,6 +36,13 @@
       "name": "百诚医药",
       "price": 49.11,
       "day_blue": 162.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600712.SH",
+      "name": "南宁百货",
+      "price": 6.38,
+      "day_blue": 160.8,
       "week_blue": 0.0
     },
     {
@@ -99,13 +106,6 @@
       "name": "美之高",
       "price": 18.14,
       "day_blue": 134.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300478.SZ",
-      "name": "杭州高新",
-      "price": 24.62,
-      "day_blue": 133.0,
       "week_blue": 0.0
     }
   ]
