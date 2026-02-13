@@ -2396,8 +2396,8 @@ def _render_todays_picks_page_inner():
                         'urgency': 'low'
                     })
 
-    # 历史样本：用于给“今日行动”补充可执行置信度
-    action_days_back = 720
+    # 历史样本：用于给"今日行动"补充可执行置信度（0 = 不限日期，取全量）
+    action_days_back = 0
     try:
         tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
     except Exception:
@@ -2414,12 +2414,12 @@ def _render_todays_picks_page_inner():
             f"⚠️ 候选追踪样本偏少（当前 {len(tracking_rows_for_action)}，建议 >= {sparse_floor}）。"
             "如需补齐，点击下方按钮手动执行。"
         )
-        if st.button("🔧 手动补齐候选追踪（近720天）", key=f"manual_rebuild_tracking_{market}"):
+        if st.button("🔧 手动补齐候选追踪（全量历史）", key=f"manual_rebuild_tracking_{market}"):
             try:
                 with st.spinner("回填与刷新中，可能需要1-3分钟..."):
                     added_rows = backfill_candidates_from_scan_history(
                         market=market,
-                        recent_days=min(int(action_days_back), 720),
+                        recent_days=9999,
                         max_per_day=1200,
                     )
                     refreshed_rows = refresh_candidate_tracking(market=market, max_rows=20000)
@@ -4535,7 +4535,7 @@ def _render_todays_picks_page_inner():
             st.caption(f"市场: {market}")
             if st.button("📥 回填历史扫描", key=f"track_backfill_btn_{market}"):
                 with st.spinner("回填历史扫描信号中..."):
-                    added = backfill_candidates_from_scan_history(market=market, recent_days=180, max_per_day=500)
+                    added = backfill_candidates_from_scan_history(market=market, recent_days=9999, max_per_day=800)
                     refreshed = refresh_candidate_tracking(market=market, max_rows=5000)
                 st.success(f"回填完成: {added} 条 | 刷新: {refreshed} 条")
 
