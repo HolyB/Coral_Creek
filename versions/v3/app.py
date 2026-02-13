@@ -2132,6 +2132,7 @@ def _render_todays_picks_page_inner():
             reclassify_tracking_tags,
             derive_signal_tags,
             evaluate_exit_rule,
+            clear_all_caches as clear_tracking_caches,
             CORE_TAGS,
             DEFAULT_TAG_RULES,
             backfill_candidates_from_scan_history,
@@ -2179,6 +2180,9 @@ def _render_todays_picks_page_inner():
 
         def backfill_candidates_from_scan_history(*args, **kwargs):
             return 0
+
+        def clear_tracking_caches():
+            pass
 
         def evaluate_strategy_baskets(*args, **kwargs):
             return []

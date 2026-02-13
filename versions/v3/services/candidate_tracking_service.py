@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from datetime import datetime
@@ -16,6 +17,29 @@ import numpy as np
 
 from db.database import get_db, init_db, get_scanned_dates, query_scan_results
 from db.stock_history import get_history_db_path
+
+
+# ---------------------------------------------------------------------------
+# 两层缓存 — 避免 evaluate_exit_rule 重复查询价格 / 重复计算技术指标
+# ---------------------------------------------------------------------------
+_price_series_cache: Dict[tuple, List[Dict]] = {}   # (symbol, market, signal_date) -> series
+_exit_rule_cache: Dict[str, Dict] = {}               # hash(rows+rule_params) -> result dict
+
+
+def clear_price_cache() -> None:
+    """释放 _get_price_series 内存缓存。"""
+    _price_series_cache.clear()
+
+
+def clear_exit_cache() -> None:
+    """释放 evaluate_exit_rule 结果缓存。"""
+    _exit_rule_cache.clear()
+
+
+def clear_all_caches() -> None:
+    """一键释放所有分析缓存。"""
+    clear_price_cache()
+    clear_exit_cache()
 
 
 CORE_TAGS = [
@@ -345,6 +369,15 @@ def backfill_candidates_from_scan_history(
 
 
 def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
+    # ---------- 缓存层 ----------
+    _cache_key = (symbol, market, signal_date)
+    if _cache_key in _price_series_cache:
+        return _price_series_cache[_cache_key]
+
+    def _store_and_return(result: List[Dict]) -> List[Dict]:
+        _price_series_cache[_cache_key] = result
+        return result
+
     # 1) 优先从全量历史库读取（覆盖非候选日，更接近真实连续K线）
     try:
         hist_conn = sqlite3.connect(get_history_db_path())
@@ -363,7 +396,7 @@ def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
         hist_rows = [dict(x) for x in hcur.fetchall()]
         hist_conn.close()
         if hist_rows:
-            return hist_rows
+            return _store_and_return(hist_rows)
     except Exception:
         try:
             hist_conn.close()
@@ -386,7 +419,7 @@ def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
                 )
                 rows = [dict(x) for x in cursor.fetchall()]
                 if rows:
-                    return rows
+                    return _store_and_return(rows)
             except Exception:
                 pass
             # 兼容旧表结构：没有 day_high/day_low/day_close 时回退
@@ -402,7 +435,7 @@ def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
                 )
                 rows = [dict(x) for x in cursor.fetchall()]
                 if rows:
-                    return rows
+                    return _store_and_return(rows)
             except Exception:
                 pass
     except sqlite3.DatabaseError as e:
@@ -441,10 +474,11 @@ def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
                     }
                 )
             if out:
-                return out
+                return _store_and_return(out)
     except Exception:
         pass
 
+    _price_series_cache[_cache_key] = []
     return []
 
 
@@ -761,7 +795,7 @@ def evaluate_exit_rule(
     - top_divergence_guard: 价格创新高但动量不创新高（顶背离近似）时保护退出
     - duokongwang_sell: 多空王卖出（通道转弱 + KDJ/RSI过热回落 + 九转衰竭）
     """
-    use_rows = list(rows or [])[: int(max_rows)]
+    use_rows = list(rows or [])[:int(max_rows)]
     if not use_rows:
         return {
             "rule_name": rule_name,
@@ -773,6 +807,20 @@ def evaluate_exit_rule(
             "avg_first_nonprofit_day": None,
             "avg_profit_span_days": None,
         }
+
+    # ---------- 结果级缓存 ----------
+    # 以 rows 的 (symbol, market, signal_date) 集合 + 规则参数 生成唯一 key
+    try:
+        _row_ids = sorted(
+            f"{r.get('symbol','')},{r.get('market','')},{r.get('signal_date','')}"
+            for r in use_rows
+        )
+        _cache_raw = f"{','.join(_row_ids)}|{rule_name}|{take_profit_pct}|{stop_loss_pct}|{max_hold_days}"
+        _exit_cache_key = hashlib.md5(_cache_raw.encode()).hexdigest()
+        if _exit_cache_key in _exit_rule_cache:
+            return _exit_rule_cache[_exit_cache_key]
+    except Exception:
+        _exit_cache_key = None
 
     exits = []
 
@@ -1068,7 +1116,7 @@ def evaluate_exit_rule(
             except Exception:
                 pass
 
-    return {
+    _result = {
         "rule_name": rule_name,
         "sample": len(exits),
         "win_rate_pct": round(wins / len(exits) * 100.0, 1),
@@ -1079,3 +1127,7 @@ def evaluate_exit_rule(
         "avg_profit_span_days": round(float(np.mean(span_days)), 1) if span_days else None,
         "details": exits,
     }
+    # 存入缓存
+    if _exit_cache_key is not None:
+        _exit_rule_cache[_exit_cache_key] = _result
+    return _result

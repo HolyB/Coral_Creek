@@ -79,9 +79,15 @@ max_attempts = 12
 last_exc = None
 last_tb = ""
 
+import random
+import threading
+
+_bootstrap_lock = threading.Lock()
+
 for attempt in range(1, max_attempts + 1):
     try:
-        runpy.run_path(script_path, run_name="__main__")
+        with _bootstrap_lock:
+            runpy.run_path(script_path, run_name="__main__")
         last_exc = None
         break
     except Exception as e:
@@ -95,7 +101,8 @@ for attempt in range(1, max_attempts + 1):
             break
 
         _clear_project_modules(str(e))
-        time.sleep(0.05)
+        # 递增延迟 + 随机抖动，减少多 worker 并发竞态
+        time.sleep(0.2 * attempt + random.uniform(0, 0.3))
 
 if last_exc is not None:
     try:
