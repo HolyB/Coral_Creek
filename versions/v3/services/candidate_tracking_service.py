@@ -368,6 +368,135 @@ def backfill_candidates_from_scan_history(
     return total
 
 
+def _prefetch_price_series_batch(rows: Sequence[Dict]) -> None:
+    """
+    批量预取价格数据，填充 _price_series_cache。
+    将 N 个独立 SQLite 查询合并为 1 个，大幅减少 I/O。
+    """
+    if not rows:
+        return
+
+    # 1) 收集需要预取的 (symbol, market) 及其最早 signal_date
+    needed: Dict[tuple, str] = {}  # (symbol, market) -> min_signal_date
+    all_keys: List[tuple] = []     # [(symbol, market, signal_date), ...]
+
+    for r in rows:
+        sym = str(r.get("symbol") or "").strip()
+        mk = str(r.get("market") or "US")
+        sd = str(r.get("signal_date") or "")
+        if not sym or not sd:
+            continue
+        cache_key = (sym, mk, sd)
+        if cache_key in _price_series_cache:
+            continue
+        all_keys.append(cache_key)
+        key = (sym, mk)
+        if key not in needed or sd < needed[key]:
+            needed[key] = sd
+
+    if not needed:
+        return
+
+    # 2) 按 market 分组，每组一个批量查询
+    by_market: Dict[str, List[str]] = {}
+    min_date_by_market: Dict[str, str] = {}
+    for (sym, mk), min_sd in needed.items():
+        by_market.setdefault(mk, []).append(sym)
+        if mk not in min_date_by_market or min_sd < min_date_by_market[mk]:
+            min_date_by_market[mk] = min_sd
+
+    for market, symbols in by_market.items():
+        min_date = min_date_by_market[market]
+        # symbol -> [(scan_date, {dict}), ...]  按 trade_date 升序
+        all_data: Dict[str, List[Dict]] = {}
+
+        # --- stock_history 批量查询 ---
+        try:
+            hist_conn = sqlite3.connect(get_history_db_path())
+            hist_conn.row_factory = sqlite3.Row
+            hcur = hist_conn.cursor()
+            placeholders = ",".join(["?"] * len(symbols))
+            hcur.execute(
+                f"""
+                SELECT symbol,
+                       trade_date AS scan_date, close AS price,
+                       high AS day_high, low AS day_low, close AS day_close
+                FROM stock_history
+                WHERE market = ? AND symbol IN ({placeholders})
+                  AND trade_date >= ? AND close IS NOT NULL AND close > 0
+                ORDER BY symbol, trade_date ASC
+                """,
+                [market] + symbols + [min_date],
+            )
+            for row_obj in hcur.fetchall():
+                d = dict(row_obj)
+                sym = d.pop("symbol", "")
+                all_data.setdefault(sym, []).append(d)
+            hist_conn.close()
+        except Exception:
+            try:
+                hist_conn.close()  # type: ignore[possibly-undefined]
+            except Exception:
+                pass
+
+        # --- 对没有 stock_history 数据的 symbol，批量查 scan_results ---
+        missing_symbols = [s for s in symbols if s not in all_data]
+        if missing_symbols:
+            try:
+                with get_db() as conn:
+                    cursor = conn.cursor()
+                    ph2 = ",".join(["?"] * len(missing_symbols))
+                    try:
+                        cursor.execute(
+                            f"""
+                            SELECT symbol, scan_date, price, day_high, day_low, day_close
+                            FROM scan_results
+                            WHERE market = ? AND symbol IN ({ph2})
+                              AND scan_date >= ? AND price IS NOT NULL AND price > 0
+                            ORDER BY symbol, scan_date ASC
+                            """,
+                            [market] + missing_symbols + [min_date],
+                        )
+                        for row_obj in cursor.fetchall():
+                            d = dict(row_obj)
+                            sym = d.pop("symbol", "")
+                            all_data.setdefault(sym, []).append(d)
+                    except Exception:
+                        # 兼容旧表结构
+                        try:
+                            cursor.execute(
+                                f"""
+                                SELECT symbol, scan_date, price
+                                FROM scan_results
+                                WHERE market = ? AND symbol IN ({ph2})
+                                  AND scan_date >= ? AND price IS NOT NULL AND price > 0
+                                ORDER BY symbol, scan_date ASC
+                                """,
+                                [market] + missing_symbols + [min_date],
+                            )
+                            for row_obj in cursor.fetchall():
+                                d = dict(row_obj)
+                                sym = d.pop("symbol", "")
+                                all_data.setdefault(sym, []).append(d)
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+        # 3) 填充 cache：按 signal_date 过滤切片
+        for cache_key in all_keys:
+            sym, mk, sd = cache_key
+            if mk != market:
+                continue
+            if cache_key in _price_series_cache:
+                continue
+            sym_rows = all_data.get(sym)
+            if sym_rows:
+                series = [x for x in sym_rows if str(x.get("scan_date", "")) >= sd]
+                _price_series_cache[cache_key] = series if series else []
+            # 没在 all_data 中的 symbol 不设缓存，让 _get_price_series 走在线 API 兜底
+
+
 def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
     # ---------- 缓存层 ----------
     _cache_key = (symbol, market, signal_date)
@@ -509,6 +638,9 @@ def refresh_candidate_tracking(market: Optional[str] = None, max_rows: int = 200
         params.append(int(max_rows))
         cursor.execute(query, params)
         rows = [dict(x) for x in cursor.fetchall()]
+
+    # 批量预取价格，避免逐行查 DB
+    _prefetch_price_series_batch(rows)
 
     updated = 0
     for row in rows:
@@ -821,6 +953,9 @@ def evaluate_exit_rule(
             return _exit_rule_cache[_exit_cache_key]
     except Exception:
         _exit_cache_key = None
+
+    # ---------- 批量预取价格数据 ----------
+    _prefetch_price_series_batch(use_rows)
 
     exits = []
 
