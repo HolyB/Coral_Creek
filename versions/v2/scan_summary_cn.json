@@ -1,7 +1,7 @@
 {
   "date": "2026-02-12",
   "market": "CN",
-  "total_signals": 84,
+  "total_signals": 103,
   "top_signals": [
     {
       "symbol": "301584.SZ",
@@ -53,6 +53,34 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "001206.SZ",
+      "name": "依依股份",
+      "price": 24.27,
+      "day_blue": 149.3,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "605008.SH",
+      "name": "长鸿高科",
+      "price": 13.12,
+      "day_blue": 148.9,
+      "week_blue": 75.0
+    },
+    {
+      "symbol": "300755.SZ",
+      "name": "华致酒行",
+      "price": 15.79,
+      "day_blue": 146.9,
+      "week_blue": 93.1
+    },
+    {
+      "symbol": "300803.SZ",
+      "name": "指南针",
+      "price": 118.47,
+      "day_blue": 145.5,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "688198.SH",
       "name": "佰仁医疗",
       "price": 100.9,
@@ -78,34 +106,6 @@
       "name": "杭州高新",
       "price": 24.62,
       "day_blue": 133.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920339.BJ",
-      "name": "恒太照明",
-      "price": 9.65,
-      "day_blue": 132.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920005.BJ",
-      "name": "鼎佳精密",
-      "price": 38.89,
-      "day_blue": 130.6,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920821.BJ",
-      "name": "则成电子",
-      "price": 24.26,
-      "day_blue": 122.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920185.BJ",
-      "name": "贝特瑞",
-      "price": 29.46,
-      "day_blue": 120.0,
       "week_blue": 0.0
     }
   ]
