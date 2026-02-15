@@ -25,6 +25,46 @@ from indicator_utils import (
     calculate_adx_series, calculate_volume_profile_metrics,
     calculate_volatility, analyze_elliott_wave_proxy, analyze_chanlun_proxy
 )
+from ml.data_cache import DataCache
+
+# ML Components
+try:
+    import numpy as np
+    import pandas as pd
+    from ml.models.signal_ranker import SignalRanker, TradingHorizon
+    from ml.feature_engineering import FeatureEngineer
+    _ranker_model = None
+    _feature_engineer = FeatureEngineer()
+    ML_AVAILABLE = True
+except Exception as e:
+    print(f"⚠️ ML import failed: {e}")
+    ML_AVAILABLE = False
+    _ranker_model = None
+
+# 初始化数据缓存
+_data_cache = DataCache()
+
+
+def _load_ranker_model():
+    """按需加载排序模型"""
+    return None  # 暂时禁用 ML Ranker 以防止 Backfill 崩溃
+    
+    global _ranker_model
+    if not ML_AVAILABLE: return None
+    if _ranker_model is not None: return _ranker_model
+    
+    try:
+        model_path = os.path.join(parent_dir, "ml", "models", "trained", "signal_ranker_v1")
+        ranker = SignalRanker()
+        if ranker.load(str(model_path)):
+            _ranker_model = ranker
+        else:
+            # print(f"⚠️ ML Ranker not found at {model_path}")
+            pass
+    except Exception as e:
+        print(f"⚠️ Failed to load ML Ranker: {e}")
+    
+    return _ranker_model
 
 
 def analyze_stock_for_date(symbol, target_date, market='US'):
@@ -50,7 +90,21 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
         days_needed = 3650  # 10年
         
         if market == 'US':
-            df = get_us_stock_data(symbol, days=days_needed)
+            # 使用 DataCache 替代 get_us_stock_data
+            df = _data_cache.get_stock_history(symbol, market='US', days=days_needed)
+            
+            # DataCache 返回全小写列名 (open, high, low, close, volume)
+            # 需要兼容下面的大写逻辑，或者把下面改成小写
+            # 为了最小改动，这里重命名为大写
+            if df is not None:
+                df = df.rename(columns={
+                    'open': 'Open', 'high': 'High', 'low': 'Low', 
+                    'close': 'Close', 'volume': 'Volume'
+                })
+                # Set index to date
+                if 'date' in df.columns:
+                    df = df.set_index('date')
+                
         elif market == 'CN':
             df = get_cn_stock_data(symbol, days=days_needed)
         else:
@@ -109,8 +163,8 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
         
         # 黑马/掘地信号 - 日线
         heima_arr, juedi_arr = calculate_heima_signal_series(highs, lows, closes, opens)
-        curr_heima = heima_arr[-1] if len(heima_arr) > 0 else False
-        curr_juedi = juedi_arr[-1] if len(juedi_arr) > 0 else False
+        curr_heima = bool(heima_arr[-1]) if len(heima_arr) > 0 else False
+        curr_juedi = bool(juedi_arr[-1]) if len(juedi_arr) > 0 else False
         heima_daily = curr_heima
         juedi_daily = curr_juedi
         
@@ -138,7 +192,7 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
         
         # ADX
         adx_series = calculate_adx_series(highs, lows, closes)
-        adx_val = adx_series[-1] if len(adx_series) > 0 else 0
+        adx_val = float(adx_series[-1]) if len(adx_series) > 0 else 0.0
         
         # 波动率
         volatility = calculate_volatility(closes)
@@ -292,9 +346,38 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
         # 风险回报评分
         risk_reward = (vp_res['profit_ratio'] * 100 + adx_val) / 2 if vp_res else adx_val
         
+        # ML Scoring
+        ml_rank_score = None
+        try:
+            ranker = _load_ranker_model()
+            if ranker and _feature_engineer:
+                # Rename back to lowercase for FE
+                ml_df = df.rename(columns={
+                    'Open': 'open', 'High': 'high', 'Low': 'low', 
+                    'Close': 'close', 'Volume': 'volume'
+                })
+                
+                # Transform (extract features)
+                ml_feats = _feature_engineer.transform(ml_df)
+                
+                if not ml_feats.empty:
+                    # Predict on latest data
+                    # Ensure features match model requirements
+                    valid_feats = [col for col in ranker.feature_names if col in ml_feats.columns]
+                    if len(valid_feats) == len(ranker.feature_names):
+                        X_pred = ml_feats.iloc[[-1]][ranker.feature_names].values
+                        # Handle Inf/Nan
+                        X_pred = np.nan_to_num(X_pred, nan=0.0, posinf=0.0, neginf=0.0)
+                        
+                        score = ranker.rank(X_pred, TradingHorizon.SHORT)[0]
+                        ml_rank_score = float(score)
+        except Exception:
+            pass
+        
         return {
             'Symbol': symbol,
             'Date': latest_date.strftime('%Y-%m-%d'),
+            'ML_Rank_Score': ml_rank_score,
             'Price': round(curr_price, 2),
             'Turnover_M': round(turnover, 2),
             'Blue_Daily': round(day_blue_val, 1),
@@ -430,39 +513,52 @@ def run_scan_for_date(target_date, market='US', max_workers=30, limit=0, save_to
             if scanned % 500 == 0 and save_to_db:
                 update_scan_job(target_date, scanned_stocks=scanned, signals_found=len(results))
     
-    # 获取公司信息 (只对有信号的股票)
-    print(f"\n📇 Fetching company info for {len(results)} candidates...")
-    for result in tqdm(results, desc="Fetching details"):
-        try:
-            # 根据市场选择不同的详情获取函数
-            if market == 'CN':
-                details = get_cn_ticker_details(result['Symbol'])
-            else:
-                details = get_ticker_details(result['Symbol'])
-                
-            if details:
-                result['Company_Name'] = details.get('name')
-                result['Industry'] = details.get('sic_description')
-                result['Market_Cap'] = details.get('market_cap')
-                
-                # 市值分类
-                mc = details.get('market_cap', 0) or 0
-                if mc >= 200_000_000_000:
-                    result['Cap_Category'] = 'Mega-Cap (超大盘)'
-                elif mc >= 10_000_000_000:
-                    result['Cap_Category'] = 'Large-Cap (大盘)'
-                elif mc >= 2_000_000_000:
-                    result['Cap_Category'] = 'Mid-Cap (中盘)'
-                elif mc >= 300_000_000:
-                    result['Cap_Category'] = 'Small-Cap (小盘)'
-                elif mc > 0:
-                    result['Cap_Category'] = 'Micro-Cap (微盘)'
-                
-                # 更新数据库
-                if save_to_db:
-                    insert_scan_result(result)
-        except:
-            pass
+    # 获取公司信息 (只对有信号的股票，且仅在最近日期执行，避免 Backfill 变慢)
+    # 注意：get_ticker_details 返回的是当前快照，对历史回测会有 Lookahead Bias，且速度极慢。
+    try:
+        if isinstance(target_date, str):
+            t_date_obj = datetime.strptime(target_date, '%Y-%m-%d').date()
+        else:
+            t_date_obj = target_date
+        days_diff = (datetime.now().date() - t_date_obj).days
+    except:
+        days_diff = 0
+
+    if days_diff < 5:
+        print(f"\n📇 Fetching company info for {len(results)} candidates...")
+        for result in tqdm(results, desc="Fetching details"):
+            try:
+                # 根据市场选择不同的详情获取函数
+                if market == 'CN':
+                    details = get_cn_ticker_details(result['Symbol'])
+                else:
+                    details = get_ticker_details(result['Symbol'])
+                    
+                if details:
+                    result['Company_Name'] = details.get('name')
+                    result['Industry'] = details.get('sic_description')
+                    result['Market_Cap'] = details.get('market_cap')
+                    
+                    # 市值分类
+                    mc = details.get('market_cap', 0) or 0
+                    if mc >= 200_000_000_000:
+                        result['Cap_Category'] = 'Mega-Cap (超大盘)'
+                    elif mc >= 10_000_000_000:
+                        result['Cap_Category'] = 'Large-Cap (大盘)'
+                    elif mc >= 2_000_000_000:
+                        result['Cap_Category'] = 'Mid-Cap (中盘)'
+                    elif mc >= 300_000_000:
+                        result['Cap_Category'] = 'Small-Cap (小盘)'
+                    elif mc > 0:
+                        result['Cap_Category'] = 'Micro-Cap (微盘)'
+                    
+                    # 更新数据库
+                    if save_to_db:
+                        insert_scan_result(result)
+            except:
+                pass
+    else:
+        print(f"\n⏩ Skipping company details fetch for historical date {target_date} (Speed optimization)")
     
     # 完成扫描
     if save_to_db:

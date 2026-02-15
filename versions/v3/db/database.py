@@ -322,6 +322,12 @@ def init_db():
             except Exception:
                 pass
         
+        # ML 排序分数
+        try:
+            cursor.execute("ALTER TABLE scan_results ADD COLUMN ml_rank_score REAL")
+        except Exception:
+            pass
+        
         # 扫描任务表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS scan_jobs (
@@ -696,8 +702,8 @@ def insert_scan_result(result_dict):
                 strat_d_trend, strat_c_resonance,
                 legacy_signal, regime, adaptive_thresh, vp_rating, profit_ratio,
                 wave_phase, wave_desc, chan_signal, chan_desc, duokongwang_buy, duokongwang_sell,
-                market_cap, cap_category, company_name, industry, day_high, day_low, day_close, stop_loss, shares_rec, risk_reward_score, market, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                market_cap, cap_category, company_name, industry, day_high, day_low, day_close, stop_loss, shares_rec, risk_reward_score, market, ml_rank_score, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(symbol, scan_date) DO UPDATE SET
                 price = excluded.price,
                 turnover_m = excluded.turnover_m,
@@ -737,6 +743,7 @@ def insert_scan_result(result_dict):
                 stop_loss = excluded.stop_loss,
                 shares_rec = excluded.shares_rec,
                 risk_reward_score = excluded.risk_reward_score,
+                ml_rank_score = excluded.ml_rank_score,
                 market = excluded.market,
                 updated_at = CURRENT_TIMESTAMP
         """, (
@@ -780,7 +787,8 @@ def insert_scan_result(result_dict):
             result_dict.get('Stop_Loss'),
             result_dict.get('Shares_Rec'),
             result_dict.get('Risk_Reward_Score'),
-            result_dict.get('Market', 'US')  # 默认 US
+            result_dict.get('Market', 'US'), # 默认 US
+            result_dict.get('ML_Rank_Score')
         ))
     
     # 2. 同步写入 Supabase (云端)
