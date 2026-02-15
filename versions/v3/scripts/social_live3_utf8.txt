@@ -1,0 +1,33 @@
+﻿python : Impersonate 'safari_16' does not exist, using 
+'random'
+At line:1 char:32
++ ... NG='utf-8'; python scripts/run_social_kol_scan.py
+ --tag TEST_LIVE3 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Impersona 
+   te 'sa... using 'random':String) [], RemoteExcepti  
+  on
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+*馃摗 绀句氦澶鍠婂崟鑷姩杩借釜*
+`2026-02-13 17:36`
+鏍囩: `TEST_LIVE3` | 璇勪及鍛ㄦ湡: 10澶?
+
+鎶撳彇缁撴灉: KOL 4 | 鏂板鍗氫富 0 | 鏂板鎺ㄨ崘 4 | 鍘婚噸璺宠繃 5
+
+*馃幆 浠婃棩鏂板鎺ㄨ崘:*
+鈥?*Roaring Kitty* (Twitter): YOU(B), TRUE(B)
+鈥?*WallStreetBets* (Reddit): WWR(S)
+鈥?*闆悆鐑* (闆悆): 000001.SZ(B)
+
+馃搳 KOL鎶撳彇缁熻:
+- Roaring Kitty(Twitter): 甯栧瓙 10 | 璇嗗埆 5 | 鏂板 2 | 鍘婚噸 3
+- WallStreetBets(Reddit): 甯栧瓙 8 | 璇嗗埆 3 | 鏂板 1 | 鍘婚噸 2
+- 闆悆鐑(闆悆): 甯栧瓙 10 | 璇嗗埆 1 | 鏂板 1
+- 璐㈢粡鍗氫富鏍锋湰(寰崥): 甯栧瓙 7 | 璇嗗埆 0 | 鏂板 0
+
+- 鏆傛棤鍙瘎浼版牱鏈紙闇€绛夊緟璇勪及鍛ㄦ湡缁撴潫锛?
+
+_浠呬緵鐮旂┒锛屼笉鏋勬垚鎶曡祫寤鸿_
+NOTIFY_STATUS|overall=True|telegram=True|wecom=True|wxpusher=True|bark=True
