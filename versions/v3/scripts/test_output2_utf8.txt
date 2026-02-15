@@ -1,0 +1,151 @@
+﻿python : D:\Cursor\Coral_Creek-1\versions\v3\scripts\te
+st_social_kol.py:10: RuntimeWarning: This package (`duc
+kduckgo_search`) has been renamed to `ddgs`! Use `pip i
+nstall ddgs` instead.
+At line:1 char:32
++ ... NG='utf-8'; python scripts/test_social_kol.py *> 
+scripts\test_output2 ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (D:\Cursor 
+   \Coral... ddgs` instead.:String) [], RemoteExcepti  
+  on
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  with DDGS() as ddgs:
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\expressions\parser.py:72: PyparsingDep
+recationWarning: 'enablePackrat' deprecated - use 'enab
+le_packrat'
+  ParserElement.enablePackrat()
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\expressions\parser.py:85: PyparsingDep
+recationWarning: 'escChar' argument is deprecated, use 
+'esc_char'
+  quoted_identifier = QuotedString('"', escChar="\\", u
+nquoteResults=True)
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\expressions\parser.py:85: PyparsingDep
+recationWarning: 'unquoteResults' argument is deprecate
+d, use 'unquote_results'
+  quoted_identifier = QuotedString('"', escChar="\\", u
+nquoteResults=True)
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\table\metadata.py:365: PydanticDepreca
+tedSince212: Using `@model_validator` with mode='after'
+ on a classmethod is deprecated. Instead, use an instan
+ce method. See the documentation at https://docs.pydant
+ic.dev/2.12/concepts/validators/#model-after-validator.
+ Deprecated in Pydantic V2.12 to be removed in V3.0.
+  @model_validator(mode="after")
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\table\metadata.py:494: PydanticDepreca
+tedSince212: Using `@model_validator` with mode='after'
+ on a classmethod is deprecated. Instead, use an instan
+ce method. See the documentation at https://docs.pydant
+ic.dev/2.12/concepts/validators/#model-after-validator.
+ Deprecated in Pydantic V2.12 to be removed in V3.0.
+  @model_validator(mode="after")
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\table\metadata.py:498: PydanticDepreca
+tedSince212: Using `@model_validator` with mode='after'
+ on a classmethod is deprecated. Instead, use an instan
+ce method. See the documentation at https://docs.pydant
+ic.dev/2.12/concepts/validators/#model-after-validator.
+ Deprecated in Pydantic V2.12 to be removed in V3.0.
+  @model_validator(mode="after")
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\table\metadata.py:502: PydanticDepreca
+tedSince212: Using `@model_validator` with mode='after'
+ on a classmethod is deprecated. Instead, use an instan
+ce method. See the documentation at https://docs.pydant
+ic.dev/2.12/concepts/validators/#model-after-validator.
+ Deprecated in Pydantic V2.12 to be removed in V3.0.
+  @model_validator(mode="after")
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\table\metadata.py:506: PydanticDepreca
+tedSince212: Using `@model_validator` with mode='after'
+ on a classmethod is deprecated. Instead, use an instan
+ce method. See the documentation at https://docs.pydant
+ic.dev/2.12/concepts/validators/#model-after-validator.
+ Deprecated in Pydantic V2.12 to be removed in V3.0.
+  @model_validator(mode="after")
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\table\metadata.py:538: PydanticDepreca
+tedSince212: Using `@model_validator` with mode='after'
+ on a classmethod is deprecated. Instead, use an instan
+ce method. See the documentation at https://docs.pydant
+ic.dev/2.12/concepts/validators/#model-after-validator.
+ Deprecated in Pydantic V2.12 to be removed in V3.0.
+  @model_validator(mode="after")
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\table\metadata.py:542: PydanticDepreca
+tedSince212: Using `@model_validator` with mode='after'
+ on a classmethod is deprecated. Instead, use an instan
+ce method. See the documentation at https://docs.pydant
+ic.dev/2.12/concepts/validators/#model-after-validator.
+ Deprecated in Pydantic V2.12 to be removed in V3.0.
+  @model_validator(mode="after")
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\table\metadata.py:546: PydanticDepreca
+tedSince212: Using `@model_validator` with mode='after'
+ on a classmethod is deprecated. Instead, use an instan
+ce method. See the documentation at https://docs.pydant
+ic.dev/2.12/concepts/validators/#model-after-validator.
+ Deprecated in Pydantic V2.12 to be removed in V3.0.
+  @model_validator(mode="after")
+C:\Users\dingx\AppData\Roaming\Python\Python312\site-pa
+ckages\pyiceberg\table\metadata.py:550: PydanticDepreca
+tedSince212: Using `@model_validator` with mode='after'
+ on a classmethod is deprecated. Instead, use an instan
+ce method. See the documentation at https://docs.pydant
+ic.dev/2.12/concepts/validators/#model-after-validator.
+ Deprecated in Pydantic V2.12 to be removed in V3.0.
+  @model_validator(mode="after")
+Impersonate 'chrome_107' does not exist, using 'random'
+=== 1. DDGS 鎼滅储娴嬭瘯 ===
+  鎼滅储缁撴灉: 0 鏉?
+
+=== 2. ticker 璇嗗埆娴嬭瘯 ===
+  text: $NVDA is going to moon! Buy now!
+  tickers: ['IS', 'NVDA', 'TO']
+    IS -> market=US, normalized=IS
+    NVDA -> market=US, normalized=NVDA
+    TO -> market=US, normalized=TO
+
+  text: I'm bullish on $TSLA and $AAPL
+  tickers: ['AAPL', 'ON', 'TSLA']
+    AAPL -> market=US, normalized=AAPL
+    ON -> market=US, normalized=ON
+    TSLA -> market=US, normalized=TSLA
+
+  text: Roaring Kitty just posted about GameStop GME
+  tickers: ['GME']
+    GME -> market=US, normalized=GME
+
+  text: 涔板叆600519璐靛窞鑼呭彴
+  tickers: ['600519']
+    600519 -> market=CN, normalized=600519.SZ
+
+  text: 鐪嬪ソ000001.SZ
+  tickers: ['000001', 'SZ']
+    000001 -> market=CN, normalized=000001.SZ
+    SZ -> market=US, normalized=SZ
+
+=== 3. symbol universe 娴嬭瘯 ===
+  US symbols: 10297
+  CN symbols: 1866
+  US sample: ['A', 'AA', 'AAAU', 'AACG', 'AADI', 'AADR', 'AAL', 'AAME', 'AAOI', 'AAON']
+
+=== 4. 瀹屾暣娴佺▼娴嬭瘯 (1 KOL) ===
+鉁?Blogger tables initialized
+  processed_kols: 1
+  new_bloggers: 0
+  added_recommendations: 6
+  skipped_duplicates: 0
+  KOL: TestKOL | posts=5 | tickers=6 | added=6
+sys:1: ResourceWarning: unclosed <ssl.SSLSocket fd=1136
+, family=2, type=1, proto=0, laddr=('10.0.0.155', 10702
+), raddr=('52.250.42.157', 443)>
+ResourceWarning: Enable tracemalloc to get the object a
+llocation traceback

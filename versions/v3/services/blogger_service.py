@@ -269,18 +269,59 @@ def _detect_market_from_ticker(token: str):
     return None, None
 
 
+# 英文常见词停用表（防止被误识别为 ticker）
+_STOP_WORDS = {
+    # 冠词/代词/介词/连词
+    "THE", "AND", "FOR", "WITH", "THIS", "THAT", "FROM", "WILL", "INTO",
+    "OVER", "JUST", "ALSO", "THAN", "THEN", "BEEN", "WHEN", "WHAT",
+    "HAVE", "HAS", "HAD", "ARE", "WAS", "WERE", "BEEN", "YOUR", "THEY",
+    "THEM", "SOME", "EACH", "BOTH", "SUCH", "MORE", "MOST", "VERY",
+    "MUCH", "MANY", "ONLY", "EVEN", "BACK", "HERE", "THERE",
+    # 动词
+    "BUY", "SELL", "HOLD", "LIKE", "MAKE", "TAKE", "COME", "KNOW",
+    "WANT", "NEED", "LOOK", "GOING", "GET", "GOT", "CAN", "MAY",
+    "DOES", "DID", "LET", "SAY", "SAID", "SEE", "SEEN", "KEEP",
+    "THINK", "COULD", "WOULD", "SHOULD", "STILL", "DONE",
+    # 名词/形容词/副词
+    "STOCK", "MOON", "HUGE", "ABOUT", "AFTER", "GREAT", "BEST",
+    "GOOD", "BAD", "HIGH", "LOW", "LONG", "SHORT", "BULL", "BEAR",
+    "NEW", "OLD", "BIG", "PUT", "CALL", "NEXT", "TOP", "ALL",
+    "NOT", "NOW", "HOW", "WHY", "WHO", "OUR", "OUT", "UP",
+    "DOWN", "OFF", "YET", "EVER", "WEEK", "DAY", "YEAR",
+    # 金融术语（不是 ticker）
+    "IPO", "ETF", "GDP", "CEO", "CFO", "CTO", "USD", "EUR",
+    "ATH", "ATL", "RSI", "EPS", "PE", "ROE", "ROI",
+    "SEC", "FED", "IMF", "NYSE", "OTC",
+    # 网站/平台
+    "SITE", "COM", "WWW", "HTTP", "HTTPS",
+    # 社交媒体常见词
+    "POST", "KITTY", "USER", "POSTED", "TWEET",
+    # 其他常见 3+ 字母英文词
+    "YOU", "YOUR", "HIS", "HER", "ITS", "OUR", "TRUE", "FALSE",
+    "NOT", "BUT", "ONE", "TWO", "USE", "ANY", "FEW",
+    "SAME", "REAL", "LAST", "FULL", "OPEN", "LATE", "SURE",
+    "LIVE", "GAME", "TIME", "LIFE", "FREE", "LOVE", "PLAY",
+    "TEXT", "DATA", "READ", "SHOW", "VIEW", "MOVE", "HELP",
+    "WORK", "PART", "PLAN", "RUNS", "TURN", "IDEA",
+    "JUST", "ALSO", "BEEN", "WELL", "DONE", "MADE",
+    "CHAT", "TALK", "WORD", "NAME", "LIST",
+    "WAR", "WIN", "WON", "RUN", "SET", "TRY", "AGO",
+}
+
+
 def _extract_tickers_from_text(text: str):
     s = str(text or "")
     found = set()
-    # US: $NVDA / NVDA
+    # US: $NVDA（cashtag 最可靠, 1-5字母都收录）
     for m in re.findall(r"\$([A-Z]{1,5})", s.upper()):
         found.add(m)
-    for m in re.findall(r"\b([A-Z]{2,5})\b", s.upper()):
-        if m in {"THE", "AND", "FOR", "WITH", "THIS", "THAT", "FROM", "WILL", "HOLD", "SELL", "BUY"}:
+    # US: 大写3-5字母单词（无 $ 前缀，要求至少3字母减少 BY/ON/ET 等误识别）
+    for m in re.findall(r"\b([A-Z]{3,5})\b", s.upper()):
+        if m in _STOP_WORDS:
             continue
         found.add(m)
-    # CN: 6位代码
-    for m in re.findall(r"\b(\d{6})(?:\.(?:SZ|SH))?\b", s.upper()):
+    # CN: 6位代码（不要求 \b 因为中文没有空格）
+    for m in re.findall(r"(?<!\d)(\d{6})(?:\.(?:SZ|SH|BJ))?(?!\d)", s.upper()):
         found.add(m)
     return sorted(found)
 
@@ -325,42 +366,58 @@ def _source_already_exists(blogger_id: int, ticker: str, source_url: str):
 
 
 def _search_web_posts(query: str, limit: int = 15):
+    """使用 DuckDuckGo 搜索网页帖子"""
+    DDGS = None
+    # 先尝试新包名 ddgs，再回退到旧包名 duckduckgo_search
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS as _D
+        DDGS = _D
     except Exception:
+        pass
+    if DDGS is None:
         try:
-            from ddgs import DDGS
+            from duckduckgo_search import DDGS as _D
+            DDGS = _D
         except Exception:
             return []
     try:
-        with DDGS() as ddgs:
-            return list(ddgs.text(query, max_results=limit) or [])
-    except Exception:
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            with DDGS() as ddgs:
+                results = list(ddgs.text(query, max_results=limit) or [])
+                return results
+    except Exception as e:
+        print(f"  ⚠️ DDGS search error: {e}")
         return []
 
 
 def _build_symbol_universe():
-    """用最新扫描结果构建可交易代码集合，降低误识别噪音。"""
+    """用最新扫描结果构建可交易代码集合，降低误识别噪音。
+    直接查 SQLite 获取所有不重复 symbol，避免 query_scan_results 的 limit 截断。
+    """
+    import sqlite3, os
     uni = {"US": set(), "CN": set()}
     try:
-        us_dates = get_scanned_dates(market="US")
-        if us_dates:
-            us_rows = query_scan_results(scan_date=us_dates[0], market="US", limit=5000) or []
-            uni["US"] = {str(x.get("symbol", "")).upper().strip() for x in us_rows if str(x.get("symbol", "")).strip()}
-    except Exception:
-        pass
-    try:
-        cn_dates = get_scanned_dates(market="CN")
-        if cn_dates:
-            cn_rows = query_scan_results(scan_date=cn_dates[0], market="CN", limit=5000) or []
-            uni["CN"] = {str(x.get("symbol", "")).upper().strip() for x in cn_rows if str(x.get("symbol", "")).strip()}
-            # 兼容裸六码
-            for s in list(uni["CN"]):
-                code = s.split(".")[0]
-                if code and code.isdigit() and len(code) == 6:
-                    uni["CN"].add(code)
-    except Exception:
-        pass
+        db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "db", "coral_creek.db")
+        if not os.path.exists(db_path):
+            return uni
+        conn = sqlite3.connect(db_path)
+        # 获取所有 US 符号
+        cur = conn.execute("SELECT DISTINCT symbol FROM scan_results WHERE market = 'US'")
+        uni["US"] = {str(r[0]).upper().strip() for r in cur.fetchall() if r[0]}
+        # 获取所有 CN 符号
+        cur = conn.execute("SELECT DISTINCT symbol FROM scan_results WHERE market = 'CN'")
+        cn_raw = {str(r[0]).upper().strip() for r in cur.fetchall() if r[0]}
+        uni["CN"] = cn_raw
+        # 兼容裸六码
+        for s in list(cn_raw):
+            code = s.split(".")[0]
+            if code and code.isdigit() and len(code) == 6:
+                uni["CN"].add(code)
+        conn.close()
+    except Exception as e:
+        print(f"  ⚠️ build_symbol_universe error: {e}")
     return uni
 
 
@@ -419,6 +476,7 @@ def collect_social_kol_recommendations(kol_configs, portfolio_tag="AUTO_SOCIAL_K
             kol_ticker_hits = 0
             kol_added = 0
             kol_dup = 0
+            kol_tickers_added = []  # 记录具体添加的 ticker
 
             for it in results:
                 title = str(it.get("title") or "")
@@ -464,6 +522,7 @@ def collect_social_kol_recommendations(kol_configs, portfolio_tag="AUTO_SOCIAL_K
                     )
                     summary["added_recommendations"] += 1
                     kol_added += 1
+                    kol_tickers_added.append(f"{normalized}({rec_type[0]})")
             summary["kol_stats"].append({
                 "name": name,
                 "platform": platform,
@@ -472,6 +531,7 @@ def collect_social_kol_recommendations(kol_configs, portfolio_tag="AUTO_SOCIAL_K
                 "ticker_hits": kol_ticker_hits,
                 "added": kol_added,
                 "duplicates": kol_dup,
+                "tickers": kol_tickers_added,
             })
         except Exception as e:
             summary["errors"].append(str(e)[:160])

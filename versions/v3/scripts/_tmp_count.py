@@ -1,0 +1,11 @@
+import sqlite3
+conn = sqlite3.connect('db/coral_creek.db')
+cur = conn.execute("SELECT COUNT(*) as cnt, COUNT(DISTINCT scan_date) as dates, COUNT(DISTINCT symbol) as symbols FROM scan_results")
+r = cur.fetchone()
+print(f"Total: {r[0]:,} records | {r[1]} dates | {r[2]:,} symbols")
+cur = conn.execute("SELECT MIN(scan_date) as mn, MAX(scan_date) as mx FROM scan_results")
+r = cur.fetchone()
+print(f"Date range: {r[0]} ~ {r[1]}")
+cur = conn.execute("SELECT COUNT(DISTINCT scan_date) FROM scan_results WHERE scan_date < '2026-01-01'")
+print(f"Backfill dates: {cur.fetchone()[0]}")
+conn.close()

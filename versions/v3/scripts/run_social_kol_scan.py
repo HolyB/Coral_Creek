@@ -66,21 +66,46 @@ def _format_report(ingest_ret: Dict, perf_rows: List[Dict], tag: str, horizon_da
             f"新增推荐 {ingest_ret.get('added_recommendations', 0)} | "
             f"去重跳过 {ingest_ret.get('skipped_duplicates', 0)}"
         ),
-        "",
-        "Top 评估（按方向收益）:",
     ]
 
+    # 每个 KOL 的具体推荐
     kol_stats = ingest_ret.get("kol_stats") or []
-    if kol_stats:
-        lines.append("KOL抓取诊断:")
-        for ks in kol_stats[:8]:
-            lines.append(
-                f"- {ks.get('name','-')}({ks.get('platform','-')}): 帖子 {int(ks.get('posts', 0) or 0)} | "
-                f"识别Ticker {int(ks.get('ticker_hits', 0) or 0)} | 新增 {int(ks.get('added', 0) or 0)}"
-            )
+    has_any_ticker = any(ks.get("tickers") for ks in kol_stats)
+    if has_any_ticker:
         lines.append("")
+        lines.append("*🎯 今日新增推荐:*")
+        for ks in kol_stats:
+            tickers = ks.get("tickers") or []
+            if not tickers:
+                continue
+            ticker_str = ", ".join(tickers[:15])
+            if len(tickers) > 15:
+                ticker_str += f" ...+{len(tickers)-15}"
+            lines.append(
+                f"• *{ks.get('name', '-')}* ({ks.get('platform', '-')}): "
+                f"{ticker_str}"
+            )
+    elif kol_stats:
+        lines.append("")
+        lines.append("⚠️ 本次未抓取到新推荐")
 
+    # KOL 抓取诊断
+    if kol_stats:
+        lines.append("")
+        lines.append("📊 KOL抓取统计:")
+        for ks in kol_stats[:8]:
+            dup_info = f" | 去重 {int(ks.get('duplicates', 0) or 0)}" if ks.get('duplicates') else ""
+            lines.append(
+                f"- {ks.get('name','-')}({ks.get('platform','-')}): "
+                f"帖子 {int(ks.get('posts', 0) or 0)} | "
+                f"识别 {int(ks.get('ticker_hits', 0) or 0)} | "
+                f"新增 {int(ks.get('added', 0) or 0)}{dup_info}"
+            )
+
+    # 历史业绩评估
     if perf_rows:
+        lines.append("")
+        lines.append("*📈 博主业绩评估:*")
         for r in perf_rows[:8]:
             lines.append(
                 f"- {r.get('name', '-')}: 样本 {r.get('calculated_count', 0)} | "
@@ -89,11 +114,12 @@ def _format_report(ingest_ret: Dict, perf_rows: List[Dict], tag: str, horizon_da
                 f"平均收益 {float(r.get('avg_return', 0.0)):+.2f}%"
             )
     else:
-        lines.append("- 暂无可评估样本")
+        lines.append("")
+        lines.append("- 暂无可评估样本（需等待评估周期结束）")
 
     if ingest_ret.get("errors"):
         lines.append("")
-        lines.append("错误摘要:")
+        lines.append("❌ 错误摘要:")
         for e in ingest_ret.get("errors", [])[:3]:
             lines.append(f"- {e}")
 

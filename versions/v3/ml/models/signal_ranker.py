@@ -383,8 +383,22 @@ class SignalRanker:
             'metrics': {h.value: m for h, m in self.metrics.items()},
             'horizons': [h.value for h in self.models.keys()]
         }
+        def default(o):
+            if isinstance(o, (np.int_, np.intc, np.intp, np.int8,
+                            np.int16, np.int32, np.int64, np.uint8,
+                            np.uint16, np.uint32, np.uint64)):
+                return int(o)
+            elif isinstance(o, (np.float16, np.float32, np.float64)):
+                return float(o)
+            elif isinstance(o, (np.ndarray,)):
+                return o.tolist()
+            # Catch-all for other numpy scalars
+            if isinstance(o, np.generic):
+                return o.item()
+            raise TypeError
+
         with open(save_dir / "ranker_meta.json", 'w') as f:
-            json.dump(metadata, f, indent=2)
+            json.dump(metadata, f, indent=2, default=default)
         
         print(f"✅ 排序模型已保存: {path}")
     

@@ -1,0 +1,30 @@
+﻿python : Impersonate 'chrome_107' does not exist, using
+ 'random'
+At line:1 char:32
++ ... NG='utf-8'; python scripts/run_social_kol_scan.py
+ --tag TEST_LIVE --h ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Impersona 
+   te 'ch... using 'random':String) [], RemoteExcepti  
+  on
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+*馃摗 绀句氦澶鍠婂崟鑷姩杩借釜*
+`2026-02-13 17:30`
+鏍囩: `TEST_LIVE` | 璇勪及鍛ㄦ湡: 10澶?
+
+鎶撳彇缁撴灉: KOL 4 | 鏂板鍗氫富 4 | 鏂板鎺ㄨ崘 17 | 鍘婚噸璺宠繃 0
+
+Top 璇勪及锛堟寜鏂瑰悜鏀剁泭锛?
+KOL鎶撳彇璇婃柇:
+- Roaring Kitty(Twitter): 甯栧瓙 10 | 璇嗗埆Ticker 13 | 鏂板 13
+- WallStreetBets(Reddit): 甯栧瓙 8 | 璇嗗埆Ticker 4 | 鏂板 4
+- 闆悆鐑(闆悆): 甯栧瓙 10 | 璇嗗埆Ticker 0 | 鏂板 0
+- 璐㈢粡鍗氫富鏍锋湰(寰崥): 甯栧瓙 5 | 璇嗗埆Ticker 0 | 鏂板 0
+
+- Roaring Kitty: 鏍锋湰 13 | 鍛戒腑鐜?0.0% | 鏂瑰悜鏀剁泭 +0.00% | 骞冲潎鏀剁泭 +0.00%
+- WallStreetBets: 鏍锋湰 4 | 鍛戒腑鐜?0.0% | 鏂瑰悜鏀剁泭 +0.00% | 骞冲潎鏀剁泭 +0.00%
+
+_浠呬緵鐮旂┒锛屼笉鏋勬垚鎶曡祫寤鸿_
+NOTIFY_STATUS|overall=True|telegram=True|wecom=True|wxpusher=True|bark=True

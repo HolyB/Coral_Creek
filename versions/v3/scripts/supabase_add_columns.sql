@@ -1,0 +1,24 @@
+-- Add missing columns to scan_results table in Supabase
+-- Run this in Supabase SQL Editor
+
+ALTER TABLE scan_results
+  ADD COLUMN IF NOT EXISTS adaptive_thresh REAL,
+  ADD COLUMN IF NOT EXISTS chan_desc TEXT,
+  ADD COLUMN IF NOT EXISTS chan_signal TEXT,
+  ADD COLUMN IF NOT EXISTS day_close REAL,
+  ADD COLUMN IF NOT EXISTS day_high REAL,
+  ADD COLUMN IF NOT EXISTS day_low REAL,
+  ADD COLUMN IF NOT EXISTS duokongwang_buy BOOLEAN,
+  ADD COLUMN IF NOT EXISTS duokongwang_sell BOOLEAN,
+  ADD COLUMN IF NOT EXISTS legacy_signal BOOLEAN,
+  ADD COLUMN IF NOT EXISTS profit_ratio REAL,
+  ADD COLUMN IF NOT EXISTS regime TEXT,
+  ADD COLUMN IF NOT EXISTS risk_reward_score REAL,
+  ADD COLUMN IF NOT EXISTS shares_rec INTEGER,
+  ADD COLUMN IF NOT EXISTS stop_loss REAL,
+  ADD COLUMN IF NOT EXISTS strat_c_resonance BOOLEAN,
+  ADD COLUMN IF NOT EXISTS strat_d_trend BOOLEAN,
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS vp_rating TEXT,
+  ADD COLUMN IF NOT EXISTS wave_desc TEXT,
+  ADD COLUMN IF NOT EXISTS wave_phase TEXT;
