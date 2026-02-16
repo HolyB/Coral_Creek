@@ -85,19 +85,52 @@
     "near_low_60",
     "blue_daily",
     "blue_weekly",
-    "blue_monthly"
+    "blue_monthly",
+    "fund_market_cap",
+    "fund_market_cap_log",
+    "fund_cap_small",
+    "fund_cap_mid",
+    "fund_cap_large",
+    "fund_industry_hash",
+    "fund_has_market_cap",
+    "fund_pe_ttm",
+    "fund_pe_fwd",
+    "fund_pb",
+    "fund_ps",
+    "fund_ev_ebitda",
+    "fund_dividend_yield",
+    "fund_beta",
+    "fund_roe",
+    "fund_roa",
+    "fund_profit_margin",
+    "fund_current_ratio",
+    "fund_quick_ratio",
+    "fund_debt_to_equity",
+    "fund_revenue_growth",
+    "fund_earnings_growth",
+    "fund_target_upside",
+    "fund_has_external"
   ],
   "metrics": {
     "short": {
-      "ndcg@10": 0.8524413207665512,
-      "top10_avg_return": -0.7167755294493637,
-      "train_samples": 1373,
-      "test_samples": 863,
-      "n_train_groups": 23,
-      "n_test_groups": 6
+      "ndcg@10": 0.5622749419332322,
+      "top10_avg_return": -2.728347134352854,
+      "train_samples": 1738,
+      "test_samples": 1079,
+      "n_train_groups": 26,
+      "n_test_groups": 7
+    },
+    "medium": {
+      "ndcg@10": 0.9317637092330814,
+      "top10_avg_return": 13.072526100995955,
+      "train_samples": 245,
+      "test_samples": 450,
+      "n_train_groups": 14,
+      "n_test_groups": 4
     }
   },
   "horizons": [
-    "short"
+    "short",
+    "medium"
   ]
 }
