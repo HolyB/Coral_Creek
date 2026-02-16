@@ -1,7 +1,7 @@
 {
   "date": "2026-02-13",
   "market": "CN",
-  "total_signals": 144,
+  "total_signals": 195,
   "top_signals": [
     {
       "symbol": "920020.BJ",
@@ -60,6 +60,13 @@
       "week_blue": 75.0
     },
     {
+      "symbol": "001206.SZ",
+      "name": "依依股份",
+      "price": 24.21,
+      "day_blue": 159.5,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "920765.BJ",
       "name": "美之高",
       "price": 18.06,
@@ -88,25 +95,18 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "600679.SH",
-      "name": "上海凤凰",
-      "price": 12.73,
-      "day_blue": 149.1,
+      "symbol": "300478.SZ",
+      "name": "杭州高新",
+      "price": 24.5,
+      "day_blue": 150.8,
       "week_blue": 0.0
     },
     {
-      "symbol": "920033.BJ",
-      "name": "康普化学",
-      "price": 16.93,
-      "day_blue": 138.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920821.BJ",
-      "name": "则成电子",
-      "price": 24.06,
-      "day_blue": 138.2,
-      "week_blue": 94.0
+      "symbol": "600882.SH",
+      "name": "妙可蓝多",
+      "price": 22.24,
+      "day_blue": 150.5,
+      "week_blue": 105.4
     }
   ]
 }
