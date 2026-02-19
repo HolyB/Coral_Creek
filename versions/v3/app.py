@@ -2398,6 +2398,7 @@ def _render_todays_picks_page_inner():
 
     # 历史样本：用于给"今日行动"补充可执行置信度（0 = 不限日期，取全量）
     action_days_back = 0
+    action_window_label = "全量历史" if int(action_days_back) <= 0 else f"近{int(action_days_back)}天"
     try:
         tracking_rows_for_action = get_candidate_tracking_rows(market=market, days_back=action_days_back)
     except Exception:
@@ -2514,7 +2515,7 @@ def _render_todays_picks_page_inner():
     # ============================================
     _quality_key = f"quality_computed_{market}"
     try:
-      with st.expander(f"📈 信号质量总览（近{action_days_back}天）", expanded=False):
+      with st.expander(f"📈 信号质量总览（{action_window_label}）", expanded=False):
         _run_quality = st.button("🔍 加载信号质量分析", key=f"run_quality_{market}")
         if _run_quality:
             st.session_state[_quality_key] = True
@@ -3063,7 +3064,7 @@ def _render_todays_picks_page_inner():
             overall_wr = overall_win / len(tracking_rows_for_action) * 100.0
             overall_avg = float(np.mean([float(r.get("pnl_pct") or 0) for r in tracking_rows_for_action]))
             st.caption(
-                f"历史基准（{market}, 近{action_days_back}天）: 样本 {len(tracking_rows_for_action)} | "
+                f"历史基准（{market}, {action_window_label}）: 样本 {len(tracking_rows_for_action)} | "
                 f"胜率 {overall_wr:.1f}% | 平均收益 {overall_avg:+.2f}%"
             )
 
