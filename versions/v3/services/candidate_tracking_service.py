@@ -10,13 +10,14 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import combinations
 from typing import Dict, Iterable, List, Optional, Sequence
 import numpy as np
 
-from db.database import get_db, init_db, get_scanned_dates, query_scan_results
+from db.database import get_db, init_db
 from db.stock_history import get_history_db_path
+from db.supabase_db import get_supabase
 
 
 # ---------------------------------------------------------------------------
@@ -348,14 +349,15 @@ def backfill_candidates_from_scan_history(
     """从历史扫描结果回填候选追踪，解决历史信号未入库问题。"""
     _ensure_tracking_table()
 
-    dates = get_scanned_dates(market=market) or []
+    # 回填阶段强制走本地 SQLite，避免 Supabase 慢路径导致样本缺失/回填过慢
+    dates = _get_scanned_dates_local(market=market) or []
     if not dates:
         return 0
 
     target_dates = dates[: max(1, int(recent_days))]
     total = 0
     for d in target_dates:
-        rows = query_scan_results(scan_date=d, market=market, limit=int(max_per_day)) or []
+        rows = _query_scan_results_local(scan_date=d, market=market, limit=int(max_per_day)) or []
         if not rows:
             continue
         total += capture_daily_candidates(
@@ -366,6 +368,59 @@ def backfill_candidates_from_scan_history(
             rules=rules,
         )
     return total
+
+
+def _get_scanned_dates_local(market: str) -> List[str]:
+    """仅从本地 SQLite 读取 scan_results 交易日列表。"""
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT DISTINCT scan_date
+                FROM scan_results
+                WHERE market = ?
+                ORDER BY scan_date DESC
+                """,
+                (market,),
+            )
+            return [str(row["scan_date"]) for row in cursor.fetchall() if row["scan_date"]]
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e).lower():
+            try:
+                init_db()
+            except Exception:
+                return []
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT DISTINCT scan_date
+                    FROM scan_results
+                    WHERE market = ?
+                    ORDER BY scan_date DESC
+                    """,
+                    (market,),
+                )
+                return [str(row["scan_date"]) for row in cursor.fetchall() if row["scan_date"]]
+        raise
+
+
+def _query_scan_results_local(scan_date: str, market: str, limit: int) -> List[Dict]:
+    """仅从本地 SQLite 读取指定交易日扫描结果。"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            f"""
+            SELECT *
+            FROM scan_results
+            WHERE scan_date = ? AND market = ?
+            ORDER BY blue_daily DESC
+            LIMIT {int(limit)}
+            """,
+            (scan_date, market),
+        )
+        return [dict(row) for row in cursor.fetchall()]
 
 
 def _prefetch_price_series_batch(rows: Sequence[Dict]) -> None:
@@ -731,6 +786,30 @@ def refresh_candidate_tracking(market: Optional[str] = None, max_rows: int = 200
 
 def get_candidate_tracking_rows(market: Optional[str] = None, days_back: int = 180) -> List[Dict]:
     _ensure_tracking_table()
+    rows = _query_candidate_tracking_local(market=market, days_back=days_back)
+
+    # 云端优先场景: 若本地样本过少，自动从 Supabase 回灌，避免页面统计长期“样本不变”
+    # 全量历史至少补到 80k；窗口模式至少补到 5k。
+    need_min = 80000 if int(days_back) <= 0 else 5000
+    if market and len(rows) < need_min:
+        synced = _sync_candidate_tracking_from_supabase(
+            market=market,
+            days_back=days_back,
+            max_sync_rows=max(need_min, 120000 if int(days_back) <= 0 else 20000),
+        )
+        if synced > 0:
+            rows = _query_candidate_tracking_local(market=market, days_back=days_back)
+
+    for row in rows:
+        raw_tags = row.get("signal_tags")
+        try:
+            row["signal_tags_list"] = json.loads(raw_tags) if raw_tags else []
+        except Exception:
+            row["signal_tags_list"] = []
+    return rows
+
+
+def _query_candidate_tracking_local(market: Optional[str], days_back: int) -> List[Dict]:
     query = """
         SELECT *
         FROM candidate_tracking
@@ -741,8 +820,6 @@ def get_candidate_tracking_rows(market: Optional[str] = None, days_back: int = 1
         query += " AND market = ?"
         params.append(market)
     if days_back > 0:
-        # 避免在不同 SQLite 环境中使用 date('now', ?) 参数导致兼容性错误
-        from datetime import timedelta
         cutoff = (datetime.now() - timedelta(days=int(days_back))).strftime("%Y-%m-%d")
         query += " AND signal_date >= ?"
         params.append(cutoff)
@@ -751,15 +828,155 @@ def get_candidate_tracking_rows(market: Optional[str] = None, days_back: int = 1
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(query, params)
-        rows = [dict(x) for x in cursor.fetchall()]
+        return [dict(x) for x in cursor.fetchall()]
 
-    for row in rows:
-        raw_tags = row.get("signal_tags")
-        try:
-            row["signal_tags_list"] = json.loads(raw_tags) if raw_tags else []
-        except Exception:
-            row["signal_tags_list"] = []
-    return rows
+
+def _sync_candidate_tracking_from_supabase(market: str, days_back: int, max_sync_rows: int = 120000) -> int:
+    supabase = get_supabase()
+    if not supabase:
+        return 0
+
+    cutoff = None
+    if int(days_back) > 0:
+        cutoff = (datetime.now() - timedelta(days=int(days_back))).strftime("%Y-%m-%d")
+
+    batch_size = 1000
+    fetched = 0
+    inserted = 0
+    offset = 0
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        while fetched < int(max_sync_rows):
+            upper = offset + batch_size - 1
+            try:
+                q = supabase.table("candidate_tracking").select("*").eq("market", market)
+                if cutoff:
+                    q = q.gte("signal_date", cutoff)
+                q = q.order("signal_date", desc=True).order("symbol", desc=False).range(offset, upper)
+                result = q.execute()
+                data = list(result.data or [])
+            except Exception:
+                break
+
+            if not data:
+                break
+
+            rows_to_insert = []
+            for r in data:
+                signal_date = str(r.get("signal_date") or "")
+                symbol = str(r.get("symbol") or "").strip().upper()
+                if not signal_date or not symbol:
+                    continue
+
+                signal_tags = r.get("signal_tags")
+                if isinstance(signal_tags, list):
+                    signal_tags = json.dumps(signal_tags, ensure_ascii=False)
+                elif signal_tags is None:
+                    signal_tags = "[]"
+                else:
+                    signal_tags = str(signal_tags)
+
+                rows_to_insert.append(
+                    (
+                        symbol,
+                        str(r.get("market") or market),
+                        signal_date,
+                        str(r.get("source") or "supabase_sync"),
+                        _to_float(r.get("signal_price"), 0.0),
+                        _to_float(r.get("current_price"), _to_float(r.get("signal_price"), 0.0)),
+                        _to_float(r.get("pnl_pct"), 0.0),
+                        int(_to_float(r.get("days_since_signal"), 0.0)),
+                        r.get("first_positive_day"),
+                        r.get("first_nonpositive_after_positive_day"),
+                        _to_float(r.get("max_up_pct"), 0.0),
+                        _to_float(r.get("max_drawdown_pct"), 0.0),
+                        r.get("pnl_d1"),
+                        r.get("pnl_d3"),
+                        r.get("pnl_d5"),
+                        r.get("pnl_d10"),
+                        r.get("pnl_d20"),
+                        r.get("cap_category"),
+                        r.get("industry"),
+                        signal_tags,
+                        r.get("blue_daily"),
+                        r.get("blue_weekly"),
+                        r.get("blue_monthly"),
+                        r.get("heima_daily"),
+                        r.get("heima_weekly"),
+                        r.get("heima_monthly"),
+                        r.get("juedi_daily"),
+                        r.get("juedi_weekly"),
+                        r.get("juedi_monthly"),
+                        r.get("vp_rating"),
+                        r.get("profit_ratio"),
+                        str(r.get("status") or "tracking"),
+                    )
+                )
+
+            if rows_to_insert:
+                cursor.executemany(
+                    """
+                    INSERT INTO candidate_tracking (
+                        symbol, market, signal_date, source, signal_price, current_price,
+                        pnl_pct, days_since_signal, first_positive_day, first_nonpositive_after_positive_day,
+                        max_up_pct, max_drawdown_pct, pnl_d1, pnl_d3, pnl_d5, pnl_d10, pnl_d20,
+                        cap_category, industry, signal_tags, blue_daily, blue_weekly, blue_monthly,
+                        heima_daily, heima_weekly, heima_monthly, juedi_daily, juedi_weekly, juedi_monthly,
+                        vp_rating, profit_ratio, status
+                    ) VALUES (
+                        ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?
+                    )
+                    ON CONFLICT(symbol, market, signal_date) DO UPDATE SET
+                        source = excluded.source,
+                        signal_price = excluded.signal_price,
+                        current_price = excluded.current_price,
+                        pnl_pct = excluded.pnl_pct,
+                        days_since_signal = excluded.days_since_signal,
+                        first_positive_day = excluded.first_positive_day,
+                        first_nonpositive_after_positive_day = excluded.first_nonpositive_after_positive_day,
+                        max_up_pct = excluded.max_up_pct,
+                        max_drawdown_pct = excluded.max_drawdown_pct,
+                        pnl_d1 = excluded.pnl_d1,
+                        pnl_d3 = excluded.pnl_d3,
+                        pnl_d5 = excluded.pnl_d5,
+                        pnl_d10 = excluded.pnl_d10,
+                        pnl_d20 = excluded.pnl_d20,
+                        cap_category = excluded.cap_category,
+                        industry = excluded.industry,
+                        signal_tags = excluded.signal_tags,
+                        blue_daily = excluded.blue_daily,
+                        blue_weekly = excluded.blue_weekly,
+                        blue_monthly = excluded.blue_monthly,
+                        heima_daily = excluded.heima_daily,
+                        heima_weekly = excluded.heima_weekly,
+                        heima_monthly = excluded.heima_monthly,
+                        juedi_daily = excluded.juedi_daily,
+                        juedi_weekly = excluded.juedi_weekly,
+                        juedi_monthly = excluded.juedi_monthly,
+                        vp_rating = excluded.vp_rating,
+                        profit_ratio = excluded.profit_ratio,
+                        status = excluded.status,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    rows_to_insert,
+                )
+                inserted += len(rows_to_insert)
+
+            got = len(data)
+            fetched += got
+            offset += got
+            if got < batch_size:
+                break
+
+        conn.commit()
+
+    return inserted
 
 
 def reclassify_tracking_tags(market: Optional[str] = None, rules: Optional[Dict] = None, max_rows: int = 5000) -> int:
