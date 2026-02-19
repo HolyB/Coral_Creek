@@ -1,0 +1,108 @@
+name: Rescan Historical Signals (V3)
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: 'Start date (YYYY-MM-DD)'
+        required: true
+        default: '2025-01-01'
+      end_date:
+        description: 'End date (YYYY-MM-DD)'
+        required: true
+        default: '2025-12-31'
+      market:
+        description: 'Market'
+        required: true
+        default: 'US'
+        type: choice
+        options:
+          - US
+          - CN
+      workers:
+        description: 'Parallel workers'
+        required: false
+        default: '12'
+      limit:
+        description: 'Stock limit per day (0=all)'
+        required: false
+        default: '0'
+      overwrite:
+        description: 'Overwrite old rows first'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+env:
+  POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+  TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+jobs:
+  rescan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run V3 rescan
+        working-directory: versions/v3
+        run: |
+          OVERWRITE_FLAG=""
+          if [ "${{ github.event.inputs.overwrite }}" = "true" ]; then
+            OVERWRITE_FLAG="--overwrite"
+          fi
+
+          python scripts/rescan_date_range.py \
+            --start "${{ github.event.inputs.start_date }}" \
+            --end "${{ github.event.inputs.end_date }}" \
+            --market "${{ github.event.inputs.market }}" \
+            --workers "${{ github.event.inputs.workers }}" \
+            --limit "${{ github.event.inputs.limit }}" \
+            ${OVERWRITE_FLAG}
+
+      - name: Rebuild candidate tracking (same range)
+        working-directory: versions/v3
+        run: |
+          python scripts/backfill_candidate_tracking.py \
+            --market "${{ github.event.inputs.market }}" \
+            --recent-days 9999 \
+            --max-per-day 2000 \
+            --refresh-rows 250000
+
+      - name: Commit database to repo
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add versions/v3/db/coral_creek.db || true
+          git add versions/v2/db/coral_creek.db || true
+
+          if git diff --staged --quiet; then
+            echo "No DB changes to commit"
+          else
+            git commit -m "📊 V3 rescan: ${{ github.event.inputs.market }} ${{ github.event.inputs.start_date }}~${{ github.event.inputs.end_date }}"
+            if ! git pull --rebase origin main; then
+              git rebase --abort || true
+              git pull -X ours origin main || true
+              git push || git push --force-with-lease
+            else
+              git push
+            fi
+          fi
