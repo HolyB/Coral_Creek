@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Dict, List, Sequence
+from collections import Counter
 import numpy as np
 
 from services.candidate_tracking_service import evaluate_exit_rule
@@ -20,6 +21,22 @@ STRATEGY_TAG_DEFS = {
     "defensive": {"name": "防守均衡", "tags_any": ["DAY_BLUE", "CHIP_DENSE"]},
     "duokongwang": {"name": "多空王买点", "tags_all": ["DUOKONGWANG_BUY"]},
     "duokongwang_blue": {"name": "多空王+蓝线", "tags_all": ["DUOKONGWANG_BUY", "DAY_BLUE"]},
+}
+
+_DYNAMIC_TAG_WHITELIST = {
+    "DAY_BLUE",
+    "WEEK_BLUE",
+    "MONTH_BLUE",
+    "DAY_HEIMA",
+    "WEEK_HEIMA",
+    "MONTH_HEIMA",
+    "DAY_JUEDI",
+    "WEEK_JUEDI",
+    "MONTH_JUEDI",
+    "CHIP_DENSE",
+    "CHIP_BREAKOUT",
+    "CHIP_OVERHANG",
+    "DUOKONGWANG_BUY",
 }
 
 _PRIMARY_STRATEGY_ORDER = [
@@ -55,14 +72,86 @@ def _to_float(v, default: float = 0.0) -> float:
 
 
 def _match_strategy(row: Dict, cfg: Dict) -> bool:
-    tags = set(row.get("signal_tags_list") or [])
+    tags = set(_effective_tags(row))
     tags_all = set(cfg.get("tags_all") or [])
     tags_any = set(cfg.get("tags_any") or [])
+    tags_exact = set(cfg.get("tags_exact") or [])
+    if tags_exact:
+        return tags == tags_exact
     if tags_all and not tags_all.issubset(tags):
         return False
     if tags_any and tags.isdisjoint(tags_any):
         return False
     return bool(tags)
+
+
+def _effective_tags(row: Dict) -> List[str]:
+    """
+    兼容历史空标签样本：若 signal_tags_list 为空，则根据核心字段临时重建标签，
+    避免“样本很多但策略组合很少”。
+    """
+    raw = row.get("signal_tags_list") or []
+    tags = [str(x) for x in raw if x]
+    if tags:
+        return tags
+
+    out: List[str] = []
+    if _to_float(row.get("blue_daily"), 0.0) >= 100:
+        out.append("DAY_BLUE")
+    if _to_float(row.get("blue_weekly"), 0.0) >= 80:
+        out.append("WEEK_BLUE")
+    if _to_float(row.get("blue_monthly"), 0.0) >= 60:
+        out.append("MONTH_BLUE")
+    if bool(row.get("heima_daily")):
+        out.append("DAY_HEIMA")
+    if bool(row.get("heima_weekly")):
+        out.append("WEEK_HEIMA")
+    if bool(row.get("heima_monthly")):
+        out.append("MONTH_HEIMA")
+    if bool(row.get("juedi_daily")):
+        out.append("DAY_JUEDI")
+    if bool(row.get("juedi_weekly")):
+        out.append("WEEK_JUEDI")
+    if bool(row.get("juedi_monthly")):
+        out.append("MONTH_JUEDI")
+    pr = _to_float(row.get("profit_ratio"), 0.0)
+    if pr >= 0.7:
+        out.append("CHIP_DENSE")
+    if pr >= 0.9:
+        out.append("CHIP_BREAKOUT")
+    if 0.0 < pr <= 0.3:
+        out.append("CHIP_OVERHANG")
+    if bool(row.get("duokongwang_buy")):
+        out.append("DUOKONGWANG_BUY")
+    return out
+
+
+def _build_dynamic_strategy_defs(rows: Sequence[Dict], min_samples: int, top_n: int = 24) -> Dict[str, Dict]:
+    """
+    从实际标签分布自动挖掘“高频组合”，补充固定策略模板。
+    """
+    counter: Counter = Counter()
+    for r in rows:
+        tags = [t for t in _effective_tags(r) if t in _DYNAMIC_TAG_WHITELIST]
+        if not tags:
+            continue
+        # 控制组合空间：最多取 4 个标签
+        key = tuple(sorted(set(tags))[:4])
+        if key:
+            counter[key] += 1
+
+    dyn_defs: Dict[str, Dict] = {}
+    i = 1
+    for combo, cnt in counter.most_common(top_n):
+        if cnt < max(int(min_samples), 5):
+            continue
+        combo_tags = list(combo)
+        dyn_defs[f"dyn_{i}"] = {
+            "name": f"标签组合{i}: " + "+".join(combo_tags),
+            "tags_exact": combo_tags,
+        }
+        i += 1
+    return dyn_defs
 
 
 def _pick_primary_strategy_key(row: Dict) -> str:
@@ -247,12 +336,17 @@ def evaluate_strategy_baskets(
     if not data:
         return out
 
+    strategy_defs = dict(STRATEGY_TAG_DEFS)
+    # 仅在“全量匹配”模式下展开动态组合；primary_only 时维持固定模板
+    if not primary_only:
+        strategy_defs.update(_build_dynamic_strategy_defs(data, min_samples=min_samples, top_n=24))
+
     primary_map = {}
     if primary_only:
         for r in data:
             primary_map[id(r)] = _pick_primary_strategy_key(r)
 
-    for key, cfg in STRATEGY_TAG_DEFS.items():
+    for key, cfg in strategy_defs.items():
         if primary_only:
             picked = [r for r in data if primary_map.get(id(r)) == key]
         else:
