@@ -18,6 +18,34 @@ except ImportError:
 _supabase_client = None
 
 
+def _first_non_none(*values):
+    """返回第一个非 None 的值（保留 False/0/空字符串）。"""
+    for v in values:
+        if v is not None:
+            return v
+    return None
+
+
+def _to_json_native(value):
+    """
+    将 numpy/pandas 标量转换为原生 Python 类型，避免
+    `Object of type bool is not JSON serializable` 等错误。
+    """
+    if isinstance(value, dict):
+        return {k: _to_json_native(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_to_json_native(v) for v in value]
+
+    # pandas/numpy 标量通常有 item()，转换为 Python 标量
+    try:
+        if hasattr(value, "item") and callable(value.item):
+            value = value.item()
+    except Exception:
+        pass
+
+    return value
+
+
 def get_supabase():
     """获取 Supabase 客户端"""
     global _supabase_client
@@ -143,50 +171,52 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
     
     try:
         record = {
-            'symbol': result_dict.get('Symbol') or result_dict.get('symbol'),
-            'scan_date': result_dict.get('Date') or result_dict.get('scan_date'),
-            'price': result_dict.get('Price') or result_dict.get('price'),
-            'turnover_m': result_dict.get('Turnover_M') or result_dict.get('turnover_m'),
-            'blue_daily': result_dict.get('Blue_Daily') or result_dict.get('blue_daily'),
-            'blue_weekly': result_dict.get('Blue_Weekly') or result_dict.get('blue_weekly'),
-            'blue_monthly': result_dict.get('Blue_Monthly') or result_dict.get('blue_monthly'),
-            'adx': result_dict.get('ADX') or result_dict.get('adx'),
-            'volatility': result_dict.get('Volatility') or result_dict.get('volatility'),
-            'is_heima': result_dict.get('Is_Heima') or result_dict.get('is_heima'),
-            'is_juedi': result_dict.get('Is_Juedi') or result_dict.get('is_juedi'),
-            'heima_daily': result_dict.get('Heima_Daily') or result_dict.get('heima_daily'),
-            'heima_weekly': result_dict.get('Heima_Weekly') or result_dict.get('heima_weekly'),
-            'heima_monthly': result_dict.get('Heima_Monthly') or result_dict.get('heima_monthly'),
-            'juedi_daily': result_dict.get('Juedi_Daily') or result_dict.get('juedi_daily'),
-            'juedi_weekly': result_dict.get('Juedi_Weekly') or result_dict.get('juedi_weekly'),
-            'juedi_monthly': result_dict.get('Juedi_Monthly') or result_dict.get('juedi_monthly'),
-            'market': result_dict.get('Market') or result_dict.get('market') or 'US',
-            'company_name': result_dict.get('Company_Name') or result_dict.get('company_name'),
-            'industry': result_dict.get('Industry') or result_dict.get('industry'),
-            'market_cap': result_dict.get('Market_Cap') or result_dict.get('market_cap'),
-            'cap_category': result_dict.get('Cap_Category') or result_dict.get('cap_category'),
-            'day_high': result_dict.get('Day_High') or result_dict.get('day_high'),
-            'day_low': result_dict.get('Day_Low') or result_dict.get('day_low'),
-            'day_close': result_dict.get('Day_Close') or result_dict.get('day_close') or result_dict.get('Price') or result_dict.get('price'),
+            'symbol': _first_non_none(result_dict.get('Symbol'), result_dict.get('symbol')),
+            'scan_date': _first_non_none(result_dict.get('Date'), result_dict.get('scan_date')),
+            'price': _first_non_none(result_dict.get('Price'), result_dict.get('price')),
+            'turnover_m': _first_non_none(result_dict.get('Turnover_M'), result_dict.get('turnover_m')),
+            'blue_daily': _first_non_none(result_dict.get('Blue_Daily'), result_dict.get('blue_daily')),
+            'blue_weekly': _first_non_none(result_dict.get('Blue_Weekly'), result_dict.get('blue_weekly')),
+            'blue_monthly': _first_non_none(result_dict.get('Blue_Monthly'), result_dict.get('blue_monthly')),
+            'adx': _first_non_none(result_dict.get('ADX'), result_dict.get('adx')),
+            'volatility': _first_non_none(result_dict.get('Volatility'), result_dict.get('volatility')),
+            'is_heima': _first_non_none(result_dict.get('Is_Heima'), result_dict.get('is_heima')),
+            'is_juedi': _first_non_none(result_dict.get('Is_Juedi'), result_dict.get('is_juedi')),
+            'heima_daily': _first_non_none(result_dict.get('Heima_Daily'), result_dict.get('heima_daily')),
+            'heima_weekly': _first_non_none(result_dict.get('Heima_Weekly'), result_dict.get('heima_weekly')),
+            'heima_monthly': _first_non_none(result_dict.get('Heima_Monthly'), result_dict.get('heima_monthly')),
+            'juedi_daily': _first_non_none(result_dict.get('Juedi_Daily'), result_dict.get('juedi_daily')),
+            'juedi_weekly': _first_non_none(result_dict.get('Juedi_Weekly'), result_dict.get('juedi_weekly')),
+            'juedi_monthly': _first_non_none(result_dict.get('Juedi_Monthly'), result_dict.get('juedi_monthly')),
+            'market': _first_non_none(result_dict.get('Market'), result_dict.get('market'), 'US'),
+            'company_name': _first_non_none(result_dict.get('Company_Name'), result_dict.get('company_name')),
+            'industry': _first_non_none(result_dict.get('Industry'), result_dict.get('industry')),
+            'market_cap': _first_non_none(result_dict.get('Market_Cap'), result_dict.get('market_cap')),
+            'cap_category': _first_non_none(result_dict.get('Cap_Category'), result_dict.get('cap_category')),
+            'day_high': _first_non_none(result_dict.get('Day_High'), result_dict.get('day_high')),
+            'day_low': _first_non_none(result_dict.get('Day_Low'), result_dict.get('day_low')),
+            'day_close': _first_non_none(result_dict.get('Day_Close'), result_dict.get('day_close'), result_dict.get('Price'), result_dict.get('price')),
             # 补充缺失的字段
-            'stop_loss': result_dict.get('Stop_Loss') or result_dict.get('stop_loss'),
-            'strat_d_trend': result_dict.get('Strat_D_Trend') or result_dict.get('strat_d_trend'),
-            'strat_c_resonance': result_dict.get('Strat_C_Resonance') or result_dict.get('strat_c_resonance'),
-            'legacy_signal': result_dict.get('Legacy_Signal') or result_dict.get('legacy_signal'),
-            'regime': result_dict.get('Regime') or result_dict.get('regime'),
-            'adaptive_thresh': result_dict.get('Adaptive_Thresh') or result_dict.get('adaptive_thresh'),
-            'vp_rating': result_dict.get('VP_Rating') or result_dict.get('vp_rating'),
-            'profit_ratio': result_dict.get('Profit_Ratio') or result_dict.get('profit_ratio'),
-            'wave_phase': result_dict.get('Wave_Phase') or result_dict.get('wave_phase'),
-            'wave_desc': result_dict.get('Wave_Desc') or result_dict.get('wave_desc'),
-            'chan_signal': result_dict.get('Chan_Signal') or result_dict.get('chan_signal'),
-            'chan_desc': result_dict.get('Chan_Desc') or result_dict.get('chan_desc'),
-            'duokongwang_buy': result_dict.get('Duokongwang_Buy') if result_dict.get('Duokongwang_Buy') is not None else result_dict.get('duokongwang_buy'),
-            'duokongwang_sell': result_dict.get('Duokongwang_Sell') if result_dict.get('Duokongwang_Sell') is not None else result_dict.get('duokongwang_sell'),
+            'stop_loss': _first_non_none(result_dict.get('Stop_Loss'), result_dict.get('stop_loss')),
+            'strat_d_trend': _first_non_none(result_dict.get('Strat_D_Trend'), result_dict.get('strat_d_trend')),
+            'strat_c_resonance': _first_non_none(result_dict.get('Strat_C_Resonance'), result_dict.get('strat_c_resonance')),
+            'legacy_signal': _first_non_none(result_dict.get('Legacy_Signal'), result_dict.get('legacy_signal')),
+            'regime': _first_non_none(result_dict.get('Regime'), result_dict.get('regime')),
+            'adaptive_thresh': _first_non_none(result_dict.get('Adaptive_Thresh'), result_dict.get('adaptive_thresh')),
+            'vp_rating': _first_non_none(result_dict.get('VP_Rating'), result_dict.get('vp_rating')),
+            'profit_ratio': _first_non_none(result_dict.get('Profit_Ratio'), result_dict.get('profit_ratio')),
+            'wave_phase': _first_non_none(result_dict.get('Wave_Phase'), result_dict.get('wave_phase')),
+            'wave_desc': _first_non_none(result_dict.get('Wave_Desc'), result_dict.get('wave_desc')),
+            'chan_signal': _first_non_none(result_dict.get('Chan_Signal'), result_dict.get('chan_signal')),
+            'chan_desc': _first_non_none(result_dict.get('Chan_Desc'), result_dict.get('chan_desc')),
+            'duokongwang_buy': _first_non_none(result_dict.get('Duokongwang_Buy'), result_dict.get('duokongwang_buy')),
+            'duokongwang_sell': _first_non_none(result_dict.get('Duokongwang_Sell'), result_dict.get('duokongwang_sell')),
         }
         
         # 移除 None 值的字段（Supabase 不接受某些 null）
         record = {k: v for k, v in record.items() if v is not None}
+        # 转换 numpy/pandas 标量，确保 JSON 可序列化
+        record = _to_json_native(record)
         
         try:
             supabase.table('scan_results').upsert(record, on_conflict='symbol,scan_date,market').execute()
