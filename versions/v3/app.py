@@ -800,6 +800,55 @@ def _strategy_bucket_full(tags: list) -> str:
     return _combo_bucket_full(tags)
 
 
+def _effective_tags_for_fact(row: dict) -> list:
+    """
+    兼容历史数据: 若 signal_tags_list 为空，则基于字段实时重建标签，
+    避免策略组合被大量“无标签”样本压扁。
+    """
+    tags = list(row.get("signal_tags_list") or [])
+    if tags:
+        return tags
+
+    out = []
+    try:
+        if float(row.get("blue_daily") or 0) >= 100:
+            out.append("DAY_BLUE")
+        if float(row.get("blue_weekly") or 0) >= 80:
+            out.append("WEEK_BLUE")
+        if float(row.get("blue_monthly") or 0) >= 60:
+            out.append("MONTH_BLUE")
+    except Exception:
+        pass
+
+    if bool(row.get("heima_daily")):
+        out.append("DAY_HEIMA")
+    if bool(row.get("heima_weekly")):
+        out.append("WEEK_HEIMA")
+    if bool(row.get("heima_monthly")):
+        out.append("MONTH_HEIMA")
+    if bool(row.get("juedi_daily")):
+        out.append("DAY_JUEDI")
+    if bool(row.get("juedi_weekly")):
+        out.append("WEEK_JUEDI")
+    if bool(row.get("juedi_monthly")):
+        out.append("MONTH_JUEDI")
+    if bool(row.get("duokongwang_buy")):
+        out.append("DUOKONGWANG_BUY")
+
+    try:
+        pr = float(row.get("profit_ratio") or 0)
+        if pr >= 0.7:
+            out.append("CHIP_DENSE")
+        if pr >= 0.9:
+            out.append("CHIP_BREAKOUT")
+        if 0 < pr <= 0.3:
+            out.append("CHIP_OVERHANG")
+    except Exception:
+        pass
+
+    return out
+
+
 def _build_unified_trade_facts(
     rows: list,
     exit_rule: str,
@@ -834,7 +883,7 @@ def _build_unified_trade_facts(
         dt = str(d.get("signal_date") or "")
         mk = str(d.get("market") or "")
         src = row_map.get((sym, dt, mk)) or row_map.get((sym, dt, "")) or {}
-        tags = src.get("signal_tags_list") or []
+        tags = _effective_tags_for_fact(src)
         ret = float(d.get("exit_return_pct") or 0.0)
         facts.append(
             {
