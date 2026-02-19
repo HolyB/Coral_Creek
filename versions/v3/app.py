@@ -849,6 +849,52 @@ def _effective_tags_for_fact(row: dict) -> list:
     return out
 
 
+def _effective_tags_for_fact_relaxed(row: dict) -> list:
+    """
+    宽松标签口径（独立统计，不并入严格组合）：
+    - Blue 阈值放宽到 50/50/50
+    - 筹码阈值放宽到 0.6 / 0.85 / 0.35
+    """
+    out = []
+    try:
+        if float(row.get("blue_daily") or 0) >= 50:
+            out.append("DAY_BLUE")
+        if float(row.get("blue_weekly") or 0) >= 50:
+            out.append("WEEK_BLUE")
+        if float(row.get("blue_monthly") or 0) >= 50:
+            out.append("MONTH_BLUE")
+    except Exception:
+        pass
+
+    if bool(row.get("heima_daily")):
+        out.append("DAY_HEIMA")
+    if bool(row.get("heima_weekly")):
+        out.append("WEEK_HEIMA")
+    if bool(row.get("heima_monthly")):
+        out.append("MONTH_HEIMA")
+    if bool(row.get("juedi_daily")):
+        out.append("DAY_JUEDI")
+    if bool(row.get("juedi_weekly")):
+        out.append("WEEK_JUEDI")
+    if bool(row.get("juedi_monthly")):
+        out.append("MONTH_JUEDI")
+    if bool(row.get("duokongwang_buy")):
+        out.append("DUOKONGWANG_BUY")
+
+    try:
+        pr = float(row.get("profit_ratio") or 0)
+        if pr >= 0.6:
+            out.append("CHIP_DENSE")
+        if pr >= 0.85:
+            out.append("CHIP_BREAKOUT")
+        if 0 < pr <= 0.35:
+            out.append("CHIP_OVERHANG")
+    except Exception:
+        pass
+
+    return out
+
+
 def _build_unified_trade_facts(
     rows: list,
     exit_rule: str,
@@ -884,6 +930,7 @@ def _build_unified_trade_facts(
         mk = str(d.get("market") or "")
         src = row_map.get((sym, dt, mk)) or row_map.get((sym, dt, "")) or {}
         tags = _effective_tags_for_fact(src)
+        tags_relaxed = _effective_tags_for_fact_relaxed(src)
         ret = float(d.get("exit_return_pct") or 0.0)
         facts.append(
             {
@@ -896,6 +943,8 @@ def _build_unified_trade_facts(
                 "combo_bucket": _combo_bucket(tags),
                 "strategy_bucket_full": _strategy_bucket_full(tags),
                 "combo_bucket_full": _combo_bucket_full(tags),
+                "strategy_bucket_relaxed": _strategy_bucket_full(tags_relaxed),
+                "combo_bucket_relaxed": _combo_bucket_full(tags_relaxed),
                 "cap_category": str(src.get("cap_category") or "未知"),
                 "industry": str(src.get("industry") or "Unknown"),
             }
@@ -2622,6 +2671,29 @@ def _render_todays_picks_page_inner():
                         st.info("组合样本不足")
                 else:
                     st.info("统一交易样本不足")
+                # 宽松组合独立展示：不并入严格组合统计
+                if not facts_df.empty and "combo_bucket_relaxed" in facts_df.columns:
+                    with st.expander("宽松组合（独立统计，不并入严格组合）", expanded=False):
+                        relaxed_df = (
+                            facts_df.groupby("combo_bucket_relaxed", as_index=False)
+                            .agg(
+                                样本数=("ret", "count"),
+                                当前胜率=("win", lambda x: float(np.mean(x) * 100.0)),
+                                当前平均收益=("ret", "mean"),
+                            )
+                        )
+                        relaxed_df = relaxed_df[relaxed_df["样本数"] >= min_samples_combo]
+                        relaxed_df = relaxed_df.sort_values(["当前胜率", "当前平均收益", "样本数"], ascending=[False, False, False]).head(30)
+                        if not relaxed_df.empty:
+                            relaxed_df["当前胜率"] = relaxed_df["当前胜率"].round(1)
+                            relaxed_df["当前平均收益"] = relaxed_df["当前平均收益"].round(2)
+                            st.dataframe(
+                                relaxed_df.rename(columns={"combo_bucket_relaxed": "组合", "当前胜率": "当前胜率(%)", "当前平均收益": "当前平均收益(%)"}),
+                                width="stretch",
+                                hide_index=True,
+                            )
+                        else:
+                            st.info("宽松组合样本不足")
 
             with q2:
                 st.markdown("**策略 × 市值（明细口径，按胜率）**")
