@@ -2658,10 +2658,31 @@ def _render_todays_picks_page_inner():
                         )
                     )
                     combo_df = combo_df[combo_df["样本数"] >= min_samples_combo]
-                    combo_df = combo_df.sort_values(["当前胜率", "当前平均收益", "样本数"], ascending=[False, False, False]).head(30)
+                    combo_sort_mode = st.radio(
+                        "组合排序",
+                        options=["按胜率(选优)", "按样本(核对全量)"],
+                        horizontal=True,
+                        key=f"combo_sort_mode_{market}",
+                    )
+                    combo_limit = st.slider(
+                        "展示组合数",
+                        min_value=30,
+                        max_value=500,
+                        value=120,
+                        step=10,
+                        key=f"combo_limit_{market}",
+                    )
+                    if combo_sort_mode == "按样本(核对全量)":
+                        combo_df = combo_df.sort_values(["样本数", "当前胜率", "当前平均收益"], ascending=[False, False, False]).head(int(combo_limit))
+                    else:
+                        combo_df = combo_df.sort_values(["当前胜率", "当前平均收益", "样本数"], ascending=[False, False, False]).head(int(combo_limit))
                     if not combo_df.empty:
                         combo_df["当前胜率"] = combo_df["当前胜率"].round(1)
                         combo_df["当前平均收益"] = combo_df["当前平均收益"].round(2)
+                        shown_sample = int(combo_df["样本数"].sum())
+                        total_sample = int(len(facts_df))
+                        coverage = (shown_sample / total_sample * 100.0) if total_sample > 0 else 0.0
+                        st.caption(f"样本覆盖: 展示 {shown_sample} / 总样本 {total_sample} ({coverage:.1f}%)")
                         st.dataframe(
                             combo_df.rename(columns={combo_key: "组合", "当前胜率": "当前胜率(%)", "当前平均收益": "当前平均收益(%)"}),
                             width='stretch',
