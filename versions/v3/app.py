@@ -2520,6 +2520,16 @@ def _render_todays_picks_page_inner():
         if _run_quality:
             st.session_state[_quality_key] = True
         if st.session_state.get(_quality_key, False) and tracking_rows_for_action:
+            # 统一口径: 全量历史时不再固定 360 天 / 20000 样本，避免“数据已补齐但统计不增长”
+            quality_days_back = int(action_days_back) if int(action_days_back) > 0 else 0
+            if tracking_rows_for_action:
+                if quality_days_back > 0:
+                    quality_max_rows = min(int(len(tracking_rows_for_action)), 20000)
+                else:
+                    quality_max_rows = min(int(len(tracking_rows_for_action)), 200000)
+            else:
+                quality_max_rows = 0
+
             # 统一口径：三张表都基于同一交易事实样本（同一平仓规则）
             preview_exit_rule = st.session_state.get(f"action_exit_rule_{market}", "fixed_10d")
             preview_tp = float(st.session_state.get(f"action_rule_tp_{market}", 10))
@@ -2531,7 +2541,7 @@ def _render_todays_picks_page_inner():
                 take_profit_pct=preview_tp,
                 stop_loss_pct=preview_sl,
                 max_hold_days=preview_hold,
-                max_rows=20000,
+                max_rows=max(1, int(quality_max_rows)),
             )
             min_samples_quality = 12
             min_samples_combo = 3
@@ -2665,7 +2675,7 @@ def _render_todays_picks_page_inner():
                 take_profit_pct=float(rule_tp),
                 stop_loss_pct=float(rule_sl),
                 max_hold_days=int(rule_max_hold),
-                max_rows=20000,
+                max_rows=max(1, int(quality_max_rows)),
             )
 
             e1, e2, e3, e4, e5 = st.columns(5)
@@ -2718,7 +2728,7 @@ def _render_todays_picks_page_inner():
                     fee_bps=float(alloc_fee_bps),
                     slippage_bps=float(alloc_slip_bps),
                     min_samples=int(alloc_min_samples),
-                    max_rows=20000,
+                    max_rows=max(1, int(quality_max_rows)),
                     primary_only=False,
                 )
                 st.caption("当前按“每个策略最优卖出规则”排序与分配权重。")
@@ -2732,7 +2742,7 @@ def _render_todays_picks_page_inner():
                     fee_bps=float(alloc_fee_bps),
                     slippage_bps=float(alloc_slip_bps),
                     min_samples=int(alloc_min_samples),
-                    max_rows=20000,
+                    max_rows=max(1, int(quality_max_rows)),
                     primary_only=False,
                 )
             display_perf_rows = list(perf_rows or [])
@@ -2746,7 +2756,7 @@ def _render_todays_picks_page_inner():
                             fee_bps=float(alloc_fee_bps),
                             slippage_bps=float(alloc_slip_bps),
                             min_samples=1,
-                            max_rows=20000,
+                            max_rows=max(1, int(quality_max_rows)),
                             primary_only=False,
                         )
                     else:
@@ -2759,7 +2769,7 @@ def _render_todays_picks_page_inner():
                             fee_bps=float(alloc_fee_bps),
                             slippage_bps=float(alloc_slip_bps),
                             min_samples=1,
-                            max_rows=20000,
+                            max_rows=max(1, int(quality_max_rows)),
                             primary_only=False,
                         )
                 except Exception:
@@ -2924,12 +2934,12 @@ def _render_todays_picks_page_inner():
             st.markdown("### 🔬 极致条件提升（Lift）")
             lift_ret = _analyze_extreme_lift(
                 market=market,
-                days_back=360,
+                days_back=quality_days_back,
                 exit_rule=exit_rule,
                 take_profit_pct=float(rule_tp),
                 stop_loss_pct=float(rule_sl),
                 max_hold_days=int(rule_max_hold),
-                max_rows=20000,
+                max_rows=max(1, int(quality_max_rows)),
                 schema_ver=2,
             )
             if lift_ret.get("ok"):
