@@ -881,7 +881,7 @@ def _render_chart_tab(symbol, df_daily, df_weekly, df_monthly, price_symbol, uni
             period=selected_period, show_volume_profile=True,
             highlight_date=selected_date
         )
-        st.plotly_chart(fig, width='stretch', key=f"chart_{unique_key}_{selected_period}")
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_{unique_key}_{selected_period}")
         
         # 显示筹码分析
         if hasattr(fig, '_chip_analysis'):
@@ -922,7 +922,7 @@ def _render_chart_tab(symbol, df_daily, df_weekly, df_monthly, price_symbol, uni
             height=500,
             xaxis_rangeslider_visible=False
         )
-        st.plotly_chart(fig, width='stretch', key=f"chart_simple_{unique_key}")
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_simple_{unique_key}")
 
 
 def _render_phantom_tab(symbol, df_daily, phantom, adx_val, price_symbol, unique_key, heima_full=None):
@@ -1254,7 +1254,7 @@ def _render_phantom_tab(symbol, df_daily, phantom, adx_val, price_symbol, unique
     )
     fig.update_xaxes(rangeslider_visible=False)
     
-    st.plotly_chart(fig, width='stretch', key=f"phantom_{unique_key}")
+    st.plotly_chart(fig, use_container_width=True, key=f"phantom_{unique_key}")
     
     # === 信号解读 ===
     with st.expander("📖 指标解读 & 使用指南", expanded=False):
@@ -1299,7 +1299,7 @@ def _render_phantom_tab(symbol, df_daily, phantom, adx_val, price_symbol, unique
                 df_bt = pd.DataFrame(records[-10:])  # 最近10条
                 wins = sum(1 for r in records if '✅' in r['判断'])
                 st.markdown(f"总{len(records)}次, 胜率 **{wins}/{len(records)} = {wins/len(records)*100:.0f}%**")
-                st.dataframe(df_bt, width='stretch', hide_index=True, key=f"phantom_bt_sell_{unique_key}")
+                st.dataframe(df_bt, use_container_width=True, hide_index=True, key=f"phantom_bt_sell_{unique_key}")
         
         # BLUE消失回测
         bd_indices = np.where(blue_dis)[0]
@@ -1322,7 +1322,7 @@ def _render_phantom_tab(symbol, df_daily, phantom, adx_val, price_symbol, unique
                 df_bt = pd.DataFrame(records[-10:])
                 wins = sum(1 for r in records if '✅正确' in r['判断'])
                 st.markdown(f"总{len(records)}次, 胜率 **{wins}/{len(records)} = {wins/len(records)*100:.0f}%**")
-                st.dataframe(df_bt, width='stretch', hide_index=True, key=f"phantom_bt_blue_{unique_key}")
+                st.dataframe(df_bt, use_container_width=True, hide_index=True, key=f"phantom_bt_blue_{unique_key}")
         
         # 黄金底回测
         if heima_full and isinstance(heima_full, dict) and 'golden_bottom' in heima_full:
@@ -1346,7 +1346,7 @@ def _render_phantom_tab(symbol, df_daily, phantom, adx_val, price_symbol, unique
                     df_bt = pd.DataFrame(records[-10:])
                     wins = sum(1 for r in records if '✅正确' in r['判断'])
                     st.markdown(f"总{len(records)}次, 胜率 **{wins}/{len(records)} = {wins/len(records)*100:.0f}%**")
-                    st.dataframe(df_bt, width='stretch', hide_index=True, key=f"phantom_bt_gb_{unique_key}")
+                    st.dataframe(df_bt, use_container_width=True, hide_index=True, key=f"phantom_bt_gb_{unique_key}")
             
             # 顶背离回测
             td_indices = np.where(heima_full['top_divergence'])[0]
@@ -1369,7 +1369,7 @@ def _render_phantom_tab(symbol, df_daily, phantom, adx_val, price_symbol, unique
                     df_bt = pd.DataFrame(records[-10:])
                     wins = sum(1 for r in records if '✅正确' in r['判断'])
                     st.markdown(f"总{len(records)}次, 胜率 **{wins}/{len(records)} = {wins/len(records)*100:.0f}%**")
-                    st.dataframe(df_bt, width='stretch', hide_index=True, key=f"phantom_bt_td_{unique_key}")
+                    st.dataframe(df_bt, use_container_width=True, hide_index=True, key=f"phantom_bt_td_{unique_key}")
 
 
 def _render_chips_tab(symbol, df_daily, unique_key):
@@ -1407,11 +1407,11 @@ def _render_chips_tab(symbol, df_daily, unique_key):
             with st.expander("📊 筹码流动对比图", expanded=False):
                 flow_fig = create_chip_flow_chart(chip_flow, symbol)
                 if flow_fig:
-                    st.plotly_chart(flow_fig, width='stretch', key=f"flow_{unique_key}")
+                    st.plotly_chart(flow_fig, use_container_width=True, key=f"flow_{unique_key}")
                 
                 change_fig = create_chip_change_chart(chip_flow)
                 if change_fig:
-                    st.plotly_chart(change_fig, width='stretch', key=f"change_{unique_key}")
+                    st.plotly_chart(change_fig, use_container_width=True, key=f"change_{unique_key}")
         else:
             st.warning("数据不足，无法分析筹码流动")
             
@@ -1521,7 +1521,7 @@ def _render_ai_diagnosis_tab(symbol, current_price, price_symbol,
     
     ai_col1, ai_col2 = st.columns([1, 3])
     with ai_col1:
-        do_ai_diag = st.button("🚀 启动诊断", key=f"ai_diag_{unique_key}", type="primary", width='stretch')
+        do_ai_diag = st.button("🚀 启动诊断", key=f"ai_diag_{unique_key}", type="primary", use_container_width=True)
     with ai_col2:
         st.caption("综合技术面、基本面、舆情进行AI分析")
     
@@ -1873,7 +1873,7 @@ def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly
             for i, amt in enumerate(amounts):
                 with quick_cols[i]:
                     quick_shares = max(1, int(amt / current_price)) if current_price > 0 else 1
-                    if st.button(f"{price_symbol}{amt:,}", key=f"quick_{amt}_{unique_key}", width='stretch'):
+                    if st.button(f"{price_symbol}{amt:,}", key=f"quick_{amt}_{unique_key}", use_container_width=True):
                         st.session_state[f"shares_{unique_key}"] = quick_shares
                         st.rerun()
         
@@ -1886,7 +1886,7 @@ def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly
             max_loss = shares * (current_price - stop_price)
             st.caption(f"⚠️ 最大亏损: {price_symbol}{max_loss:.2f}")
         
-        if st.button("✅ 确认模拟买入", key=f"buy_{unique_key}", type="primary", width='stretch'):
+        if st.button("✅ 确认模拟买入", key=f"buy_{unique_key}", type="primary", use_container_width=True):
             try:
                 from services.portfolio_service import paper_buy
                 result = paper_buy(symbol, shares, current_price, market)
@@ -1958,7 +1958,7 @@ def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly
             watch_stop = st.number_input("止损价", value=round(current_price * 0.92, 2), 
                                          key=f"watch_stop_{unique_key}", format="%.2f")
         
-        if st.button("➕ 加入观察", key=f"watch_{unique_key}", width='stretch', type="primary"):
+        if st.button("➕ 加入观察", key=f"watch_{unique_key}", use_container_width=True, type="primary"):
             try:
                 from services.signal_tracker import add_to_watchlist
                 add_to_watchlist(
@@ -2096,7 +2096,7 @@ def _render_ml_prediction_tab(
             cat_df = cat_df.rename(
                 columns={"code": "编号", "name": "形态", "bias": "方向", "desc": "含义"}
             )
-            st.dataframe(cat_df, hide_index=True, width='stretch')
+            st.dataframe(cat_df, hide_index=True, use_container_width=True)
 
             tf_cols = st.columns(4)
             tf_keys = ["h1", "d1", "w1", "m1"]
@@ -2135,7 +2135,7 @@ def _render_ml_prediction_tab(
                             "触发原因": p.get("reason"),
                         })
                 if detail_rows:
-                    st.dataframe(pd.DataFrame(detail_rows), hide_index=True, width='stretch')
+                    st.dataframe(pd.DataFrame(detail_rows), hide_index=True, use_container_width=True)
                 else:
                     st.caption("当前未触发形态。")
         except Exception as e:
@@ -2149,7 +2149,7 @@ def _render_ml_prediction_tab(
             xmd_df = xmd_df.rename(
                 columns={"code": "编号", "name": "结构", "bias": "方向", "desc": "含义"}
             )
-            st.dataframe(xmd_df, hide_index=True, width='stretch')
+            st.dataframe(xmd_df, hide_index=True, use_container_width=True)
 
             x_cols = st.columns(4)
             x_keys = ["h1", "d1", "w1", "m1"]
@@ -2188,7 +2188,7 @@ def _render_ml_prediction_tab(
                             "触发原因": p.get("reason"),
                         })
                 if detail_rows:
-                    st.dataframe(pd.DataFrame(detail_rows), hide_index=True, width='stretch')
+                    st.dataframe(pd.DataFrame(detail_rows), hide_index=True, use_container_width=True)
                 else:
                     st.caption("当前未触发结构。")
         except Exception as e:

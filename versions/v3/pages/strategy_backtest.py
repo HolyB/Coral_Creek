@@ -333,7 +333,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    run_button = st.button("🚀 运行回测", type="primary", width='stretch')
+    run_button = st.button("🚀 运行回测", type="primary", use_container_width=True)
 
 # 主区域
 if not selected_buy:
@@ -399,7 +399,7 @@ elif run_button:
             })
         
         summary_df = pd.DataFrame(summary_data)
-        st.dataframe(summary_df, width='stretch', hide_index=True)
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
         
         # 平均指标
         avg_annual = np.mean([r['annual_return'] for r in all_results])
@@ -429,7 +429,7 @@ elif run_button:
                     result['trades'],
                     result['df']
                 )
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
                 
                 # 交易记录
                 if result['trades']:
@@ -443,7 +443,7 @@ elif run_button:
                             '原因': t['reason'],
                             '盈亏': f"${t.get('pnl', 0):,.2f}" if t['type'] == 'SELL' else '-'
                         })
-                    st.dataframe(pd.DataFrame(trade_data), width='stretch', hide_index=True)
+                    st.dataframe(pd.DataFrame(trade_data), use_container_width=True, hide_index=True)
 
 else:
     # 默认显示说明

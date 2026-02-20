@@ -288,7 +288,7 @@ with tab1:
             })
         
         df = pd.DataFrame(pos_data)
-        st.dataframe(df, width='stretch', hide_index=True)
+        st.dataframe(df, use_container_width=True, hide_index=True)
         
         # 总盈亏
         color = "green" if total_pnl >= 0 else "red"
@@ -393,7 +393,7 @@ with tab3:
             })
         
         df = pd.DataFrame(order_data)
-        st.dataframe(df, width='stretch', hide_index=True)
+        st.dataframe(df, use_container_width=True, hide_index=True)
         
         # 撤单操作
         if order_status == "open" and orders:
@@ -484,7 +484,7 @@ with tab4:
                                 '黑马': '🐴' if r.get('heima_daily') else ''
                             } for r in filtered[:10]])
                             
-                            st.dataframe(df_preview, width='stretch', hide_index=True)
+                            st.dataframe(df_preview, use_container_width=True, hide_index=True)
                         else:
                             st.warning(f"没有符合条件的信号 (BLUE >= {auto_min_blue}, 成交额 >= ${auto_min_turnover}M)")
 

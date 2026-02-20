@@ -64,7 +64,7 @@ def render_single_stock_analysis():
     with col3:
         use_llm = st.checkbox("使用 AI 分析", value=False, help="使用 Gemini 进行深度分析")
     
-    if st.button("🔎 分析新闻", type="primary", width='stretch'):
+    if st.button("🔎 分析新闻", type="primary", use_container_width=True):
         if not symbol:
             st.warning("请输入股票代码")
             return
@@ -212,7 +212,7 @@ def render_portfolio_news():
     with col2:
         use_llm = st.checkbox("使用 AI 分析", value=False, key="portfolio_llm")
     
-    if st.button("📊 分析持仓新闻", type="primary", width='stretch'):
+    if st.button("📊 分析持仓新闻", type="primary", use_container_width=True):
         symbols = [s.strip().upper() for s in portfolio_input.split(",") if s.strip()]
         
         if not symbols:
@@ -267,7 +267,7 @@ def render_portfolio_news():
                 })
             
             df = pd.DataFrame(df_data)
-            st.dataframe(df, width='stretch', hide_index=True)
+            st.dataframe(df, use_container_width=True, hide_index=True)
         
         # 显示需要关注的提醒
         if all_alerts:
@@ -371,7 +371,7 @@ def render_news_performance():
     }
     
     df = pd.DataFrame(performance_data)
-    st.dataframe(df, width='stretch', hide_index=True)
+    st.dataframe(df, use_container_width=True, hide_index=True)
     
     st.markdown("""
     **💡 洞察:**
