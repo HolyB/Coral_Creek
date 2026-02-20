@@ -2613,10 +2613,13 @@ def _render_todays_picks_page_inner():
     # ============================================
     _quality_key = f"quality_computed_{market}"
     try:
-      with st.expander(f"📈 信号质量总览（{action_window_label}）", expanded=False):
-        _run_quality = st.button("🔍 加载信号质量分析", key=f"run_quality_{market}")
-        if _run_quality:
-            st.session_state[_quality_key] = True
+      is_quality_expanded = st.session_state.get(_quality_key, False)
+      with st.expander(f"📈 信号质量总览（{action_window_label}）", expanded=is_quality_expanded):
+        if not is_quality_expanded:
+            _run_quality = st.button("🔍 加载信号质量分析", key=f"run_quality_{market}", use_container_width=True)
+            if _run_quality:
+                st.session_state[_quality_key] = True
+                st.rerun()
         if st.session_state.get(_quality_key, False) and tracking_rows_for_action:
             # 统一口径: 全量历史时不再固定 360 天 / 20000 样本，避免“数据已补齐但统计不增长”
             quality_days_back = int(action_days_back) if int(action_days_back) > 0 else 0
