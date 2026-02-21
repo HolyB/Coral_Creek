@@ -29,7 +29,7 @@ import services.candidate_tracking_service as _cts
 
 # --------------- 数据库路径 ---------------
 DB_DIR = os.path.join(ROOT, "db")
-DB_PATH = os.path.join(DB_DIR, "coral_creek.db")
+DB_PATH = os.path.join(DB_DIR, "precomputed.db")
 
 
 def _ensure_table(conn: sqlite3.Connection) -> None:
