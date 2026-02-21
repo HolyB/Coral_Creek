@@ -907,15 +907,38 @@ def _build_unified_trade_facts(
 
     if not rows:
         return pd.DataFrame()
-    eval_ret = evaluate_exit_rule(
-        rows=rows,
-        rule_name=exit_rule,
-        take_profit_pct=float(take_profit_pct),
-        stop_loss_pct=float(stop_loss_pct),
-        max_hold_days=int(max_hold_days),
-        max_rows=int(max_rows),
-    )
-    details = list(eval_ret.get("details") or [])
+
+    # -------- 优先读预计算表（秒出） --------
+    details = []
+    try:
+        from scripts.precompute_exit_results import get_precomputed_details
+        market_val = str(rows[0].get("market") or "US") if rows else "US"
+        details = get_precomputed_details(
+            market=market_val,
+            rule_name=exit_rule,
+            tp=float(take_profit_pct),
+            sl=float(stop_loss_pct),
+            hold=int(max_hold_days),
+        )
+        if details:
+            # 预计算表有数据 → 直接使用，跳过实时计算
+            pass
+    except Exception:
+        details = []
+
+    # -------- 兜底：实时计算（上限 5000，避免卡死） --------
+    if not details:
+        safe_max = min(int(max_rows), 5000)
+        eval_ret = evaluate_exit_rule(
+            rows=rows,
+            rule_name=exit_rule,
+            take_profit_pct=float(take_profit_pct),
+            stop_loss_pct=float(stop_loss_pct),
+            max_hold_days=int(max_hold_days),
+            max_rows=safe_max,
+        )
+        details = list(eval_ret.get("details") or [])
+
     if not details:
         return pd.DataFrame()
 
@@ -2625,10 +2648,9 @@ def _render_todays_picks_page_inner():
             # 统一口径: 全量历史时不再固定 360 天 / 20000 样本，避免“数据已补齐但统计不增长”
             quality_days_back = int(action_days_back) if int(action_days_back) > 0 else 0
             if tracking_rows_for_action:
-                if quality_days_back > 0:
-                    quality_max_rows = min(int(len(tracking_rows_for_action)), 20000)
-                else:
-                    quality_max_rows = min(int(len(tracking_rows_for_action)), 200000)
+                # 上限 20000：超过此数量 _prefetch_price_series_batch 会读取数百 MB
+                # 价格历史，且缺失 symbol 会逐个调用 Polygon API，导致超时/OOM
+                quality_max_rows = min(int(len(tracking_rows_for_action)), 20000)
             else:
                 quality_max_rows = 0
 
@@ -2815,14 +2837,31 @@ def _render_todays_picks_page_inner():
             if exit_rule not in rules_use_risk_params:
                 st.caption("当前规则不使用止盈/止损参数；仅 `tp_sl_time` 与 `top_divergence_guard` 使用这些参数。")
 
-            eval_ret = evaluate_exit_rule(
-                rows=tracking_rows_for_action,
-                rule_name=exit_rule,
-                take_profit_pct=float(rule_tp),
-                stop_loss_pct=float(rule_sl),
-                max_hold_days=int(rule_max_hold),
-                max_rows=max(1, int(quality_max_rows)),
-            )
+            # 优先读预计算表
+            eval_ret = None
+            try:
+                from scripts.precompute_exit_results import get_precomputed_summary
+                eval_ret = get_precomputed_summary(
+                    market=market,
+                    rule_name=exit_rule,
+                    tp=float(rule_tp),
+                    sl=float(rule_sl),
+                    hold=int(rule_max_hold),
+                )
+                if not eval_ret or eval_ret.get("sample", 0) == 0:
+                    eval_ret = None
+            except Exception:
+                eval_ret = None
+
+            if eval_ret is None:
+                eval_ret = evaluate_exit_rule(
+                    rows=tracking_rows_for_action,
+                    rule_name=exit_rule,
+                    take_profit_pct=float(rule_tp),
+                    stop_loss_pct=float(rule_sl),
+                    max_hold_days=int(rule_max_hold),
+                    max_rows=min(max(1, int(quality_max_rows)), 5000),
+                )
 
             e1, e2, e3, e4, e5 = st.columns(5)
             e1.metric("规则样本", int(eval_ret.get("sample") or 0))
