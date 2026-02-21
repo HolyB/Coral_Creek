@@ -235,6 +235,16 @@ jobs:
           python scripts/backfill_candidate_tracking.py --market US --recent-days 420 --max-per-day 800 --refresh-rows 12000
           cp db/coral_creek.db ../v2/db/coral_creek.db || true
       
+      # 预计算退出规则结果（全量数据，前端秒出）
+      - name: Pre-compute exit rule results (US)
+        working-directory: versions/v3
+        timeout-minutes: 45
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: |
+          python scripts/precompute_exit_results.py --market US --rules fixed_5d,fixed_10d,fixed_20d,tp_sl_time --batch-size 5000
+          cp db/coral_creek.db ../v2/db/coral_creek.db || true
+      
       # 提交数据库到仓库 - 用于 Streamlit Cloud
       - name: Commit database to repo
         run: |
