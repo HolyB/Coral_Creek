@@ -192,6 +192,13 @@ jobs:
           python scripts/backfill_candidate_tracking.py --market CN --recent-days 420 --max-per-day 800 --refresh-rows 12000
           cp db/coral_creek.db ../v2/db/coral_creek.db || true
       
+      # 预计算退出规则结果（全量数据，前端秒出）
+      - name: Pre-compute exit rule results (CN)
+        working-directory: versions/v3
+        timeout-minutes: 15
+        run: |
+          python scripts/precompute_exit_results.py --market CN --rules fixed_5d,fixed_10d,fixed_20d,tp_sl_time --batch-size 5000
+      
       # 提交数据库到仓库 - 用于 Render
       - name: Commit database to repo
         run: |
@@ -205,6 +212,7 @@ jobs:
           # 添加数据库文件
           git add versions/v2/db/coral_creek.db || true
           git add versions/v3/db/coral_creek.db || true
+          git add versions/v3/db/precomputed.db || true
           git add versions/v2/scan_summary_cn.json || true
           
           # 检查是否有变化
