@@ -2614,13 +2614,14 @@ def _render_todays_picks_page_inner():
     _quality_key = f"quality_computed_{market}"
     try:
       is_quality_expanded = st.session_state.get(_quality_key, False)
-      with st.expander(f"📈 信号质量总览（{action_window_label}）", expanded=is_quality_expanded):
-        if not is_quality_expanded:
-            _run_quality = st.button("🔍 加载信号质量分析", key=f"run_quality_{market}", use_container_width=True)
-            if _run_quality:
-                st.session_state[_quality_key] = True
-                st.rerun()
-        if st.session_state.get(_quality_key, False) and tracking_rows_for_action:
+      if not is_quality_expanded:
+          _run_quality = st.button("🔍 点击加载「信号质量分析大盘」 (需要1-3秒)", key=f"run_quality_{market}", use_container_width=True)
+          if _run_quality:
+              st.session_state[_quality_key] = True
+              st.rerun()
+      else:
+        with st.expander(f"📈 信号质量总览（{action_window_label}）", expanded=True):
+          if tracking_rows_for_action:
             # 统一口径: 全量历史时不再固定 360 天 / 20000 样本，避免“数据已补齐但统计不增长”
             quality_days_back = int(action_days_back) if int(action_days_back) > 0 else 0
             if tracking_rows_for_action:
@@ -3152,38 +3153,36 @@ def _render_todays_picks_page_inner():
                     st.info("暂无可用组合统计")
             else:
                 st.info("极致条件统计暂无样本，请先在“组合追踪”完成回填与刷新。")
-        elif not st.session_state.get(_quality_key, False):
-            st.caption("💡 点击上方按钮加载信号质量分析（首次加载需要几秒钟）")
-        else:
-            st.info("暂无候选追踪样本，先运行扫描并回填历史。下面展示当日扫描替代视图。")
-            if not df.empty:
-                fallback_cols = [
-                    "symbol", "price", "blue_daily", "blue_weekly", "blue_monthly",
-                    "heima_daily", "heima_weekly", "heima_monthly",
-                    "juedi_daily", "juedi_weekly", "juedi_monthly",
-                    "cap_category", "industry",
-                ]
-                show_cols = [c for c in fallback_cols if c in df.columns]
-                if show_cols:
-                    fallback_df = df[show_cols].copy().head(50)
-                    fallback_df = fallback_df.rename(
-                        columns={
-                            "symbol": "股票",
-                            "price": "现价",
-                            "blue_daily": "日BLUE",
-                            "blue_weekly": "周BLUE",
-                            "blue_monthly": "月BLUE",
-                            "heima_daily": "日黑马",
-                            "heima_weekly": "周黑马",
-                            "heima_monthly": "月黑马",
-                            "juedi_daily": "日掘地",
-                            "juedi_weekly": "周掘地",
-                            "juedi_monthly": "月掘地",
-                            "cap_category": "市值层",
-                            "industry": "行业",
-                        }
-                    )
-                    st.dataframe(fallback_df, use_container_width=True, hide_index=True)
+          else:
+              st.info("暂无候选追踪样本，先运行扫描并回填历史。下面展示当日扫描替代视图。")
+              if not df.empty:
+                  fallback_cols = [
+                      "symbol", "price", "blue_daily", "blue_weekly", "blue_monthly",
+                      "heima_daily", "heima_weekly", "heima_monthly",
+                      "juedi_daily", "juedi_weekly", "juedi_monthly",
+                      "cap_category", "industry",
+                  ]
+                  show_cols = [c for c in fallback_cols if c in df.columns]
+                  if show_cols:
+                      fallback_df = df[show_cols].copy().head(50)
+                      fallback_df = fallback_df.rename(
+                          columns={
+                              "symbol": "股票",
+                              "price": "现价",
+                              "blue_daily": "日BLUE",
+                              "blue_weekly": "周BLUE",
+                              "blue_monthly": "月BLUE",
+                              "heima_daily": "日黑马",
+                              "heima_weekly": "周黑马",
+                              "heima_monthly": "月黑马",
+                              "juedi_daily": "日掘地",
+                              "juedi_weekly": "周掘地",
+                              "juedi_monthly": "月掘地",
+                              "cap_category": "市值层",
+                              "industry": "行业",
+                          }
+                      )
+                      st.dataframe(fallback_df, use_container_width=True, hide_index=True)
     except Exception as _quality_err:
         st.warning(f"信号质量总览加载失败（不影响下方 Tab 功能）: {_quality_err}")
     
