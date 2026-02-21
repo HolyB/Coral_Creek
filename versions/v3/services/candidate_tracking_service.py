@@ -25,6 +25,7 @@ from db.supabase_db import get_supabase
 # ---------------------------------------------------------------------------
 _price_series_cache: Dict[tuple, List[Dict]] = {}   # (symbol, market, signal_date) -> series
 _exit_rule_cache: Dict[str, Dict] = {}               # hash(rows+rule_params) -> result dict
+_skip_api_fallback: bool = False                      # True = 预计算模式，跳过在线 API 兜底
 
 
 def clear_price_cache() -> None:
@@ -627,40 +628,42 @@ def _get_price_series(symbol: str, market: str, signal_date: str) -> List[Dict]:
             print(f"⚠️ scan_results 查询失败(库损坏)，改用在线行情: {e}")
 
     # 3) 最后兜底：在线拉取从 signal_date 至今的日线（解决仅快照导致收益长期为0）
-    try:
-        from datetime import datetime as _dt
-        from data_fetcher import get_stock_data
-
+    #    预计算模式下跳过，避免上万次 API 调用卡死
+    if not _skip_api_fallback:
         try:
-            sig_dt = _dt.strptime(str(signal_date), "%Y-%m-%d")
-            days_needed = max(90, (_dt.now() - sig_dt).days + 30)
-        except Exception:
-            days_needed = 180
-        days_needed = max(60, min(int(days_needed), 1200))
+            from datetime import datetime as _dt
+            from data_fetcher import get_stock_data
 
-        df = get_stock_data(symbol, market=market, days=days_needed)
-        if df is not None and len(df) > 0:
-            out = []
-            for idx, r in df.iterrows():
-                d = str(idx.date()) if hasattr(idx, "date") else str(idx)[:10]
-                if d < str(signal_date):
-                    continue
-                close_px = _to_float(r.get("Close"), 0.0)
-                if close_px <= 0:
-                    continue
-                out.append(
-                    {
-                        "scan_date": d,
-                        "price": close_px,
-                        "day_high": _to_float(r.get("High"), close_px),
-                        "day_low": _to_float(r.get("Low"), close_px),
-                        "day_close": close_px,
-                    }
-                )
-            if out:
-                return _store_and_return(out)
-    except Exception:
-        pass
+            try:
+                sig_dt = _dt.strptime(str(signal_date), "%Y-%m-%d")
+                days_needed = max(90, (_dt.now() - sig_dt).days + 30)
+            except Exception:
+                days_needed = 180
+            days_needed = max(60, min(int(days_needed), 1200))
+
+            df = get_stock_data(symbol, market=market, days=days_needed)
+            if df is not None and len(df) > 0:
+                out = []
+                for idx, r in df.iterrows():
+                    d = str(idx.date()) if hasattr(idx, "date") else str(idx)[:10]
+                    if d < str(signal_date):
+                        continue
+                    close_px = _to_float(r.get("Close"), 0.0)
+                    if close_px <= 0:
+                        continue
+                    out.append(
+                        {
+                            "scan_date": d,
+                            "price": close_px,
+                            "day_high": _to_float(r.get("High"), close_px),
+                            "day_low": _to_float(r.get("Low"), close_px),
+                            "day_close": close_px,
+                        }
+                    )
+                if out:
+                    return _store_and_return(out)
+        except Exception:
+            pass
 
     _price_series_cache[_cache_key] = []
     return []
