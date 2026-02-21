@@ -25,6 +25,7 @@ from services.candidate_tracking_service import (
     evaluate_exit_rule,
     get_candidate_tracking_rows,
 )
+import services.candidate_tracking_service as _cts
 
 # --------------- 数据库路径 ---------------
 DB_DIR = os.path.join(ROOT, "db")
@@ -87,6 +88,9 @@ def precompute_for_market(
 
     now_str = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     stats = {}
+
+    # 预计算模式：跳过 Polygon API 兜底，只用本地价格数据（覆盖率 97%+）
+    _cts._skip_api_fallback = True
 
     for rule_name in rules:
         print(f"\n[{market}] 计算规则: {rule_name} ...")
@@ -171,6 +175,7 @@ def precompute_for_market(
             f"{total_details} 条计算, {inserted} 条写入, 耗时 {rule_elapsed:.1f}s"
         )
 
+    _cts._skip_api_fallback = False
     conn.close()
     return {"market": market, "total_rows": len(rows), "rules": stats}
 
