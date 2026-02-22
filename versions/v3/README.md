@@ -119,6 +119,28 @@ pip install -r requirements.txt
 streamlit run app.py --server.port 8504
 ```
 
+## ⚙️ 自动化工作流 (GitHub Actions)
+项目重度依赖 GitHub Actions 来实现云端自动化数据获取、计算和模型训练，释放本地算力。
+
+核心工作流清单 (`.github/workflows/`)：
+
+### 1. 核心日常扫描 (Daily Scans)
+* **`daily_scan.yml`** (美股日常扫描): 周一到周五运行。触发全量美股扫描，识别特征信号写入数据库。最近升级：新增自动触发 **盘后信号追踪(candidate_tracking)** 及 **全量预计算(precompute)**，实现前端秒速加载。
+* **`daily_scan_cn.yml`** (A股日常扫描): 在北京时间的盘前、盘中和盘后自动执行，逻辑同美股，涵盖扫描及后续全量预计算，自动将数据库(包含 `precomputed.db`)推送到云端。
+* **`baseline_scan_us.yml` / `baseline_scan_cn.yml`**: 基准大盘及特征扫描辅助。
+
+### 2. 回填与回溯测试 (Backfill & Tracking)
+* **`backfill.yml`** (手动回填工具): 手动触发，支持指定日期范围、市场 (US/CN) 进行历史数据回填。完美解决 A 股 5000 只股票等历史海量 K 线带来的本地机器卡死或 API 限流问题。**自带候选池重建和预计算步骤**。
+* **`picks_tracker.yml`** (每日推荐追踪): 每日收盘后统计、预估和追踪系统金股预测收益，使用最新的重试/Rebase 机制防止冲突写入。
+* **`rescan_v3.yml`**: 针对历史信号和因子进行 V3 引擎的集中重算更新。
+
+### 3. 数据与智能洞察 (Intelligence & ML)
+* **`ml_training.yml`** (ML模型训练): 每周自动拉取最新的股票 K 线并执行 XGBoost 及排序类模型的定期增量训练。
+* **`daily_signal_report.yml`** (每日信号追踪报告): 生成并推送核心策略当天的表现。
+* **`realtime_monitor.yml`** / **`social_kol_scan.yml`**: 实时行情监控预警及社交/博主情绪因子更新。
+
+---
+
 ## 📋 V3 开发路线图
 
 ### Phase 1: 基础架构 ✅
