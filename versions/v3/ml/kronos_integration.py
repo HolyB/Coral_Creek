@@ -56,10 +56,15 @@ class KronosEngine:
         
         print(f"📦 Loading Main Model: {self.model_name}")
         self.model = Kronos.from_pretrained(self.model_name)
+        import torch
+        # 限制 PyTorch 线程并发数并强制 CPU
+        # macOS MPS 模块在 Streamlit 的多线程环境和自回归循环下易发发底层死锁 (Metal kernel trap)
+        # 用纯 CPU 算力在 Mac 端运行 ~99M 小网络反而更稳、更快
+        torch.set_num_threads(4) 
         
         # 实例化预测器
         # max_context 控制最大输入 K 线长度 (推荐 512, 因为 token 并不仅仅是一维的)
-        self.predictor = KronosPredictor(self.model, self.tokenizer, max_context=512)
+        self.predictor = KronosPredictor(self.model, self.tokenizer, device="cpu", max_context=512)
         
     def predict_future_klines(
         self, 
