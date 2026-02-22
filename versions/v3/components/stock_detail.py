@@ -1993,12 +1993,15 @@ def _render_kronos_prediction_tab(symbol: str, hist_data: pd.DataFrame, unique_k
         temperature = st.slider("随机度(Temperature)", min_value=0.1, max_value=1.0, value=0.5, step=0.1, key=f"kronos_temp_{unique_key}")
         
     if st.button("🚀 启动K线神探推理", key=f"kronos_btn_{unique_key}", type="primary", use_container_width=True):
+        st.info("开始准备数据和引擎...")
         with st.spinner("Kronos大模型加载和推理中 (约需10-15秒)..."):
             try:
                 import sys
                 import os
                 import ml.kronos_integration as ki
+                
                 engine = ki.get_kronos_engine()
+                st.info("引擎加载完成，开始推断...") 
                 
                 # prepare data
                 df_input = hist_data.copy()
