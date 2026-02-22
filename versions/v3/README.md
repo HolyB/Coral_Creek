@@ -137,7 +137,7 @@ streamlit run app.py --server.port 8504
 ### 3. 数据与智能洞察 (Intelligence & ML)
 * **`ml_training.yml`** (ML模型训练): 每周自动拉取最新的股票 K 线并执行 XGBoost 及排序类模型的定期增量训练。
 * **`daily_signal_report.yml`** (每日信号追踪报告): 生成并推送核心策略当天的表现。
-* **`realtime_monitor.yml`** / **`social_kol_scan.yml`**: 实时行情监控预警及社交/博主情绪因子更新。
+* **`realtime_monitor.yml`**: 实时行情监控预警。
 
 ---
 
