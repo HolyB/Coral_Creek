@@ -1983,82 +1983,112 @@ def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly
 
 
 def _render_kronos_prediction_tab(symbol: str, hist_data: pd.DataFrame, unique_key: str):
-    st.markdown("### 🪐 Kronos 深度走势预测 (纯本地大模型推理)")
-    st.info("基于微软亚洲研究院联合清华大学开源的金融基础大模型 (120亿真实K线训练), 在本地生成未来数天的量价推演。此过程属于0网络请求的算力推理。")
+    st.markdown("### 🪐 Kronos 深度走势预测")
+    st.info("基于微软亚洲研究院联合清华大学开源的金融基础大模型 (120亿真实K线训练)。预测结果由后台脚本提前计算并缓存，页面秒速加载。")
     
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        pred_len = st.slider("预测天数", min_value=5, max_value=40, value=20, key=f"kronos_pred_len_{unique_key}")
-    with col2:
-        temperature = st.slider("随机度(Temperature)", min_value=0.1, max_value=1.0, value=0.5, step=0.1, key=f"kronos_temp_{unique_key}")
+    # 读取预计算缓存
+    try:
+        import sys, os
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'scripts'))
+        from kronos_precompute import load_prediction, CACHE_DB
         
-    if st.button("🚀 启动K线神探推理", key=f"kronos_btn_{unique_key}", type="primary", use_container_width=True):
-        st.info("开始准备数据和引擎...")
-        with st.spinner("Kronos大模型加载和推理中 (约需10-15秒)..."):
-            try:
-                import sys
-                import os
-                import ml.kronos_integration as ki
-                
-                engine = ki.get_kronos_engine()
-                st.info("引擎加载完成，开始推断...") 
-                
-                # prepare data
-                df_input = hist_data.copy()
-                df_input.index.name = "date"
-                df_input = df_input.rename(columns=str.lower).reset_index()
-                if "date" in df_input.columns:
-                    df_input.rename(columns={"date": "timestamps"}, inplace=True)
-                    
-                df_input = df_input.tail(400) # feed last 400 lines
-                
-                pred_df = engine.predict_future_klines(df_input, pred_len=pred_len, temperature=temperature, top_p=0.8)
-                
-                if pred_df is not None:
-                    # combine for charting
-                    last_price = float(hist_data["Close"].iloc[-1])
-                    import plotly.graph_objects as go
-                    
-                    fig = go.Figure()
-                    
-                    # historical K line (last 60 days)
-                    recent_hist = hist_data.tail(60)
-                    fig.add_trace(go.Candlestick(
-                        x=recent_hist.index,
-                        open=recent_hist['Open'], high=recent_hist['High'],
-                        low=recent_hist['Low'], close=recent_hist['Close'],
-                        name="历史行情"
-                    ))
-                    
-                    # prediction line
-                    fig.add_trace(go.Scatter(
-                        x=pred_df.index,
-                        y=pred_df['Close'],
-                        mode='lines+markers',
-                        name="Kronos 预测收盘价",
-                        line=dict(color='yellow', width=2, dash='dash')
-                    ))
-                    
-                    fig.update_layout(
-                        title=f"{symbol} 走势预测图",
-                        yaxis_title="价格",
-                        template="plotly_dark",
-                        height=500,
-                        xaxis_rangeslider_visible=False
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    pred_chg = (pred_df['Close'].iloc[-1] / last_price - 1) * 100
-                    st.markdown("### 🎯 推理结论")
-                    if pred_chg > 0:
-                        st.success(f"📈 **模型预测**: 未来 {pred_len} 天走势向上，预计区间涨幅: **+{pred_chg:.2f}%** (目标价: {pred_df['Close'].iloc[-1]:.2f})")
-                    else:
-                        st.warning(f"📉 **模型预测**: 未来 {pred_len} 天有回调风险，预计区间跌幅: **{pred_chg:.2f}%** (目标价: {pred_df['Close'].iloc[-1]:.2f})")
-                        
-                else:
-                    st.error("预测失败，返回为空。")
-            except Exception as e:
-                st.error(f"推理引擎错误: {str(e)}")
+        cached = load_prediction(symbol, market="US")
+        
+        if cached is None:
+            # 尝试查找最近的任意日期的缓存
+            import sqlite3
+            if os.path.exists(CACHE_DB):
+                conn = sqlite3.connect(CACHE_DB)
+                row = conn.execute("""
+                    SELECT pred_date FROM kronos_predictions 
+                    WHERE symbol=? ORDER BY pred_date DESC LIMIT 1
+                """, (symbol,)).fetchone()
+                conn.close()
+                if row:
+                    cached = load_prediction(symbol, market="US", pred_date=row[0])
+        
+        if cached is None:
+            st.warning(f"⚠️ 暂无 **{symbol}** 的 Kronos 预测缓存。")
+            st.markdown("""
+            **如何生成预测？** 在终端运行以下命令：
+            ```bash
+            cd versions/v3
+            python scripts/kronos_precompute.py {symbol}
+            ```
+            或批量预测今日扫描信号的所有股票：
+            ```bash
+            python scripts/kronos_precompute.py --from-signals
+            ```
+            预测完成后刷新此页面即可看到结果。
+            """.format(symbol=symbol))
+            return
+        
+        pred_df = cached["pred_df"]
+        last_price = cached["last_hist_close"]
+        pred_len = cached["pred_len"]
+        created_at = cached["created_at"]
+        
+        st.caption(f"📅 预测基准日: {cached['last_hist_date']} | 🕐 计算时间: {created_at[:19]} | 🌡️ Temperature: {cached['temperature']}")
+        
+        import plotly.graph_objects as go
+        
+        fig = go.Figure()
+        
+        # 历史 K 线 (最近60天)
+        recent_hist = hist_data.tail(60)
+        fig.add_trace(go.Candlestick(
+            x=recent_hist.index,
+            open=recent_hist['Open'], high=recent_hist['High'],
+            low=recent_hist['Low'], close=recent_hist['Close'],
+            name="历史行情"
+        ))
+        
+        # 预测收盘价 (黄色虚线)
+        fig.add_trace(go.Scatter(
+            x=pred_df.index,
+            y=pred_df['Close'],
+            mode='lines+markers',
+            name="Kronos 预测收盘价",
+            line=dict(color='#FFD700', width=2, dash='dash'),
+            marker=dict(size=5)
+        ))
+        
+        # 预测高低区间 (半透明填充)
+        fig.add_trace(go.Scatter(
+            x=pred_df.index, y=pred_df['High'],
+            mode='lines', name='预测最高',
+            line=dict(width=0), showlegend=False
+        ))
+        fig.add_trace(go.Scatter(
+            x=pred_df.index, y=pred_df['Low'],
+            mode='lines', name='预测区间',
+            line=dict(width=0),
+            fill='tonexty', fillcolor='rgba(255, 215, 0, 0.1)'
+        ))
+        
+        fig.update_layout(
+            title=f"{symbol} Kronos 走势预测图",
+            yaxis_title="价格",
+            template="plotly_dark",
+            height=500,
+            xaxis_rangeslider_visible=False
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # 推理结论
+        pred_chg = (float(pred_df['Close'].iloc[-1]) / last_price - 1) * 100
+        st.markdown("### 🎯 推理结论")
+        if pred_chg > 0:
+            st.success(f"📈 **模型预测**: 未来 {pred_len} 天走势向上，预计区间涨幅: **+{pred_chg:.2f}%** (目标价: {pred_df['Close'].iloc[-1]:.2f})")
+        else:
+            st.warning(f"📉 **模型预测**: 未来 {pred_len} 天有回调风险，预计区间跌幅: **{pred_chg:.2f}%** (目标价: {pred_df['Close'].iloc[-1]:.2f})")
+        
+        # 预测详情表
+        with st.expander("📋 预测数据明细"):
+            st.dataframe(pred_df.style.format("{:.2f}"), use_container_width=True)
+            
+    except Exception as e:
+        st.error(f"读取 Kronos 缓存失败: {str(e)}")
 
 
 def _render_ml_prediction_tab(
