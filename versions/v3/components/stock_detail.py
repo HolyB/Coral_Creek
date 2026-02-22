@@ -270,6 +270,7 @@ def render_unified_stock_detail(
     
     # ML预测放在最前面 (重要)
     tab_names.append("🎯 ML预测")
+    tab_names.append("🪐 Kronos预测")
     
     if show_charts:
         tab_names.append("📈 K线图表")
@@ -304,6 +305,11 @@ def render_unified_stock_detail(
                 price_symbol=price_symbol,
                 unique_key=unique_key
             )
+        tab_idx += 1
+        
+        # === Tab: Kronos预测 ===
+        with tabs[tab_idx]:
+            _render_kronos_prediction_tab(symbol, df_daily, unique_key)
         tab_idx += 1
         
         # === Tab: K线图表 ===
@@ -1974,6 +1980,82 @@ def _render_actions(symbol, current_price, price_symbol, blue_daily, blue_weekly
                 st.success(f"✅ {symbol} 已加入观察列表")
             except Exception as e:
                 st.error(f"添加失败: {e}")
+
+
+def _render_kronos_prediction_tab(symbol: str, hist_data: pd.DataFrame, unique_key: str):
+    st.markdown("### 🪐 Kronos 深度走势预测 (纯本地大模型推理)")
+    st.info("基于微软亚洲研究院联合清华大学开源的金融基础大模型 (120亿真实K线训练), 在本地生成未来数天的量价推演。此过程属于0网络请求的算力推理。")
+    
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        pred_len = st.slider("预测天数", min_value=5, max_value=40, value=20, key=f"kronos_pred_len_{unique_key}")
+    with col2:
+        temperature = st.slider("随机度(Temperature)", min_value=0.1, max_value=1.0, value=0.5, step=0.1, key=f"kronos_temp_{unique_key}")
+        
+    if st.button("🚀 启动K线神探推理", key=f"kronos_btn_{unique_key}", type="primary", use_container_width=True):
+        with st.spinner("Kronos大模型加载和推理中 (约需10-15秒)..."):
+            try:
+                import sys
+                import os
+                import ml.kronos_integration as ki
+                engine = ki.get_kronos_engine()
+                
+                # prepare data
+                df_input = hist_data.copy()
+                df_input.index.name = "date"
+                df_input = df_input.rename(columns=str.lower).reset_index()
+                if "date" in df_input.columns:
+                    df_input.rename(columns={"date": "timestamps"}, inplace=True)
+                    
+                df_input = df_input.tail(400) # feed last 400 lines
+                
+                pred_df = engine.predict_future_klines(df_input, pred_len=pred_len, temperature=temperature, top_p=0.8)
+                
+                if pred_df is not None:
+                    # combine for charting
+                    last_price = float(hist_data["Close"].iloc[-1])
+                    import plotly.graph_objects as go
+                    
+                    fig = go.Figure()
+                    
+                    # historical K line (last 60 days)
+                    recent_hist = hist_data.tail(60)
+                    fig.add_trace(go.Candlestick(
+                        x=recent_hist.index,
+                        open=recent_hist['Open'], high=recent_hist['High'],
+                        low=recent_hist['Low'], close=recent_hist['Close'],
+                        name="历史行情"
+                    ))
+                    
+                    # prediction line
+                    fig.add_trace(go.Scatter(
+                        x=pred_df.index,
+                        y=pred_df['Close'],
+                        mode='lines+markers',
+                        name="Kronos 预测收盘价",
+                        line=dict(color='yellow', width=2, dash='dash')
+                    ))
+                    
+                    fig.update_layout(
+                        title=f"{symbol} 走势预测图",
+                        yaxis_title="价格",
+                        template="plotly_dark",
+                        height=500,
+                        xaxis_rangeslider_visible=False
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    pred_chg = (pred_df['Close'].iloc[-1] / last_price - 1) * 100
+                    st.markdown("### 🎯 推理结论")
+                    if pred_chg > 0:
+                        st.success(f"📈 **模型预测**: 未来 {pred_len} 天走势向上，预计区间涨幅: **+{pred_chg:.2f}%** (目标价: {pred_df['Close'].iloc[-1]:.2f})")
+                    else:
+                        st.warning(f"📉 **模型预测**: 未来 {pred_len} 天有回调风险，预计区间跌幅: **{pred_chg:.2f}%** (目标价: {pred_df['Close'].iloc[-1]:.2f})")
+                        
+                else:
+                    st.error("预测失败，返回为空。")
+            except Exception as e:
+                st.error(f"推理引擎错误: {str(e)}")
 
 
 def _render_ml_prediction_tab(
