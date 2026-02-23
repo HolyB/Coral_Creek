@@ -62,12 +62,6 @@ jobs:
           pip install pandas numpy einops safetensors huggingface_hub tqdm matplotlib
           pip install polygon-api-client requests python-dotenv
 
-      - name: Clone Kronos model source
-        run: |
-          if [ ! -d "versions/v3/ml/Kronos" ]; then
-            git clone https://github.com/shiyu-coder/Kronos.git versions/v3/ml/Kronos
-          fi
-
       - name: Determine prediction parameters
         id: params
         run: |
@@ -100,10 +94,13 @@ jobs:
         if: steps.params.outputs.market == 'US' || steps.params.outputs.market == 'BOTH'
         working-directory: versions/v3
         env:
-          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          PYTHONPATH: ${{ github.workspace }}/versions/v3:${{ github.workspace }}/versions/v3/ml/Kronos
           POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
         run: |
           echo "🪐 Running Kronos predictions for US market..."
+          
+          # 验证 Kronos 源码存在
+          ls -la ml/Kronos/model/ || echo "⚠️ Kronos model dir not found"
           
           ARGS="--from-scan --market US --pred-len ${{ steps.params.outputs.pred_len }}"
           
@@ -127,7 +124,7 @@ jobs:
         if: steps.params.outputs.market == 'CN' || steps.params.outputs.market == 'BOTH'
         working-directory: versions/v3
         env:
-          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          PYTHONPATH: ${{ github.workspace }}/versions/v3:${{ github.workspace }}/versions/v3/ml/Kronos
         run: |
           echo "🪐 Running Kronos predictions for CN market..."
           
@@ -149,7 +146,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          git add versions/v3/db/kronos_cache.db || true
+          git add -f versions/v3/db/kronos_cache.db || true
           
           MARKET="${{ steps.params.outputs.market }}"
           MODE="${{ steps.params.outputs.mode }}"
