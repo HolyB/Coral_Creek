@@ -8,11 +8,20 @@ Kronos 预计算脚本
     # 预测指定股票
     python scripts/kronos_precompute.py HIMS AAPL NVDA TSLA
 
-    # 预测今日扫描出的所有 BLUE 信号股票
-    python scripts/kronos_precompute.py --from-signals
+    # 预测今日扫描出的所有股票 (含 BLUE 信号)
+    python scripts/kronos_precompute.py --from-scan
 
-    # 预测全部 (从 signals 中 + 自选列表)
-    python scripts/kronos_precompute.py --from-signals HIMS AAPL
+    # 仅预测有 BLUE 信号的
+    python scripts/kronos_precompute.py --from-scan --blue-only
+
+    # 指定市场
+    python scripts/kronos_precompute.py --from-scan --market CN
+
+    # 跑全量 (美股+A股)
+    python scripts/kronos_precompute.py --from-scan --market US --from-scan --market CN
+
+    # 性能基准测试 (只跑前 N 只)
+    python scripts/kronos_precompute.py --from-scan --benchmark 50
 """
 import os
 import sys
@@ -63,7 +72,6 @@ def save_prediction(symbol: str, market: str, pred_df, last_hist_date: str, last
     conn = sqlite3.connect(CACHE_DB)
     today = datetime.now().strftime("%Y-%m-%d")
     
-    # 将 DataFrame 转成 JSON
     pred_records = []
     for idx, row in pred_df.iterrows():
         pred_records.append({
@@ -120,19 +128,37 @@ def load_prediction(symbol: str, market: str = "US", pred_date: str = None):
     }
 
 
-def get_signal_symbols(market: str = "US") -> list:
-    """从今日扫描信号中提取候选股票代码"""
+def get_scan_symbols(market: str = "US", blue_only: bool = False) -> list:
+    """从最近一次扫描结果中提取股票代码"""
     db_path = os.path.join(V3_DIR, "db", "coral_creek.db")
     if not os.path.exists(db_path):
+        print(f"  ⚠️ 数据库不存在: {db_path}")
         return []
     conn = sqlite3.connect(db_path)
-    today = datetime.now().strftime("%Y-%m-%d")
-    rows = conn.execute("""
-        SELECT DISTINCT symbol FROM signals 
-        WHERE scan_date = ? AND market = ?
-        ORDER BY symbol
-    """, (today, market)).fetchall()
+    
+    # 查找最近的扫描日期
+    latest = conn.execute("""
+        SELECT MAX(scan_date) FROM scan_results WHERE market=?
+    """, (market,)).fetchone()[0]
+    
+    if latest is None:
+        conn.close()
+        return []
+    
+    if blue_only:
+        rows = conn.execute("""
+            SELECT DISTINCT symbol FROM scan_results 
+            WHERE scan_date = ? AND market = ? AND blue_daily > 0
+            ORDER BY symbol
+        """, (latest, market)).fetchall()
+    else:
+        rows = conn.execute("""
+            SELECT DISTINCT symbol FROM scan_results 
+            WHERE scan_date = ? AND market = ?
+            ORDER BY symbol
+        """, (latest, market)).fetchall()
     conn.close()
+    print(f"  📡 [{market}] 扫描日期 {latest}, 找到 {len(rows)} 只股票" + (" (仅BLUE)" if blue_only else ""))
     return [r[0] for r in rows]
 
 
@@ -140,12 +166,10 @@ def predict_single(engine, cache, symbol: str, market: str = "US", pred_len: int
     """对单只股票运行 Kronos 预测并缓存"""
     import pandas as pd
     
-    print(f"  📊 获取 {symbol} 历史数据...")
     df = cache.get_stock_history(symbol, market=market)
     
     if df is None or len(df) < 60:
-        print(f"  ⚠️ {symbol} 数据不足, 跳过 (len={len(df) if df is not None else 0})")
-        return False
+        return False, 0.0
     
     # 准备输入
     df_input = df.copy()
@@ -154,14 +178,12 @@ def predict_single(engine, cache, symbol: str, market: str = "US", pred_len: int
         df_input.rename(columns={"date": "timestamps"}, inplace=True)
     df_input = df_input.tail(400)
     
-    print(f"  🧠 Kronos 推理中 ({len(df_input)} 根K线 → {pred_len}天预测)...")
     t0 = time.time()
     pred_df = engine.predict_future_klines(df_input, pred_len=pred_len, temperature=temperature, top_p=0.8)
     elapsed = time.time() - t0
     
     if pred_df is None:
-        print(f"  ❌ {symbol} 预测失败")
-        return False
+        return False, elapsed
     
     # 保存
     last_close = float(df_input["close"].iloc[-1])
@@ -170,31 +192,37 @@ def predict_single(engine, cache, symbol: str, market: str = "US", pred_len: int
     
     pred_chg = (float(pred_df["Close"].iloc[-1]) / last_close - 1) * 100
     direction = "📈" if pred_chg > 0 else "📉"
-    print(f"  ✅ {symbol} 完成 ({elapsed:.1f}s) {direction} 预测{pred_len}日变幅: {pred_chg:+.2f}%")
-    return True
+    print(f"  ✅ {symbol} ({elapsed:.1f}s) {direction} {pred_chg:+.2f}%")
+    return True, elapsed
 
 
 def main():
     parser = argparse.ArgumentParser(description="Kronos 批量预计算")
     parser.add_argument("symbols", nargs="*", help="要预测的股票代码列表")
-    parser.add_argument("--from-signals", action="store_true", help="从今日扫描信号中自动提取")
+    parser.add_argument("--from-scan", action="store_true", help="从最近一次扫描结果中提取")
+    parser.add_argument("--blue-only", action="store_true", help="仅预测有 BLUE 信号的股票")
     parser.add_argument("--market", default="US", help="市场 (US/CN)")
     parser.add_argument("--pred-len", type=int, default=20, help="预测天数")
     parser.add_argument("--temperature", type=float, default=0.5, help="随机度")
+    parser.add_argument("--benchmark", type=int, default=0, help="基准测试模式: 只跑前 N 只")
     args = parser.parse_args()
     
     symbols = list(args.symbols)
     
-    if args.from_signals:
-        sig_symbols = get_signal_symbols(args.market)
-        print(f"📡 从今日扫描信号中发现 {len(sig_symbols)} 只股票")
-        symbols = list(set(symbols + sig_symbols))
+    if args.from_scan:
+        scan_symbols = get_scan_symbols(args.market, args.blue_only)
+        symbols = list(set(symbols + scan_symbols))
     
     if not symbols:
-        symbols = ["HIMS", "AAPL", "NVDA", "TSLA", "PLTR"]  # 默认热门
+        symbols = ["HIMS", "AAPL", "NVDA", "TSLA", "PLTR"]
         print(f"ℹ️ 未指定股票, 使用默认列表: {symbols}")
     
+    if args.benchmark > 0:
+        symbols = symbols[:args.benchmark]
+        print(f"⚡ 基准测试模式: 只处理前 {args.benchmark} 只")
+    
     print(f"\n🪐 Kronos 批量预计算启动")
+    print(f"   市场: {args.market}")
     print(f"   股票数量: {len(symbols)}")
     print(f"   预测天数: {args.pred_len}")
     print(f"   温度参数: {args.temperature}")
@@ -206,28 +234,52 @@ def main():
     cache = DataCache()
     
     print("🚀 加载 Kronos 大模型引擎...")
-    t_start = time.time()
+    t_engine = time.time()
     engine = get_kronos_engine()
-    print(f"✅ 引擎加载完成 ({time.time() - t_start:.1f}s)\n")
+    engine_time = time.time() - t_engine
+    print(f"✅ 引擎加载完成 ({engine_time:.1f}s)\n")
     
+    t_start = time.time()
     success = 0
     fail = 0
+    skip = 0
+    times = []
+    
     for i, sym in enumerate(symbols, 1):
-        print(f"[{i}/{len(symbols)}] {sym}")
         try:
-            if predict_single(engine, cache, sym, args.market, args.pred_len, args.temperature):
+            ok, elapsed = predict_single(engine, cache, sym, args.market, args.pred_len, args.temperature)
+            if ok:
                 success += 1
+                times.append(elapsed)
             else:
-                fail += 1
+                skip += 1
         except Exception as e:
-            print(f"  ❌ {sym} 异常: {e}")
+            print(f"  ❌ {sym}: {e}")
             fail += 1
+        
+        # 每 50 只输出一次进度
+        if i % 50 == 0:
+            elapsed_total = time.time() - t_start
+            avg = sum(times) / len(times) if times else 0
+            eta = avg * (len(symbols) - i)
+            print(f"\n--- 进度: {i}/{len(symbols)} | 成功: {success} | 跳过: {skip} | 失败: {fail} | "
+                  f"已用: {elapsed_total:.0f}s | 平均: {avg:.2f}s/只 | 预计剩余: {eta:.0f}s ---\n")
     
     total_time = time.time() - t_start
-    print(f"\n{'='*50}")
-    print(f"🏁 批量预计算完成!")
-    print(f"   成功: {success} | 失败: {fail} | 总耗时: {total_time:.1f}s")
+    avg_time = sum(times) / len(times) if times else 0
+    
+    print(f"\n{'='*60}")
+    print(f"🏁 Kronos 批量预计算完成!")
+    print(f"   市场: {args.market}")
+    print(f"   成功: {success} | 跳过(数据不足): {skip} | 失败: {fail}")
+    print(f"   推理总耗时: {total_time:.1f}s ({total_time/60:.1f}min)")
+    print(f"   引擎加载耗时: {engine_time:.1f}s")
+    print(f"   平均每只: {avg_time:.2f}s")
+    if success > 0:
+        print(f"   全量预估 (500只): {500 * avg_time:.0f}s ({500 * avg_time / 60:.1f}min)")
+        print(f"   全量预估 (1000只): {1000 * avg_time:.0f}s ({1000 * avg_time / 60:.1f}min)")
     print(f"   结果已保存到: {CACHE_DB}")
+    print(f"{'='*60}")
 
 
 if __name__ == "__main__":
