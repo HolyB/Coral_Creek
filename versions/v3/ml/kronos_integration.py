@@ -1,20 +1,55 @@
 import os
 import sys
 import pandas as pd
+import importlib
+import importlib.util
 from typing import Optional
 
 # 动态添加 Kronos 核心源码路径
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# 刚才 clone 的 Kronos 目录在 versions/v3/ml/Kronos
 KRONOS_DIR = os.path.join(CURRENT_DIR, "Kronos")
+KRONOS_MODEL_DIR = os.path.join(KRONOS_DIR, "model")
 
-if KRONOS_DIR not in sys.path:
-    sys.path.insert(0, KRONOS_DIR)
+def _force_import_kronos():
+    """
+    用 importlib 从绝对路径强制加载 Kronos 的 model 包。
+    这比 sys.path.insert 更可靠,避免 CI 环境里的路径歧义问题。
+    """
+    model_init = os.path.join(KRONOS_MODEL_DIR, "__init__.py")
+    if not os.path.exists(model_init):
+        raise ImportError(f"Kronos model package not found at {model_init}")
+    
+    # 先确保 KRONOS_DIR 在 sys.path 最前面 (model 内部有相对导入依赖)
+    if KRONOS_DIR not in sys.path:
+        sys.path.insert(0, KRONOS_DIR)
+    
+    # 如果 'model' 已经被其他地方加载了,先清掉
+    for key in list(sys.modules.keys()):
+        if key == 'model' or key.startswith('model.'):
+            del sys.modules[key]
+    
+    # 用 importlib 从绝对路径加载
+    spec = importlib.util.spec_from_file_location(
+        "model",
+        model_init,
+        submodule_search_locations=[KRONOS_MODEL_DIR]
+    )
+    model_mod = importlib.util.module_from_spec(spec)
+    sys.modules["model"] = model_mod
+    spec.loader.exec_module(model_mod)
+    
+    return model_mod
 
 try:
-    from model import Kronos, KronosTokenizer, KronosPredictor
-except ImportError as e:
+    _model = _force_import_kronos()
+    Kronos = _model.Kronos
+    KronosTokenizer = _model.KronosTokenizer
+    KronosPredictor = _model.KronosPredictor
+    print(f"✅ Kronos model loaded from {KRONOS_MODEL_DIR}")
+except Exception as e:
     print(f"Failed to import Kronos components: {e}")
+    import traceback
+    traceback.print_exc()
     Kronos = KronosTokenizer = KronosPredictor = None
 
 class KronosEngine:
