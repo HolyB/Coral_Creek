@@ -59,7 +59,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install pandas numpy einops safetensors huggingface_hub tqdm matplotlib
+          pip install pandas numpy einops safetensors huggingface_hub tqdm matplotlib pyarrow
           pip install polygon-api-client requests python-dotenv
 
       - name: Determine prediction parameters
