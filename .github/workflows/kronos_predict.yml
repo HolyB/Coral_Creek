@@ -1,0 +1,162 @@
+name: Kronos Prediction Engine
+
+on:
+  # 在每日扫描完成后自动触发
+  workflow_run:
+    workflows: ["Daily Stock Scan"]
+    types: [completed]
+    branches: [main]
+
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      market:
+        description: '市场 (US/CN/BOTH)'
+        required: false
+        default: 'US'
+        type: choice
+        options:
+          - US
+          - CN
+          - BOTH
+      mode:
+        description: '预测范围'
+        required: false
+        default: 'scan'
+        type: choice
+        options:
+          - scan        # 全量扫描结果
+          - blue-only   # 仅 BLUE 信号
+          - benchmark   # 前50只基准测试
+      pred_len:
+        description: '预测天数'
+        required: false
+        default: '20'
+      symbols:
+        description: '额外指定的股票代码 (空格分隔)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  kronos-predict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 最长2小时
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install pandas numpy einops safetensors huggingface_hub tqdm matplotlib
+          pip install polygon-api-client requests python-dotenv
+
+      - name: Clone Kronos model source
+        run: |
+          if [ ! -d "versions/v3/ml/Kronos" ]; then
+            git clone https://github.com/shiyu-coder/Kronos.git versions/v3/ml/Kronos
+          fi
+
+      - name: Determine prediction parameters
+        id: params
+        run: |
+          # Market
+          MARKET="${{ github.event.inputs.market }}"
+          if [ -z "$MARKET" ]; then
+            MARKET="US"
+          fi
+          echo "market=$MARKET" >> $GITHUB_OUTPUT
+          
+          # Mode
+          MODE="${{ github.event.inputs.mode }}"
+          if [ -z "$MODE" ]; then
+            MODE="scan"
+          fi
+          echo "mode=$MODE" >> $GITHUB_OUTPUT
+          
+          # Pred length
+          PRED_LEN="${{ github.event.inputs.pred_len }}"
+          if [ -z "$PRED_LEN" ]; then
+            PRED_LEN="20"
+          fi
+          echo "pred_len=$PRED_LEN" >> $GITHUB_OUTPUT
+          
+          # Extra symbols
+          SYMBOLS="${{ github.event.inputs.symbols }}"
+          echo "symbols=$SYMBOLS" >> $GITHUB_OUTPUT
+
+      - name: Run Kronos prediction (US)
+        if: steps.params.outputs.market == 'US' || steps.params.outputs.market == 'BOTH'
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        run: |
+          echo "🪐 Running Kronos predictions for US market..."
+          
+          ARGS="--from-scan --market US --pred-len ${{ steps.params.outputs.pred_len }}"
+          
+          if [ "${{ steps.params.outputs.mode }}" = "blue-only" ]; then
+            ARGS="$ARGS --blue-only"
+          fi
+          
+          if [ "${{ steps.params.outputs.mode }}" = "benchmark" ]; then
+            ARGS="$ARGS --benchmark 50"
+          fi
+          
+          EXTRA="${{ steps.params.outputs.symbols }}"
+          if [ -n "$EXTRA" ]; then
+            ARGS="$ARGS $EXTRA"
+          fi
+          
+          echo "Command: python scripts/kronos_precompute.py $ARGS"
+          python scripts/kronos_precompute.py $ARGS
+
+      - name: Run Kronos prediction (CN)
+        if: steps.params.outputs.market == 'CN' || steps.params.outputs.market == 'BOTH'
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+        run: |
+          echo "🪐 Running Kronos predictions for CN market..."
+          
+          ARGS="--from-scan --market CN --pred-len ${{ steps.params.outputs.pred_len }}"
+          
+          if [ "${{ steps.params.outputs.mode }}" = "blue-only" ]; then
+            ARGS="$ARGS --blue-only"
+          fi
+          
+          if [ "${{ steps.params.outputs.mode }}" = "benchmark" ]; then
+            ARGS="$ARGS --benchmark 50"
+          fi
+          
+          echo "Command: python scripts/kronos_precompute.py $ARGS"
+          python scripts/kronos_precompute.py $ARGS
+
+      - name: Commit prediction cache
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add versions/v3/db/kronos_cache.db || true
+          
+          MARKET="${{ steps.params.outputs.market }}"
+          MODE="${{ steps.params.outputs.mode }}"
+          DATE=$(date +%Y-%m-%d)
+          
+          git diff --cached --quiet || {
+            git commit -m "🪐 Kronos predictions: ${MARKET} ${MODE} (${DATE})"
+            git push
+            echo "✅ Prediction cache committed and pushed"
+          }
