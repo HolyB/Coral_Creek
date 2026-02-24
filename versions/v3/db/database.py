@@ -709,8 +709,9 @@ def insert_scan_result(result_dict):
                 strat_d_trend, strat_c_resonance,
                 legacy_signal, regime, adaptive_thresh, vp_rating, profit_ratio,
                 wave_phase, wave_desc, chan_signal, chan_desc, duokongwang_buy, duokongwang_sell,
+                lired_daily, pink_daily,
                 market_cap, cap_category, company_name, industry, day_high, day_low, day_close, stop_loss, shares_rec, risk_reward_score, market, ml_rank_score, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(symbol, scan_date) DO UPDATE SET
                 price = excluded.price,
                 turnover_m = excluded.turnover_m,
@@ -740,6 +741,8 @@ def insert_scan_result(result_dict):
                 chan_desc = excluded.chan_desc,
                 duokongwang_buy = excluded.duokongwang_buy,
                 duokongwang_sell = excluded.duokongwang_sell,
+                lired_daily = excluded.lired_daily,
+                pink_daily = excluded.pink_daily,
                 market_cap = excluded.market_cap,
                 cap_category = excluded.cap_category,
                 company_name = excluded.company_name,
@@ -784,6 +787,8 @@ def insert_scan_result(result_dict):
             result_dict.get('Chan_Desc'),
             result_dict.get('Duokongwang_Buy'),
             result_dict.get('Duokongwang_Sell'),
+            result_dict.get('Lired_Daily'),
+            result_dict.get('Pink_Daily'),
             result_dict.get('Market_Cap'),
             result_dict.get('Cap_Category'),
             result_dict.get('Company_Name'),
@@ -794,7 +799,7 @@ def insert_scan_result(result_dict):
             result_dict.get('Stop_Loss'),
             result_dict.get('Shares_Rec'),
             result_dict.get('Risk_Reward_Score'),
-            result_dict.get('Market', 'US'), # 默认 US
+            result_dict.get('Market', 'US'),
             result_dict.get('ML_Rank_Score')
         ))
     

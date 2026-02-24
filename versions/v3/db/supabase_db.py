@@ -211,6 +211,8 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
             'chan_desc': _first_non_none(result_dict.get('Chan_Desc'), result_dict.get('chan_desc')),
             'duokongwang_buy': _first_non_none(result_dict.get('Duokongwang_Buy'), result_dict.get('duokongwang_buy')),
             'duokongwang_sell': _first_non_none(result_dict.get('Duokongwang_Sell'), result_dict.get('duokongwang_sell')),
+            'lired_daily': _first_non_none(result_dict.get('Lired_Daily'), result_dict.get('lired_daily')),
+            'pink_daily': _first_non_none(result_dict.get('Pink_Daily'), result_dict.get('pink_daily')),
         }
         
         # 移除 None 值的字段（Supabase 不接受某些 null）
