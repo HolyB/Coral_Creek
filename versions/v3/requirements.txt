@@ -24,8 +24,8 @@ huggingface_hub>=0.20.0
 supabase>=2.0.0
 pyarrow>=14.0.0
 
-# Advanced Quant Libraries (optional but recommended)
-pyqlib>=0.9.0  # Microsoft Qlib for alpha factors and backtesting
+# Advanced Quant Libraries (optional - install locally only)
+# pyqlib>=0.9.0  # Microsoft Qlib - requires local install: pip install pyqlib
 lightgbm>=4.0.0  # Gradient boosting for ranking models
 
 # Paper Trading
