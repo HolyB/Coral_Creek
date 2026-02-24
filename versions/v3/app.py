@@ -2444,16 +2444,28 @@ def _render_todays_picks_page_inner():
             from db.database import get_db
             with get_db() as conn:
                 cursor = conn.cursor()
+                # 获取所有有 pink/lired 数据的记录
                 cursor.execute(
-                    "SELECT symbol, lired_daily, pink_daily, duokongwang_sell FROM scan_results WHERE scan_date=? AND market=?",
+                    "SELECT * FROM scan_results WHERE scan_date=? AND market=? AND (pink_daily IS NOT NULL OR lired_daily IS NOT NULL)",
                     (latest_date, market)
                 )
-                bearish_data = {row['symbol']: dict(row) for row in cursor.fetchall()}
+                bearish_rows = cursor.fetchall()
+                bearish_data = {row['symbol']: dict(row) for row in bearish_rows}
+            
             if bearish_data:
-                df['lired_daily'] = df['symbol'].map(lambda s: bearish_data.get(s, {}).get('lired_daily', 0))
-                df['pink_daily'] = df['symbol'].map(lambda s: bearish_data.get(s, {}).get('pink_daily', 50))
+                # 1) 更新现有行的空头信号列
+                df['lired_daily'] = df['symbol'].map(lambda s: bearish_data.get(s, {}).get('lired_daily') or 0)
+                df['pink_daily'] = df['symbol'].map(lambda s: bearish_data.get(s, {}).get('pink_daily') or 0)
                 if 'duokongwang_sell' not in df.columns:
-                    df['duokongwang_sell'] = df['symbol'].map(lambda s: bearish_data.get(s, {}).get('duokongwang_sell', 0))
+                    df['duokongwang_sell'] = df['symbol'].map(lambda s: bearish_data.get(s, {}).get('duokongwang_sell') or 0)
+                
+                # 2) 追加 SQLite 里有空头信号但不在当前 df 中的股票
+                existing_syms = set(df['symbol'].tolist())
+                extra_bearish = [v for k, v in bearish_data.items() 
+                                if k not in existing_syms and ((v.get('pink_daily') or 0) > 80 or (v.get('lired_daily') or 0) > 0)]
+                if extra_bearish:
+                    extra_df = pd.DataFrame(extra_bearish)
+                    df = pd.concat([df, extra_df], ignore_index=True)
         except Exception:
             pass
     
@@ -2517,17 +2529,6 @@ def _render_todays_picks_page_inner():
                 })
         
         sell_signals = len(bearish_alerts)
-        if bearish_alerts:
-            st.caption(f"🐛 DEBUG: 检测到 {len(bearish_alerts)} 个空头信号")
-        else:
-            # 检查数据是否有 pink_daily 列
-            pink_col = df['pink_daily'] if 'pink_daily' in df.columns else None
-            if pink_col is not None:
-                pk_max = pink_col.max()
-                pk_notnull = pink_col.notna().sum()
-                st.caption(f"🐛 DEBUG: pink_daily列存在, max={pk_max}, 非空={pk_notnull}/{len(df)}")
-            else:
-                st.caption(f"🐛 DEBUG: pink_daily列不存在! 列名={list(df.columns)[:10]}...")
     
     # === 持仓风险检测 ===
     position_alerts = []
@@ -2691,14 +2692,48 @@ def _render_todays_picks_page_inner():
 
     # === 空头信号详情（LIRED/PINK 逃顶预警）===
     if bearish_alerts:
-        with st.expander(f"🩷 空头/逃顶信号详情 ({len(bearish_alerts)} 只)", expanded=len(bearish_alerts) <= 15):
-            st.caption("🩷 LIRED = 负向海底捞月(顶部逃顶能量)  |  PINK>90 = 主力资金线超买  |  🔴 多空王 = KDJ+RSI 卖出")
-            sorted_bears = sorted(bearish_alerts, key=lambda x: (x['urgency'] == 'high', len(x['alerts'])), reverse=True)
+        with st.expander(f"🩷 空头逃顶预警 ({len(bearish_alerts)} 只)", expanded=len(bearish_alerts) <= 15):
+            sorted_bears = sorted(bearish_alerts, key=lambda x: max(
+                float(a.split('(')[-1].rstrip(')')) for a in x['alerts'] if '(' in a
+            ) if any('(' in a for a in x['alerts']) else 0, reverse=True)
+            
+            # 表头
+            hdr = st.columns([1.5, 1, 3, 1.2])
+            hdr[0].markdown("**股票**")
+            hdr[1].markdown("**价格**")
+            hdr[2].markdown("**信号**")
+            hdr[3].markdown("**PINK**")
+            
             for ba in sorted_bears[:20]:
-                urgency_icon = "🔴" if ba['urgency'] == 'high' else "🟡"
-                alerts_str = " | ".join(ba['alerts'])
-                price_str = f"${ba['price']:.2f}" if ba['price'] > 0 else ""
-                st.markdown(f"{urgency_icon} **{ba['symbol']}** {price_str} — {alerts_str}")
+                cols = st.columns([1.5, 1, 3, 1.2])
+                cols[0].markdown(f"**{ba['symbol']}**")
+                cols[1].markdown(f"${ba['price']:.2f}" if ba['price'] > 0 else "—")
+                
+                # 信号标签
+                signal_parts = []
+                pink_val = 0
+                for a in ba['alerts']:
+                    if 'PINK' in a:
+                        try: pink_val = int(a.split('(')[-1].rstrip(')'))
+                        except: pink_val = 95
+                        signal_parts.append('🩷 PINK超买')
+                    elif 'LIRED' in a:
+                        signal_parts.append('📉 LIRED逃顶')
+                    elif '多空王' in a:
+                        signal_parts.append('🔻 多空王卖出')
+                cols[2].markdown(' · '.join(signal_parts))
+                
+                # PINK 进度条
+                if pink_val > 0:
+                    color = '#ff4b4b' if pink_val >= 95 else '#ffa726'
+                    cols[3].markdown(
+                        f'<div style="background:#333;border-radius:4px;height:20px;position:relative;">'
+                        f'<div style="background:{color};width:{min(pink_val,100)}%;height:100%;border-radius:4px;"></div>'
+                        f'<span style="position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:12px;color:#fff;line-height:20px;">{pink_val}</span>'
+                        f'</div>', unsafe_allow_html=True
+                    )
+                else:
+                    cols[3].markdown("—")
 
     # ============================================
     # 📈 信号质量总览（按需加载，避免阻塞 tabs 渲染）
