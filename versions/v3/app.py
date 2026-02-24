@@ -2438,6 +2438,25 @@ def _render_todays_picks_page_inner():
             results = []
     df = pd.DataFrame(results) if results else pd.DataFrame()
     
+    # 补充空头信号列（Supabase 可能还没有 lired_daily/pink_daily）
+    if not df.empty and 'pink_daily' not in df.columns:
+        try:
+            from db.database import get_db
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT symbol, lired_daily, pink_daily, duokongwang_sell FROM scan_results WHERE scan_date=? AND market=?",
+                    (latest_date, market)
+                )
+                bearish_data = {row['symbol']: dict(row) for row in cursor.fetchall()}
+            if bearish_data:
+                df['lired_daily'] = df['symbol'].map(lambda s: bearish_data.get(s, {}).get('lired_daily', 0))
+                df['pink_daily'] = df['symbol'].map(lambda s: bearish_data.get(s, {}).get('pink_daily', 50))
+                if 'duokongwang_sell' not in df.columns:
+                    df['duokongwang_sell'] = df['symbol'].map(lambda s: bearish_data.get(s, {}).get('duokongwang_sell', 0))
+        except Exception:
+            pass
+    
     # 获取持仓数据
     try:
         portfolio = get_portfolio_summary() or {}
@@ -2498,6 +2517,17 @@ def _render_todays_picks_page_inner():
                 })
         
         sell_signals = len(bearish_alerts)
+        if bearish_alerts:
+            st.caption(f"🐛 DEBUG: 检测到 {len(bearish_alerts)} 个空头信号")
+        else:
+            # 检查数据是否有 pink_daily 列
+            pink_col = df['pink_daily'] if 'pink_daily' in df.columns else None
+            if pink_col is not None:
+                pk_max = pink_col.max()
+                pk_notnull = pink_col.notna().sum()
+                st.caption(f"🐛 DEBUG: pink_daily列存在, max={pk_max}, 非空={pk_notnull}/{len(df)}")
+            else:
+                st.caption(f"🐛 DEBUG: pink_daily列不存在! 列名={list(df.columns)[:10]}...")
     
     # === 持仓风险检测 ===
     position_alerts = []
