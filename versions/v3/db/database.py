@@ -328,6 +328,13 @@ def init_db():
         except Exception:
             pass
         
+        # 空头信号: LIRED (负向海底捞月) + PINK (主力资金线KDJ变体)
+        for col_name, col_type in [("lired_daily", "REAL"), ("pink_daily", "REAL")]:
+            try:
+                cursor.execute(f"ALTER TABLE scan_results ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
+        
         # 扫描任务表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS scan_jobs (

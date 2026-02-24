@@ -2463,6 +2463,7 @@ def _render_todays_picks_page_inner():
     sell_signals = 0
     risk_alerts = 0
     
+    # === 多头买入信号 ===
     if not df.empty:
         # 强买入信号: 日BLUE > 100 且 周BLUE > 50
         strong_buy = df[
@@ -2471,7 +2472,34 @@ def _render_todays_picks_page_inner():
         ]
         buy_opportunities = len(strong_buy)
     
-    # 检测持仓卖出信号
+    # === 空头卖出信号（来自扫描数据，不依赖持仓）===
+    bearish_alerts = []  # 记录空头预警详情
+    if not df.empty:
+        for _, row in df.iterrows():
+            sym = row.get('symbol', '')
+            lired_val = float(row.get('lired_daily', 0) or 0)
+            pink_val = float(row.get('pink_daily', 50) or 50)
+            dkw_sell = bool(row.get('duokongwang_sell', False))
+            
+            alerts = []
+            if lired_val > 0:
+                alerts.append(f"🩷 LIRED逃顶信号({lired_val:.1f})")
+            if pink_val > 90:
+                alerts.append(f"🩷 PINK>90超买({pink_val:.0f})")
+            if dkw_sell:
+                alerts.append("🔴 多空王卖出")
+            
+            if alerts:
+                bearish_alerts.append({
+                    'symbol': sym,
+                    'price': float(row.get('price', 0) or 0),
+                    'alerts': alerts,
+                    'urgency': 'high' if lired_val > 0 and pink_val > 90 else 'medium'
+                })
+        
+        sell_signals = len(bearish_alerts)
+    
+    # === 持仓风险检测 ===
     position_alerts = []
     for pos in positions:
         symbol = pos.get('symbol', '')
@@ -2491,7 +2519,7 @@ def _render_todays_picks_page_inner():
                     'action': '建议卖出',
                     'urgency': 'high'
                 })
-                sell_signals += 1
+                risk_alerts += 1
             
             # 检查大幅亏损
             elif pnl_pct < -10:
@@ -2630,6 +2658,17 @@ def _render_todays_picks_page_inner():
             delta=f"{total_pnl:+.1f}%" if total_positions > 0 else None,
             delta_color="normal" if total_pnl >= 0 else "inverse"
         )
+
+    # === 空头信号详情（LIRED/PINK 逃顶预警）===
+    if bearish_alerts:
+        with st.expander(f"🩷 空头/逃顶信号详情 ({len(bearish_alerts)} 只)", expanded=len(bearish_alerts) <= 15):
+            st.caption("🩷 LIRED = 负向海底捞月(顶部逃顶能量)  |  PINK>90 = 主力资金线超买  |  🔴 多空王 = KDJ+RSI 卖出")
+            sorted_bears = sorted(bearish_alerts, key=lambda x: (x['urgency'] == 'high', len(x['alerts'])), reverse=True)
+            for ba in sorted_bears[:20]:
+                urgency_icon = "🔴" if ba['urgency'] == 'high' else "🟡"
+                alerts_str = " | ".join(ba['alerts'])
+                price_str = f"${ba['price']:.2f}" if ba['price'] > 0 else ""
+                st.markdown(f"{urgency_icon} **{ba['symbol']}** {price_str} — {alerts_str}")
 
     # ============================================
     # 📈 信号质量总览（按需加载，避免阻塞 tabs 渲染）
