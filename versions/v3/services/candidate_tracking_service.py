@@ -329,16 +329,87 @@ def capture_daily_candidates(
     source: str = "daily_scan",
     rules: Optional[Dict] = None,
 ) -> int:
-    """批量写入当日候选追踪快照。"""
+    """批量写入当日候选追踪快照。使用单事务批量 upsert，避免逐条提交导致的 I/O 瓶颈。"""
     _ensure_tracking_table()
     if not rows:
         return 0
 
-    inserted = 0
+    # 先在内存中预处理所有行，收集合法的 upsert 参数
+    batch_params = []
     for row in rows:
-        if _upsert_snapshot(row=row, signal_date=signal_date, market=market, source=source, rules=rules):
-            inserted += 1
-    return inserted
+        symbol = (row.get("symbol") or "").strip()
+        if not symbol:
+            continue
+
+        tags = derive_signal_tags(row, rules=rules)
+        if not tags:
+            continue
+
+        snapshot_price = _to_float(_pick_first_value(row, ["price", "Price"]), 0.0)
+        if snapshot_price <= 0:
+            continue
+
+        heima_daily = int(_pick_bool(row, ["heima_daily", "Heima_Daily", "is_heima", "Is_Heima"]))
+        heima_weekly = int(_pick_bool(row, ["heima_weekly", "Heima_Weekly"]))
+        heima_monthly = int(_pick_bool(row, ["heima_monthly", "Heima_Monthly"]))
+        juedi_daily = int(_pick_bool(row, ["juedi_daily", "Juedi_Daily", "is_juedi", "Is_Juedi"]))
+        juedi_weekly = int(_pick_bool(row, ["juedi_weekly", "Juedi_Weekly"]))
+        juedi_monthly = int(_pick_bool(row, ["juedi_monthly", "Juedi_Monthly"]))
+
+        batch_params.append((
+            symbol, market, signal_date, source,
+            snapshot_price, snapshot_price,
+            row.get("cap_category"), row.get("industry"),
+            json.dumps(tags, ensure_ascii=False),
+            _to_float(row.get("blue_daily")),
+            _to_float(row.get("blue_weekly")),
+            _to_float(row.get("blue_monthly")),
+            heima_daily, heima_weekly, heima_monthly,
+            juedi_daily, juedi_weekly, juedi_monthly,
+            row.get("vp_rating"), _to_float(row.get("profit_ratio")),
+        ))
+
+    if not batch_params:
+        return 0
+
+    # 单事务批量写入
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.executemany(
+            """
+            INSERT INTO candidate_tracking (
+                symbol, market, signal_date, source,
+                signal_price, current_price, pnl_pct, days_since_signal,
+                first_positive_day, max_up_pct, max_drawdown_pct,
+                cap_category, industry, signal_tags,
+                blue_daily, blue_weekly, blue_monthly,
+                heima_daily, heima_weekly, heima_monthly,
+                juedi_daily, juedi_weekly, juedi_monthly,
+                vp_rating, profit_ratio, status,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 0, 0, NULL, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'tracking', CURRENT_TIMESTAMP)
+            ON CONFLICT(symbol, market, signal_date) DO UPDATE SET
+                source = excluded.source,
+                signal_price = excluded.signal_price,
+                cap_category = excluded.cap_category,
+                industry = excluded.industry,
+                signal_tags = excluded.signal_tags,
+                blue_daily = excluded.blue_daily,
+                blue_weekly = excluded.blue_weekly,
+                blue_monthly = excluded.blue_monthly,
+                heima_daily = excluded.heima_daily,
+                heima_weekly = excluded.heima_weekly,
+                heima_monthly = excluded.heima_monthly,
+                juedi_daily = excluded.juedi_daily,
+                juedi_weekly = excluded.juedi_weekly,
+                juedi_monthly = excluded.juedi_monthly,
+                vp_rating = excluded.vp_rating,
+                profit_ratio = excluded.profit_ratio,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            batch_params,
+        )
+    return len(batch_params)
 
 
 def backfill_candidates_from_scan_history(
