@@ -2509,7 +2509,7 @@ def _render_todays_picks_page_inner():
         for _, row in df.iterrows():
             sym = row.get('symbol', '')
             lired_val = float(row.get('lired_daily', 0) or 0)
-            pink_val = float(row.get('pink_daily', 50) or 50)
+            pink_val = float(row.get('pink_daily', 0) or 0)
             dkw_sell = bool(row.get('duokongwang_sell', False))
             
             alerts = []
@@ -2525,7 +2525,16 @@ def _render_todays_picks_page_inner():
                     'symbol': sym,
                     'price': float(row.get('price', 0) or 0),
                     'alerts': alerts,
-                    'urgency': 'high' if lired_val > 0 and pink_val > 90 else 'medium'
+                    'pink_val': pink_val,
+                    'lired_val': lired_val,
+                    'blue_daily': float(row.get('blue_daily', 0) or 0),
+                    'blue_weekly': float(row.get('blue_weekly', 0) or 0),
+                    'adx': float(row.get('adx', 0) or 0),
+                    'volatility': float(row.get('volatility', 0) or 0),
+                    'wave_phase': str(row.get('wave_phase', '') or ''),
+                    'cap_category': str(row.get('cap_category', '') or ''),
+                    'company_name': str(row.get('company_name', '') or ''),
+                    'urgency': 'high' if (lired_val > 0 and pink_val > 90) or (pink_val >= 97) else 'medium'
                 })
         
         sell_signals = len(bearish_alerts)
@@ -2693,47 +2702,85 @@ def _render_todays_picks_page_inner():
     # === 空头信号详情（LIRED/PINK 逃顶预警）===
     if bearish_alerts:
         with st.expander(f"🩷 空头逃顶预警 ({len(bearish_alerts)} 只)", expanded=len(bearish_alerts) <= 15):
-            sorted_bears = sorted(bearish_alerts, key=lambda x: max(
-                float(a.split('(')[-1].rstrip(')')) for a in x['alerts'] if '(' in a
-            ) if any('(' in a for a in x['alerts']) else 0, reverse=True)
+            # 按 PINK 值排序
+            sorted_bears = sorted(bearish_alerts, key=lambda x: x['pink_val'], reverse=True)
             
-            # 表头
-            hdr = st.columns([1.5, 1, 3, 1.2])
-            hdr[0].markdown("**股票**")
-            hdr[1].markdown("**价格**")
-            hdr[2].markdown("**信号**")
-            hdr[3].markdown("**PINK**")
-            
-            for ba in sorted_bears[:20]:
-                cols = st.columns([1.5, 1, 3, 1.2])
-                cols[0].markdown(f"**{ba['symbol']}**")
-                cols[1].markdown(f"${ba['price']:.2f}" if ba['price'] > 0 else "—")
+            # 构建表格数据
+            table_rows = []
+            for ba in sorted_bears[:25]:
+                pink_v = ba['pink_val']
+                lired_v = ba['lired_val']
+                blue_d = ba['blue_daily']
+                adx_v = ba['adx']
+                vol_v = ba['volatility']
                 
-                # 信号标签
-                signal_parts = []
-                pink_val = 0
-                for a in ba['alerts']:
-                    if 'PINK' in a:
-                        try: pink_val = int(a.split('(')[-1].rstrip(')'))
-                        except: pink_val = 95
-                        signal_parts.append('🩷 PINK超买')
-                    elif 'LIRED' in a:
-                        signal_parts.append('📉 LIRED逃顶')
-                    elif '多空王' in a:
-                        signal_parts.append('🔻 多空王卖出')
-                cols[2].markdown(' · '.join(signal_parts))
-                
-                # PINK 进度条
-                if pink_val > 0:
-                    color = '#ff4b4b' if pink_val >= 95 else '#ffa726'
-                    cols[3].markdown(
-                        f'<div style="background:#333;border-radius:4px;height:20px;position:relative;">'
-                        f'<div style="background:{color};width:{min(pink_val,100)}%;height:100%;border-radius:4px;"></div>'
-                        f'<span style="position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:12px;color:#fff;line-height:20px;">{pink_val}</span>'
-                        f'</div>', unsafe_allow_html=True
-                    )
+                # PINK 超买度 — 颜色标签
+                if pink_v >= 95:
+                    pink_tag = f'🔴 {pink_v:.0f}'
+                elif pink_v > 90:
+                    pink_tag = f'🟠 {pink_v:.0f}'
+                elif pink_v > 80:
+                    pink_tag = f'🟡 {pink_v:.0f}'
                 else:
-                    cols[3].markdown("—")
+                    pink_tag = f'{pink_v:.0f}'
+                
+                # 信号类型
+                sig_tags = []
+                if pink_v > 90: sig_tags.append('PINK超买')
+                if lired_v > 0: sig_tags.append('LIRED逃顶')
+                if ba.get('urgency') == 'high' and not sig_tags: sig_tags.append('多空王卖')
+                sig_str = ' + '.join(sig_tags) if sig_tags else '—'
+                
+                # BLUE 多空对比
+                if blue_d > 100:
+                    blue_tag = f'🟢 {blue_d:.0f}'  # 多头仍强，矛盾信号
+                elif blue_d > 0:
+                    blue_tag = f'🟡 {blue_d:.0f}'
+                else:
+                    blue_tag = '—'  # 无多头，空头确认
+                
+                # ADX 趋势强度
+                if adx_v > 30:
+                    adx_tag = f'💪 {adx_v:.0f}'
+                elif adx_v > 20:
+                    adx_tag = f'{adx_v:.0f}'
+                else:
+                    adx_tag = f'{adx_v:.0f}' if adx_v > 0 else '—'
+                
+                # 波动率
+                vol_tag = f'{vol_v:.0%}' if vol_v > 0 else '—'
+                
+                name = ba['company_name'][:10] if ba['company_name'] else ''
+                table_rows.append({
+                    '股票': f"**{ba['symbol']}**",
+                    '名称': name,
+                    '价格': f"${ba['price']:.2f}" if ba['price'] > 0 else '—',
+                    '信号': sig_str,
+                    'PINK': pink_tag,
+                    'BLUE日': blue_tag,
+                    'ADX': adx_tag,
+                    '波动': vol_tag,
+                })
+            
+            if table_rows:
+                import pandas as _pd
+                bear_df = _pd.DataFrame(table_rows)
+                st.dataframe(
+                    bear_df,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        '股票': st.column_config.TextColumn('股票', width='small'),
+                        '名称': st.column_config.TextColumn('名称', width='small'),
+                        '价格': st.column_config.TextColumn('价格', width='small'),
+                        '信号': st.column_config.TextColumn('信号类型', width='medium'),
+                        'PINK': st.column_config.TextColumn('PINK 超买', width='small'),
+                        'BLUE日': st.column_config.TextColumn('BLUE 多头', width='small'),
+                        'ADX': st.column_config.TextColumn('ADX 趋势', width='small'),
+                        '波动': st.column_config.TextColumn('波动率', width='small'),
+                    }
+                )
+                st.caption("🔴 PINK≥95 极度超买 | 🟠 PINK 91-94 超买 | 🟡 PINK 81-90 高位 | 🟢 BLUE多头仍强(矛盾信号) | 💪 ADX>30 强趋势")
 
     # ============================================
     # 📈 信号质量总览（按需加载，避免阻塞 tabs 渲染）
