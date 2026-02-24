@@ -23,7 +23,8 @@ from data_fetcher import get_us_stock_data, get_all_us_tickers, get_ticker_detai
 from indicator_utils import (
     calculate_blue_signal_series, calculate_heima_signal_series,
     calculate_adx_series, calculate_volume_profile_metrics,
-    calculate_volatility, analyze_elliott_wave_proxy, analyze_chanlun_proxy
+    calculate_volatility, analyze_elliott_wave_proxy, analyze_chanlun_proxy,
+    calculate_phantom_indicator
 )
 from ml.data_cache import DataCache
 
@@ -134,6 +135,16 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
         # 日线 BLUE
         day_blue = calculate_blue_signal_series(opens, highs, lows, closes)
         day_blue_val = day_blue[-1] if len(day_blue) > 0 else 0
+        
+        # 日线 LIRED + PINK (空头信号)
+        lired_daily_val = 0.0
+        pink_daily_val = 50.0
+        try:
+            phantom = calculate_phantom_indicator(opens, highs, lows, closes, volumes)
+            lired_daily_val = float(phantom['lired'][-1]) if len(phantom['lired']) > 0 else 0.0
+            pink_daily_val = float(phantom['pink'][-1]) if len(phantom['pink']) > 0 else 50.0
+        except Exception:
+            pass
         
         # 周线
         df_weekly = df.resample('W-FRI').agg({
@@ -303,8 +314,10 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
             duokongwang_buy = False
             duokongwang_sell = False
         
-        # 只保存有信号的股票（新增多空王买点）
-        has_signal = is_strat_d or is_strat_c or legacy_signal or week_blue_val > 100 or duokongwang_buy
+        # 只保存有信号的股票（含空头信号）
+        has_signal = (is_strat_d or is_strat_c or legacy_signal or week_blue_val > 100 
+                      or duokongwang_buy or duokongwang_sell 
+                      or lired_daily_val > 0 or pink_daily_val > 90)
         
         if not has_signal:
             return None
@@ -409,6 +422,8 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
             'Chan_Desc': chan_desc,
             'Duokongwang_Buy': bool(duokongwang_buy),
             'Duokongwang_Sell': bool(duokongwang_sell),
+            'Lired_Daily': round(lired_daily_val, 2),
+            'Pink_Daily': round(pink_daily_val, 2),
             'Market_Cap': None,  # 稍后填充
             'Cap_Category': 'Unknown',
             'Company_Name': None,

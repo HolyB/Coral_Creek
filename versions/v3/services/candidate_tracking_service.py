@@ -239,6 +239,14 @@ def derive_signal_tags(row: Dict, rules: Optional[Dict] = None) -> List[str]:
     if _pick_bool(row, ["duokongwang_sell", "Duokongwang_Sell"]):
         tags.append("DUOKONGWANG_SELL")
 
+    # 空头信号标签
+    lired_daily = _to_float(row.get("lired_daily") or row.get("Lired_Daily"))
+    pink_daily = _to_float(row.get("pink_daily") or row.get("Pink_Daily"))
+    if lired_daily > 0:
+        tags.append("DAY_LIRED")  # 负向海底捞月 (逃顶信号)
+    if pink_daily > 90:
+        tags.append("PINK_TOP")  # PINK超买区 (>90 逃跑)
+
     return sorted(set(tags))
 
 
