@@ -5995,7 +5995,8 @@ def render_scan_page():
 
     # [调试] 显示数据加载和筛选情况
     with st.expander("🔍 调试: 数据加载状态", expanded=len(df) == 0):
-        original_count = len(load_scan_results_from_db(selected_date, market=selected_market)[0] or []) if use_db and selected_date else 0
+        _dbg_df, _ = load_scan_results_from_db(selected_date, market=selected_market) if use_db and selected_date else (None, None)
+        original_count = len(_dbg_df) if _dbg_df is not None and not _dbg_df.empty else 0
         st.write(f"📊 原始加载: {original_count} 条 → 筛选后: {len(df)} 条")
         st.write(f"📅 日期: {selected_date} | 市场: {selected_market}")
         if df is not None and not df.empty:
