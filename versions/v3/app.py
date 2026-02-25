@@ -2090,6 +2090,178 @@ def render_market_pulse(market='US'):
         st.divider()
 
 
+def render_market_news_intel(market='US', unique_key=''):
+    """📰 大盘新闻智能面板 — 嵌入工作台/扫描页顶部
+    
+    按需加载(expander)，缓存10分钟，不阻塞主页面。
+    """
+    from datetime import datetime
+    
+    cache_time_key = datetime.now().strftime("%Y%m%d%H") + str(datetime.now().minute // 10)
+    cache_key = f"market_news_intel_{market}_{cache_time_key}"
+    
+    with st.expander("📰 大盘新闻 & AI 分析", expanded=False):
+        if cache_key in st.session_state:
+            _display_market_news_cached(st.session_state[cache_key], market)
+            return
+        
+        if st.button("🔄 加载大盘新闻", key=f"load_market_news_{unique_key}_{market}",
+                     use_container_width=True, type="primary"):
+            with st.spinner("正在获取大盘新闻和 AI 分析..."):
+                result = _fetch_market_news_intel(market)
+                st.session_state[cache_key] = result
+                _display_market_news_cached(result, market)
+        else:
+            st.caption("💡 点击上方按钮加载大盘新闻和 AI 分析")
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _fetch_market_news_intel(market: str) -> dict:
+    """抓取大盘指数的新闻 + 生成 AI 摘要"""
+    try:
+        from news.crawler import get_news_crawler
+        from news.classifier import get_event_classifier
+        from news.models import Sentiment
+    except ImportError:
+        return {'error': '新闻模块不可用'}
+    
+    # 选择大盘标的
+    if market == 'CN':
+        symbols = [('000001.SH', '上证指数'), ('000300.SH', '沪深300')]
+        search_queries = [('A股 大盘 今日', ''), ('沪深300 行情', '')]
+    else:
+        symbols = [('SPY', 'S&P 500'), ('QQQ', 'Nasdaq')]
+        search_queries = None
+    
+    crawler = get_news_crawler()
+    classifier = get_event_classifier(use_llm=True)
+    
+    all_events = []
+    for symbol, name in symbols:
+        try:
+            events = crawler.crawl_all(symbol, company_name=name,
+                                       market=market, max_per_source=3)
+            all_events.extend(events)
+        except Exception as e:
+            pass
+    
+    # 去重 + 分类
+    seen = set()
+    unique_events = []
+    for e in all_events:
+        key = e.title[:30].lower()
+        if key not in seen:
+            seen.add(key)
+            unique_events.append(e)
+    
+    if unique_events:
+        unique_events = classifier.classify_batch(unique_events)
+    
+    # 统计情绪
+    bull = sum(1 for e in unique_events if e.sentiment.score > 0)
+    bear = sum(1 for e in unique_events if e.sentiment.score < 0)
+    neutral = sum(1 for e in unique_events if e.sentiment.score == 0)
+    
+    total = bull + bear
+    ratio = (bull - bear) / total if total > 0 else 0
+    
+    # 社交热度 (仅美股)
+    social_buzz = {}
+    if market == 'US':
+        try:
+            from news.crawler import ApeWisdomCrawler
+            ape = ApeWisdomCrawler()
+            wsb_top = ape.get_trending(limit=5)
+            social_buzz['wsb_top'] = wsb_top
+        except:
+            pass
+    
+    # AI 总结 (如有 Gemini)
+    ai_summary = ""
+    try:
+        from ml.llm_intelligence import get_gemini_model
+        model = get_gemini_model()
+        if model and unique_events:
+            headlines = "\n".join([
+                f"- [{e.sentiment.emoji}] {e.title[:60]}"
+                for e in unique_events[:8]
+            ])
+            prompt = f"""根据以下{market}市场最新新闻，用3-4句话总结今日市场情绪和关键驱动因素。
+直接给出结论，不要废话。
+
+{headlines}
+
+格式: 情绪判断 + 关键事件 + 操作建议"""
+            
+            resp = model.generate_content(prompt)
+            ai_summary = resp.text[:300] if resp.text else ""
+    except Exception as e:
+        ai_summary = ""
+    
+    return {
+        'events': [e.to_dict() for e in unique_events[:10]],
+        'bull': bull,
+        'bear': bear,
+        'neutral': neutral,
+        'ratio': ratio,
+        'ai_summary': ai_summary,
+        'social_buzz': social_buzz,
+    }
+
+
+def _display_market_news_cached(result: dict, market: str):
+    """渲染缓存的大盘新闻结果"""
+    if result.get('error'):
+        st.warning(result['error'])
+        return
+    
+    bull = result.get('bull', 0)
+    bear = result.get('bear', 0)
+    neutral = result.get('neutral', 0)
+    ratio = result.get('ratio', 0)
+    ai_summary = result.get('ai_summary', '')
+    events = result.get('events', [])
+    social_buzz = result.get('social_buzz', {})
+    
+    # 情绪指示器
+    if ratio > 0.3:
+        color, emoji, label = "#00C853", "🟢", "偏多"
+    elif ratio < -0.3:
+        color, emoji, label = "#FF1744", "🔴", "偏空"
+    else:
+        color, emoji, label = "#FFD600", "⚪", "中性"
+    
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown(f"""
+**{emoji} 大盘新闻情绪: {label}** — 📈{bull} 利好 · 📉{bear} 利空 · ➖{neutral} 中性
+        """)
+        
+        if ai_summary:
+            st.info(f"🤖 **AI 摘要:** {ai_summary}")
+    
+    with col2:
+        st.metric("情绪比值", f"{ratio:+.2f}")
+    
+    # Reddit WSB 热门 (美股)
+    wsb_top = social_buzz.get('wsb_top', [])
+    if wsb_top:
+        wsb_str = " · ".join([
+            f"**{s['symbol']}**({s.get('mentions',0)})" for s in wsb_top[:5]
+        ])
+        st.caption(f"🦍 Reddit 热门: {wsb_str}")
+    
+    # 新闻列表(折叠)
+    if events:
+        for ev in events[:5]:
+            sent_emoji = {"very_bullish": "🔥", "bullish": "📈", "neutral": "➖",
+                         "bearish": "📉", "very_bearish": "💥"}.get(ev.get('sentiment', ''), '➖')
+            title = ev.get('title', '')[:60]
+            source = ev.get('source', '')[:20]
+            st.caption(f"{sent_emoji} {title} — *{source}*")
+
+
+
 def get_market_mood(df):
     """根据扫描结果判断市场情绪"""
     if df is None or df.empty:
@@ -2368,6 +2540,12 @@ def _render_todays_picks_page_inner():
         
         show_performance = st.checkbox("显示策略历史表现", value=True, key="picks_perf")
         show_backtest = st.checkbox("显示回测追踪", value=False, key="picks_backtest")
+    
+    # ============================================
+    # 📊 大盘环境 (Market Pulse + News)
+    # ============================================
+    render_market_pulse(market=market)
+    render_market_news_intel(market=market, unique_key='picks')
     
     # ============================================
     # 📊 顶部: 行动摘要卡片
@@ -5577,6 +5755,7 @@ def render_scan_page():
     
     # === Market Pulse Dashboard (顶部) - 传入选中的市场 ===
     render_market_pulse(market=selected_market)
+    render_market_news_intel(market=selected_market, unique_key='scan')
     
     # 侧边栏：继续其他设置
     with st.sidebar:
