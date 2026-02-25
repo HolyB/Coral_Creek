@@ -1,112 +1,112 @@
 {
-  "date": "2026-02-24",
+  "date": "2026-02-25",
   "market": "CN",
-  "total_signals": 118,
+  "total_signals": 69,
   "top_signals": [
-    {
-      "symbol": "002024.SZ",
-      "name": "ST易购",
-      "price": 1.53,
-      "day_blue": 200.0,
-      "week_blue": 131.2
-    },
-    {
-      "symbol": "301096.SZ",
-      "name": "百诚医药",
-      "price": 48.34,
-      "day_blue": 195.7,
-      "week_blue": 0.0
-    },
     {
       "symbol": "688656.SH",
       "name": "浩欧博",
-      "price": 138.51,
-      "day_blue": 193.8,
+      "price": 138.78,
+      "day_blue": 200.0,
       "week_blue": 0.0
     },
     {
       "symbol": "300755.SZ",
       "name": "华致酒行",
-      "price": 15.35,
-      "day_blue": 182.9,
+      "price": 15.52,
+      "day_blue": 191.8,
       "week_blue": 102.5
-    },
-    {
-      "symbol": "600882.SH",
-      "name": "妙可蓝多",
-      "price": 21.97,
-      "day_blue": 173.8,
-      "week_blue": 114.7
-    },
-    {
-      "symbol": "002124.SZ",
-      "name": "天邦食品",
-      "price": 2.49,
-      "day_blue": 170.2,
-      "week_blue": 190.3
     },
     {
       "symbol": "001206.SZ",
       "name": "依依股份",
-      "price": 23.81,
-      "day_blue": 166.7,
+      "price": 23.8,
+      "day_blue": 172.9,
       "week_blue": 0.0
     },
     {
-      "symbol": "920339.BJ",
-      "name": "恒太照明",
-      "price": 9.56,
-      "day_blue": 162.8,
+      "symbol": "920857.BJ",
+      "name": "泓禧科技",
+      "price": 27.41,
+      "day_blue": 151.6,
       "week_blue": 0.0
     },
     {
-      "symbol": "688198.SH",
-      "name": "佰仁医疗",
-      "price": 101.82,
-      "day_blue": 157.7,
+      "symbol": "688266.SH",
+      "name": "泽璟制药-U",
+      "price": 86.05,
+      "day_blue": 141.9,
+      "week_blue": 129.4
+    },
+    {
+      "symbol": "603983.SH",
+      "name": "丸美生物",
+      "price": 30.5,
+      "day_blue": 136.9,
+      "week_blue": 145.3
+    },
+    {
+      "symbol": "688318.SH",
+      "name": "财富趋势",
+      "price": 127.9,
+      "day_blue": 129.1,
       "week_blue": 0.0
     },
     {
-      "symbol": "300803.SZ",
-      "name": "指南针",
-      "price": 114.46,
-      "day_blue": 156.1,
+      "symbol": "301080.SZ",
+      "name": "百普赛斯",
+      "price": 49.33,
+      "day_blue": 127.8,
       "week_blue": 0.0
     },
     {
-      "symbol": "688076.SH",
-      "name": "ST诺泰",
-      "price": 32.8,
-      "day_blue": 155.7,
-      "week_blue": 101.4
-    },
-    {
-      "symbol": "920592.BJ",
-      "name": "华信永道",
-      "price": 37.58,
-      "day_blue": 143.1,
+      "symbol": "600012.SH",
+      "name": "皖通高速",
+      "price": 13.78,
+      "day_blue": 127.1,
       "week_blue": 0.0
     },
     {
-      "symbol": "002570.SZ",
-      "name": "贝因美",
-      "price": 6.14,
-      "day_blue": 136.6,
+      "symbol": "688228.SH",
+      "name": "开普云",
+      "price": 123.23,
+      "day_blue": 125.9,
       "week_blue": 0.0
     },
     {
-      "symbol": "300783.SZ",
-      "name": "三只松鼠",
-      "price": 21.82,
-      "day_blue": 135.4,
-      "week_blue": 75.3
+      "symbol": "003010.SZ",
+      "name": "若羽臣",
+      "price": 31.6,
+      "day_blue": 124.8,
+      "week_blue": 105.3
     },
     {
-      "symbol": "301367.SZ",
-      "name": "瑞迈特",
-      "price": 80.8,
-      "day_blue": 134.5,
-      "week_blue": 76.1
+      "symbol": "601818.SH",
+      "name": "光大银行",
+      "price": 3.24,
+      "day_blue": 124.7,
+      "week_blue": 88.1
+    },
+    {
+      "symbol": "688166.SH",
+      "name": "博瑞医药",
+      "price": 45.26,
+      "day_blue": 123.3,
+      "week_blue": 89.0
+    },
+    {
+      "symbol": "601985.SH",
+      "name": "中国核电",
+      "price": 8.49,
+      "day_blue": 122.6,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601398.SH",
+      "name": "工商银行",
+      "price": 7.05,
+      "day_blue": 120.7,
+      "week_blue": 105.9
     }
   ]
 }
