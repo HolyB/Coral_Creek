@@ -213,6 +213,9 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
             'duokongwang_sell': _first_non_none(result_dict.get('Duokongwang_Sell'), result_dict.get('duokongwang_sell')),
             'lired_daily': _first_non_none(result_dict.get('Lired_Daily'), result_dict.get('lired_daily')),
             'pink_daily': _first_non_none(result_dict.get('Pink_Daily'), result_dict.get('pink_daily')),
+            'shares_rec': _first_non_none(result_dict.get('Shares_Rec'), result_dict.get('shares_rec')),
+            'risk_reward_score': _first_non_none(result_dict.get('Risk_Reward_Score'), result_dict.get('risk_reward_score')),
+            'ml_rank_score': _first_non_none(result_dict.get('ML_Rank_Score'), result_dict.get('ml_rank_score')),
         }
         
         # 移除 None 值的字段（Supabase 不接受某些 null）
@@ -225,13 +228,12 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
             return True
         except Exception as e:
             msg = str(e).lower()
-            if "day_high" in msg or "day_low" in msg or "day_close" in msg or "duokongwang_" in msg:
-                # 兼容云端尚未迁移新列的场景：降级写入旧字段
-                record.pop('day_high', None)
-                record.pop('day_low', None)
-                record.pop('day_close', None)
-                record.pop('duokongwang_buy', None)
-                record.pop('duokongwang_sell', None)
+            # 兼容云端尚未迁移新列的场景：逐步降级
+            strip_cols = ['day_high', 'day_low', 'day_close', 'duokongwang_buy', 'duokongwang_sell',
+                          'lired_daily', 'pink_daily', 'shares_rec', 'risk_reward_score', 'ml_rank_score']
+            if any(col in msg for col in strip_cols):
+                for col in strip_cols:
+                    record.pop(col, None)
                 supabase.table('scan_results').upsert(record, on_conflict='symbol,scan_date,market').execute()
                 return True
             raise
