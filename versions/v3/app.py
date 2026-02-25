@@ -5993,6 +5993,24 @@ def render_scan_page():
 
         qlib_impact = f"Qlib融合已生效: {before_n} → {len(df)} 只"
 
+    # [调试] 显示数据加载和筛选情况
+    with st.expander("🔍 调试: 数据加载状态", expanded=len(df) == 0):
+        original_count = len(load_scan_results_from_db(selected_date, market=selected_market)[0] or []) if use_db and selected_date else 0
+        st.write(f"📊 原始加载: {original_count} 条 → 筛选后: {len(df)} 条")
+        st.write(f"📅 日期: {selected_date} | 市场: {selected_market}")
+        if df is not None and not df.empty:
+            st.write(f"列名: {list(df.columns[:15])}")
+            st.write(f"Ticker列: {'Ticker' in df.columns} | Strategy列: {'Strategy' in df.columns}")
+            st.write(f"前3条: {df[['Ticker', 'Day BLUE']].head(3).to_dict() if 'Ticker' in df.columns and 'Day BLUE' in df.columns else 'N/A'}")
+        else:
+            st.warning("df 为空或 None！")
+            # 直接查原始数据
+            raw = _cached_scan_results(scan_date=selected_date, market=selected_market) if selected_date else None
+            st.write(f"原始查询返回: {len(raw) if raw else 0} 条")
+            if raw:
+                st.write(f"第一条 keys: {list(raw[0].keys())[:10]}")
+                st.write(f"market值: {[r.get('market') for r in raw[:3]]}")
+
     # 2. 顶部仪表盘
     col1, col2, col3, col4 = st.columns(4)
 
