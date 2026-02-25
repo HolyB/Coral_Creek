@@ -1432,12 +1432,16 @@ def load_scan_results_from_db(scan_date=None, market=None):
         
         # 合成 Score 列
         def calculate_score(row):
+            import math
             score = 0
-            blue = row.get('Day BLUE', 0) or 0
+            blue = row.get('Day BLUE', 0)
+            blue = 0 if (blue is None or (isinstance(blue, float) and math.isnan(blue))) else blue
             score += min(blue / 200, 1.0) * 40
-            adx = row.get('ADX', 0) or 0
+            adx = row.get('ADX', 0)
+            adx = 0 if (adx is None or (isinstance(adx, float) and math.isnan(adx))) else adx
             score += min(adx / 60, 1.0) * 30
-            pr = row.get('Profit_Ratio', 0.5) or 0.5
+            pr = row.get('Profit_Ratio', 0.5)
+            pr = 0.5 if (pr is None or (isinstance(pr, float) and math.isnan(pr))) else pr
             score += pr * 30
             return int(score)
             
