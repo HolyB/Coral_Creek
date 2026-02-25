@@ -5937,6 +5937,7 @@ def render_scan_page():
                     step=5,
                     help="获利盘高 = 筹码结构好，但可能已经涨过；获利盘低 = 套牢盘多，反弹空间大但风险也大"
                 )
+                df['Profit_Ratio'] = pd.to_numeric(df['Profit_Ratio'], errors='coerce').fillna(0.5)
                 df = df[(df['Profit_Ratio'] * 100 >= pr_range[0]) & (df['Profit_Ratio'] * 100 <= pr_range[1])]
             
             # 波浪形态筛选
