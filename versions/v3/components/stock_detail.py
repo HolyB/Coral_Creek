@@ -280,6 +280,8 @@ def render_unified_stock_detail(
         tab_names.append("📊 筹码分析")
     if show_indicators:
         tab_names.append("🔍 技术指标")
+    # 深度研究 (Dexter-style) — 始终显示
+    tab_names.append("🔬 深度研究")
     if show_ai:
         tab_names.append("🤖 AI诊断")
     if show_ask_ai:
@@ -347,6 +349,23 @@ def render_unified_stock_detail(
                     yf_info, unique_key
                 )
             tab_idx += 1
+        
+        # === Tab: 深度研究 (Dexter-style) ===
+        with tabs[tab_idx]:
+            _render_deep_research_tab(
+                symbol=symbol,
+                current_price=current_price,
+                price_symbol=price_symbol,
+                blue_daily=blue_daily,
+                blue_weekly=blue_weekly,
+                blue_monthly=blue_monthly,
+                adx_val=adx_val,
+                is_heima=heima_daily,
+                is_juedi=juedi_daily,
+                market=market,
+                unique_key=unique_key
+            )
+        tab_idx += 1
         
         # === Tab: AI诊断 ===
         if show_ai:
@@ -1516,6 +1535,219 @@ def _render_indicators_tab(symbol, current_price, price_symbol,
         with f4:
             growth = yf_info.get('revenueGrowth', 0)
             st.metric("营收增长", f"{growth*100:.1f}%" if growth else "N/A")
+
+
+def _render_deep_research_tab(symbol, current_price, price_symbol,
+                               blue_daily, blue_weekly, blue_monthly, adx_val,
+                               is_heima, is_juedi, market, unique_key):
+    """渲染深度研究标签页 (Dexter-style Agent)"""
+    
+    st.markdown("### 🔬 深度研究 Agent")
+    st.caption("灵感来自 [Dexter](https://github.com/virattt/dexter) — 自主金融研究 Agent | 由 Gemini 驱动")
+    
+    # 检查缓存
+    cache_key = f"research_{symbol}_{market}"
+    cached_report = st.session_state.get(cache_key)
+    
+    col_btn, col_info = st.columns([1, 3])
+    with col_btn:
+        run_research = st.button(
+            "🚀 启动深度研究" if not cached_report else "🔄 重新研究",
+            key=f"deep_research_{unique_key}",
+            type="primary",
+            use_container_width=True
+        )
+    with col_info:
+        if cached_report:
+            st.caption(f"📋 上次研究: {cached_report.get('created_at', '')[:16]} | "
+                       f"耗时: {cached_report.get('total_duration', 0):.1f}s")
+        else:
+            st.caption("综合分析技术面、基本面、财务报表、Coral Creek 信号，生成研究报告")
+    
+    if run_research:
+        # 进度显示区
+        progress_container = st.container()
+        status_placeholder = progress_container.empty()
+        step_placeholders = {}
+        
+        with progress_container:
+            st.markdown("---")
+            step_names = [
+                "📊 技术面分析", "🏢 基本面研究",
+                "💰 财务报表分析", "🎯 Coral Creek 信号", "🔬 综合诊断"
+            ]
+            cols = st.columns(len(step_names))
+            for i, name in enumerate(step_names):
+                with cols[i]:
+                    step_placeholders[name] = st.empty()
+                    step_placeholders[name].markdown(
+                        f"<div style='text-align:center; padding:8px; background:#1a1a2e; border-radius:8px;'>"
+                        f"<span style='font-size:1.5em;'>⏳</span><br>"
+                        f"<span style='font-size:0.7em; color:#8b949e;'>{name}</span></div>",
+                        unsafe_allow_html=True
+                    )
+        
+        def progress_callback(step_name, status, detail=""):
+            emoji = {"running": "⚡", "done": "✅", "error": "❌"}.get(status, "⏳")
+            color = {"running": "#FFD600", "done": "#00C853", "error": "#FF1744"}.get(status, "#8b949e")
+            if step_name in step_placeholders:
+                step_placeholders[step_name].markdown(
+                    f"<div style='text-align:center; padding:8px; background:#1a1a2e; "
+                    f"border-radius:8px; border: 1px solid {color};'>"
+                    f"<span style='font-size:1.5em;'>{emoji}</span><br>"
+                    f"<span style='font-size:0.7em; color:{color};'>{step_name}</span></div>",
+                    unsafe_allow_html=True
+                )
+            status_placeholder.caption(f"{emoji} {step_name}: {detail}")
+        
+        # 执行研究
+        try:
+            from ml.research_agent import ResearchAgent
+            agent = ResearchAgent(market=market, provider='gemini')
+            report = agent.research(
+                symbol=symbol,
+                price=current_price,
+                blue_daily=blue_daily,
+                blue_weekly=blue_weekly,
+                blue_monthly=blue_monthly,
+                adx=adx_val,
+                is_heima=is_heima,
+                is_juedi=is_juedi,
+                progress_callback=progress_callback,
+            )
+            
+            # 缓存结果
+            report_dict = report.to_dict()
+            report_dict['sections'] = report.sections
+            st.session_state[cache_key] = report_dict
+            cached_report = report_dict
+            
+            status_placeholder.success(f"✅ 研究完成！耗时 {report.total_duration:.1f}s")
+            
+        except Exception as e:
+            st.error(f"❌ 研究 Agent 出错: {e}")
+            import traceback
+            st.code(traceback.format_exc())
+            return
+    
+    # 显示报告
+    if cached_report:
+        _display_research_report(cached_report, symbol, price_symbol, unique_key)
+
+
+def _display_research_report(report: Dict, symbol: str, price_symbol: str, unique_key: str):
+    """展示研究报告"""
+    
+    signal = report.get('signal', 'HOLD')
+    confidence = report.get('confidence', 50)
+    verdict = report.get('verdict', '')
+    sections = report.get('sections', {})
+    checklist = report.get('checklist', [])
+    
+    signal_config = {
+        "BUY": ("#00C853", "🟢", "买入", "linear-gradient(135deg, #00C85322, #00C85311)"),
+        "SELL": ("#FF1744", "🔴", "卖出", "linear-gradient(135deg, #FF174422, #FF174411)"),
+        "HOLD": ("#FFD600", "🟡", "观望", "linear-gradient(135deg, #FFD60022, #FFD60011)"),
+    }
+    color, icon, label, bg = signal_config.get(signal, signal_config["HOLD"])
+    
+    # === 信号卡片 ===
+    st.markdown(f"""
+    <div style="background: {bg}; border-left: 5px solid {color}; 
+                padding: 20px; border-radius: 12px; margin: 16px 0;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 2.5em;">{icon}</span>
+            <div>
+                <h2 style="margin: 0; color: {color}; font-size: 1.8em;">
+                    {label} | {symbol}
+                </h2>
+                <p style="margin: 4px 0 0 0; font-size: 1.1em; color: #e0e0e0;">
+                    📌 {verdict}
+                </p>
+            </div>
+            <div style="margin-left: auto; text-align: center;">
+                <div style="font-size: 2em; font-weight: bold; color: {color};">{confidence}%</div>
+                <div style="font-size: 0.8em; color: #8b949e;">置信度</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # === 价格建议 ===
+    p1, p2, p3, p4 = st.columns(4)
+    entry = report.get('entry_price', 0)
+    stop = report.get('stop_loss', 0)
+    target = report.get('target_price', 0)
+    rr = report.get('risk_reward', 0)
+    
+    with p1:
+        st.metric("🎯 目标价", f"{price_symbol}{target:.2f}" if target else "N/A")
+    with p2:
+        st.metric("💵 买入价", f"{price_symbol}{entry:.2f}" if entry else "N/A")
+    with p3:
+        st.metric("🛑 止损价", f"{price_symbol}{stop:.2f}" if stop else "N/A")
+    with p4:
+        st.metric("📊 风险收益比", f"1:{rr:.1f}" if rr else "N/A")
+    
+    # === 看多/看空 ===
+    bull = sections.get('bull_case', '')
+    bear = sections.get('bear_case', '')
+    if bull or bear:
+        b1, b2 = st.columns(2)
+        with b1:
+            st.markdown(f"""
+            <div style="background: #00C85315; border-radius: 8px; padding: 12px; border-left: 3px solid #00C853;">
+                <span style="font-weight: bold; color: #00C853;">🐂 看多理由</span><br>
+                <span style="color: #e0e0e0;">{bull}</span>
+            </div>""", unsafe_allow_html=True)
+        with b2:
+            st.markdown(f"""
+            <div style="background: #FF174415; border-radius: 8px; padding: 12px; border-left: 3px solid #FF1744;">
+                <span style="font-weight: bold; color: #FF1744;">🐻 看空理由</span><br>
+                <span style="color: #e0e0e0;">{bear}</span>
+            </div>""", unsafe_allow_html=True)
+    
+    st.markdown("")
+    
+    # === 检查清单 ===
+    if checklist:
+        with st.expander("✅ 投资检查清单", expanded=True):
+            for item in checklist:
+                name = item.get('item', '')
+                status = item.get('status', 'warn')
+                note = item.get('note', '')
+                
+                status_icon = {"pass": "✅", "fail": "❌", "warn": "⚠️"}.get(status, "⚪")
+                status_color = {"pass": "#00C853", "fail": "#FF1744", "warn": "#FFD600"}.get(status, "#8b949e")
+                
+                st.markdown(f"""
+                <div style="display:flex; align-items:center; gap:8px; padding:6px 0; 
+                            border-bottom: 1px solid #2d2d3d;">
+                    <span style="font-size:1.2em;">{status_icon}</span>
+                    <span style="font-weight:600; color:{status_color}; min-width:120px;">{name}</span>
+                    <span style="color:#b0b0b0;">{note}</span>
+                </div>""", unsafe_allow_html=True)
+    
+    # === 详细分析 ===
+    section_names = {
+        'technical': ('📊 技术面分析', '#4FC3F7'),
+        'fundamentals': ('🏢 基本面研究', '#81C784'),
+        'financials': ('💰 财务报表分析', '#FFB74D'),
+        'coral_creek': ('🎯 Coral Creek 信号', '#7C4DFF'),
+    }
+    
+    for key, (name, color) in section_names.items():
+        content = sections.get(key, '')
+        if content:
+            with st.expander(name, expanded=False):
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, {color}11, {color}08); 
+                            padding: 16px; border-radius: 8px; border-left: 3px solid {color};">
+                    {content}
+                </div>""", unsafe_allow_html=True)
+    
+    # === 免责声明 ===
+    st.caption("⚠️ 以上分析由 AI 自动生成，仅供参考，不构成投资建议。投资有风险，入市需谨慎。")
 
 
 def _render_ai_diagnosis_tab(symbol, current_price, price_symbol,
