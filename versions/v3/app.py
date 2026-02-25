@@ -5829,7 +5829,8 @@ def render_scan_page():
                 help="过滤成交额过低的股票，避免流动性风险。1M=100万"
             )
             st.session_state['turnover_filter'] = min_turnover_val
-            df = df[df[turnover_col] >= min_turnover_val]
+            _tv = pd.to_numeric(df[turnover_col], errors='coerce')
+            df = df[(_tv >= min_turnover_val) | _tv.isna()]
             _filter_steps.append((f"流动性≥{min_turnover_val}M", len(df)))
         
         # === 2. 信号强度筛选 ===
@@ -5845,7 +5846,8 @@ def render_scan_page():
                 step=10.0,
                 help="BLUE 越高代表抄底信号越强"
             )
-            df = df[(df['Day BLUE'] >= blue_range[0]) & (df['Day BLUE'] <= blue_range[1])]
+            _blue = pd.to_numeric(df['Day BLUE'], errors='coerce')
+            df = df[_blue.between(blue_range[0], blue_range[1]) | _blue.isna()]
             _filter_steps.append((f"BLUE {blue_range[0]}-{blue_range[1]}", len(df)))
         
         # ADX 趋势强度
@@ -5858,7 +5860,8 @@ def render_scan_page():
                 step=5.0,
                 help="ADX > 25 表示趋势明确，ADX > 40 表示强趋势"
             )
-            df = df[df['ADX'] >= adx_min]
+            _adx = pd.to_numeric(df['ADX'], errors='coerce')
+            df = df[(_adx >= adx_min) | _adx.isna()]
             _filter_steps.append((f"ADX≥{adx_min}", len(df)))
         
         # === 3. 市值与价格筛选 ===
@@ -5890,7 +5893,8 @@ def render_scan_page():
                 step=1.0,
                 help="过滤仙股 (<$1) 和超高价股"
             )
-            df = df[(df['Price'] >= price_range[0]) & (df['Price'] <= price_range[1])]
+            _px = pd.to_numeric(df['Price'], errors='coerce')
+            df = df[_px.between(price_range[0], price_range[1]) | _px.isna()]
             _filter_steps.append((f"价格${price_range[0]}-${price_range[1]}", len(df)))
         
         # === 4. 策略类型筛选 ===
