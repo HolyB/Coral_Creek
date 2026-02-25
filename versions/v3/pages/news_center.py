@@ -290,7 +290,7 @@ def _render_social_buzz_tab():
                 st.error(f"获取失败: {e}")
     
     trending = st.session_state.get('st_trending')
-    if trending:
+    if trending and isinstance(trending, list):
         df = pd.DataFrame(trending)
         if not df.empty:
             st.dataframe(
@@ -314,7 +314,7 @@ def _render_social_buzz_tab():
                 st.error(f"获取失败: {e}")
     
     wsb = st.session_state.get('wsb_trending')
-    if wsb:
+    if wsb and isinstance(wsb, list):
         df = pd.DataFrame(wsb)
         if not df.empty:
             cols = ['rank', 'symbol', 'name', 'mentions', 'upvotes']
