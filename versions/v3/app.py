@@ -5609,7 +5609,10 @@ def render_scan_page():
                 )
                 
                 # 显示该日期的扫描状态
-                job = get_scan_job(selected_date)
+                try:
+                    job = get_scan_job(selected_date)
+                except Exception:
+                    job = None
                 if job:
                     st.caption(f"⏱️ 扫描于: {job.get('finished_at', 'N/A')}")
                     st.caption(f"📈 发现信号: {job.get('signals_found', 'N/A')} 只")
