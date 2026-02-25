@@ -1,7 +1,7 @@
 {
   "date": "2026-02-24",
   "market": "CN",
-  "total_signals": 104,
+  "total_signals": 118,
   "top_signals": [
     {
       "symbol": "002024.SZ",
@@ -67,6 +67,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "300803.SZ",
+      "name": "指南针",
+      "price": 114.46,
+      "day_blue": 156.1,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "688076.SH",
       "name": "ST诺泰",
       "price": 32.8,
@@ -100,13 +107,6 @@
       "price": 80.8,
       "day_blue": 134.5,
       "week_blue": 76.1
-    },
-    {
-      "symbol": "301306.SZ",
-      "name": "西测测试",
-      "price": 100.5,
-      "day_blue": 131.2,
-      "week_blue": 0.0
     }
   ]
 }
