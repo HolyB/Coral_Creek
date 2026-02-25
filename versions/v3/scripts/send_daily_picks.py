@@ -71,9 +71,12 @@ def generate_picks_message(market: str = 'US') -> str:
     # 共识股票
     if consensus:
         lines.append("🔥 *多策略共识 (重点关注)*")
-        for symbol, votes, score in consensus[:5]:
+        for item in consensus[:5]:
+            symbol, votes, score = item[0], item[1], item[2]
+            strats = item[3] if len(item) > 3 else []
             stars = "⭐" * votes
-            lines.append(f"  • `{symbol}` {stars} ({score:.0f}分)")
+            strat_str = f" [{', '.join(strats)}]" if strats else ""
+            lines.append(f"  • `{symbol}` {stars} ({score:.0f}分){strat_str}")
         lines.append("")
     
     # 每个策略的 top pick
