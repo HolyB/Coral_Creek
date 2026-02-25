@@ -273,7 +273,7 @@ def get_scan_date_counts_supabase(market: str = None, limit: int = 30) -> List[D
 
 
 def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dict[str, str]:
-    """从 Supabase 获取股票首次出现的日期
+    """从 Supabase 获取股票首次出现的日期 (限最近90天)
     
     Args:
         symbols: 股票代码列表
@@ -287,24 +287,29 @@ def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dic
         return {}
     
     try:
-        # Supabase 不支持直接的 GROUP BY MIN，需要用 RPC 或分批查询
-        # 这里用简单方法：查询所有匹配记录，在 Python 端处理
-        result = supabase.table('scan_results')\
-            .select('symbol, scan_date')\
-            .eq('market', market)\
-            .in_('symbol', symbols)\
-            .order('scan_date', desc=False)\
-            .execute()
+        from datetime import datetime, timedelta
+        cutoff_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
         
-        if not result.data:
-            return {}
-        
-        # 取每个 symbol 的最早日期
+        # 分批查询避免 URL 过长
+        batch_size = 50
         first_dates = {}
-        for row in result.data:
-            symbol = row['symbol']
-            if symbol not in first_dates:
-                first_dates[symbol] = row['scan_date']
+        
+        for i in range(0, len(symbols), batch_size):
+            batch = symbols[i:i+batch_size]
+            result = supabase.table('scan_results')\
+                .select('symbol, scan_date')\
+                .eq('market', market)\
+                .in_('symbol', batch)\
+                .gte('scan_date', cutoff_date)\
+                .order('scan_date', desc=False)\
+                .limit(5000)\
+                .execute()
+            
+            if result.data:
+                for row in result.data:
+                    symbol = row['symbol']
+                    if symbol not in first_dates:
+                        first_dates[symbol] = row['scan_date']
         
         return first_dates
     except Exception as e:
