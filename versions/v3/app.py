@@ -16775,6 +16775,7 @@ page = st.sidebar.radio("功能导航", [
     "🎯 每日机会",      # 原 每日工作台 + 买卖点 (行动中心)
     "📊 全量扫描",      # 原 每日扫描 (数据表)
     "🔬 个股研究",      # 原 个股分析 + 策略回测 (深度分析)
+    "📰 新闻中心",      # 新闻 + 社交媒体 + AI 分类
     "💰 交易执行",      # 原 组合管理 + 策略实验室模拟盘 (Alpaca+Paper)
 ])
 
@@ -16804,6 +16805,10 @@ elif page == "🔬 个股研究":
         render_ai_center_page()
     with research_tab[3]:
         render_qlib_mining_hub()
+elif page == "📰 新闻中心":
+    from pages.news_center import render_news_center_page
+    render_news_center_page()
 elif page == "💰 交易执行":
     # 整合: 组合管理 (持仓+风控) + Paper Trading + Alpaca Trading
     render_portfolio_management_page()
+

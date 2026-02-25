@@ -1,18 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-📰 新闻中心页面
-事件驱动的智能新闻分析
+📰 新闻智能中心 (v2)
+====================
+多源新闻 + 社交媒体 + AI 分析
 """
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from typing import List, Dict
 
-# 导入新闻智能系统
+# 导入新闻系统
 try:
     from news import NewsIntelligence, get_news_intelligence
     from news.models import EventType, Sentiment, NewsDigest
+    from news.crawler import (
+        get_news_crawler, StockTwitsCrawler, ApeWisdomCrawler
+    )
     NEWS_AVAILABLE = True
 except ImportError as e:
     NEWS_AVAILABLE = False
@@ -22,197 +26,393 @@ except ImportError as e:
 def render_news_center_page():
     """渲染新闻中心页面"""
     st.title("📰 新闻智能中心")
-    st.caption("事件驱动的新闻分析与信号增强系统")
+    st.caption("多源新闻聚合 + 社交媒体情绪 + AI 分析 | Google News · yfinance · StockTwits · Reddit")
     
     if not NEWS_AVAILABLE:
         st.error("❌ 新闻模块未正确加载")
         return
     
-    # 创建 tabs
     tab1, tab2, tab3, tab4 = st.tabs([
-        "🔍 个股分析", 
-        "📊 持仓新闻", 
-        "🚨 重要提醒",
-        "📈 新闻表现"
+        "🔍 个股新闻",
+        "🔥 社交热度",
+        "📊 持仓新闻",
+        "📈 趋势发现",
     ])
     
     with tab1:
-        render_single_stock_analysis()
-    
+        _render_single_stock_tab()
     with tab2:
-        render_portfolio_news()
-    
+        _render_social_buzz_tab()
     with tab3:
-        render_news_alerts()
-    
+        _render_portfolio_news_tab()
     with tab4:
-        render_news_performance()
+        _render_trending_tab()
 
 
-def render_single_stock_analysis():
-    """个股新闻分析"""
-    st.subheader("🔍 个股新闻分析")
+def _render_single_stock_tab():
+    """个股新闻分析 — 多源 + AI 分类"""
     
     col1, col2, col3 = st.columns([2, 1, 1])
-    
     with col1:
-        symbol = st.text_input("股票代码", value="NVDA", placeholder="如 AAPL, TSLA, 600519.SH")
-    
+        symbol = st.text_input("股票代码", value="NVDA", placeholder="如 AAPL, TSLA, 600519.SH",
+                               key="news_symbol")
     with col2:
-        market = st.selectbox("市场", ["US", "CN"], index=0)
-    
+        market = st.selectbox("市场", ["US", "CN"], index=0, key="news_market")
     with col3:
-        use_llm = st.checkbox("使用 AI 分析", value=False, help="使用 Gemini 进行深度分析")
+        use_llm = st.checkbox("🧠 AI 分类", value=True, help="用 Gemini 批量分类",
+                              key="news_llm")
     
-    if st.button("🔎 分析新闻", type="primary", use_container_width=True):
+    if st.button("🔎 分析新闻", type="primary", use_container_width=True, key="news_analyze"):
         if not symbol:
             st.warning("请输入股票代码")
             return
         
-        with st.spinner(f"正在分析 {symbol} 的新闻..."):
+        with st.spinner(f"正在从多个来源抓取 {symbol.upper()} 的新闻..."):
             try:
                 intel = get_news_intelligence(use_llm=use_llm)
-                events, impacts, digest = intel.analyze_symbol(symbol.upper(), market=market)
+                events, impacts, digest = intel.analyze_symbol(
+                    symbol.upper(), market=market
+                )
                 
                 if not events:
                     st.info(f"📭 暂无 {symbol} 相关新闻")
                     return
                 
-                # 显示摘要卡片
-                render_digest_card(digest, symbol)
+                # 缓存结果
+                st.session_state['news_events'] = events
+                st.session_state['news_impacts'] = impacts
+                st.session_state['news_digest'] = digest
+                st.session_state['news_current_symbol'] = symbol.upper()
                 
-                st.divider()
-                
-                # 显示新闻列表
-                st.subheader(f"📋 新闻详情 ({len(events)} 条)")
-                
-                for i, (event, impact) in enumerate(zip(events, impacts)):
-                    render_news_card(event, impact, i)
-                    
             except Exception as e:
                 st.error(f"分析失败: {e}")
+                import traceback
+                st.code(traceback.format_exc())
+                return
+    
+    # 显示缓存的结果
+    events = st.session_state.get('news_events')
+    impacts = st.session_state.get('news_impacts')
+    digest = st.session_state.get('news_digest')
+    current_symbol = st.session_state.get('news_current_symbol', '')
+    
+    if events and digest:
+        _render_digest_card(digest, current_symbol)
+        st.divider()
+        
+        # 按来源统计
+        sources = {}
+        for e in events:
+            src = e.source.split('@')[0].strip() if '@' in e.source else e.source
+            sources[src] = sources.get(src, 0) + 1
+        
+        source_str = " · ".join([f"`{k}` ×{v}" for k, v in sorted(
+            sources.items(), key=lambda x: -x[1]
+        )[:5]])
+        st.caption(f"📡 数据来源: {source_str}")
+        
+        # 新闻列表
+        st.subheader(f"📋 新闻详情 ({len(events)} 条)")
+        
+        # 过滤器
+        fcol1, fcol2 = st.columns(2)
+        with fcol1:
+            event_types = list(set(e.event_type.chinese_name for e in events))
+            filter_type = st.multiselect("事件类型", event_types, default=event_types,
+                                         key="news_filter_type")
+        with fcol2:
+            sentiments = ["全部", "🐂 利好", "🐻 利空", "➖ 中性"]
+            filter_sent = st.selectbox("情绪", sentiments, key="news_filter_sent")
+        
+        for i, (event, impact) in enumerate(zip(events, impacts)):
+            # 过滤
+            if event.event_type.chinese_name not in filter_type:
+                continue
+            if filter_sent == "🐂 利好" and event.sentiment.score <= 0:
+                continue
+            if filter_sent == "🐻 利空" and event.sentiment.score >= 0:
+                continue
+            if filter_sent == "➖ 中性" and event.sentiment.score != 0:
+                continue
+            
+            _render_news_card(event, impact, i)
 
 
-def render_digest_card(digest: NewsDigest, symbol: str):
+def _render_digest_card(digest, symbol: str):
     """渲染新闻摘要卡片"""
-    # 情绪指示器
     sentiment_ratio = digest.sentiment_ratio()
+    
     if sentiment_ratio > 0.3:
-        sentiment_color = "green"
-        sentiment_text = "看涨"
-        sentiment_emoji = "🟢"
+        color, emoji, text = "#00C853", "🟢", "看涨"
     elif sentiment_ratio < -0.3:
-        sentiment_color = "red"
-        sentiment_text = "看跌"
-        sentiment_emoji = "🔴"
+        color, emoji, text = "#FF1744", "🔴", "看跌"
     else:
-        sentiment_color = "gray"
-        sentiment_text = "中性"
-        sentiment_emoji = "⚪"
+        color, emoji, text = "#FFD600", "⚪", "中性"
     
-    # 卡片布局
-    col1, col2, col3, col4 = st.columns(4)
+    # 主卡片
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, {color}15, {color}08);
+                border-left: 4px solid {color}; padding: 16px; border-radius: 10px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <div>
+                <span style="font-size: 2em;">{emoji}</span>
+            </div>
+            <div style="flex: 1;">
+                <h3 style="margin: 0; color: {color};">{symbol} — {text}</h3>
+                <span style="color: #b0b0b0;">
+                    📰 {digest.total_news_count} 条新闻 · 
+                    🐂 {digest.bullish_count} 利好 · 
+                    🐻 {digest.bearish_count} 利空 · 
+                    ➖ {digest.neutral_count} 中性
+                </span>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.5em; font-weight: bold; color: {color};">
+                    {digest.avg_expected_impact:+.1f}%
+                </div>
+                <div style="font-size: 0.8em; color: #8b949e;">预期影响</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    with col1:
-        st.metric(
-            "📰 新闻数量",
-            digest.total_news_count,
-            delta=None
-        )
-    
-    with col2:
-        delta_text = f"+{digest.bullish_count}" if digest.bullish_count > digest.bearish_count else f"-{digest.bearish_count}"
-        st.metric(
-            f"{sentiment_emoji} 市场情绪",
-            sentiment_text,
-            delta=f"利好{digest.bullish_count}/利空{digest.bearish_count}"
-        )
-    
-    with col3:
-        impact = digest.avg_expected_impact
-        st.metric(
-            "📊 预期影响",
-            f"{impact:+.2f}%",
-            delta="强势" if abs(impact) > 3 else "温和"
-        )
-    
-    with col4:
-        st.metric(
-            "🎯 信号调整",
-            f"{digest.signal_adjustment:.2f}x",
-            delta="增强" if digest.signal_adjustment > 1 else ("减弱" if digest.signal_adjustment < 1 else "不变")
-        )
-    
-    # 关键事件
     if digest.key_events:
         st.info("🔑 **关键事件:** " + " | ".join(digest.key_events[:3]))
 
 
-def render_news_card(event, impact, index: int):
+def _render_news_card(event, impact, index: int):
     """渲染单条新闻卡片"""
-    # 情感颜色
-    sentiment_colors = {
-        Sentiment.VERY_BULLISH: "🟢🟢",
-        Sentiment.BULLISH: "🟢",
-        Sentiment.NEUTRAL: "⚪",
-        Sentiment.BEARISH: "🔴",
-        Sentiment.VERY_BEARISH: "🔴🔴"
+    
+    sentiment_icons = {
+        Sentiment.VERY_BULLISH: "🔥",
+        Sentiment.BULLISH: "📈",
+        Sentiment.NEUTRAL: "➖",
+        Sentiment.BEARISH: "📉",
+        Sentiment.VERY_BEARISH: "💥",
     }
+    icon = sentiment_icons.get(event.sentiment, "➖")
     
-    sentiment_emoji = sentiment_colors.get(event.sentiment, "⚪")
+    # 来源标记
+    source_badges = {
+        'StockTwits': '💬',
+        'Yahoo': '📰',
+        'Google': '🔍',
+        'Finnhub': '📊',
+        'Polygon': '🔷',
+    }
+    src_badge = "📰"
+    for key, badge in source_badges.items():
+        if key.lower() in event.source.lower():
+            src_badge = badge
+            break
     
-    # 使用 expander 展示详情
+    title_display = event.title[:80] + ('...' if len(event.title) > 80 else '')
+    
     with st.expander(
-        f"{sentiment_emoji} **{event.title[:60]}{'...' if len(event.title) > 60 else ''}**",
-        expanded=(index == 0)  # 第一条默认展开
+        f"{icon} {src_badge} **{title_display}**",
+        expanded=(index == 0)
     ):
         col1, col2 = st.columns([3, 1])
         
         with col1:
             st.markdown(f"""
-            **📌 事件类型:** {event.event_type.chinese_name}
-            
-            **📅 发布时间:** {event.published_at.strftime('%Y-%m-%d %H:%M') if event.published_at else 'N/A'}
-            
-            **📰 来源:** {event.source}
-            
-            **🔗 链接:** [{event.source}]({event.url})
+**📌 类型:** {event.event_type.chinese_name}
+
+**📅 时间:** {event.published_at.strftime('%Y-%m-%d %H:%M') if event.published_at else 'N/A'}
+
+**📰 来源:** {event.source}
             """)
+            
+            if event.summary and event.summary != event.title:
+                st.caption(f"📝 {event.summary[:200]}")
+            
+            if event.url:
+                st.markdown(f"🔗 [查看原文]({event.url})")
         
         with col2:
+            impact_color = "#00C853" if impact.expected_impact_pct > 0 else (
+                "#FF1744" if impact.expected_impact_pct < 0 else "#FFD600"
+            )
             st.markdown(f"""
-            **预期影响**
-            ### {impact.expected_impact_pct:+.1f}%
-            
-            置信度: {impact.confidence:.0f}%
-            
-            紧急度: {'🔥' * impact.urgency}
-            """)
+<div style="text-align: center; background: {impact_color}15; 
+            padding: 12px; border-radius: 8px;">
+    <div style="font-size: 1.5em; font-weight: bold; color: {impact_color};">
+        {impact.expected_impact_pct:+.1f}%
+    </div>
+    <div style="font-size: 0.8em; color: #8b949e;">预期影响</div>
+    <div style="margin-top: 4px;">置信度: {impact.confidence:.0f}%</div>
+    <div>紧急度: {'🔥' * impact.urgency}</div>
+</div>
+            """, unsafe_allow_html=True)
         
-        # 关键词标签
         if event.keywords:
             st.markdown("**🏷️ 关键词:** " + " ".join([f"`{kw}`" for kw in event.keywords[:5]]))
 
 
-def render_portfolio_news():
-    """持仓新闻分析"""
-    st.subheader("📊 持仓相关新闻")
+def _render_social_buzz_tab():
+    """社交媒体热度 — StockTwits + Reddit"""
     
-    # 输入持仓列表
+    st.subheader("🔥 社交媒体热度")
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        symbol = st.text_input("查询股票", value="NVDA", key="social_symbol")
+    with col2:
+        st.caption("")
+        analyze = st.button("📊 分析社交热度", type="primary", key="social_btn",
+                           use_container_width=True)
+    
+    if analyze and symbol:
+        with st.spinner(f"正在分析 {symbol.upper()} 的社交媒体..."):
+            try:
+                crawler = get_news_crawler()
+                buzz = crawler.get_social_buzz(symbol.upper(), market='US')
+                
+                st.session_state['social_buzz'] = buzz
+            except Exception as e:
+                st.error(f"分析失败: {e}")
+    
+    buzz = st.session_state.get('social_buzz')
+    if buzz:
+        _render_buzz_card(buzz)
+    
+    # StockTwits 趋势 (直接显示)
+    st.divider()
+    st.subheader("📈 StockTwits 热门")
+    
+    if st.button("🔄 刷新热门", key="st_trending"):
+        with st.spinner("获取 StockTwits 热门..."):
+            try:
+                st_crawler = StockTwitsCrawler()
+                trending = st_crawler.get_trending()
+                st.session_state['st_trending'] = trending
+            except Exception as e:
+                st.error(f"获取失败: {e}")
+    
+    trending = st.session_state.get('st_trending')
+    if trending:
+        df = pd.DataFrame(trending)
+        if not df.empty:
+            st.dataframe(
+                df[['symbol', 'title', 'watchlist_count']].rename(columns={
+                    'symbol': '代码', 'title': '名称', 'watchlist_count': '关注数'
+                }),
+                use_container_width=True, hide_index=True
+            )
+    
+    # Reddit/WSB 趋势
+    st.divider()
+    st.subheader("🦍 Reddit WallStreetBets 热门")
+    
+    if st.button("🔄 刷新 WSB", key="wsb_trending"):
+        with st.spinner("获取 Reddit 热门..."):
+            try:
+                ape = ApeWisdomCrawler()
+                wsb = ape.get_trending(filter_type="all-stocks", limit=15)
+                st.session_state['wsb_trending'] = wsb
+            except Exception as e:
+                st.error(f"获取失败: {e}")
+    
+    wsb = st.session_state.get('wsb_trending')
+    if wsb:
+        df = pd.DataFrame(wsb)
+        if not df.empty:
+            cols = ['rank', 'symbol', 'name', 'mentions', 'upvotes']
+            cols = [c for c in cols if c in df.columns]
+            st.dataframe(
+                df[cols].rename(columns={
+                    'rank': '排名', 'symbol': '代码', 'name': '名称',
+                    'mentions': '提及次数', 'upvotes': '点赞数'
+                }),
+                use_container_width=True, hide_index=True
+            )
+
+
+def _render_buzz_card(buzz: Dict):
+    """渲染社交热度卡片"""
+    
+    symbol = buzz.get('symbol', '')
+    total_score = buzz.get('total_buzz_score', 0)
+    
+    # 热度等级
+    if total_score > 100:
+        heat = "🔥🔥🔥 极高"
+        heat_color = "#FF1744"
+    elif total_score > 50:
+        heat = "🔥🔥 高"
+        heat_color = "#FF9100"
+    elif total_score > 20:
+        heat = "🔥 中等"
+        heat_color = "#FFD600"
+    else:
+        heat = "❄️ 低"
+        heat_color = "#4FC3F7"
+    
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, {heat_color}15, {heat_color}08);
+                border-left: 4px solid {heat_color}; padding: 16px; border-radius: 10px;">
+        <h3 style="margin: 0; color: {heat_color};">
+            {symbol} 社交热度: {heat}
+        </h3>
+        <span style="color: #8b949e;">综合评分: {total_score}</span>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    # StockTwits
+    st_data = buzz.get('stocktwits_sentiment')
+    with col1:
+        st.markdown("**💬 StockTwits**")
+        if st_data:
+            ratio = st_data.get('ratio', 0)
+            ratio_color = "#00C853" if ratio > 0 else ("#FF1744" if ratio < 0 else "#FFD600")
+            st.metric("讨论数", st_data.get('total', 0))
+            st.metric("🐂 看多", st_data.get('bullish', 0))
+            st.metric("🐻 看空", st_data.get('bearish', 0))
+        else:
+            st.caption("暂无数据")
+    
+    # Reddit
+    with col2:
+        st.markdown("**🦍 Reddit**")
+        rank = buzz.get('reddit_rank')
+        mentions = buzz.get('reddit_mentions', 0)
+        if rank:
+            st.metric("WSB 排名", f"#{rank}")
+            st.metric("提及次数", mentions)
+        else:
+            st.caption("未进入热榜")
+    
+    # Finnhub
+    fh = buzz.get('finnhub_social')
+    with col3:
+        st.markdown("**📊 Finnhub 社交**")
+        if fh:
+            st.metric("Reddit 提及 (7天)", fh.get('reddit_mentions_7d', 0))
+            st.metric("Twitter 提及 (7天)", fh.get('twitter_mentions_7d', 0))
+        else:
+            st.caption("需要 Finnhub API key")
+
+
+def _render_portfolio_news_tab():
+    """持仓新闻分析"""
+    
+    st.subheader("📊 持仓新闻分析")
+    
     default_portfolio = "NVDA, AAPL, MSFT, GOOGL, TSLA"
     portfolio_input = st.text_input(
-        "输入持仓代码 (逗号分隔)",
-        value=default_portfolio,
-        help="输入你的持仓股票代码"
+        "输入持仓代码 (逗号分隔)", value=default_portfolio,
+        key="portfolio_input"
     )
     
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns(2)
     with col1:
-        market = st.selectbox("市场", ["US", "CN"], index=0, key="portfolio_market")
+        market = st.selectbox("市场", ["US", "CN"], key="portfolio_market")
     with col2:
-        use_llm = st.checkbox("使用 AI 分析", value=False, key="portfolio_llm")
+        use_llm = st.checkbox("🧠 AI 分类", value=True, key="portfolio_llm")
     
-    if st.button("📊 分析持仓新闻", type="primary", use_container_width=True):
+    if st.button("📊 分析持仓", type="primary", use_container_width=True, key="portfolio_btn"):
         symbols = [s.strip().upper() for s in portfolio_input.split(",") if s.strip()]
         
         if not symbols:
@@ -220,168 +420,151 @@ def render_portfolio_news():
             return
         
         intel = get_news_intelligence(use_llm=use_llm)
-        
         progress = st.progress(0)
         all_digests = []
         all_alerts = []
         
         for i, symbol in enumerate(symbols):
-            progress.progress((i + 1) / len(symbols))
-            
+            progress.progress((i + 1) / len(symbols), text=f"分析 {symbol}...")
             try:
                 events, impacts, digest = intel.analyze_symbol(symbol, market=market)
                 all_digests.append((symbol, digest))
                 
-                # 收集提醒
                 for event, impact in zip(events, impacts):
                     if impact.should_alert:
                         all_alerts.append({
                             'symbol': symbol,
-                            'title': event.title,
-                            'event_type': event.event_type.chinese_name,
+                            'title': event.title[:60],
+                            'type': event.event_type.chinese_name,
                             'sentiment': event.sentiment.emoji,
-                            'expected_impact': impact.expected_impact_pct
+                            'impact': impact.expected_impact_pct,
                         })
             except Exception as e:
-                st.warning(f"⚠️ {symbol} 分析失败: {e}")
+                st.warning(f"⚠️ {symbol}: {e}")
         
         progress.empty()
         
-        # 显示摘要表格
         if all_digests:
             st.subheader("📋 持仓新闻摘要")
             
-            df_data = []
+            rows = []
             for symbol, digest in all_digests:
-                sentiment_ratio = digest.sentiment_ratio()
-                sentiment_emoji = "🟢" if sentiment_ratio > 0.3 else ("🔴" if sentiment_ratio < -0.3 else "⚪")
-                
-                df_data.append({
+                ratio = digest.sentiment_ratio()
+                emoji = "🟢" if ratio > 0.3 else ("🔴" if ratio < -0.3 else "⚪")
+                rows.append({
                     '股票': symbol,
+                    '情绪': emoji,
                     '新闻数': digest.total_news_count,
-                    '情绪': sentiment_emoji,
                     '利好': digest.bullish_count,
                     '利空': digest.bearish_count,
-                    '预期影响': f"{digest.avg_expected_impact:+.2f}%",
-                    '信号调整': f"{digest.signal_adjustment:.2f}x"
+                    '预期影响': f"{digest.avg_expected_impact:+.1f}%",
+                    '信号调整': f"{digest.signal_adjustment:.2f}x",
                 })
             
-            df = pd.DataFrame(df_data)
+            df = pd.DataFrame(rows)
             st.dataframe(df, use_container_width=True, hide_index=True)
         
-        # 显示需要关注的提醒
         if all_alerts:
             st.subheader(f"🚨 需要关注 ({len(all_alerts)} 条)")
-            
             for alert in all_alerts[:10]:
-                impact = alert['expected_impact']
-                color = "green" if impact > 0 else "red"
-                st.markdown(f"""
-                **{alert['symbol']}** - {alert['event_type']} {alert['sentiment']}
-                
-                {alert['title'][:50]}... ({impact:+.1f}%)
-                """)
-                st.divider()
+                impact = alert['impact']
+                icon = "📈" if impact > 0 else "📉"
+                st.markdown(
+                    f"**{alert['symbol']}** {icon} {alert['type']} {alert['sentiment']} "
+                    f"— {alert['title']} ({impact:+.1f}%)"
+                )
 
 
-def render_news_alerts():
-    """重要新闻提醒"""
-    st.subheader("🚨 重要新闻提醒")
+def _render_trending_tab():
+    """趋势发现 — 数据源状态"""
     
-    st.info("""
-    💡 **提示**: 此功能会自动监控你的持仓，当有重大新闻时推送提醒到 Telegram。
+    st.subheader("📈 趋势发现")
     
-    **触发条件:**
-    - 财报发布 (业绩超预期/暴雷)
-    - 分析师评级变化
-    - 重大并购/拆分
-    - 法律/监管事件
-    - 预期影响 > 3%
-    """)
+    # 数据源状态
+    st.markdown("### 📡 数据源状态")
     
-    # 配置提醒
-    st.subheader("⚙️ 提醒配置")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.text_input("监控列表", value="NVDA, AAPL, TSLA", help="逗号分隔")
-        impact_threshold = st.slider("影响阈值 (%)", 1, 10, 3, help="预期影响超过此值才提醒")
-    
-    with col2:
-        st.multiselect(
-            "事件类型过滤",
-            options=["财报", "评级", "并购", "产品", "法律", "全部"],
-            default=["财报", "评级", "并购"]
-        )
-        st.checkbox("开启 Telegram 推送", value=True)
-    
-    st.markdown("---")
-    
-    # 最近提醒历史 (占位)
-    st.subheader("📜 最近提醒")
-    
-    st.markdown("""
-    | 时间 | 股票 | 事件 | 影响 | 状态 |
-    |------|------|------|------|------|
-    | 02-01 14:30 | NVDA | 📊 财报超预期 | +5.2% | ✅ 已推送 |
-    | 02-01 10:15 | AAPL | 📈 分析师上调 | +2.1% | ✅ 已推送 |
-    | 01-31 16:00 | TSLA | ⚠️ 产能问题 | -3.5% | ✅ 已推送 |
-    """)
-
-
-def render_news_performance():
-    """新闻预测表现追踪"""
-    st.subheader("📈 新闻预测表现")
-    
-    st.info("""
-    💡 **说明**: 追踪新闻预测的准确性，帮助优化模型。
-    
-    **计算方法:**
-    - 方向准确率: 预测涨跌方向正确的比例
-    - 幅度准确率: 预测幅度与实际幅度的接近程度
-    """)
-    
-    # 模拟数据展示
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("📊 总预测数", "156", delta="+23 本周")
-    
-    with col2:
-        st.metric("🎯 方向准确率", "68%", delta="+5%")
-    
-    with col3:
-        st.metric("📏 幅度准确率", "54%", delta="+2%")
-    
-    with col4:
-        st.metric("💰 累计价值", "+$12,340", delta="基于预测的虚拟收益")
-    
-    st.divider()
-    
-    # 按事件类型的表现
-    st.subheader("📊 各事件类型表现")
-    
-    performance_data = {
-        '事件类型': ['📊 财报', '📈 评级', '🤝 并购', '📦 产品', '⚖️ 法律', '🌍 宏观'],
-        '预测数': [45, 38, 12, 28, 8, 25],
-        '方向准确率': ['78%', '65%', '83%', '60%', '71%', '52%'],
-        '平均影响': ['+4.2%', '+2.1%', '+8.5%', '+1.8%', '-3.2%', '+1.5%'],
-        '可信度': ['⭐⭐⭐⭐', '⭐⭐⭐', '⭐⭐⭐⭐⭐', '⭐⭐', '⭐⭐⭐', '⭐⭐']
+    import os
+    sources = {
+        'Google News RSS': ('✅ 可用', '免费', '全球'),
+        'yfinance News': ('✅ 可用', '免费', '美股'),
+        'StockTwits API': ('✅ 可用', '免费', '美股'),
+        'ApeWisdom (Reddit/WSB)': ('✅ 可用', '免费', '美股'),
+        'Finnhub': (
+            '✅ 可用' if os.getenv('FINNHUB_API_KEY') else '⚠️ 需要 API Key',
+            '免费 (60次/分)', '全球'
+        ),
+        'Polygon': (
+            '✅ 可用' if os.getenv('POLYGON_API_KEY') else '⚠️ 需要 API Key',
+            '免费 (5次/分)', '美股'
+        ),
+        'Gemini AI 分类': (
+            '✅ 可用' if (os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')) else '⚠️ 需要 API Key',
+            '免费额度', '全球'
+        ),
     }
     
-    df = pd.DataFrame(performance_data)
+    rows = []
+    for name, (status, cost, market) in sources.items():
+        rows.append({
+            '数据源': name,
+            '状态': status,
+            '费用': cost,
+            '覆盖': market,
+        })
+    
+    df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=True, hide_index=True)
     
-    st.markdown("""
-    **💡 洞察:**
-    - 并购事件预测最准确 (83%)，但样本量较小
-    - 财报事件影响最大 (+4.2%)，可信度高
-    - 宏观事件最难预测 (52%)，建议降低权重
+    # API Key 配置提示
+    st.markdown("### 🔑 配置提示")
+    st.info("""
+**可选 API Key 配置 (免费注册)：**
+- `FINNHUB_API_KEY` — [注册 Finnhub](https://finnhub.io/) → 60 次/分钟免费额度
+- `POLYGON_API_KEY` — [注册 Polygon](https://polygon.io/) → 5 次/分钟免费额度
+- `GEMINI_API_KEY` — [注册 Google AI](https://aistudio.google.com/) → 免费额度
+    
+设置为环境变量或 Streamlit secrets 即可。
     """)
+    
+    # 快速新闻测试
+    st.divider()
+    st.markdown("### 🧪 快速测试")
+    test_symbol = st.text_input("测试代码", value="AAPL", key="test_symbol")
+    if st.button("🧪 测试所有源", key="test_sources"):
+        with st.spinner("测试中..."):
+            crawler = get_news_crawler()
+            
+            # Google
+            gn = crawler.google.crawl(test_symbol, max_results=2)
+            st.write(f"Google News: {len(gn)} 条")
+            
+            # yfinance
+            yf_n = crawler.yfinance.crawl(test_symbol, max_results=2)
+            st.write(f"yfinance: {len(yf_n)} 条")
+            
+            # StockTwits
+            st_n = crawler.stocktwits.crawl(test_symbol, max_results=2)
+            st.write(f"StockTwits: {len(st_n)} 条")
+            
+            # ApeWisdom
+            ape = crawler.apewisdom.get_symbol_mentions(test_symbol)
+            st.write(f"ApeWisdom: {'找到' if ape else '未在热榜'}")
+            
+            # Finnhub
+            if crawler.finnhub.is_available:
+                fh = crawler.finnhub.crawl(test_symbol, max_results=2)
+                st.write(f"Finnhub: {len(fh)} 条")
+            else:
+                st.write("Finnhub: ⚠️ 无 key")
+            
+            # Polygon
+            if crawler.polygon.is_available:
+                pg = crawler.polygon.crawl(test_symbol, max_results=2)
+                st.write(f"Polygon: {len(pg)} 条")
+            else:
+                st.write("Polygon: ⚠️ 无 key")
 
 
-# 导出页面函数
+# 导出
 def get_news_center_page():
-    """获取页面渲染函数"""
     return render_news_center_page
