@@ -1141,6 +1141,7 @@ def build_combo_stats(rows: Sequence[Dict], min_samples: int = 5) -> List[Dict]:
             bucket["sample_count"] += 1
             pnl = _to_float(row.get("pnl_pct"), 0.0)
             bucket["pnl_sum"] += pnl
+            bucket.setdefault("pnl_list", []).append(pnl)
             if pnl > 0:
                 bucket["wins"] += 1
 
@@ -1165,12 +1166,27 @@ def build_combo_stats(rows: Sequence[Dict], min_samples: int = 5) -> List[Dict]:
             continue
         d2p = sorted(bucket["days_to_positive"])
         median_d2p = d2p[len(d2p) // 2] if d2p else None
+        # 缩尾处理：用 1%/99% 分位点 clamp，避免仙股暴涨拉高均值
+        pnl_list = sorted(bucket.get("pnl_list", []))
+        if len(pnl_list) >= 20:
+            p1_idx = max(0, int(len(pnl_list) * 0.01))
+            p99_idx = min(len(pnl_list) - 1, int(len(pnl_list) * 0.99))
+            lo_cap, hi_cap = pnl_list[p1_idx], pnl_list[p99_idx]
+            clamped = [max(lo_cap, min(hi_cap, v)) for v in pnl_list]
+            avg_pnl = sum(clamped) / len(clamped)
+        elif pnl_list:
+            avg_pnl = sum(pnl_list) / len(pnl_list)
+        else:
+            avg_pnl = 0.0
+        # 中位数
+        median_pnl = pnl_list[len(pnl_list) // 2] if pnl_list else 0.0
         out.append(
             {
                 "组合": bucket["combo"],
                 "样本数": sample,
                 "当前胜率(%)": round(bucket["wins"] / sample * 100, 1),
-                "当前平均收益(%)": round(bucket["pnl_sum"] / sample, 2),
+                "当前平均收益(%)": round(avg_pnl, 2),
+                "中位收益(%)": round(median_pnl, 2),
                 "D+1胜率(%)": round(bucket["d1_wins"] / bucket["d1_count"] * 100, 1) if bucket["d1_count"] else None,
                 "D+3胜率(%)": round(bucket["d3_wins"] / bucket["d3_count"] * 100, 1) if bucket["d3_count"] else None,
                 "D+5胜率(%)": round(bucket["d5_wins"] / bucket["d5_count"] * 100, 1) if bucket["d5_count"] else None,

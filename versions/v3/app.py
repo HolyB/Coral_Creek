@@ -2195,9 +2195,9 @@ def _cached_escape_warning_scan(symbols: tuple, market: str):
 # --- 页面逻辑 ---
 
 def render_todays_picks_page():
-    """🎯 每日工作台 - 20年交易员的每日工作流"""
+    """🎯 每日工作台 - SOP 三步法驱动的交易工作流"""
     st.header("🎯 每日工作台")
-    st.caption("开盘前准备 → 盘中执行 → 收盘复盘 | 一站式管理你的交易")
+    st.caption("① 处理风险 → ② 执行买入 → ③ 收盘复盘")
     
     try:
         _render_todays_picks_page_inner()
@@ -2660,48 +2660,80 @@ def _render_todays_picks_page_inner():
             "position_hint": position_hint,
         }
 
-    # 行动摘要卡片
-    st.markdown(f"### 📅 {latest_date} 行动摘要")
-    
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(
-            "🟢 买入机会", 
-            f"{buy_opportunities} 只",
-            help="日BLUE>100 且 周BLUE>50 的强信号"
-        )
-    
-    with col2:
-        delta_color = "inverse" if sell_signals > 0 else "off"
-        st.metric(
-            "🔴 卖出信号", 
-            f"{sell_signals} 只",
-            delta="需要行动" if sell_signals > 0 else None,
-            delta_color=delta_color
-        )
-    
-    with col3:
-        st.metric(
-            "⚠️ 风险警告", 
-            f"{risk_alerts} 只",
-            delta="注意" if risk_alerts > 0 else None,
-            delta_color="inverse" if risk_alerts > 0 else "off"
-        )
-    
-    with col4:
-        total_positions = len(positions)
-        total_pnl = portfolio.get('total_pnl_pct', 0)
-        st.metric(
-            "💼 持仓", 
-            f"{total_positions} 只",
-            delta=f"{total_pnl:+.1f}%" if total_positions > 0 else None,
-            delta_color="normal" if total_pnl >= 0 else "inverse"
-        )
+    # ============================================
+    # 🧭 SOP 状态条 — 交易员的每日导航
+    # ============================================
+    has_risk = (sell_signals > 0 or risk_alerts > 0 or len(position_alerts) > 0)
+    total_positions = len(positions)
+    total_pnl = portfolio.get('total_pnl_pct', 0)
 
-    # === 空头信号详情（LIRED/PINK 逃顶预警）===
+    # SOP 步骤状态
+    step1_icon = "🔴" if has_risk else "✅"
+    step1_text = f"处理风险 ({sell_signals + risk_alerts})" if has_risk else "风险已清"
+    step2_icon = "⏳" if buy_opportunities > 0 else "○"
+    step2_text = f"买入执行 ({buy_opportunities})"
+    step3_icon = "○"
+    step3_text = "收盘复盘"
+
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
+                padding: 16px 24px; border-radius: 12px; margin-bottom: 16px;
+                border: 1px solid #2a2a4a;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="font-size: 1.3em; font-weight: bold;">
+                📅 {latest_date}
+            </div>
+            <div style="display: flex; gap: 24px; font-size: 0.95em;">
+                <span style="{'color: #FF5252; font-weight: bold;' if has_risk else 'color: #00C853;'}">
+                    {step1_icon} ① {step1_text}
+                </span>
+                <span style="color: #FFD600;">
+                    {step2_icon} ② {step2_text}
+                </span>
+                <span style="color: #666;">
+                    {step3_icon} ③ {step3_text}
+                </span>
+            </div>
+        </div>
+        <div style="display: flex; gap: 32px; margin-top: 12px; color: #888; font-size: 0.85em;">
+            <span>🟢 买入机会 <b style="color:#00C853;">{buy_opportunities}</b></span>
+            <span>🔴 卖出信号 <b style="color:#FF5252;">{sell_signals}</b></span>
+            <span>⚠️ 风险警告 <b style="color:#FF9800;">{risk_alerts}</b></span>
+            <span>💼 持仓 <b>{total_positions}</b> {'<span style="color:#00C853;">(' + f'{total_pnl:+.1f}%' + ')</span>' if total_positions > 0 and total_pnl >= 0 else ('<span style="color:#FF5252;">(' + f'{total_pnl:+.1f}%' + ')</span>' if total_positions > 0 else '')}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ============================================
+    # 🚨 SOP Step 1: 先处理风险（红色区域，永远在最上面）
+    # ============================================
+    if has_risk:
+        # 持仓紧急警报
+        high_alerts = [a for a in position_alerts if a['urgency'] == 'high']
+        if high_alerts:
+            st.error(f"🚨 **紧急**: {len(high_alerts)} 只股票需要立即处理!")
+            for alert in high_alerts:
+                with st.container():
+                    c1, c2, c3 = st.columns([2, 5, 2])
+                    with c1:
+                        st.markdown(f"### {alert['symbol']}")
+                    with c2:
+                        st.warning(f"⚠️ {alert['message']}")
+                    with c3:
+                        if st.button(f"🔴 {alert['action']}", key=f"sop_urgent_{alert['symbol']}", type="primary"):
+                            st.session_state[f"show_detail_{alert['symbol']}"] = True
+                    if st.session_state.get(f"show_detail_{alert['symbol']}"):
+                        render_unified_stock_detail(
+                            symbol=alert['symbol'], market=market,
+                            show_charts=True, show_chips=False, show_news=False, show_actions=False,
+                            key_prefix=f"sop_urgent_{alert['symbol']}"
+                        )
+
+    # === 空头信号（LIRED/PINK 逃顶预警）— 高优先级，默认展开 ===
     if bearish_alerts:
-        with st.expander(f"🩷 空头逃顶预警 ({len(bearish_alerts)} 只)", expanded=len(bearish_alerts) <= 15):
+        high_urgency = [b for b in bearish_alerts if b['urgency'] == 'high']
+        header_text = f"🩷 逃顶预警 ({len(bearish_alerts)} 只)" + (f" · ⚡{len(high_urgency)} 只高危" if high_urgency else "")
+        with st.expander(header_text, expanded=has_risk):
             # 按 PINK 值排序
             sorted_bears = sorted(bearish_alerts, key=lambda x: x['pink_val'], reverse=True)
             
@@ -2823,48 +2855,83 @@ def _render_todays_picks_page_inner():
             q1, q2, q3 = st.columns(3)
             with q1:
                 combo_df = pd.DataFrame()
-                st.markdown("**策略组合（全量标签，按当前胜率）**")
+                st.markdown("**🏆 最优策略组合 Top 10**")
                 if not facts_df.empty:
                     combo_key = "combo_bucket_full" if "combo_bucket_full" in facts_df.columns else "combo_bucket"
-                    combo_df = (
+                    
+                    # 缩尾均值函数：用 1%/99% 分位 clamp，避免仙股暴涨拉高均值
+                    def _winsorized_mean(s):
+                        arr = s.values
+                        if len(arr) >= 20:
+                            lo, hi = np.percentile(arr, [1, 99])
+                            arr = np.clip(arr, lo, hi)
+                        return float(np.mean(arr))
+                    
+                    combo_df_all = (
                         facts_df.groupby(combo_key, as_index=False)
                         .agg(
                             样本数=("ret", "count"),
                             当前胜率=("win", lambda x: float(np.mean(x) * 100.0)),
-                            当前平均收益=("ret", "mean"),
+                            当前平均收益=("ret", _winsorized_mean),
+                            中位收益=("ret", "median"),
                         )
                     )
-                    combo_df = combo_df[combo_df["样本数"] >= min_samples_combo]
-                    combo_sort_mode = st.radio(
-                        "组合排序",
-                        options=["按胜率(选优)", "按样本(核对全量)"],
-                        horizontal=True,
-                        key=f"combo_sort_mode_{market}",
-                    )
-                    combo_limit = st.slider(
-                        "展示组合数",
-                        min_value=30,
-                        max_value=500,
-                        value=120,
-                        step=10,
-                        key=f"combo_limit_{market}",
-                    )
-                    if combo_sort_mode == "按样本(核对全量)":
-                        combo_df = combo_df.sort_values(["样本数", "当前胜率", "当前平均收益"], ascending=[False, False, False]).head(int(combo_limit))
-                    else:
-                        combo_df = combo_df.sort_values(["当前胜率", "当前平均收益", "样本数"], ascending=[False, False, False]).head(int(combo_limit))
-                    if not combo_df.empty:
-                        combo_df["当前胜率"] = combo_df["当前胜率"].round(1)
-                        combo_df["当前平均收益"] = combo_df["当前平均收益"].round(2)
-                        shown_sample = int(combo_df["样本数"].sum())
+                    combo_df_all = combo_df_all[combo_df_all["样本数"] >= min_samples_combo]
+                    # Top 10: 样本≥10 + 按胜率排序
+                    min_top10_samples = 10
+                    combo_df_top10_pool = combo_df_all[combo_df_all["样本数"] >= min_top10_samples].copy()
+                    if combo_df_top10_pool.empty:
+                        combo_df_top10_pool = combo_df_all.copy()
+                    combo_df_top10_pool = combo_df_top10_pool.sort_values(["当前胜率", "当前平均收益", "样本数"], ascending=[False, False, False])
+                    combo_df_top10_pool["当前胜率"] = combo_df_top10_pool["当前胜率"].round(1)
+                    combo_df_top10_pool["当前平均收益"] = combo_df_top10_pool["当前平均收益"].round(2)
+                    combo_df_top10_pool["中位收益"] = combo_df_top10_pool["中位收益"].round(2)
+                    combo_df_top10 = combo_df_top10_pool.head(10)
+                    combo_df = combo_df_top10.copy()
+                    # 全量也排好序（给展开更多用）
+                    combo_df_all = combo_df_all.sort_values(["当前胜率", "当前平均收益", "样本数"], ascending=[False, False, False])
+                    combo_df_all["当前胜率"] = combo_df_all["当前胜率"].round(1)
+                    combo_df_all["当前平均收益"] = combo_df_all["当前平均收益"].round(2)
+                    combo_df_all["中位收益"] = combo_df_all["中位收益"].round(2)
+                    if not combo_df_top10.empty:
                         total_sample = int(len(facts_df))
-                        coverage = (shown_sample / total_sample * 100.0) if total_sample > 0 else 0.0
-                        st.caption(f"样本覆盖: 展示 {shown_sample} / 总样本 {total_sample} ({coverage:.1f}%)")
+                        shown_sample_top = int(combo_df_top10["样本数"].sum())
+                        st.caption(f"样本≥{min_top10_samples} · 按胜率排序 · Top 10 / 共 {len(combo_df_all)} 个组合 · 覆盖 {shown_sample_top}/{total_sample}")
                         st.dataframe(
-                            combo_df.rename(columns={combo_key: "组合", "当前胜率": "当前胜率(%)", "当前平均收益": "当前平均收益(%)"}),
+                            combo_df_top10.rename(columns={combo_key: "组合", "当前胜率": "胜率(%)", "当前平均收益": "缩尾均收(%)", "中位收益": "中位收益(%)"}),
                             use_container_width=True,
                             hide_index=True,
                         )
+                        # 展开更多
+                        if len(combo_df_all) > 10:
+                            with st.expander(f"📋 展开更多组合 (共 {len(combo_df_all)} 个)", expanded=False):
+                                combo_sort_mode = st.radio(
+                                    "组合排序",
+                                    options=["按胜率(选优)", "按样本(核对全量)"],
+                                    horizontal=True,
+                                    key=f"combo_sort_mode_{market}",
+                                )
+                                combo_limit = st.slider(
+                                    "展示组合数",
+                                    min_value=20,
+                                    max_value=min(500, len(combo_df_all)),
+                                    value=min(120, len(combo_df_all)),
+                                    step=10,
+                                    key=f"combo_limit_{market}",
+                                )
+                                if combo_sort_mode == "按样本(核对全量)":
+                                    combo_df_full = combo_df_all.sort_values(["样本数", "当前胜率", "当前平均收益"], ascending=[False, False, False]).head(int(combo_limit))
+                                else:
+                                    combo_df_full = combo_df_all.head(int(combo_limit))
+                                combo_df = combo_df_full.copy()  # 更新引用
+                                shown_sample_full = int(combo_df_full["样本数"].sum())
+                                coverage = (shown_sample_full / total_sample * 100.0) if total_sample > 0 else 0.0
+                                st.caption(f"样本覆盖: {shown_sample_full} / {total_sample} ({coverage:.1f}%)")
+                                st.dataframe(
+                                    combo_df_full.rename(columns={combo_key: "组合", "当前胜率": "胜率(%)", "当前平均收益": "缩尾均收(%)", "中位收益": "中位收益(%)"}),
+                                    use_container_width=True,
+                                    hide_index=True,
+                                )
                     else:
                         st.info("组合样本不足")
                 else:
@@ -3379,29 +3446,33 @@ def _render_todays_picks_page_inner():
     st.divider()
     
     # ============================================
-    # 📋 核心工作区 (Tabs) - 重新设计的用户体验
+    # 📋 核心工作区 (Tabs) - SOP 驱动的 5-Tab 布局
     # ============================================
-    work_tab1, work_tab2, work_tab3, work_tab4, work_tab5, work_tab6, work_tab7 = st.tabs([
+    work_tab1, work_tab2, work_tab3, work_tab4, work_tab5 = st.tabs([
         "⚡ 今日行动",
         "🔎 发现新股", 
         "🎯 策略精选",
         "💼 我的持仓",
-        "📊 买卖信号",  # 新增: 整合原「每日买卖点」
         "🔥 热点板块",
-        "📌 组合追踪"
     ])
 
     
-    # === Tab 1: 今日行动 (重新设计 - 行动导向) ===
+    # === Tab 1: 今日行动 (SOP Step 2 — 买入执行) ===
     with work_tab1:
-        st.markdown("### 🧭 今日怎么做（SOP）")
-        s1, s2, s3 = st.columns(3)
-        with s1:
-            st.info("1. 先处理红色卖出/止损信号\n\n优先级最高，先控回撤")
-        with s2:
-            st.info("2. 买入只做 A/B 级信号\n\n看历史胜率 + 样本数，不追低等级")
-        with s3:
-            st.info("3. 单票分批进场\n\n按建议仓位执行，避免一把梭")
+        # 轻量 SOP 提示条
+        st.markdown("""
+        <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+            <div style="flex: 1; background: rgba(255,82,82,0.08); border-left: 3px solid #FF5252; padding: 10px 14px; border-radius: 6px; font-size: 0.9em;">
+                <b>①</b> 先处理红色卖出/止损 · 控回撤优先
+            </div>
+            <div style="flex: 1; background: rgba(0,200,83,0.08); border-left: 3px solid #00C853; padding: 10px 14px; border-radius: 6px; font-size: 0.9em;">
+                <b>②</b> 只做 A/B 级信号 · 看胜率+样本数
+            </div>
+            <div style="flex: 1; background: rgba(255,214,0,0.08); border-left: 3px solid #FFD600; padding: 10px 14px; border-radius: 6px; font-size: 0.9em;">
+                <b>③</b> 单票分批进场 · 按建议仓位执行
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         if tracking_rows_for_action:
             overall_win = sum(1 for r in tracking_rows_for_action if float(r.get("pnl_pct") or 0) > 0)
@@ -3411,37 +3482,6 @@ def _render_todays_picks_page_inner():
                 f"历史基准（{market}, {action_window_label}）: 样本 {len(tracking_rows_for_action)} | "
                 f"胜率 {overall_wr:.1f}% | 平均收益 {overall_avg:+.2f}%"
             )
-
-        # 如果有紧急警报，用红色卡片突出显示
-        if position_alerts:
-            high_alerts = [a for a in position_alerts if a['urgency'] == 'high']
-            if high_alerts:
-                st.error(f"🚨 **紧急**: {len(high_alerts)}只股票需要立即处理!")
-                
-                for alert in high_alerts:
-                    with st.container():
-                        c1, c2, c3 = st.columns([2, 5, 2])
-                        with c1:
-                            st.markdown(f"### {alert['symbol']}")
-                        with c2:
-                            st.warning(f"⚠️ {alert['message']}")
-                        with c3:
-                            if st.button(f"🔴 {alert['action']}", key=f"urgent_{alert['symbol']}", type="primary"):
-                                st.session_state[f"show_detail_{alert['symbol']}"] = True
-                        
-                        # 点击后显示详情
-                        if st.session_state.get(f"show_detail_{alert['symbol']}"):
-                            render_unified_stock_detail(
-                                symbol=alert['symbol'],
-                                market=market,
-                                show_charts=True,
-                                show_chips=False,
-                                show_news=False,
-                                show_actions=False,
-                                key_prefix=f"tab1_urgent_{alert['symbol']}"
-                            )
-                
-                st.divider()
         
         # 两列布局：左边买入机会，右边其他任务
         action_left, action_right = st.columns([1, 1])
@@ -3609,28 +3649,82 @@ def _render_todays_picks_page_inner():
                 # 黄金底 (最强买入信号)
                 if golden_bottoms:
                     st.markdown("### 🎯 黄金底信号")
-                    st.caption("底部金叉 + CCI极度超卖 (回测69%胜率)")
+                    st.markdown("""
+                    <div style="background: rgba(255,215,0,0.06); padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 0.88em; color: #ccc;">
+                        <b>什么是黄金底？</b> CCI极度超卖（<-100）+ 底部金叉 = 超跌反弹信号。回测胜率 69%。<br/>
+                        <b>怎么做？</b> ① 加入观察列表 → ② 等放量确认（次日量比>1.5）→ ③ 试仓10-15% → ④ 止损设在信号价下方8%
+                    </div>
+                    """, unsafe_allow_html=True)
                     for gb in golden_bottoms:
+                        stop_loss_price = gb['price'] * 0.92
+                        target_price = gb['price'] * 1.15
+                        price_sym = gb['price_sym']
                         st.markdown(f"""
                         <div style="background: rgba(255,215,0,0.12); border-left: 3px solid #FFD700;
-                                    padding: 10px; border-radius: 8px; margin-bottom: 6px;">
-                            <div style="font-weight: bold;">{gb['name']} <span style="color: #FFD700;">🎯 黄金底</span></div>
-                            <div style="font-size: 0.85em; color: #888;">CCI: {gb['cci']:.0f} | {gb['price_sym']}{gb['price']:.2f}</div>
+                                    padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="font-weight: bold; font-size: 1.05em;">{gb['name']}</span>
+                                    <span style="color: #FFD700; margin-left: 6px;">🎯 黄金底</span>
+                                </div>
+                                <span style="font-size: 1.1em;">{price_sym}{gb['price']:.2f}</span>
+                            </div>
+                            <div style="font-size: 0.85em; color: #888; margin-top: 4px;">
+                                CCI: {gb['cci']:.0f} · 止损 {price_sym}{stop_loss_price:.2f}(-8%) · 目标 {price_sym}{target_price:.2f}(+15%)
+                            </div>
+                            <div style="font-size: 0.82em; color: #FFD700; margin-top: 4px;">
+                                👉 操作: 加入观察 → 等放量确认 → 试仓10%
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
+                        gb_sym = gb['symbol']
+                        btn_col_gb1, btn_col_gb2 = st.columns(2)
+                        with btn_col_gb1:
+                            if st.button(f"📊 {gb_sym} 详情", key=f"gb_detail_{gb_sym}", use_container_width=True):
+                                st.session_state['action_selected_symbol'] = gb_sym
+                        with btn_col_gb2:
+                            if st.button(f"💰 模拟买入", key=f"gb_buy_{gb_sym}", use_container_width=True):
+                                st.session_state['action_buy_symbol'] = gb_sym
                 
                 # 趋势回调买入
                 if trend_pullbacks:
                     st.markdown("### 📈 趋势回调买入")
-                    st.caption("海底捞月消失 + ADX>25 (回测61%胜率)")
+                    st.markdown("""
+                    <div style="background: rgba(0,200,83,0.06); padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; font-size: 0.88em; color: #ccc;">
+                        <b>什么是趋势回调？</b> 海底捞月消失 + ADX>25 = 强趋势中的回调买点。回测胜率 61%。<br/>
+                        <b>怎么做？</b> ① 确认ADX>25（趋势仍在）→ ② 在支撑位附近挂单 → ③ 仓位15-20% → ④ 止损设在前低下方5%
+                    </div>
+                    """, unsafe_allow_html=True)
                     for tp in trend_pullbacks:
+                        stop_loss_tp = tp['price'] * 0.95
+                        target_tp = tp['price'] * 1.12
+                        price_sym_tp = tp['price_sym']
                         st.markdown(f"""
                         <div style="background: rgba(0,200,83,0.08); border-left: 3px solid #00C853;
-                                    padding: 10px; border-radius: 8px; margin-bottom: 6px;">
-                            <div style="font-weight: bold;">{tp['name']} <span style="color: #00C853;">📈 回调买入</span></div>
-                            <div style="font-size: 0.85em; color: #888;">ADX: {tp['adx']:.0f} | {tp['price_sym']}{tp['price']:.2f}</div>
+                                    padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="font-weight: bold; font-size: 1.05em;">{tp['name']}</span>
+                                    <span style="color: #00C853; margin-left: 6px;">📈 回调买入</span>
+                                </div>
+                                <span style="font-size: 1.1em;">{price_sym_tp}{tp['price']:.2f}</span>
+                            </div>
+                            <div style="font-size: 0.85em; color: #888; margin-top: 4px;">
+                                ADX: {tp['adx']:.0f} · 止损 {price_sym_tp}{stop_loss_tp:.2f}(-5%) · 目标 {price_sym_tp}{target_tp:.2f}(+12%)
+                            </div>
+                            <div style="font-size: 0.82em; color: #00C853; margin-top: 4px;">
+                                👉 操作: 确认ADX>25 → 支撑位挂单 → 仓位15%
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
+                        tp_sym = tp['symbol']
+                        btn_col_tp1, btn_col_tp2 = st.columns(2)
+                        with btn_col_tp1:
+                            if st.button(f"📊 {tp_sym} 详情", key=f"tp_detail_{tp_sym}", use_container_width=True):
+                                st.session_state['action_selected_symbol'] = tp_sym
+                        with btn_col_tp2:
+                            if st.button(f"💰 模拟买入", key=f"tp_buy_{tp_sym}", use_container_width=True):
+                                st.session_state['action_buy_symbol'] = tp_sym
             except Exception as e:
                 st.caption(f"幻影主力扫描暂不可用: {e}")
             
@@ -3879,42 +3973,100 @@ def _render_todays_picks_page_inner():
         else:
             st.info("正在加载数据...")
     
-    # === Tab 3: 策略精选 (原有逻辑) ===
+    # === Tab 3: 策略精选 (增强版 — 含历史胜率) ===
     with work_tab3:
         st.markdown("### 🎯 策略精选")
-        st.caption("8大策略同时选股，多策略共识=高可信度")
+        st.caption("8大策略同时选股，多策略共识=高可信度 | 历史胜率来自候选追踪数据")
         
         # 获取策略选股
         manager = get_strategy_manager()
         all_picks = manager.get_all_picks(df, top_n=top_n)
         consensus = manager.get_consensus_picks(df, min_votes=2)
         
+        # ── 策略 → 信号标签映射（用于从追踪数据计算历史胜率）──
+        STRATEGY_TAG_MAP = {
+            "momentum":        {"tags": ["DAY_BLUE"], "label": "🚀动量突破",    "desc": "BLUE>80+ADX>25"},
+            "value":           {"tags": ["DAY_BLUE", "WEEK_BLUE"], "label": "💎价值洼地",  "desc": "日周BLUE共振+低波动"},
+            "conservative":    {"tags": ["DAY_BLUE"], "label": "🛡️稳健保守",    "desc": "BLUE>60+高流动+低波动"},
+            "aggressive":      {"tags": ["DAY_BLUE"], "label": "⚡激进突破",    "desc": "BLUE>90+ADX>30"},
+            "multi_timeframe": {"tags": ["DAY_BLUE", "WEEK_BLUE"], "label": "🔄多周期共振", "desc": "日线+周线双BLUE"},
+            "reversal":        {"tags": ["DAY_HEIMA"], "label": "🔃超跌反弹",   "desc": "绝地反击信号"},
+            "volume_breakout": {"tags": ["DAY_BLUE"], "label": "📊放量突破",    "desc": "量价齐升+BLUE"},
+            "heima":           {"tags": ["DAY_HEIMA"], "label": "🐴黑马形态",   "desc": "黑马底部形态"},
+        }
+        
+        # 预计算每个策略的历史胜率
+        strategy_perf_cache = {}
+        if tracking_rows_for_action:
+            for strat_key, strat_info in STRATEGY_TAG_MAP.items():
+                required_tags = strat_info["tags"]
+                matched = [
+                    r for r in tracking_rows_for_action
+                    if set(required_tags).issubset(set(r.get("signal_tags_list") or []))
+                ]
+                if matched:
+                    wins = sum(1 for r in matched if float(r.get("pnl_pct") or 0) > 0)
+                    avg_pnl = float(np.mean([float(r.get("pnl_pct") or 0) for r in matched]))
+                    strategy_perf_cache[strat_key] = {
+                        "win_rate": wins / len(matched) * 100,
+                        "avg_pnl": avg_pnl,
+                        "sample": len(matched),
+                    }
+                else:
+                    strategy_perf_cache[strat_key] = {"win_rate": None, "avg_pnl": None, "sample": 0}
+        
+        # 构建策略显示名 → 策略key的反向映射
+        label_to_key = {v["label"]: k for k, v in STRATEGY_TAG_MAP.items()}
+        
         # 显示共识精选
         if consensus:
             st.markdown("#### 🏆 多策略共识 (被2个以上策略选中)")
             
             consensus_data = []
-            for symbol, votes, avg_score in consensus[:10]:
+            for symbol, votes, avg_score, *rest in consensus[:10]:
+                voted_strategies = rest[0] if rest else []
                 stock_row = df[df['symbol'] == symbol].iloc[0] if not df.empty and symbol in df['symbol'].values else {}
                 
                 blue_d = stock_row.get('blue_daily', 0) if hasattr(stock_row, 'get') else (stock_row['blue_daily'] if 'blue_daily' in getattr(stock_row, 'index', []) else 0)
                 blue_w = stock_row.get('blue_weekly', 0) if hasattr(stock_row, 'get') else (stock_row['blue_weekly'] if 'blue_weekly' in getattr(stock_row, 'index', []) else 0)
                 price = stock_row.get('price', 0) if hasattr(stock_row, 'get') else (stock_row['price'] if 'price' in getattr(stock_row, 'index', []) else 0)
                 
+                # 计算该股票的信号可靠性
+                tags = derive_signal_tags(dict(stock_row)) if hasattr(stock_row, 'get') or hasattr(stock_row, 'to_dict') else []
+                rel = _calc_signal_reliability(tags)
+                grade = rel.get('grade', 'N/A')
+                wr_txt = f"{rel['win_rate']:.0f}%" if rel.get('win_rate') is not None else '-'
+                avg_txt = f"{rel['avg_pnl']:+.1f}%" if rel.get('avg_pnl') is not None else '-'
+                sample = rel.get('sample', 0)
+                grade_icon = {'A': '🟢', 'B': '🔵', 'C': '🟡', 'D': '⚪'}.get(grade, '⚪')
+                
+                # 每个投票策略附带胜率
+                strat_with_wr = []
+                for sname in voted_strategies:
+                    skey = label_to_key.get(sname, "")
+                    perf = strategy_perf_cache.get(skey, {})
+                    s_wr = perf.get("win_rate")
+                    if s_wr is not None:
+                        strat_with_wr.append(f"{sname}({s_wr:.0f}%)")
+                    else:
+                        strat_with_wr.append(sname)
+                
+                price_sym = "¥" if market == "CN" else "$"
                 consensus_data.append({
                     '代码': symbol,
-                    '⭐策略票数': votes,
-                    '平均分': f"{avg_score:.0f}",
+                    '⭐票数': votes,
+                    '投票策略(胜率)': ', '.join(strat_with_wr) if strat_with_wr else '-',
+                    '评级': f"{grade_icon}{grade}",
+                    '信号胜率': wr_txt,
+                    '信号均收': avg_txt,
+                    '样本': sample,
                     '日BLUE': f"{blue_d:.0f}",
                     '周BLUE': f"{blue_w:.0f}",
-                    '价格': f"${price:.2f}" if price else '-',
-                    '建议止损': f"${price*0.92:.2f}" if price else '-',
-                    '建议目标': f"${price*1.15:.2f}" if price else '-'
+                    '价格': f"{price_sym}{price:.2f}" if price else '-',
                 })
             
             consensus_df = pd.DataFrame(consensus_data)
             
-            # 显示表格
             event = st.dataframe(
                 consensus_df,
                 use_container_width=True,
@@ -3922,15 +4074,14 @@ def _render_todays_picks_page_inner():
                 selection_mode="single-row",
                 on_select="rerun"
             )
+            st.caption("🟢A=主仓40%+ | 🔵B=半仓20%+ | 🟡C=试仓10%+ | ⚪D=仅观察 | 策略胜率=该策略标签组合的历史追踪表现")
             
-            # 处理行选择 - 显示股票详情
             selected_consensus_symbol = None
             if event and hasattr(event, 'selection') and event.selection.rows:
                 idx = event.selection.rows[0]
                 if idx < len(consensus_data):
                     selected_consensus_symbol = consensus_data[idx]['代码']
             
-            # 加入观察列表按钮
             if consensus_data:
                 sel_col1, sel_col2 = st.columns([3, 1])
                 with sel_col1:
@@ -3943,10 +4094,10 @@ def _render_todays_picks_page_inner():
                     if st.button("📋 加入观察", key="add_consensus_watch", type="primary"):
                         try:
                             from services.signal_tracker import add_to_watchlist
-                            # 找到选中股票的数据
                             sel_data = next((c for c in consensus_data if c['代码'] == selected_symbol), None)
                             if sel_data:
-                                price = float(sel_data['价格'].replace('$', '')) if sel_data['价格'] != '-' else 0
+                                price_str = sel_data['价格'].replace('$', '').replace('¥', '')
+                                price = float(price_str) if price_str != '-' else 0
                                 add_to_watchlist(
                                     symbol=selected_symbol,
                                     market=market,
@@ -3954,14 +4105,13 @@ def _render_todays_picks_page_inner():
                                     target_price=price * 1.15,
                                     stop_loss=price * 0.92,
                                     signal_type='consensus',
-                                    signal_score=float(sel_data['平均分']),
-                                    notes=f"多策略共识 {sel_data['⭐策略票数']}票"
+                                    signal_score=float(sel_data.get('⭐票数', 0)),
+                                    notes=f"多策略共识 {sel_data['⭐票数']}票"
                                 )
                                 st.success(f"✅ {selected_symbol} 已加入观察列表")
                         except Exception as e:
                             st.error(f"添加失败: {e}")
             
-            # 显示选中股票的详情
             if selected_consensus_symbol:
                 st.divider()
                 st.markdown(f"### 📊 {selected_consensus_symbol} 详细分析")
@@ -3974,18 +4124,34 @@ def _render_todays_picks_page_inner():
             st.info("暂无共识股票，请检查扫描数据")
         
         st.divider()
-        st.markdown("📊 更多策略详情请下滑查看...")
-        # 详细的策略选股在下方继续显示
+        
+        # 策略总览表（使用标签映射计算真实胜率）
         if all_picks:
-            # 策略样本数总览
+            st.markdown("#### 📊 策略历史表现总览")
             summary_rows = []
-            for strategy_name, picks in all_picks.items():
+            for strategy_key, picks in all_picks.items():
+                pick_count = len(picks or [])
+                strat_info = STRATEGY_TAG_MAP.get(strategy_key, {})
+                strat_label = strat_info.get("label", strategy_key)
+                strat_desc = strat_info.get("desc", "")
+                perf = strategy_perf_cache.get(strategy_key, {})
+                
+                s_wr = perf.get("win_rate")
+                s_avg = perf.get("avg_pnl")
+                s_sample = perf.get("sample", 0)
+                
                 summary_rows.append({
-                    "策略": strategy_name,
-                    "候选数": len(picks or []),
+                    "策略": strat_label,
+                    "选股逻辑": strat_desc,
+                    "今日候选": pick_count,
+                    "历史胜率": f"{s_wr:.0f}%" if s_wr is not None else '-',
+                    "历史均收": f"{s_avg:+.1f}%" if s_avg is not None else '-',
+                    "样本数": s_sample,
                 })
             if summary_rows:
-                st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+                summary_df = pd.DataFrame(summary_rows)
+                st.dataframe(summary_df, use_container_width=True, hide_index=True)
+                st.caption("胜率=该策略对应标签组合在追踪数据中的历史表现。样本数越多越可信。")
 
             st.markdown("#### 📚 各策略明细")
             for strategy_name, picks in all_picks.items():
@@ -4012,8 +4178,16 @@ def _render_todays_picks_page_inner():
                         price = float(p.get("price", 0.0) or 0.0)
                         score = float(p.get("score", 0.0) or 0.0)
                         stop_loss = float(p.get("stop_loss", 0.0) or 0.0)
+                        # 每只候选加上历史可靠性
+                        stock_row_for_tag = df[df['symbol'] == sym].iloc[0] if not df.empty and sym in df['symbol'].values else {}
+                        pick_tags = derive_signal_tags(dict(stock_row_for_tag)) if hasattr(stock_row_for_tag, 'get') or hasattr(stock_row_for_tag, 'to_dict') else []
+                        pick_rel = _calc_signal_reliability(pick_tags)
+                        pick_grade = pick_rel.get('grade', '-')
+                        pick_wr = f"{pick_rel['win_rate']:.0f}%" if pick_rel.get('win_rate') is not None else '-'
                         rows_show.append({
                             "代码": sym,
+                            "评级": pick_grade,
+                            "胜率": pick_wr,
                             "评分": round(score, 2),
                             "现价": round(price, 2) if price > 0 else None,
                             "止损价": round(stop_loss, 2) if stop_loss > 0 else None,
@@ -4151,8 +4325,9 @@ def _render_todays_picks_page_inner():
             st.info("📭 暂无持仓")
             st.markdown("前往「发现新股」或「策略精选」寻找买入机会！")
     
-    # === Tab 5: 买卖信号 (整合原每日买卖点页面) ===
-    with work_tab5:
+    # === 买卖信号 (整合进 Tab1 的 expander) ===
+    with work_tab1:
+      with st.expander("📊 更多买卖信号详情", expanded=False):
         st.subheader("📊 今日买卖信号")
         st.caption("基于多策略分析的买入/卖出建议")
         
@@ -4364,8 +4539,8 @@ def _render_todays_picks_page_inner():
         except Exception as e:
             st.error(f"信号加载失败: {e}")
 
-    # === Tab 6: 热点板块 (主题篮子 + 龙头追踪 + 社交热度) ===
-    with work_tab6:
+    # === Tab 5: 热点板块 (主题篮子 + 龙头追踪 + 社交热度) ===
+    with work_tab5:
         st.subheader("🔥 热点板块雷达")
         st.caption("先看主题强弱，再盯龙头，支持一键加入观察列表")
 
@@ -4543,11 +4718,13 @@ def _render_todays_picks_page_inner():
                             except Exception as e:
                                 st.error(f"加入观察失败: {e}")
 
-    # === Tab 7: 组合追踪（日/周/月BLUE + 日/周/月黑马 + 筹码） ===
-    with work_tab7:
+    # ============================================
+    # 📌 SOP Step 3: 收盘复盘（组合追踪，在 Tabs 下方独立区域）
+    # ============================================
+    st.divider()
+    with st.expander("📌 ③ 收盘复盘 — 信号组合追踪", expanded=False):
         st.subheader("📌 信号组合持续追踪")
         st.caption("自动追踪：日/周/月BLUE、日/周/月黑马与筹码标签的各种组合表现")
-        st.info("已将『策略组合层 / 动态权重 / 极致条件提升』并入本 Tab，避免分散在页面外。")
 
         # 组合层 + 极致提升（Tab内版本）
         st.markdown("### 🧩 策略组合层（Meta Allocator）")
@@ -11875,7 +12052,7 @@ def render_strategy_backtest_tab():
             st.caption(f"使用指标: {', '.join(strategy_info.get('indicators', []))}")
         
         # 运行回测
-        if st.button("🚀 运行回测", type="primary"):
+        if st.button("🚀 运行回测", type="primary", key="run_ext_backtest"):
             with st.spinner(f"正在回测 {selected_name} on {symbol}..."):
                 result = backtest_external_strategy(selected_id, symbol, days=days)
                 
@@ -11907,7 +12084,7 @@ def render_strategy_backtest_tab():
         
         compare_symbol = st.text_input("对比股票", value="AAPL", key="compare_symbol").upper()
         
-        if st.button("📊 对比所有策略"):
+        if st.button("📊 对比所有策略", key="compare_all_strategies"):
             with st.spinner("正在对比..."):
                 results = []
                 
@@ -14573,7 +14750,7 @@ def render_strategy_component_page():
     with col2:
         days = st.slider("回测天数", 180, 1095, 730)
     with col3:
-        run_btn = st.button("🚀 运行回测", type="primary")
+        run_btn = st.button("🚀 运行回测", type="primary", key="run_custom_backtest")
     
     if run_btn and selected_buy and selected_sell:
         symbols = [s.strip() for s in symbols_input.split(",") if s.strip()]

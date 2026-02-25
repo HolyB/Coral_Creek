@@ -680,28 +680,34 @@ class StrategyManager:
     
     def get_consensus_picks(self, df: pd.DataFrame, min_votes: int = 2) -> List[Tuple[str, int, float]]:
         """获取多策略共识股票
-        返回: [(symbol, 票数, 平均分)]
+        返回: [(symbol, 票数, 平均分, [策略名列表])]
         """
         all_picks = self.get_all_picks(df)
         
         # 统计每个股票被几个策略选中
         symbol_votes = {}
         symbol_scores = {}
+        symbol_strategies = {}  # 记录哪些策略投了票
         
         for strategy_name, picks in all_picks.items():
+            # 获取策略的中文名
+            strategy = self.strategies.get(strategy_name)
+            display_name = f"{strategy.icon}{strategy.name}" if strategy else strategy_name
             for pick in picks:
                 if pick.symbol not in symbol_votes:
                     symbol_votes[pick.symbol] = 0
                     symbol_scores[pick.symbol] = []
+                    symbol_strategies[pick.symbol] = []
                 symbol_votes[pick.symbol] += 1
                 symbol_scores[pick.symbol].append(pick.score)
+                symbol_strategies[pick.symbol].append(display_name)
         
         # 筛选被多个策略选中的
         consensus = []
         for symbol, votes in symbol_votes.items():
             if votes >= min_votes:
                 avg_score = sum(symbol_scores[symbol]) / len(symbol_scores[symbol])
-                consensus.append((symbol, votes, avg_score))
+                consensus.append((symbol, votes, avg_score, symbol_strategies[symbol]))
         
         # 按票数和分数排序
         consensus.sort(key=lambda x: (x[1], x[2]), reverse=True)
