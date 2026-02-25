@@ -6008,7 +6008,39 @@ def render_scan_page():
         if df is not None and not df.empty:
             st.write(f"列名: {list(df.columns[:15])}")
         elif raw_count > 0:
-            st.warning(f"⚠️ 原始有 {raw_count} 条但 df 为空，load_scan_results_from_db 处理时可能出错！请看上面是否有红色报错。")
+            st.warning(f"⚠️ 原始有 {raw_count} 条但 df 为空！下面尝试重新加载并捕获错误：")
+            try:
+                import traceback as _tb
+                _test_df = pd.DataFrame(raw)
+                st.write(f"✅ DataFrame 创建成功: {len(_test_df)} 行, 列: {list(_test_df.columns[:10])}")
+                # 尝试列名映射
+                col_map = {
+                    'symbol': 'Ticker', 'blue_daily': 'Day BLUE', 'blue_weekly': 'Week BLUE',
+                    'price': 'Price', 'adx': 'ADX', 'turnover_m': 'Turnover',
+                    'heima_daily': 'Heima_Daily', 'cap_category': 'Cap_Category',
+                }
+                _test_df.rename(columns=col_map, inplace=True)
+                st.write(f"✅ 列名映射成功: {list(_test_df.columns[:10])}")
+                # 尝试 bool 转换
+                bool_cols = ['Heima_Daily', 'Heima_Weekly', 'Heima_Monthly', 'Juedi_Daily']
+                for c in bool_cols:
+                    if c in _test_df.columns:
+                        sample_vals = _test_df[c].head(3).tolist()
+                        st.write(f"  {c} 样本值: {sample_vals} (类型: {[type(v).__name__ for v in sample_vals]})")
+                # 尝试 market cap
+                if 'market_cap' in _test_df.columns or 'Mkt Cap Raw' in _test_df.columns:
+                    cap_col = 'Mkt Cap Raw' if 'Mkt Cap Raw' in _test_df.columns else 'market_cap'
+                    sample_caps = _test_df[cap_col].head(3).tolist()
+                    st.write(f"  market_cap 样本: {sample_caps}")
+                # 完整走一遍 load_scan_results_from_db
+                _full_df, _full_src = load_scan_results_from_db(selected_date, market=selected_market)
+                if _full_df is not None and not _full_df.empty:
+                    st.success(f"✅ 完整加载成功: {len(_full_df)} 行")
+                else:
+                    st.error(f"❌ 完整加载失败: df={type(_full_df)}, src={_full_src}")
+            except Exception as _e:
+                st.error(f"❌ 重新加载出错: {_e}")
+                st.code(_tb.format_exc())
 
     # 2. 顶部仪表盘
     col1, col2, col3, col4 = st.columns(4)
