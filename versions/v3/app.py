@@ -15718,6 +15718,16 @@ def render_ai_smart_picks():
             picker = SmartPicker(market=market, horizon=horizon)
             picks = picker.pick(today_signals, price_history, max_picks=max_picks)
             
+            # 📊 自动记录 ML 预测到追踪表
+            try:
+                from services.ml_prediction_tracker import log_predictions_batch
+                pick_dicts = [p.to_dict() for p in picks]
+                logged = log_predictions_batch(pick_dicts, market, latest_date)
+                if logged > 0:
+                    logger.info(f"Logged {logged} ML predictions for {latest_date}")
+            except Exception as e:
+                logger.warning(f"ML prediction logging failed (non-fatal): {e}")
+            
             if not picks:
                 st.info("今日没有高置信度的推荐")
                 return
