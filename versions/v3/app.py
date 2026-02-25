@@ -1462,7 +1462,9 @@ def load_scan_results_from_db(scan_date=None, market=None):
         
         return df, scan_date
     except Exception as e:
+        import traceback
         st.error(f"数据库读取失败: {e}")
+        st.code(traceback.format_exc())
         return None, None
 
 
