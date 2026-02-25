@@ -5642,6 +5642,21 @@ def render_scan_page():
     if df is None or df.empty:
         st.warning("⚠️ 未找到扫描结果。")
         
+        # 调试：显示为什么没有数据
+        with st.expander("🔍 调试信息", expanded=True):
+            st.write(f"use_db: {use_db}, selected_date: {selected_date}, market: {selected_market}")
+            if use_db and selected_date:
+                raw_results = _cached_scan_results(scan_date=selected_date, market=selected_market)
+                st.write(f"raw_results count: {len(raw_results) if raw_results else 0}")
+                if raw_results:
+                    st.write("第一条数据的 keys:", list(raw_results[0].keys())[:10])
+                    st.write("第一条数据:", {k: v for k, v in list(raw_results[0].items())[:8]})
+                # 也试试不带 market 参数
+                raw_no_market = query_scan_results(scan_date=selected_date, limit=5)
+                st.write(f"不带market查询: {len(raw_no_market) if raw_no_market else 0} 条")
+                if raw_no_market:
+                    st.write("market值:", [r.get('market') for r in raw_no_market[:5]])
+        
         col1, col2 = st.columns(2)
         with col1:
             st.info("💡 **方式一**: 运行每日扫描\n```bash\ncd versions/v2\npython scripts/run_daily_scan.py\n```")
