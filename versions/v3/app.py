@@ -5937,11 +5937,14 @@ def render_scan_page():
                     step=5,
                     help="获利盘高 = 筹码结构好，但可能已经涨过；获利盘低 = 套牢盘多，反弹空间大但风险也大"
                 )
-                df['Profit_Ratio'] = pd.to_numeric(df['Profit_Ratio'], errors='coerce').fillna(0.5)
-                df = df[(df['Profit_Ratio'] * 100 >= pr_range[0]) & (df['Profit_Ratio'] * 100 <= pr_range[1])]
+                pr_vals = pd.to_numeric(df['Profit_Ratio'], errors='coerce') * 100
+                # NaN 行保留（数据缺失不应被过滤掉）
+                df = df[pr_vals.between(pr_range[0], pr_range[1]) | pr_vals.isna()]
             
             # 波浪形态筛选
             if 'Wave_Phase' in df.columns:
+                # NaN 填充为 "未知"，让用户可以看到并选择
+                df['Wave_Phase'] = df['Wave_Phase'].fillna('未知')
                 all_waves = df['Wave_Phase'].unique().tolist()
                 selected_waves = st.multiselect("波浪形态", all_waves, default=all_waves)
                 if selected_waves:
@@ -5949,6 +5952,7 @@ def render_scan_page():
             
             # 缠论信号筛选
             if 'Chan_Signal' in df.columns:
+                df['Chan_Signal'] = df['Chan_Signal'].fillna('未知')
                 all_chans = df['Chan_Signal'].unique().tolist()
                 selected_chans = st.multiselect("缠论信号", all_chans, default=all_chans)
                 if selected_chans:
