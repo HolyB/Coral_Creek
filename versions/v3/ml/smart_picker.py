@@ -112,6 +112,9 @@ class StockPick:
 class SmartPicker:
     """智能选股器"""
     
+    # 价格分层阈值 (与 pipeline.py 保持一致)
+    PENNY_THRESHOLD = {'US': 5.0, 'CN': 3.0}
+    
     def __init__(self, market: str = 'US', horizon: str = 'short'):
         """
         Args:
@@ -121,18 +124,23 @@ class SmartPicker:
         self.market = market
         self.horizon = horizon
         self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}"
+        self.penny_model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}_penny"
         self.ranker_meta = {}
         self.rank_weights = self._default_rank_weights()
         self.risk_profile = {}
         
-        # 收益预测模型
+        # Standard 模型
         self.return_model = None
         self.feature_names = []
+        self.ranker_models = {}
         
-        # 排序模型 (Learning to Rank)
-        self.ranker_models = {}  # {'short': model, 'medium': model, 'long': model}
+        # Penny 模型 (低价股专用)
+        self.penny_return_model = None
+        self.penny_feature_names = []
+        self.penny_ranker_models = {}
         
         self._load_models()
+        self._load_penny_models()
         self.rank_weights = self._compute_dynamic_rank_weights()
         self._load_risk_profile()
 
@@ -236,6 +244,42 @@ class SmartPicker:
                     self.ranker_meta = json.load(f)
         except:
             self.ranker_meta = {}
+    
+    def _load_penny_models(self):
+        """加载低价股专用模型"""
+        if not ML_AVAILABLE or not self.penny_model_dir.exists():
+            return
+        
+        try:
+            model_path = self.penny_model_dir / "return_5d.joblib"
+            if model_path.exists():
+                self.penny_return_model = joblib.load(model_path)
+                feat_path = self.penny_model_dir / "feature_names.json"
+                if feat_path.exists():
+                    with open(feat_path) as f:
+                        self.penny_feature_names = json.load(f)
+                print(f"✓ Penny 收益预测模型已加载")
+        except Exception as e:
+            print(f"Penny 模型加载失败: {e}")
+        
+        for horizon in ['short', 'medium', 'long']:
+            try:
+                rp = self.penny_model_dir / f"ranker_{horizon}.joblib"
+                if rp.exists():
+                    self.penny_ranker_models[horizon] = joblib.load(rp)
+            except:
+                pass
+    
+    def _is_penny(self, price: float) -> bool:
+        """判断是否为低价股"""
+        threshold = self.PENNY_THRESHOLD.get(self.market, 5.0)
+        return price < threshold
+    
+    def _get_models_for_price(self, price: float):
+        """根据价格自动选择模型 (return_model, feature_names, ranker_models)"""
+        if self._is_penny(price) and self.penny_return_model is not None:
+            return self.penny_return_model, self.penny_feature_names, self.penny_ranker_models
+        return self.return_model, self.feature_names, self.ranker_models
     
     @property
     def model(self):
@@ -411,14 +455,17 @@ class SmartPicker:
         return True
     
     def _ml_predict(self, signal: pd.Series, history: pd.DataFrame) -> Dict:
-        """ML预测"""
+        """ML预测 (自动选择 standard/penny 模型)"""
         result = {
             'pred_return': 0.0,
             'direction_prob': 0.5,
             'confidence': 0.0
         }
         
-        if self.model is None or history.empty or len(history) < 60:
+        price = float(signal.get('price', 0))
+        ret_model, feat_names, _ = self._get_models_for_price(price)
+        
+        if ret_model is None or history.empty or len(history) < 60:
             # 无模型或数据不足，使用规则估计
             blue_d = float(signal.get('blue_daily', 0))
             blue_w = float(signal.get('blue_weekly', 0))
@@ -458,12 +505,12 @@ class SmartPicker:
                 return result
             
             # 构建特征向量
-            X = np.array([[features.get(f, 0) for f in self.feature_names]])
+            X = np.array([[features.get(f, 0) for f in feat_names]])
             X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
             X = np.clip(X, -1e6, 1e6)
             
             # 预测
-            pred_return = float(self.model.predict(X)[0])
+            pred_return = float(ret_model.predict(X)[0])
             
             # 方向概率 (基于预测值的sigmoid)
             direction_prob = 1 / (1 + np.exp(-pred_return / 2))
@@ -489,7 +536,10 @@ class SmartPicker:
         """
         result = {'short': 0.0, 'medium': 0.0, 'long': 0.0}
         
-        if not self.ranker_models or history.empty or len(history) < 60:
+        price = float(signal.get('price', 0))
+        _, feat_names, ranker_mods = self._get_models_for_price(price)
+        
+        if not ranker_mods or history.empty or len(history) < 60:
             # 无排序模型，使用规则估计
             blue_d = float(signal.get('blue_daily', 0))
             blue_w = float(signal.get('blue_weekly', 0))
@@ -527,15 +577,15 @@ class SmartPicker:
                 return result
             
             # 构建特征向量
-            X = np.array([[features.get(f, 0) for f in self.feature_names]])
+            X = np.array([[features.get(f, 0) for f in feat_names]])
             X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
             X = np.clip(X, -1e6, 1e6)
             
             # 对每个周期使用排序模型
             for horizon in ['short', 'medium', 'long']:
-                if horizon in self.ranker_models:
+                if horizon in ranker_mods:
                     try:
-                        score = float(self.ranker_models[horizon].predict(X)[0])
+                        score = float(ranker_mods[horizon].predict(X)[0])
                         result[horizon] = score
                     except:
                         pass
