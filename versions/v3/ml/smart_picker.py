@@ -448,7 +448,9 @@ class SmartPicker:
                 'blue_weekly': signal.get('blue_weekly', 0),
                 'blue_monthly': signal.get('blue_monthly', 0),
                 'is_heima': signal.get('is_heima', 0),
-                'is_juedi': 0
+                'is_juedi': 0,
+                'symbol': signal.get('symbol', ''),
+                'market': self.market,
             }
             
             features = calc.get_latest_features(history, blue_signals)
@@ -515,7 +517,9 @@ class SmartPicker:
                 'blue_weekly': signal.get('blue_weekly', 0),
                 'blue_monthly': signal.get('blue_monthly', 0),
                 'is_heima': signal.get('is_heima', 0),
-                'is_juedi': 0
+                'is_juedi': 0,
+                'symbol': signal.get('symbol', ''),
+                'market': self.market,
             }
             
             features = calc.get_latest_features(history, blue_signals)

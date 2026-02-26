@@ -28,7 +28,9 @@ class FeatureCalculator:
                 'blue_weekly': float, 
                 'blue_monthly': float,
                 'is_heima': bool,
-                'is_juedi': bool
+                'is_juedi': bool,
+                'symbol': str (可选, 用于新闻特征),
+                'market': str (可选, 默认 US),
             }
         
         Returns:
@@ -69,6 +71,14 @@ class FeatureCalculator:
         # 10. BLUE 信号特征 (如果提供)
         if blue_signals:
             result = self._add_blue_features(result, blue_signals)
+        
+        # 11. 新闻情绪特征 (如果 symbol 可用)
+        if blue_signals and blue_signals.get('symbol'):
+            result = self._add_news_features(
+                result,
+                symbol=blue_signals['symbol'],
+                market=blue_signals.get('market', 'US'),
+            )
         
         return result
     
@@ -480,6 +490,22 @@ class FeatureCalculator:
         
         return df
 
+    def _add_news_features(self, df: pd.DataFrame, symbol: str, market: str = 'US') -> pd.DataFrame:
+        """新闻情绪特征 (7个特征)"""
+        try:
+            from ml.features.news_sentiment import get_news_sentiment_features, NEWS_FEATURE_NAMES
+            features = get_news_sentiment_features(symbol, market)
+            for name in NEWS_FEATURE_NAMES:
+                df[name] = features.get(name, 0)
+        except ImportError:
+            # 新闻模块不可用，填充 0
+            from ml.features.news_sentiment import NEWS_FEATURE_NAMES
+            for name in NEWS_FEATURE_NAMES:
+                df[name] = 0
+        except Exception:
+            pass
+        return df
+
 
 # === 便捷函数 ===
 _calculator = None
@@ -557,6 +583,11 @@ FEATURE_COLUMNS = [
     'blue_daily_deviation', 'blue_weekly_deviation',
     'blue_overbought', 'blue_oversold', 'blue_golden_zone',
     'signal_strength', 'signal_type',
+    
+    # 新闻情绪 (Phase 2)
+    'news_count', 'news_bullish_ratio', 'news_bearish_ratio',
+    'news_sentiment_net', 'social_buzz_score',
+    'reddit_mentions', 'reddit_rank',
 ]
 
 
