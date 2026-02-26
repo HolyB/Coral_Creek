@@ -16,44 +16,44 @@
   },
   "horizons": {
     "1d": {
-      "samples": 5672,
-      "avg_gross_return_pct": -1.191436191778956,
-      "avg_net_return_pct": -1.4914361917789558,
+      "samples": 5654,
+      "avg_gross_return_pct": -1.1903217249178528,
+      "avg_net_return_pct": -1.4903217249178526,
       "cost_drag_pct": 0.3,
-      "gross_win_rate_pct": 41.18476727785614,
-      "net_win_rate_pct": 36.98871650211565
+      "gross_win_rate_pct": 41.38662893526707,
+      "net_win_rate_pct": 37.07110010611956
     },
     "5d": {
-      "samples": 4062,
-      "avg_gross_return_pct": -3.9413371627647518,
-      "avg_net_return_pct": -4.2413371627647525,
-      "cost_drag_pct": 0.3000000000000001,
-      "gross_win_rate_pct": 31.166912850812405,
-      "net_win_rate_pct": 28.729689807976367
+      "samples": 4034,
+      "avg_gross_return_pct": -3.936003922817681,
+      "avg_net_return_pct": -4.23600392281768,
+      "cost_drag_pct": 0.30000000000000004,
+      "gross_win_rate_pct": 31.308874566187406,
+      "net_win_rate_pct": 28.92910262766485
     },
     "10d": {
-      "samples": 2174,
-      "avg_gross_return_pct": -4.503650563067078,
-      "avg_net_return_pct": -4.803650563067078,
+      "samples": 2200,
+      "avg_gross_return_pct": -4.3733014093460385,
+      "avg_net_return_pct": -4.673301409346038,
       "cost_drag_pct": 0.3000000000000001,
-      "gross_win_rate_pct": 26.034958601655934,
-      "net_win_rate_pct": 24.471021159153633
+      "gross_win_rate_pct": 27.0,
+      "net_win_rate_pct": 25.363636363636367
     },
     "20d": {
-      "samples": 563,
-      "avg_gross_return_pct": -5.355989222258361,
-      "avg_net_return_pct": 0.1979436061646056,
-      "cost_drag_pct": -5.553932828422965,
-      "gross_win_rate_pct": 19.36056838365897,
-      "net_win_rate_pct": 32.682060390763766
+      "samples": 561,
+      "avg_gross_return_pct": -5.277322298733169,
+      "avg_net_return_pct": 0.3205866944896949,
+      "cost_drag_pct": -5.597908993222863,
+      "gross_win_rate_pct": 18.89483065953654,
+      "net_win_rate_pct": 32.44206773618538
     },
     "30d": {
       "samples": 208,
-      "avg_gross_return_pct": 4.3494962338768435,
-      "avg_net_return_pct": 4.049496233876841,
+      "avg_gross_return_pct": 4.918772144201842,
+      "avg_net_return_pct": 4.6187721442018415,
       "cost_drag_pct": 0.2999999999999995,
-      "gross_win_rate_pct": 33.17307692307692,
-      "net_win_rate_pct": 31.25
+      "gross_win_rate_pct": 35.09615384615385,
+      "net_win_rate_pct": 33.17307692307692
     },
     "60d": {
       "samples": 1,
