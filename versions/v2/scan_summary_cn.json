@@ -1,112 +1,112 @@
 {
-  "date": "2026-02-25",
+  "date": "2026-02-26",
   "market": "CN",
-  "total_signals": 69,
+  "total_signals": 81,
   "top_signals": [
     {
-      "symbol": "688656.SH",
-      "name": "浩欧博",
-      "price": 138.78,
-      "day_blue": 200.0,
+      "symbol": "605179.SH",
+      "name": "一鸣食品",
+      "price": 19.81,
+      "day_blue": 152.6,
+      "week_blue": 73.5
+    },
+    {
+      "symbol": "920405.BJ",
+      "name": "海希通讯",
+      "price": 24.69,
+      "day_blue": 147.3,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "300755.SZ",
-      "name": "华致酒行",
-      "price": 15.52,
-      "day_blue": 191.8,
-      "week_blue": 102.5
-    },
-    {
-      "symbol": "001206.SZ",
-      "name": "依依股份",
-      "price": 23.8,
-      "day_blue": 172.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920857.BJ",
-      "name": "泓禧科技",
-      "price": 27.41,
-      "day_blue": 151.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688266.SH",
-      "name": "泽璟制药-U",
-      "price": 86.05,
-      "day_blue": 141.9,
-      "week_blue": 129.4
     },
     {
       "symbol": "603983.SH",
       "name": "丸美生物",
-      "price": 30.5,
-      "day_blue": 136.9,
-      "week_blue": 145.3
-    },
-    {
-      "symbol": "688318.SH",
-      "name": "财富趋势",
-      "price": 127.9,
-      "day_blue": 129.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301080.SZ",
-      "name": "百普赛斯",
-      "price": 49.33,
-      "day_blue": 127.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600012.SH",
-      "name": "皖通高速",
-      "price": 13.78,
-      "day_blue": 127.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688228.SH",
-      "name": "开普云",
-      "price": 123.23,
-      "day_blue": 125.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "003010.SZ",
-      "name": "若羽臣",
-      "price": 31.6,
-      "day_blue": 124.8,
-      "week_blue": 105.3
+      "price": 30.3,
+      "day_blue": 146.8,
+      "week_blue": 145.4
     },
     {
       "symbol": "601818.SH",
       "name": "光大银行",
       "price": 3.24,
-      "day_blue": 124.7,
+      "day_blue": 144.2,
       "week_blue": 88.1
     },
     {
-      "symbol": "688166.SH",
-      "name": "博瑞医药",
-      "price": 45.26,
-      "day_blue": 123.3,
-      "week_blue": 89.0
+      "symbol": "300783.SZ",
+      "name": "三只松鼠",
+      "price": 21.29,
+      "day_blue": 137.4,
+      "week_blue": 75.5
     },
     {
-      "symbol": "601985.SH",
-      "name": "中国核电",
-      "price": 8.49,
-      "day_blue": 122.6,
+      "symbol": "688318.SH",
+      "name": "财富趋势",
+      "price": 126.35,
+      "day_blue": 133.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "003010.SZ",
+      "name": "若羽臣",
+      "price": 30.7,
+      "day_blue": 131.8,
+      "week_blue": 105.5
+    },
+    {
+      "symbol": "920225.BJ",
+      "name": "利通科技",
+      "price": 29.11,
+      "day_blue": 127.4,
       "week_blue": 0.0
     },
     {
       "symbol": "601398.SH",
       "name": "工商银行",
-      "price": 7.05,
-      "day_blue": 120.7,
-      "week_blue": 105.9
+      "price": 6.96,
+      "day_blue": 124.9,
+      "week_blue": 106.2
+    },
+    {
+      "symbol": "688302.SH",
+      "name": "海创药业-U",
+      "price": 44.0,
+      "day_blue": 124.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920699.BJ",
+      "name": "海达尔",
+      "price": 46.68,
+      "day_blue": 124.6,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002251.SZ",
+      "name": "步步高",
+      "price": 4.84,
+      "day_blue": 123.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603119.SH",
+      "name": "浙江荣泰",
+      "price": 94.0,
+      "day_blue": 122.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688382.SH",
+      "name": "益方生物-U",
+      "price": 20.64,
+      "day_blue": 122.3,
+      "week_blue": 128.0
+    },
+    {
+      "symbol": "601579.SH",
+      "name": "会稽山",
+      "price": 19.08,
+      "day_blue": 118.7,
+      "week_blue": 0.0
     }
   ]
 }
