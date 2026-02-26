@@ -113,17 +113,17 @@
   ],
   "metrics": {
     "short": {
-      "ndcg@10": 0.4394690133280758,
-      "top10_avg_return": -1.0998545512892717,
-      "train_samples": 2783,
-      "test_samples": 534,
+      "ndcg@10": 0.4266929084075166,
+      "top10_avg_return": -1.6372840610994133,
+      "train_samples": 4573,
+      "test_samples": 1016,
       "n_train_groups": 32,
-      "n_test_groups": 8
+      "n_test_groups": 9
     },
     "medium": {
-      "ndcg@10": 0.785207385877429,
-      "top10_avg_return": -1.4156704436928516,
-      "train_samples": 316,
+      "ndcg@10": 0.8146813728957087,
+      "top10_avg_return": 1.2412453005209367,
+      "train_samples": 398,
       "test_samples": 208,
       "n_train_groups": 20,
       "n_test_groups": 6
