@@ -1,0 +1,11 @@
+{
+  "primary_horizons": [
+    "20d",
+    "60d"
+  ],
+  "excess_baseline": "cross_sectional_median_by_scan_date",
+  "risk_penalty_lambda": {
+    "20d": 0.35,
+    "60d": 0.45
+  }
+}

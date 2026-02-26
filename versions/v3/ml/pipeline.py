@@ -28,23 +28,40 @@ sys.path.insert(0, str(project_root))
 class MLPipeline:
     """ML 训练管道"""
     
+    # 价格分层阈值
+    PRICE_TIERS = {
+        'US': {'standard': (5.0, 9999), 'penny': (0.01, 5.0)},
+        'CN': {'standard': (3.0, 9999), 'penny': (0.01, 3.0)},
+    }
+
     def __init__(self,
                  market: str = 'US',
                  days_back: int = 180,
                  commission_bps: float = 5.0,
                  slippage_bps: float = 10.0,
                  use_fundamental_features: bool = True,
-                 enable_fundamental_api: bool = False):
+                 enable_fundamental_api: bool = False,
+                 price_tier: str = 'standard'):
+        """
+        Args:
+            price_tier: 'standard' (>=5), 'penny' (<5), or 'all' (不过滤)
+        """
         self.market = market
         self.days_back = days_back
+        self.price_tier = price_tier
         self.commission_bps = float(commission_bps)
         self.slippage_bps = float(slippage_bps)
-        # 双边成本: 开仓 + 平仓
-        self.round_trip_cost_pct = 2.0 * (self.commission_bps + self.slippage_bps) / 100.0
+        # 双边成本: 开仓 + 平仓 (低价股滑点更大)
+        if price_tier == 'penny':
+            self.round_trip_cost_pct = 2.0 * (self.commission_bps + self.slippage_bps * 3) / 100.0
+        else:
+            self.round_trip_cost_pct = 2.0 * (self.commission_bps + self.slippage_bps) / 100.0
         # 基本面特征开关
         self.use_fundamental_features = bool(use_fundamental_features)
         self.enable_fundamental_api = bool(enable_fundamental_api)
-        self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}"
+        # 模型目录: standard → v2_us, penny → v2_us_penny
+        tier_suffix = f"_{price_tier}" if price_tier != 'standard' else ''
+        self.model_dir = Path(__file__).parent / "saved_models" / f"v2_{market.lower()}{tier_suffix}"
         self.model_dir.mkdir(parents=True, exist_ok=True)
         self.label_cost_profile: Dict[str, Dict] = {}
         self.feature_stability_report: Dict[str, Dict] = {}
@@ -374,14 +391,15 @@ class MLPipeline:
         all_groups = []
         all_info = []
         
-        # 过滤低价股 (垃圾小盘股污染训练数据)
-        if 'price' in signals_df.columns:
-            min_price = 5.0 if self.market == 'US' else 3.0
+        # 按价格分层过滤
+        if 'price' in signals_df.columns and self.price_tier != 'all':
+            tiers = self.PRICE_TIERS.get(self.market, self.PRICE_TIERS['US'])
+            lo, hi = tiers.get(self.price_tier, (0.01, 9999))
             before_filter = len(signals_df)
-            signals_df = signals_df[signals_df['price'] >= min_price]
+            signals_df = signals_df[(signals_df['price'] >= lo) & (signals_df['price'] < hi)]
             filtered_out = before_filter - len(signals_df)
             if filtered_out > 0:
-                print(f"   过滤低价股 (<{min_price}): -{filtered_out} 条")
+                print(f"   价格分层 [{self.price_tier}] ${lo}~${hi}: 保留 {len(signals_df)}, 排除 {filtered_out}")
 
         symbols = signals_df['symbol'].unique()
         print(f"   股票数: {len(symbols)}")
@@ -708,15 +726,29 @@ def train_pipeline(market: str = 'US',
                    days_back: int = 180,
                    upload: bool = False,
                    commission_bps: float = 5.0,
-                   slippage_bps: float = 10.0):
+                   slippage_bps: float = 10.0,
+                   price_tier: str = 'standard'):
     """便捷训练函数"""
     pipeline = MLPipeline(
         market=market,
         days_back=days_back,
         commission_bps=commission_bps,
-        slippage_bps=slippage_bps
+        slippage_bps=slippage_bps,
+        price_tier=price_tier,
     )
     return pipeline.train_all(upload=upload)
+
+
+def train_all_tiers(market: str = 'US', days_back: int = 365, **kwargs):
+    """训练所有价格分层模型"""
+    all_results = {}
+    for tier in ['standard', 'penny']:
+        print(f"\n{'#'*60}")
+        print(f"## 训练 {tier.upper()} 模型 ({market})")
+        print(f"{'#'*60}")
+        result = train_pipeline(market=market, days_back=days_back, price_tier=tier, **kwargs)
+        all_results[tier] = result
+    return all_results
 
 
 # === 命令行入口 ===
@@ -730,6 +762,9 @@ if __name__ == "__main__":
     parser.add_argument('--fetch', action='store_true', help='先拉取历史数据')
     parser.add_argument('--commission-bps', type=float, default=5.0, help='单边手续费 (bps)')
     parser.add_argument('--slippage-bps', type=float, default=10.0, help='单边滑点 (bps)')
+    parser.add_argument('--tier', type=str, default='standard', choices=['standard', 'penny', 'all'],
+                        help='价格分层: standard(>=5), penny(<5), all(全部)')
+    parser.add_argument('--all-tiers', action='store_true', help='训练所有分层模型')
     
     args = parser.parse_args()
     
@@ -741,25 +776,32 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"⚠️ 数据库初始化: {e}")
     
-    pipeline = MLPipeline(
-        market=args.market,
-        days_back=args.days,
-        commission_bps=args.commission_bps,
-        slippage_bps=args.slippage_bps
-    )
-    
-    if args.fetch:
-        # 获取信号股票列表 (从 Supabase 或 SQLite)
-        dates = get_scanned_dates(market=args.market)
-        symbols = set()
-        for d in dates[:30]:  # 最近30天
-            results = query_scan_results(scan_date=d, market=args.market, limit=1000)
-            for r in results:
-                symbols.add(r.get('symbol', ''))
-        symbols = sorted([s for s in symbols if s])
-        print(f"   找到 {len(symbols)} 只股票")
+    if args.all_tiers:
+        results = train_all_tiers(
+            market=args.market, days_back=args.days,
+            commission_bps=args.commission_bps, slippage_bps=args.slippage_bps,
+        )
+        for tier, r in results.items():
+            print(f"\n{tier}: samples={r.get('samples')}, status={r.get('status')}")
+    else:
+        pipeline = MLPipeline(
+            market=args.market,
+            days_back=args.days,
+            commission_bps=args.commission_bps,
+            slippage_bps=args.slippage_bps,
+            price_tier=args.tier,
+        )
         
-        pipeline.fetch_and_store_history(symbols)
-    
-    results = pipeline.train_all(upload=args.upload)
-    print(f"\n结果: {results}")
+        if args.fetch:
+            dates = get_scanned_dates(market=args.market)
+            symbols = set()
+            for d in dates[:30]:
+                results = query_scan_results(scan_date=d, market=args.market, limit=1000)
+                for r in results:
+                    symbols.add(r.get('symbol', ''))
+            symbols = sorted([s for s in symbols if s])
+            print(f"   找到 {len(symbols)} 只股票")
+            pipeline.fetch_and_store_history(symbols)
+        
+        results = pipeline.train_all(upload=args.upload)
+        print(f"\n结果: {results}")
