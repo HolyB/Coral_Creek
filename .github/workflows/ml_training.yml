@@ -2,9 +2,18 @@ name: ML Model Training
 
 on:
   schedule:
-    # 每周一凌晨3点 (UTC) 训练一次
-    - cron: '0 3 * * 1'
+    # 每周日凌晨3点 (UTC) = 北京时间周日 11:00 AM
+    - cron: '0 3 * * 0'
   workflow_dispatch:  # 允许手动触发
+    inputs:
+      days_back:
+        description: '训练数据天数 (0=全部)'
+        required: false
+        default: '0'
+      tier:
+        description: '价格分层 (all-tiers/standard/penny)'
+        required: false
+        default: 'all-tiers'
 
 # 权限 - 允许写入仓库 (提交模型文件)
 permissions:
@@ -13,7 +22,7 @@ permissions:
 jobs:
   train:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     
     steps:
       - name: Checkout
@@ -34,7 +43,21 @@ jobs:
           pip install polygon-api-client requests yfinance tqdm
           pip install supabase
       
-      - name: Train SmartPicker Models (pipeline.py)
+      - name: Download database from Supabase
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          echo "📥 Syncing scan_results from Supabase..."
+          python -c "
+          from db.database import init_db
+          init_db()
+          print('✅ Database initialized')
+          "
+      
+      - name: Fetch stock history
         working-directory: versions/v3
         env:
           PYTHONPATH: ${{ github.workspace }}/versions/v3
@@ -42,15 +65,57 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          echo "🚀 Training SmartPicker models via ml/pipeline.py"
-          echo "   This trains ReturnPredictor + SignalRanker (101 features)"
-          echo ""
+          echo "📈 Fetching stock history for training..."
+          python -c "
+          from db.database import init_db, get_scanned_dates, query_scan_results
+          from ml.pipeline import MLPipeline
+          from collections import Counter
           
-          python ml/pipeline.py --market US --days 180
+          init_db()
+          dates = get_scanned_dates(market='US')
+          
+          # 收集最频繁的 200 个标的
+          counts = Counter()
+          for d in dates[:60]:
+              results = query_scan_results(scan_date=d, market='US', limit=500)
+              for r in results:
+                  sym = r.get('symbol', '')
+                  price = float(r.get('price', 0) or 0)
+                  if sym and price > 0:
+                      counts[sym] += 1
+          
+          symbols = [s for s, _ in counts.most_common(300)]
+          print(f'Fetching history for {len(symbols)} symbols...')
+          
+          pipeline = MLPipeline(market='US')
+          pipeline.fetch_and_store_history(symbols, days=400, batch_size=10)
+          "
+      
+      - name: Train models
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          DAYS="${{ github.event.inputs.days_back || '9999' }}"
+          TIER="${{ github.event.inputs.tier || 'all-tiers' }}"
+          
+          echo "🚀 Training ML models"
+          echo "   Days: $DAYS"
+          echo "   Tier: $TIER"
+          
+          if [ "$TIER" = "all-tiers" ]; then
+            python ml/pipeline.py --market US --days "$DAYS" --all-tiers
+          else
+            python ml/pipeline.py --market US --days "$DAYS" --tier "$TIER"
+          fi
           
           echo ""
           echo "📂 Model files:"
           ls -la ml/saved_models/v2_us/ || echo "No v2_us models"
+          ls -la ml/saved_models/v2_us_penny/ 2>/dev/null || echo "No penny models"
       
       - name: Verify models
         working-directory: versions/v3
@@ -58,42 +123,27 @@ jobs:
           python -c "
           import joblib, json, os
           
-          model_dir = 'ml/saved_models/v2_us'
-          
-          # 检查关键模型文件
-          required = [
-              'return_5d.joblib',
-              'ranker_short.joblib',
-              'ranker_medium.joblib',
-              'ranker_long.joblib',
-              'feature_names.json',
-              'training_cost_profile.json'
-          ]
-          missing = []
-          for f in required:
-              path = os.path.join(model_dir, f)
-              if os.path.exists(path):
+          for tier_dir in ['ml/saved_models/v2_us', 'ml/saved_models/v2_us_penny']:
+              if not os.path.exists(tier_dir):
+                  continue
+              tier = tier_dir.split('/')[-1]
+              print(f'\n📊 {tier}:')
+              
+              for f in sorted(os.listdir(tier_dir)):
+                  path = os.path.join(tier_dir, f)
                   size = os.path.getsize(path)
                   print(f'  ✅ {f} ({size:,} bytes)')
-              else:
-                  print(f'  ❌ MISSING: {f}')
-                  missing.append(f)
-          
-          # 验证特征数
-          fn_path = os.path.join(model_dir, 'feature_names.json')
-          if os.path.exists(fn_path):
-              with open(fn_path) as f:
-                  features = json.load(f)
-              print(f'  📊 Features: {len(features)}')
-          
-          # 验证模型可加载
-          model_path = os.path.join(model_dir, 'return_5d.joblib')
-          if os.path.exists(model_path):
-              model = joblib.load(model_path)
-              print(f'  ✅ return_5d model loaded: {type(model).__name__}')
-
-          if missing:
-              raise SystemExit(f'❌ Missing required artifacts: {missing}')
+              
+              fn_path = os.path.join(tier_dir, 'feature_names.json')
+              if os.path.exists(fn_path):
+                  with open(fn_path) as fh:
+                      features = json.load(fh)
+                  print(f'  Features: {len(features)}')
+              
+              model_path = os.path.join(tier_dir, 'return_5d.joblib')
+              if os.path.exists(model_path):
+                  model = joblib.load(model_path)
+                  print(f'  Model loaded: {type(model).__name__}')
           "
       
       - name: Commit updated models
@@ -106,7 +156,8 @@ jobs:
           if git diff --staged --quiet; then
             echo "No model changes to commit"
           else
-            git commit -m "🧠 Auto-update: ML models retrained $(date +%Y-%m-%d)"
+            COMMIT_MSG="🧠 Auto-retrain: ML models $(date +%Y-%m-%d)"
+            git commit -m "$COMMIT_MSG"
             
             if ! git pull --rebase origin main; then
               git rebase --abort || true
@@ -123,7 +174,7 @@ jobs:
           pip install huggingface_hub
           python -c "
           from huggingface_hub import HfApi, login, create_repo
-          import os, glob
+          import os
           
           token = os.environ.get('HF_TOKEN')
           if not token:
@@ -132,7 +183,6 @@ jobs:
           
           login(token=token)
           api = HfApi()
-          
           repo_id = 'HolyBert/coral-creek-models'
           
           try:
@@ -140,19 +190,20 @@ jobs:
           except Exception as e:
               print(f'Repo check: {e}')
           
-          # 上传 v2_us 模型目录
-          model_dir = 'ml/saved_models/v2_us'
-          if os.path.exists(model_dir):
-              for f in os.listdir(model_dir):
-                  fpath = os.path.join(model_dir, f)
+          for tier_dir in ['ml/saved_models/v2_us', 'ml/saved_models/v2_us_penny']:
+              if not os.path.exists(tier_dir):
+                  continue
+              tier = tier_dir.split('/')[-1]
+              for f in os.listdir(tier_dir):
+                  fpath = os.path.join(tier_dir, f)
                   if os.path.isfile(fpath):
                       api.upload_file(
                           path_or_fileobj=fpath,
-                          path_in_repo=f'v2_us/{f}',
+                          path_in_repo=f'{tier}/{f}',
                           repo_id=repo_id,
                           repo_type='model'
                       )
-                      print(f'  ✅ Uploaded: v2_us/{f}')
+                      print(f'  ✅ Uploaded: {tier}/{f}')
           
           print('🎉 Upload complete!')
           "
@@ -160,6 +211,7 @@ jobs:
       - name: Summary
         run: |
           echo "🎉 ML Training Complete!"
-          echo "Models: ReturnPredictor (1d/5d/10d/30d) + SignalRanker (short/medium/long)"
-          echo "Features: 101 technical indicators"
-          echo "Used by: SmartPicker in AI中心 and 今日精选"
+          echo "Models: Standard (>=\$5) + Penny (<\$5)"
+          echo "Horizons: ReturnPredictor (5d/20d) + SignalRanker (short/medium)"
+          echo "Features: 110 technical + fundamental indicators"
+          echo "Used by: SmartPicker (auto-selects model by stock price)"
