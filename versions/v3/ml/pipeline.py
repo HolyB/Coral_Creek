@@ -374,16 +374,43 @@ class MLPipeline:
         all_groups = []
         all_info = []
         
+        # 过滤低价股 (垃圾小盘股污染训练数据)
+        if 'price' in signals_df.columns:
+            min_price = 5.0 if self.market == 'US' else 3.0
+            before_filter = len(signals_df)
+            signals_df = signals_df[signals_df['price'] >= min_price]
+            filtered_out = before_filter - len(signals_df)
+            if filtered_out > 0:
+                print(f"   过滤低价股 (<{min_price}): -{filtered_out} 条")
+
         symbols = signals_df['symbol'].unique()
         print(f"   股票数: {len(symbols)}")
         
-        # 限制股票数量 (避免 API 超时)
-        max_symbols = 200
+        # 优先选有本地历史数据的股票 (避免 API 调用)
+        max_symbols = 1000
         if len(symbols) > max_symbols:
-            # 选择信号最多的股票
+            local_symbols = set()
+            try:
+                import sqlite3 as _sq3
+                from db.stock_history import get_history_db_path
+                _hconn = _sq3.connect(get_history_db_path())
+                _hcur = _hconn.cursor()
+                _ph = ",".join(["?"] * min(len(symbols), 5000))
+                _hcur.execute(
+                    f"SELECT DISTINCT symbol FROM stock_history WHERE market = ? AND symbol IN ({_ph})",
+                    [self.market] + list(symbols)[:5000],
+                )
+                local_symbols = set(r[0] for r in _hcur.fetchall())
+                _hconn.close()
+            except Exception:
+                pass
+
+            # 优先有本地历史的，再按信号频率排序
             symbol_counts = signals_df['symbol'].value_counts()
-            symbols = symbol_counts.head(max_symbols).index.tolist()
-            print(f"   限制为 Top {max_symbols} 股票")
+            has_hist = [s for s in symbol_counts.index if s in local_symbols]
+            no_hist = [s for s in symbol_counts.index if s not in local_symbols]
+            symbols = (has_hist + no_hist)[:max_symbols]
+            print(f"   限制为 Top {max_symbols} 股票 (有本地历史: {len(has_hist)})")
         
         # 按股票处理
         # 基本面外部 API 缓存（避免重复请求）
