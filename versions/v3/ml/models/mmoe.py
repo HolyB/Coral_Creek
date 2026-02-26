@@ -36,8 +36,8 @@ except ImportError:
     pass
 
 
-# ====== 任务定义 ======
-TASK_DEFS = [
+# ====== 全部 6 个任务定义 ======
+ALL_TASK_DEFS = [
     {'name': 'return_5d',   'type': 'regression',     'weight': 1.0,  'label_key': '5d'},
     {'name': 'return_20d',  'type': 'regression',     'weight': 1.5,  'label_key': '20d'},
     {'name': 'direction',   'type': 'classification', 'weight': 0.8,  'label_key': '_dir_5d'},
@@ -45,6 +45,9 @@ TASK_DEFS = [
     {'name': 'rank_score',  'type': 'ranking',        'weight': 1.2,  'label_key': '_rank'},
     {'name': 'volatility',  'type': 'regression',     'weight': 0.6,  'label_key': '_vol'},
 ]
+
+# 默认任务集 (向后兼容)
+TASK_DEFS = ALL_TASK_DEFS
 
 
 class ExpertNetwork(nn.Module):
@@ -139,10 +142,12 @@ class MMoEPredictor:
                  epochs: int = 100,
                  batch_size: int = 256,
                  patience: int = 15,
-                 device: str = 'auto'):
+                 device: str = 'auto',
+                 task_defs: Optional[List] = None):
         if not TORCH_AVAILABLE:
             raise ImportError("pip install torch")
 
+        self.task_defs = task_defs or ALL_TASK_DEFS
         self.config = dict(
             num_experts=num_experts, expert_hidden=expert_hidden,
             expert_out=expert_out, tower_hidden=tower_hidden,
@@ -222,7 +227,8 @@ class MMoEPredictor:
 
         self.feature_names = feature_names
         n_feat = X.shape[1]
-        num_tasks = len(TASK_DEFS)
+        task_defs = self.task_defs
+        num_tasks = len(task_defs)
 
         # 构建标签
         labels = self._build_labels(returns_dict, drawdowns_dict or {}, groups)
@@ -238,10 +244,10 @@ class MMoEPredictor:
         labels_v = {k: v[valid] for k, v in labels.items()}
 
         print(f"\n{'='*50}")
-        print(f"🧠 MMoE 多任务模型 (6 任务)")
+        print(f"🧠 MMoE 多任务模型 ({num_tasks} 任务)")
         print(f"   样本: {len(X_v)}, 特征: {n_feat}, 专家: {self.config['num_experts']}")
         print(f"   设备: {self.device}")
-        print(f"   任务: {', '.join(t['name'] for t in TASK_DEFS)}")
+        print(f"   任务: {', '.join(t['name'] for t in task_defs)}")
         print(f"{'='*50}")
 
         # 特征标准化
@@ -252,7 +258,7 @@ class MMoEPredictor:
 
         # 标签标准化 (回归任务)
         Y_list = []
-        for td in TASK_DEFS:
+        for td in task_defs:
             arr = labels_v[td['label_key']].copy()
             arr = np.nan_to_num(arr, 0.0)
             if td['type'] in ('regression', 'ranking'):
@@ -310,7 +316,7 @@ class MMoEPredictor:
                 preds = self.model(xb)
 
                 loss = torch.tensor(0.0, device=self.device)
-                for i, td in enumerate(TASK_DEFS):
+                for i, td in enumerate(task_defs):
                     if td['type'] == 'classification':
                         loss += td['weight'] * bce(preds[i], ybs[i])
                     else:
@@ -337,7 +343,7 @@ class MMoEPredictor:
                     preds = self.model(xb)
 
                     bl = torch.tensor(0.0, device=self.device)
-                    for i, td in enumerate(TASK_DEFS):
+                    for i, td in enumerate(task_defs):
                         if td['type'] == 'classification':
                             bl += td['weight'] * bce(preds[i], ybs[i])
                         else:
@@ -346,23 +352,27 @@ class MMoEPredictor:
 
                     for i in range(num_tasks):
                         p = preds[i].cpu().numpy()
-                        if TASK_DEFS[i]['type'] == 'classification':
+                        if task_defs[i]['type'] == 'classification':
                             p = 1 / (1 + np.exp(-p))  # sigmoid
                         all_preds[i].extend(p)
                         all_trues[i].extend(ybs[i].cpu().numpy())
 
             avg_vl = vloss / max(len(va_loader), 1)
 
-            # direction accuracy
-            dir_idx = 2
-            dir_pred = np.array(all_preds[dir_idx])
-            dir_true = np.array(all_trues[dir_idx])
-            dir_acc = np.mean((dir_pred > 0.5) == dir_true) if len(dir_true) > 0 else 0
+            # direction accuracy (if direction task exists)
+            dir_idx = next((i for i, t in enumerate(task_defs) if t['name'] == 'direction'), None)
+            if dir_idx is not None:
+                dir_pred = np.array(all_preds[dir_idx])
+                dir_true = np.array(all_trues[dir_idx])
+                dir_acc = np.mean((dir_pred > 0.5) == dir_true) if len(dir_true) > 0 else 0
+            else:
+                dir_acc = 0
 
-            # 5d MAE (反标准化后)
-            p5 = np.array(all_preds[0])
-            t5 = np.array(all_trues[0])
-            if 'return_5d' in self.label_stats:
+            # 5d MAE (if return_5d task exists)
+            ret5_idx = next((i for i, t in enumerate(task_defs) if t['name'] == 'return_5d'), None)
+            if ret5_idx is not None and 'return_5d' in self.label_stats:
+                p5 = np.array(all_preds[ret5_idx])
+                t5 = np.array(all_trues[ret5_idx])
                 s = self.label_stats['return_5d']
                 p5r = p5 * s['std'] + s['mean']
                 t5r = t5 * s['std'] + s['mean']
@@ -395,7 +405,7 @@ class MMoEPredictor:
             'train_n': len(X_tr),
             'val_n': len(X_va),
             'device': str(self.device),
-            'tasks': [t['name'] for t in TASK_DEFS],
+            'tasks': [t['name'] for t in task_defs],
         }
         print(f"\n✅ MMoE 训练完成: dir={dir_acc:.1%}, mae5={mae5:.2f}%")
         return results
@@ -410,7 +420,7 @@ class MMoEPredictor:
             preds = self.model(xt)
 
         out = {}
-        for i, td in enumerate(TASK_DEFS):
+        for i, td in enumerate(self.task_defs):
             p = preds[i].cpu().numpy()
             if td['type'] == 'classification':
                 p = 1 / (1 + np.exp(-p))
@@ -425,6 +435,7 @@ class MMoEPredictor:
         torch.save(self.model.state_dict(), p / 'mmoe_model.pt')
         meta = {
             'config': self.config,
+            'task_defs': self.task_defs,
             'feature_names': self.feature_names,
             'feature_mean': self.feature_mean.tolist(),
             'feature_std': self.feature_std.tolist(),
@@ -438,6 +449,7 @@ class MMoEPredictor:
         with open(p / 'mmoe_meta.json') as f:
             meta = json.load(f)
         self.config = meta['config']
+        self.task_defs = meta.get('task_defs', ALL_TASK_DEFS)
         self.feature_names = meta['feature_names']
         self.feature_mean = np.array(meta['feature_mean'])
         self.feature_std = np.array(meta['feature_std'])
@@ -448,7 +460,7 @@ class MMoEPredictor:
             expert_hidden=self.config['expert_hidden'],
             expert_out=self.config['expert_out'],
             tower_hidden=self.config['tower_hidden'],
-            num_tasks=len(TASK_DEFS), dropout=0.0,
+            num_tasks=len(self.task_defs), dropout=0.0,
         ).to(self.device)
         sd = torch.load(p / 'mmoe_model.pt', map_location=self.device, weights_only=True)
         self.model.load_state_dict(sd)

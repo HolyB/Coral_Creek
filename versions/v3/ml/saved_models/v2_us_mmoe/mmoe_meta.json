@@ -11,6 +11,38 @@
     "batch_size": 128,
     "patience": 25
   },
+  "task_defs": [
+    {
+      "name": "return_5d",
+      "type": "regression",
+      "weight": 1.0,
+      "label_key": "5d"
+    },
+    {
+      "name": "return_20d",
+      "type": "regression",
+      "weight": 1.5,
+      "label_key": "20d"
+    },
+    {
+      "name": "direction",
+      "type": "classification",
+      "weight": 0.8,
+      "label_key": "_dir_5d"
+    },
+    {
+      "name": "max_dd",
+      "type": "regression",
+      "weight": 1.0,
+      "label_key": "_max_dd"
+    },
+    {
+      "name": "rank_score",
+      "type": "ranking",
+      "weight": 1.2,
+      "label_key": "_rank"
+    }
+  ],
   "feature_names": [
     "Open",
     "High",
@@ -215,7 +247,7 @@
     0.21939458880257165,
     0.20961693008304313,
     0.17197964103937852,
-    0.2858180452415221,
+    0.3633060941560492,
     0.7089472274310207,
     0.0,
     0.0,
@@ -327,7 +359,7 @@
     0.4138364549957476,
     0.40703523292989696,
     0.3773627587012407,
-    0.32543590228254826,
+    0.3546300876783672,
     0.4542478015729374,
     1e-08,
     1e-08,
@@ -363,10 +395,6 @@
     "rank_score": {
       "mean": 0.04232520760782213,
       "std": 0.16442950574690812
-    },
-    "volatility": {
-      "mean": 5.232411408365885,
-      "std": 10.175734646786259
     }
   }
 }
