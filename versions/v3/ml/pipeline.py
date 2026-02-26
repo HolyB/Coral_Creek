@@ -404,31 +404,30 @@ class MLPipeline:
         symbols = signals_df['symbol'].unique()
         print(f"   股票数: {len(symbols)}")
         
-        # 优先选有本地历史数据的股票 (避免 API 调用)
-        max_symbols = 1000
-        if len(symbols) > max_symbols:
-            local_symbols = set()
-            try:
-                import sqlite3 as _sq3
-                from db.stock_history import get_history_db_path
-                _hconn = _sq3.connect(get_history_db_path())
-                _hcur = _hconn.cursor()
-                _ph = ",".join(["?"] * min(len(symbols), 5000))
-                _hcur.execute(
-                    f"SELECT DISTINCT symbol FROM stock_history WHERE market = ? AND symbol IN ({_ph})",
-                    [self.market] + list(symbols)[:5000],
-                )
-                local_symbols = set(r[0] for r in _hcur.fetchall())
-                _hconn.close()
-            except Exception:
-                pass
+        # 优先选有本地历史数据的股票，无限制；无历史的限制 API 调用量
+        local_symbols = set()
+        try:
+            import sqlite3 as _sq3
+            from db.stock_history import get_history_db_path
+            _hconn = _sq3.connect(get_history_db_path())
+            _hcur = _hconn.cursor()
+            _ph = ",".join(["?"] * min(len(symbols), 5000))
+            _hcur.execute(
+                f"SELECT DISTINCT symbol FROM stock_history WHERE market = ? AND symbol IN ({_ph})",
+                [self.market] + list(symbols)[:5000],
+            )
+            local_symbols = set(r[0] for r in _hcur.fetchall())
+            _hconn.close()
+        except Exception:
+            pass
 
-            # 优先有本地历史的，再按信号频率排序
-            symbol_counts = signals_df['symbol'].value_counts()
-            has_hist = [s for s in symbol_counts.index if s in local_symbols]
-            no_hist = [s for s in symbol_counts.index if s not in local_symbols]
-            symbols = (has_hist + no_hist)[:max_symbols]
-            print(f"   限制为 Top {max_symbols} 股票 (有本地历史: {len(has_hist)})")
+        # 有本地历史的全部用，没有的按信号频率取 top 200 (避免 API 超时)
+        symbol_counts = signals_df['symbol'].value_counts()
+        has_hist = [s for s in symbol_counts.index if s in local_symbols]
+        no_hist = [s for s in symbol_counts.index if s not in local_symbols]
+        max_api_symbols = 200
+        symbols = has_hist + no_hist[:max_api_symbols]
+        print(f"   有本地历史: {len(has_hist)}, 需 API: {min(len(no_hist), max_api_symbols)}, 总计: {len(symbols)}")
         
         # 按股票处理
         # 基本面外部 API 缓存（避免重复请求）
