@@ -478,5 +478,29 @@
     "blue_weekly": 169.5,
     "signals_confirmed": "\u2713 \u65e5\u7ebfBLUE\u5f3a\u52bf,\u2713 \u65e5\u5468BLUE\u5171\u632f,\u2713 \u9ed1\u9a6c\u4fe1\u53f7",
     "backfilled": false
+  },
+  {
+    "symbol": "BLLN",
+    "market": "US",
+    "pick_date": "2026-02-26",
+    "entry_price": 71.41,
+    "pred_return_5d": 3.0,
+    "pred_direction_prob": 0.65,
+    "overall_score": 61.7,
+    "star_rating": 3,
+    "stop_loss_price": 67.84,
+    "target_price": 77.12,
+    "actual_return_1d": null,
+    "actual_return_3d": null,
+    "actual_return_5d": null,
+    "actual_return_10d": null,
+    "actual_high_5d": null,
+    "actual_low_5d": null,
+    "hit_target": null,
+    "hit_stop": null,
+    "blue_daily": 200.0,
+    "blue_weekly": 200.0,
+    "signals_confirmed": "\u2713 \u65e5\u7ebfBLUE\u5f3a\u52bf,\u2713 \u65e5\u5468BLUE\u5171\u632f,\u2713 \u9ed1\u9a6c\u4fe1\u53f7",
+    "backfilled": false
   }
 ]
