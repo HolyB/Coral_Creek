@@ -1,8 +1,15 @@
 {
   "date": "2026-02-26",
   "market": "CN",
-  "total_signals": 115,
+  "total_signals": 148,
   "top_signals": [
+    {
+      "symbol": "301053.SZ",
+      "name": "远信工业",
+      "price": 33.85,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
     {
       "symbol": "688656.SH",
       "name": "浩欧博",
@@ -16,6 +23,20 @@
       "price": 14.86,
       "day_blue": 199.7,
       "week_blue": 102.7
+    },
+    {
+      "symbol": "688076.SH",
+      "name": "ST诺泰",
+      "price": 32.16,
+      "day_blue": 158.9,
+      "week_blue": 101.5
+    },
+    {
+      "symbol": "002304.SZ",
+      "name": "洋河股份",
+      "price": 53.25,
+      "day_blue": 158.1,
+      "week_blue": 104.8
     },
     {
       "symbol": "605179.SH",
@@ -60,6 +81,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "605008.SH",
+      "name": "长鸿高科",
+      "price": 13.09,
+      "day_blue": 141.0,
+      "week_blue": 80.2
+    },
+    {
       "symbol": "301080.SZ",
       "name": "百普赛斯",
       "price": 48.47,
@@ -67,46 +95,18 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "603589.SH",
+      "name": "口子窖",
+      "price": 28.05,
+      "day_blue": 138.0,
+      "week_blue": 107.9
+    },
+    {
       "symbol": "300783.SZ",
       "name": "三只松鼠",
       "price": 21.29,
       "day_blue": 137.4,
       "week_blue": 75.5
-    },
-    {
-      "symbol": "688318.SH",
-      "name": "财富趋势",
-      "price": 126.35,
-      "day_blue": 133.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "003010.SZ",
-      "name": "若羽臣",
-      "price": 30.7,
-      "day_blue": 131.8,
-      "week_blue": 105.5
-    },
-    {
-      "symbol": "920225.BJ",
-      "name": "利通科技",
-      "price": 29.11,
-      "day_blue": 127.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "601398.SH",
-      "name": "工商银行",
-      "price": 6.96,
-      "day_blue": 124.9,
-      "week_blue": 106.2
-    },
-    {
-      "symbol": "688302.SH",
-      "name": "海创药业-U",
-      "price": 44.0,
-      "day_blue": 124.8,
-      "week_blue": 0.0
     }
   ]
 }
