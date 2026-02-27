@@ -111,17 +111,22 @@ def precompute(market: str = 'US'):
         'scores': results,
     }
     
+    # 始终保存按日期命名的文件（即使为空，用于记录）
     cache_file = CACHE_DIR / f'{market.lower()}_{latest}.json'
     with open(cache_file, 'w') as f:
         json.dump(cache, f, indent=2)
     
-    # 同时保存一个 latest 软链接式文件
+    # 只有成功计算了分数才更新 latest（避免空结果覆盖好缓存）
     latest_file = CACHE_DIR / f'{market.lower()}_latest.json'
-    with open(latest_file, 'w') as f:
-        json.dump(cache, f, indent=2)
+    if success > 0:
+        with open(latest_file, 'w') as f:
+            json.dump(cache, f, indent=2)
+        print(f"\n✅ 预计算完成: {success}/{len(sigs)} 只")
+        print(f"   缓存: {cache_file}")
+    else:
+        print(f"\n⚠️ 预计算 0 只成功，保留旧的 latest 缓存不覆盖")
+        print(f"   日期文件: {cache_file}")
     
-    print(f"\n✅ 预计算完成: {success}/{len(sigs)} 只")
-    print(f"   缓存: {cache_file}")
     print(f"   耗时: {time.time()-t0:.0f}s")
 
 
