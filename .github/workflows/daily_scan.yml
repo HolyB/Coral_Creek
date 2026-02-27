@@ -187,7 +187,7 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           pip install supabase
-          python scripts/sync_to_supabase.py --days 3
+          python scripts/sync_to_supabase.py --days 14
       
       # 发送今日精选到 Telegram (使用 V3 策略系统)
       - name: Send daily picks
