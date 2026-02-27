@@ -1,4 +1,5 @@
 
+import os
 import pandas as pd
 import numpy as np
 import logging
@@ -38,9 +39,28 @@ class RankingSystem:
                 self._picker = None
         return self._picker
     
+    def _load_mmoe_cache(self, market: str = 'US') -> Optional[Dict]:
+        """尝试加载预计算的 MMoE 缓存"""
+        import json
+        cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 'saved_models', 'mmoe_cache')
+        cache_file = os.path.join(cache_dir, f'{market.lower()}_latest.json')
+        if not os.path.exists(cache_file):
+            return None
+        try:
+            with open(cache_file, 'r') as f:
+                cache = json.load(f)
+            scores = cache.get('scores', {})
+            if scores:
+                logger.info(f"RankingSystem: 加载 MMoE 缓存 ({len(scores)} 只, {cache.get('date', '?')})")
+            return scores
+        except Exception as e:
+            logger.warning(f"RankingSystem: 缓存加载失败: {e}")
+            return None
+    
     def _batch_mmoe_predict(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        批量 MMoE 预测: 对 scan 表里每只股票跑一次 MMoE
+        批量 MMoE 预测: 优先从缓存读取，否则实时计算
         
         返回 df 添加了:
           - mmoe_dir_prob: 方向概率
@@ -48,15 +68,28 @@ class RankingSystem:
           - mmoe_return_20d: 20d 收益预测
           - mmoe_max_dd: 最大回撤预测
         """
-        picker = self._get_picker()
-        if picker is None:
-            return df
-        
         # 需要的列映射
         ticker_col = 'Ticker' if 'Ticker' in df.columns else 'symbol'
         price_col = 'Price' if 'Price' in df.columns else 'price'
         
         if ticker_col not in df.columns or price_col not in df.columns:
+            return df
+        
+        # === 优先从缓存读取 ===
+        cache = self._load_mmoe_cache('US')
+        if cache:
+            df['mmoe_dir_prob'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('dir_prob', np.nan))
+            df['mmoe_return_5d'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('return_5d', np.nan))
+            df['mmoe_return_20d'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('return_20d', np.nan))
+            df['mmoe_max_dd'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('max_dd', np.nan))
+            df['mmoe_score'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('overall_score', np.nan))
+            hit = df['mmoe_dir_prob'].notna().sum()
+            logger.info(f"RankingSystem: 缓存命中 {hit}/{len(df)}")
+            return df
+        
+        # === 没有缓存 → 实时计算 ===
+        picker = self._get_picker()
+        if picker is None:
             return df
         
         # 初始化新列
