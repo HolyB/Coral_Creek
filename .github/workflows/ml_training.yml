@@ -22,7 +22,7 @@ permissions:
 jobs:
   train:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     
     steps:
       - name: Checkout
@@ -39,9 +39,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install xgboost lightgbm scikit-learn pandas numpy joblib
+          pip install xgboost lightgbm scikit-learn pandas numpy joblib scipy
           pip install polygon-api-client requests yfinance tqdm
           pip install supabase
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
       
       - name: Download database from Supabase
         working-directory: versions/v3
@@ -113,9 +114,56 @@ jobs:
           fi
           
           echo ""
-          echo "📂 Model files:"
+          echo "📂 XGBoost Model files:"
           ls -la ml/saved_models/v2_us/ || echo "No v2_us models"
           ls -la ml/saved_models/v2_us_penny/ 2>/dev/null || echo "No penny models"
+      
+      - name: Train MMoE models
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          TRAIN_TIER: ${{ github.event.inputs.tier || 'all-tiers' }}
+          TRAIN_DAYS: ${{ github.event.inputs.days_back || '9999' }}
+        run: |
+          DAYS="${{ github.event.inputs.days_back || '9999' }}"
+          TIER="${{ github.event.inputs.tier || 'all-tiers' }}"
+          
+          echo "🧠 Training MMoE models"
+          python << 'PYEOF'
+          import warnings; warnings.filterwarnings('ignore')
+          from ml.pipeline import MLPipeline
+          from ml.models.mmoe import MMoEPredictor, ALL_TASK_DEFS
+          import os
+
+          BEST_TASKS = [t for t in ALL_TASK_DEFS if t['name'] != 'volatility']
+          kwargs = dict(
+              num_experts=4, expert_hidden=64, expert_out=32, tower_hidden=16,
+              dropout=0.2, lr=5e-4, weight_decay=1e-3,
+              epochs=200, batch_size=128, patience=25,
+              task_defs=BEST_TASKS,
+          )
+
+          tier = os.environ.get('TRAIN_TIER', 'all-tiers')
+          days = int(os.environ.get('TRAIN_DAYS', '9999'))
+          tiers = ['standard', 'penny'] if tier == 'all-tiers' else [tier]
+
+          for t in tiers:
+              print(f'\n=== MMoE {t} ===')
+              p = MLPipeline(market='US', days_back=days, price_tier=t)
+              X, ret, dd, grp, fn, info = p.prepare_dataset()
+              mmoe = MMoEPredictor(**kwargs)
+              r = mmoe.train(X, ret, fn, grp, dd)
+              suffix = '_penny' if t == 'penny' else ''
+              mmoe.save(f'ml/saved_models/v2_us{suffix}_mmoe')
+              print(f'  dir={r["dir_accuracy"]:.1%}, mae5={r["mae_5d"]:.2f}%')
+          PYEOF
+          
+          echo ""
+          echo "📂 MMoE Model files:"
+          ls -la ml/saved_models/v2_us_mmoe/ || echo "No MMoE standard"
+          ls -la ml/saved_models/v2_us_penny_mmoe/ 2>/dev/null || echo "No MMoE penny"
       
       - name: Verify models
         working-directory: versions/v3
@@ -123,7 +171,8 @@ jobs:
           python -c "
           import joblib, json, os
           
-          for tier_dir in ['ml/saved_models/v2_us', 'ml/saved_models/v2_us_penny']:
+          for tier_dir in ['ml/saved_models/v2_us', 'ml/saved_models/v2_us_penny',
+                          'ml/saved_models/v2_us_mmoe', 'ml/saved_models/v2_us_penny_mmoe']:
               if not os.path.exists(tier_dir):
                   continue
               tier = tier_dir.split('/')[-1]
@@ -131,9 +180,11 @@ jobs:
               
               for f in sorted(os.listdir(tier_dir)):
                   path = os.path.join(tier_dir, f)
-                  size = os.path.getsize(path)
-                  print(f'  ✅ {f} ({size:,} bytes)')
+                  if os.path.isfile(path):
+                      size = os.path.getsize(path)
+                      print(f'  ✅ {f} ({size:,} bytes)')
               
+              # XGBoost check
               fn_path = os.path.join(tier_dir, 'feature_names.json')
               if os.path.exists(fn_path):
                   with open(fn_path) as fh:
@@ -143,7 +194,14 @@ jobs:
               model_path = os.path.join(tier_dir, 'return_5d.joblib')
               if os.path.exists(model_path):
                   model = joblib.load(model_path)
-                  print(f'  Model loaded: {type(model).__name__}')
+                  print(f'  XGBoost loaded: {type(model).__name__}')
+              
+              # MMoE check
+              mmoe_path = os.path.join(tier_dir, 'mmoe_meta.json')
+              if os.path.exists(mmoe_path):
+                  with open(mmoe_path) as fh:
+                      meta = json.load(fh)
+                  print(f'  MMoE: {len(meta.get("feature_names",[]))} features, tasks={[t["name"] for t in meta.get("task_defs",[])]}')
           "
       
       - name: Commit updated models
@@ -190,7 +248,8 @@ jobs:
           except Exception as e:
               print(f'Repo check: {e}')
           
-          for tier_dir in ['ml/saved_models/v2_us', 'ml/saved_models/v2_us_penny']:
+          for tier_dir in ['ml/saved_models/v2_us', 'ml/saved_models/v2_us_penny',
+                          'ml/saved_models/v2_us_mmoe', 'ml/saved_models/v2_us_penny_mmoe']:
               if not os.path.exists(tier_dir):
                   continue
               tier = tier_dir.split('/')[-1]
@@ -211,7 +270,7 @@ jobs:
       - name: Summary
         run: |
           echo "🎉 ML Training Complete!"
-          echo "Models: Standard (>=\$5) + Penny (<\$5)"
-          echo "Horizons: ReturnPredictor (5d/20d) + SignalRanker (short/medium)"
+          echo "Models: XGBoost (Standard+Penny) + MMoE 5-task (Standard+Penny)"
+          echo "MMoE tasks: return_5d, return_20d, direction, max_dd, rank_score"
           echo "Features: 110 technical + fundamental indicators"
-          echo "Used by: SmartPicker (auto-selects model by stock price)"
+          echo "Used by: SmartPicker (MMoE primary, XGBoost fallback)"
