@@ -5922,36 +5922,15 @@ def render_scan_page():
     qlib_pack = _load_qlib_latest_pack(selected_market)
 
     # === 🏆 智能排序 & Alpha Picks ===
-    # 在筛选之前先计算全量分数 (仅基础技术面分)
     try:
         from ml.ranking_system import get_ranking_system
         ranker = get_ranking_system()
         df = ranker.calculate_integrated_score(df)
         if 'mmoe_dir_prob' in df.columns and df['mmoe_dir_prob'].notna().any():
             mmoe_count = df['mmoe_dir_prob'].notna().sum()
-            st.success(f"🧠 MMoE 排名已加载 — {mmoe_count}/{len(df)} 只有 AI 评分")
-        else:
-            import json
-            import ml.ranking_system as _rs
-            _cache_path = os.path.join(os.path.dirname(os.path.abspath(_rs.__file__)), 'saved_models', 'mmoe_cache', 'us_latest.json')
-            _exists = os.path.exists(_cache_path)
-            _cache_info = ""
-            if _exists:
-                try:
-                    with open(_cache_path) as f:
-                        _c = json.load(f)
-                    _scores = _c.get('scores', {})
-                    _cache_info = f"缓存日期: {_c.get('date')}, 缓存数: {len(_scores)}, 缓存样本: {list(_scores.keys())[:5]}"
-                except Exception as _e:
-                    _cache_info = f"读取失败: {_e}"
-            _ticker_col = 'Ticker' if 'Ticker' in df.columns else 'symbol'
-            _df_tickers = list(df[_ticker_col].head(5)) if _ticker_col in df.columns else "无Ticker列"
-            _df_cols = list(df.columns[:8])
-            st.info(f"ℹ️ Rank_Score 使用规则评分\n\n`路径: {_cache_path}`\n`存在: {_exists}`\n`{_cache_info}`\n`ticker_col: {_ticker_col}`\n`df样本: {_df_tickers}`\n`df列: {_df_cols}`")
-    except ImportError as e:
-        st.warning(f"⚠️ 排序模块未找到: {e}")
-    except Exception as e:
-        st.warning(f"⚠️ 排序计算异常: {e}")
+            st.caption(f"🧠 MMoE AI 排名 ({mmoe_count}/{len(df)})")
+    except Exception:
+        pass
 
     # 侧边栏：继续筛选器
     with st.sidebar:
