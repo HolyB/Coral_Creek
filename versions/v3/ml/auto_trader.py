@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 """
-MMoE 自动交易 + 预测追踪
-========================
+MMoE 自动交易 + 预测追踪 (多空双向)
+====================================
 
 每天收盘后运行:
 1. 记录今日 MMoE 推荐 + 回填历史
-2. 检查持仓 → 达到止损/目标/期限的平仓
-3. 买入今日 Top-N 高置信度推荐
+2. 判断市场温度 → 决定做多/做空/观望
+3. 检查持仓 → 达到止损/目标/期限的平仓
+4. 多头市场: 买入高 dir_prob 股票
+5. 空头市场: 做空低 dir_prob 股票
 
 用法:
   python ml/auto_trader.py                    # 仅记录 + Alpaca 交易
@@ -42,7 +44,7 @@ def run(dry_run: bool = False, record_only: bool = False, max_picks: int = 3,
     today = date.today().isoformat()
     
     print(f"{'='*60}")
-    print(f"🤖 MMoE Auto-Trader  {today}")
+    print(f"🤖 MMoE Auto-Trader (多空双向)  {today}")
     print(f"   mode: {'DRY-RUN' if dry_run else 'RECORD-ONLY' if record_only else 'LIVE'}")
     print(f"{'='*60}")
     
@@ -50,7 +52,7 @@ def run(dry_run: bool = False, record_only: bool = False, max_picks: int = 3,
     from ml.smart_picker import get_todays_picks, SmartPicker
     from services.picks_tracker import PicksTracker
     
-    picks = get_todays_picks(market=market, max_picks=10)
+    picks = get_todays_picks(market=market, max_picks=20)
     print(f"\n📊 今日推荐: {len(picks)} 只")
     
     # 记录到 tracker
@@ -64,6 +66,24 @@ def run(dry_run: bool = False, record_only: bool = False, max_picks: int = 3,
     print(f"   回填: {backfilled} 条")
     print(f"   历史胜率: {report.get('win_rate_5d', 'N/A')}%")
     print(f"   历史平均5d: {report.get('avg_return_5d', 'N/A')}%")
+    
+    # === 市场温度判断 ===
+    dir_probs = [p.pred_direction_prob for p in picks if p.pred_direction_prob is not None]
+    avg_dir = np.mean(dir_probs) if dir_probs else 0.5
+    if avg_dir > 0.55:
+        regime = 'BULL'
+        regime_label = '🟢 多头市场'
+    elif avg_dir > 0.45:
+        regime = 'NEUTRAL'
+        regime_label = '🟡 震荡市'
+    elif avg_dir > 0.35:
+        regime = 'BEAR_MILD'
+        regime_label = '🟠 偏空'
+    else:
+        regime = 'BEAR'
+        regime_label = '🔴 空头市场'
+    
+    print(f"\n🌡️ 市场温度: {regime_label} (平均 dir_prob={avg_dir:.1%})")
     
     if record_only:
         _print_picks(picks)
@@ -130,58 +150,75 @@ def run(dry_run: bool = False, record_only: bool = False, max_picks: int = 3,
             except Exception as e:
                 print(f"      ❌ 平仓失败: {e}")
     
-    # === Step 4: 买入新推荐 ===
-    # 筛选高置信度 + 未持有 + 方向看涨
+    # === Step 4: 根据市场温度决定多空 ===
     held_symbols = {p.symbol for p in positions} - {s['symbol'] for s in sell_actions}
-    
-    buy_candidates = []
-    for p in picks:
-        if p.symbol in held_symbols:
-            continue
-        if p.pred_direction_prob < 0.55:  # 至少 55% 看涨
-            continue
-        if p.overall_score < 40:  # 评分门槛
-            continue
-        buy_candidates.append(p)
-    
-    # 按方向概率排序 (回测证明这是最佳排序信号)
-    buy_candidates.sort(key=lambda x: x.pred_direction_prob, reverse=True)
-    
-    # 最多买 max_picks 只
+    account = trader.get_account()  # 刷新
+    budget_per = account.equity * max_position_pct
     available_slots = max_picks - len(held_symbols)
-    to_buy = buy_candidates[:max(available_slots, 0)]
     
+    to_buy = []
+    to_short = []
+    
+    if regime in ('BULL', 'NEUTRAL'):
+        # === 多头/震荡: 做多高 dir_prob ===
+        buy_candidates = [p for p in picks
+                         if p.symbol not in held_symbols
+                         and p.pred_direction_prob >= 0.50
+                         and p.overall_score >= 40]
+        buy_candidates.sort(key=lambda x: x.pred_direction_prob, reverse=True)
+        to_buy = buy_candidates[:max(available_slots, 0)]
+    
+    if regime in ('BEAR', 'BEAR_MILD'):
+        # === 空头: 做空低 dir_prob ===
+        short_candidates = [p for p in picks
+                           if p.symbol not in held_symbols
+                           and p.pred_direction_prob < 0.15
+                           and p.price >= 5.0]  # 避免做空 penny stock
+        short_candidates.sort(key=lambda x: x.pred_direction_prob)  # 最看跌的排前面
+        to_short = short_candidates[:max(available_slots, 0)]
+    
+    # 执行做多
     if to_buy:
-        account = trader.get_account()  # 刷新
-        budget_per = account.equity * max_position_pct
-        
-        print(f"\n   🟢 买入 {len(to_buy)} 只 (预算/股: ${budget_per:,.0f})")
-        
+        print(f"\n   🟢 做多 {len(to_buy)} 只 (预算/股: ${budget_per:,.0f})")
         for p in to_buy:
-            price = p.price
-            if price <= 0:
-                continue
-            qty = int(budget_per / price)
-            if qty <= 0:
-                continue
-            
-            print(f"   🟢 BUY {p.symbol}: ${price:.2f} x {qty} "
+            if p.price <= 0: continue
+            qty = int(budget_per / p.price)
+            if qty <= 0: continue
+            print(f"   🟢 BUY {p.symbol}: ${p.price:.2f} x {qty} "
                   f"(dir={p.pred_direction_prob:.0%}, score={p.overall_score:.0f})")
-            
             if not dry_run:
                 try:
                     order = trader.buy_market(p.symbol, qty)
                     print(f"      ✅ 订单: {order.get('id', 'unknown')}")
                 except Exception as e:
                     print(f"      ❌ 下单失败: {e}")
-    else:
-        print(f"\n   ℹ️ 无新买入 (无高置信度候选或仓位已满)")
+    
+    # 执行做空
+    if to_short:
+        print(f"\n   🔴 做空 {len(to_short)} 只 (预算/股: ${budget_per:,.0f})")
+        for p in to_short:
+            if p.price <= 0: continue
+            qty = int(budget_per / p.price)
+            if qty <= 0: continue
+            print(f"   🔴 SHORT {p.symbol}: ${p.price:.2f} x {qty} "
+                  f"(dir={p.pred_direction_prob:.0%}, score={p.overall_score:.0f})")
+            if not dry_run:
+                try:
+                    order = trader.sell_short(p.symbol, qty)
+                    print(f"      ✅ 空单: {order.get('id', 'unknown')}")
+                except Exception as e:
+                    print(f"      ❌ 做空失败: {e}")
+    
+    if not to_buy and not to_short:
+        print(f"\n   ℹ️ 无新交易 ({regime_label})")
     
     # === Step 5: 汇总 ===
     print(f"\n{'='*60}")
     print(f"📋 执行汇总:")
-    print(f"   卖出: {len(sell_actions)} 笔")
-    print(f"   买入: {len(to_buy)} 笔")
+    print(f"   市场: {regime_label}")
+    print(f"   平仓: {len(sell_actions)} 笔")
+    print(f"   做多: {len(to_buy)} 笔")
+    print(f"   做空: {len(to_short)} 笔")
     print(f"   持仓: {len(held_symbols)} 只")
     
     account = trader.get_account()

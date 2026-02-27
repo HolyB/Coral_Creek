@@ -396,8 +396,51 @@ class AlpacaTrader:
         return self._order_to_dict(order)
     
     def close_position(self, symbol: str) -> Dict:
-        """平仓 (卖出全部持仓)"""
+        """平仓 (多头卖出 / 空头买回)"""
         order = self.client.close_position(symbol)
+        return self._order_to_dict(order)
+    
+    def sell_short(self, symbol: str, qty: float, time_in_force: str = "day") -> Dict:
+        """
+        做空 (卖空)
+        
+        Alpaca paper 账户支持做空。使用 SELL 下单且无持仓时自动开空仓。
+        
+        Args:
+            symbol: 股票代码
+            qty: 做空数量
+            time_in_force: 有效期
+        """
+        tif = getattr(TimeInForce, time_in_force.upper(), TimeInForce.DAY)
+        
+        order_request = MarketOrderRequest(
+            symbol=symbol,
+            qty=qty,
+            side=OrderSide.SELL,
+            time_in_force=tif
+        )
+        
+        order = self.client.submit_order(order_request)
+        return self._order_to_dict(order)
+    
+    def buy_to_cover(self, symbol: str, qty: float = None) -> Dict:
+        """
+        买入平空 (回补空仓)
+        
+        如果不传 qty，则平掉该股票全部空仓。
+        """
+        if qty is None:
+            return self.close_position(symbol)
+        
+        tif = TimeInForce.DAY
+        order_request = MarketOrderRequest(
+            symbol=symbol,
+            qty=qty,
+            side=OrderSide.BUY,
+            time_in_force=tif
+        )
+        
+        order = self.client.submit_order(order_request)
         return self._order_to_dict(order)
     
     def close_all_positions(self) -> List[Dict]:

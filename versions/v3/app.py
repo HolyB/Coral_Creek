@@ -5926,9 +5926,38 @@ def render_scan_page():
         from ml.ranking_system import get_ranking_system
         ranker = get_ranking_system()
         df = ranker.calculate_integrated_score(df)
+        
         if 'mmoe_dir_prob' in df.columns and df['mmoe_dir_prob'].notna().any():
-            mmoe_count = df['mmoe_dir_prob'].notna().sum()
-            st.caption(f"🧠 MMoE AI 排名 ({mmoe_count}/{len(df)})")
+            mmoe_valid = df['mmoe_dir_prob'].dropna()
+            mmoe_count = len(mmoe_valid)
+            avg_dir = mmoe_valid.mean()
+            bullish_pct = (mmoe_valid > 0.4).mean() * 100
+            bearish_pct = (mmoe_valid < 0.15).mean() * 100
+            
+            # 市场温度计
+            if avg_dir > 0.55:
+                temp_emoji, temp_label, temp_color = "🟢", "多头市场", "green"
+            elif avg_dir > 0.45:
+                temp_emoji, temp_label, temp_color = "🟡", "震荡市", "orange"
+            elif avg_dir > 0.35:
+                temp_emoji, temp_label, temp_color = "🟠", "偏空", "orange"
+            else:
+                temp_emoji, temp_label, temp_color = "🔴", "空头市场", "red"
+            
+            tc1, tc2, tc3, tc4 = st.columns(4)
+            tc1.metric(f"{temp_emoji} 市场温度", temp_label, f"均值 {avg_dir:.1%}")
+            tc2.metric("📊 AI 覆盖", f"{mmoe_count}/{len(df)}", f"{mmoe_count/len(df)*100:.0f}%")
+            tc3.metric("🟢 偏多信号", f"{bullish_pct:.0f}%", f"dir>0.4")
+            tc4.metric("🔴 偏空信号", f"{bearish_pct:.0f}%", f"dir<0.15")
+            
+            # 添加信号方向列
+            def _signal_dir(p):
+                if pd.isna(p): return "⚪观望"
+                if p >= 0.4: return "🟢做多"
+                if p >= 0.25: return "⚪观望"
+                if p >= 0.15: return "🟠谨慎"
+                return "🔴做空"
+            df['信号方向'] = df['mmoe_dir_prob'].apply(_signal_dir)
     except Exception:
         pass
 
@@ -6822,7 +6851,7 @@ def render_scan_page():
         df = df[(df['日掘地'] == True) | (df['周掘地'] == True) | (df['月掘地'] == True)]
 
     # 显示列顺序
-    display_cols = ['Rank_Score', 'mmoe_dir_prob', 'mmoe_return_5d', 'mmoe_return_20d', 'mmoe_max_dd', 'mmoe_score', '新发现', '信号类型', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', '信号日期', '信号价', '现价', '价格变化(%)', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    display_cols = ['Rank_Score', '信号方向', 'mmoe_dir_prob', 'mmoe_return_5d', 'mmoe_return_20d', 'mmoe_max_dd', 'mmoe_score', '新发现', '信号类型', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', '信号日期', '信号价', '现价', '价格变化(%)', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
