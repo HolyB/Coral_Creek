@@ -83,16 +83,22 @@ class RankingSystem:
         price_col = 'Price' if 'Price' in df.columns else 'price'
         
         if ticker_col not in df.columns or price_col not in df.columns:
+            logger.warning(f"MMoE: missing columns. has={list(df.columns[:10])}, need={ticker_col},{price_col}")
             return df
         
         # === 优先从缓存读取 ===
         cache = self._load_mmoe_cache('US')
         if cache:
-            df['mmoe_dir_prob'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('dir_prob', np.nan))
-            df['mmoe_return_5d'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('return_5d', np.nan))
-            df['mmoe_return_20d'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('return_20d', np.nan))
-            df['mmoe_max_dd'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('max_dd', np.nan))
-            df['mmoe_score'] = df[ticker_col].map(lambda s: cache.get(str(s).upper(), {}).get('overall_score', np.nan))
+            # 调试: 显示 df 样本和 cache 样本
+            sample_tickers = list(df[ticker_col].head(5))
+            sample_cache = list(cache.keys())[:5]
+            logger.info(f"MMoE: ticker_col={ticker_col}, df_sample={sample_tickers}, cache_sample={sample_cache}, cache_size={len(cache)}")
+            
+            df['mmoe_dir_prob'] = df[ticker_col].map(lambda s: cache.get(str(s).strip().upper(), {}).get('dir_prob', np.nan))
+            df['mmoe_return_5d'] = df[ticker_col].map(lambda s: cache.get(str(s).strip().upper(), {}).get('return_5d', np.nan))
+            df['mmoe_return_20d'] = df[ticker_col].map(lambda s: cache.get(str(s).strip().upper(), {}).get('return_20d', np.nan))
+            df['mmoe_max_dd'] = df[ticker_col].map(lambda s: cache.get(str(s).strip().upper(), {}).get('max_dd', np.nan))
+            df['mmoe_score'] = df[ticker_col].map(lambda s: cache.get(str(s).strip().upper(), {}).get('overall_score', np.nan))
             hit = df['mmoe_dir_prob'].notna().sum()
             logger.info(f"RankingSystem: 缓存命中 {hit}/{len(df)}")
             return df
