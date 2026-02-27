@@ -130,9 +130,13 @@ class SmartPicker:
         self.risk_profile = {}
         
         # Standard 模型
-        self.return_model = None
+        self.return_model = None  # XGBoost fallback
         self.feature_names = []
         self.ranker_models = {}
+        
+        # MMoE 模型 (优先)
+        self.mmoe_model = None
+        self.penny_mmoe_model = None
         
         # Penny 模型 (低价股专用)
         self.penny_return_model = None
@@ -208,25 +212,38 @@ class SmartPicker:
         }
     
     def _load_models(self):
-        """加载所有ML模型"""
+        """加载所有ML模型 (MMoE 优先, XGBoost fallback)"""
         if not ML_AVAILABLE:
             return
         
-        # 1. 加载收益预测模型
-        try:
-            model_path = self.model_dir / "return_5d.joblib"
-            if model_path.exists():
-                self.return_model = joblib.load(model_path)
-                
-                feature_path = self.model_dir / "feature_names.json"
-                if feature_path.exists():
-                    with open(feature_path) as f:
-                        self.feature_names = json.load(f)
-                print(f"✓ 收益预测模型已加载")
-        except Exception as e:
-            print(f"收益预测模型加载失败: {e}")
+        # 1. 尝试加载 MMoE 模型 (优先)
+        mmoe_dir = self.model_dir.parent / f"v2_{self.market.lower()}_mmoe"
+        if mmoe_dir.exists() and (mmoe_dir / 'mmoe_model.pt').exists():
+            try:
+                from ml.models.mmoe import MMoEPredictor
+                self.mmoe_model = MMoEPredictor(device='cpu')
+                self.mmoe_model.load(str(mmoe_dir))
+                self.feature_names = self.mmoe_model.feature_names
+                print(f"✓ MMoE 模型已加载 ({len(self.mmoe_model.task_defs)} tasks)")
+            except Exception as e:
+                print(f"MMoE 加载失败, 回退到 XGBoost: {e}")
+                self.mmoe_model = None
         
-        # 2. 加载排序模型 (SignalRanker)
+        # 2. XGBoost fallback (或 MMoE 不可用)
+        if self.mmoe_model is None:
+            try:
+                model_path = self.model_dir / "return_5d.joblib"
+                if model_path.exists():
+                    self.return_model = joblib.load(model_path)
+                    feature_path = self.model_dir / "feature_names.json"
+                    if feature_path.exists():
+                        with open(feature_path) as f:
+                            self.feature_names = json.load(f)
+                    print(f"✓ XGBoost 收益预测模型已加载")
+            except Exception as e:
+                print(f"收益预测模型加载失败: {e}")
+        
+        # 3. 排序模型 (SignalRanker) — 仅 XGBoost 模式需要
         for horizon in ['short', 'medium', 'long']:
             try:
                 ranker_path = self.model_dir / f"ranker_{horizon}.joblib"
@@ -250,17 +267,31 @@ class SmartPicker:
         if not ML_AVAILABLE or not self.penny_model_dir.exists():
             return
         
-        try:
-            model_path = self.penny_model_dir / "return_5d.joblib"
-            if model_path.exists():
-                self.penny_return_model = joblib.load(model_path)
-                feat_path = self.penny_model_dir / "feature_names.json"
-                if feat_path.exists():
-                    with open(feat_path) as f:
-                        self.penny_feature_names = json.load(f)
-                print(f"✓ Penny 收益预测模型已加载")
-        except Exception as e:
-            print(f"Penny 模型加载失败: {e}")
+        # MMoE penny
+        penny_mmoe_dir = self.model_dir.parent / f"v2_{self.market.lower()}_penny_mmoe"
+        if penny_mmoe_dir.exists() and (penny_mmoe_dir / 'mmoe_model.pt').exists():
+            try:
+                from ml.models.mmoe import MMoEPredictor
+                self.penny_mmoe_model = MMoEPredictor(device='cpu')
+                self.penny_mmoe_model.load(str(penny_mmoe_dir))
+                self.penny_feature_names = self.penny_mmoe_model.feature_names
+                print(f"✓ Penny MMoE 模型已加载")
+            except Exception as e:
+                self.penny_mmoe_model = None
+        
+        # XGBoost penny fallback
+        if self.penny_mmoe_model is None:
+            try:
+                model_path = self.penny_model_dir / "return_5d.joblib"
+                if model_path.exists():
+                    self.penny_return_model = joblib.load(model_path)
+                    feat_path = self.penny_model_dir / "feature_names.json"
+                    if feat_path.exists():
+                        with open(feat_path) as f:
+                            self.penny_feature_names = json.load(f)
+                    print(f"✓ Penny XGBoost 模型已加载")
+            except Exception as e:
+                print(f"Penny 模型加载失败: {e}")
         
         for horizon in ['short', 'medium', 'long']:
             try:
@@ -276,10 +307,13 @@ class SmartPicker:
         return price < threshold
     
     def _get_models_for_price(self, price: float):
-        """根据价格自动选择模型 (return_model, feature_names, ranker_models)"""
-        if self._is_penny(price) and self.penny_return_model is not None:
-            return self.penny_return_model, self.penny_feature_names, self.penny_ranker_models
-        return self.return_model, self.feature_names, self.ranker_models
+        """根据价格自动选择模型 (mmoe_model, return_model, feature_names, ranker_models)"""
+        if self._is_penny(price):
+            return (self.penny_mmoe_model, self.penny_return_model,
+                    self.penny_feature_names or self.feature_names,
+                    self.penny_ranker_models or self.ranker_models)
+        return (self.mmoe_model, self.return_model,
+                self.feature_names, self.ranker_models)
     
     @property
     def model(self):
@@ -353,11 +387,14 @@ class SmartPicker:
         if not skip_prefilter and not self._pass_prefilter(signal, history):
             return None
         
-        # === Stage 2: ML Prediction (收益预测) ===
+        # === Stage 2: ML Prediction (MMoE 多任务 / XGBoost) ===
         ml_result = self._ml_predict(signal, history)
         pick.pred_return_5d = ml_result.get('pred_return', 0)
         pick.pred_direction_prob = ml_result.get('direction_prob', 0.5)
         pick.ml_confidence = ml_result.get('confidence', 0)
+        pick.pred_return_20d = ml_result.get('pred_return_20d', 0)
+        pick.pred_max_dd = ml_result.get('pred_max_dd', 0)
+        pick.pred_rank_score = ml_result.get('pred_rank', 0)
         
         # === Stage 2.5: Ranker Scoring (排序模型) ===
         rank_result = self._rank_score(signal, history)
@@ -455,22 +492,26 @@ class SmartPicker:
         return True
     
     def _ml_predict(self, signal: pd.Series, history: pd.DataFrame) -> Dict:
-        """ML预测 (自动选择 standard/penny 模型)"""
+        """ML预测 (MMoE 优先, XGBoost fallback)"""
         result = {
             'pred_return': 0.0,
+            'pred_return_20d': 0.0,
             'direction_prob': 0.5,
-            'confidence': 0.0
+            'confidence': 0.0,
+            'pred_max_dd': 0.0,
+            'pred_rank': 0.0,
         }
         
         price = float(signal.get('price', 0))
-        ret_model, feat_names, _ = self._get_models_for_price(price)
+        mmoe, ret_model, feat_names, _ = self._get_models_for_price(price)
         
-        if ret_model is None or history.empty or len(history) < 60:
+        has_model = mmoe is not None or ret_model is not None
+        
+        if not has_model or history.empty or len(history) < 60:
             # 无模型或数据不足，使用规则估计
             blue_d = float(signal.get('blue_daily', 0))
             blue_w = float(signal.get('blue_weekly', 0))
             
-            # 简单规则: BLUE越高，预期收益越好
             if blue_d >= 120 and blue_w >= 100:
                 result['pred_return'] = 3.0
                 result['direction_prob'] = 0.65
@@ -504,24 +545,37 @@ class SmartPicker:
             if not features:
                 return result
             
-            # 构建特征向量
             X = np.array([[features.get(f, 0) for f in feat_names]])
             X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
             X = np.clip(X, -1e6, 1e6)
             
-            # 预测
-            pred_return = float(ret_model.predict(X)[0])
-            
-            # 方向概率 (基于预测值的sigmoid)
-            direction_prob = 1 / (1 + np.exp(-pred_return / 2))
-            
-            # 置信度 (基于特征重要性和数据质量)
-            # 简化: 如果预测值极端，置信度降低
-            confidence = 0.7 if abs(pred_return) < 10 else 0.4
-            
-            result['pred_return'] = pred_return
-            result['direction_prob'] = direction_prob
-            result['confidence'] = confidence
+            if mmoe is not None:
+                # === MMoE 多任务预测 ===
+                preds = mmoe.predict(X)
+                
+                pred_5d = float(preds.get('return_5d', [0])[0])
+                pred_20d = float(preds.get('return_20d', [0])[0])
+                dir_prob = float(preds.get('direction', [0.5])[0])
+                max_dd = float(preds.get('max_dd', [0])[0])
+                rank_s = float(preds.get('rank_score', [0])[0])
+                
+                result['pred_return'] = pred_5d
+                result['pred_return_20d'] = pred_20d
+                result['direction_prob'] = np.clip(dir_prob, 0.01, 0.99)
+                result['pred_max_dd'] = max_dd
+                result['pred_rank'] = rank_s
+                
+                # MMoE 置信度: 方向概率越极端越高
+                result['confidence'] = min(abs(dir_prob - 0.5) * 2 + 0.3, 0.95)
+            else:
+                # === XGBoost fallback ===
+                pred_return = float(ret_model.predict(X)[0])
+                direction_prob = 1 / (1 + np.exp(-pred_return / 2))
+                confidence = 0.7 if abs(pred_return) < 10 else 0.4
+                
+                result['pred_return'] = pred_return
+                result['direction_prob'] = direction_prob
+                result['confidence'] = confidence
             
         except Exception as e:
             pass
@@ -537,7 +591,7 @@ class SmartPicker:
         result = {'short': 0.0, 'medium': 0.0, 'long': 0.0}
         
         price = float(signal.get('price', 0))
-        _, feat_names, ranker_mods = self._get_models_for_price(price)
+        _, _, feat_names, ranker_mods = self._get_models_for_price(price)
         
         if not ranker_mods or history.empty or len(history) < 60:
             # 无排序模型，使用规则估计
@@ -806,41 +860,47 @@ class SmartPicker:
         计算综合评分 (0-100)
         
         评分构成:
-        - 排序模型分 (25%): Learning to Rank 模型的输出
+        - 排序模型分 (20%): Learning to Rank / MMoE rank
         - ML预测分 (20%): 收益预测 * 置信度
-        - 信号验证分 (25%): BLUE/MACD/成交量等技术确认
-        - 方向概率分 (15%): 预测上涨概率
-        - 风险收益分 (15%): 风险收益比
+        - 信号验证分 (20%): BLUE/MACD/成交量等技术确认
+        - 方向概率分 (25%): MMoE 方向预测概率
+        - 风险收益分 (15%): 风险收益比 + 回撤预测
         """
         score = 0.0
         
-        # 1. 排序模型分 (25%) - short/medium/long 动态融合
-        w = self.rank_weights
-        rank_score = (
-            w.get('short', 0.0) * pick.rank_score_short +
-            w.get('medium', 0.0) * pick.rank_score_medium +
-            w.get('long', 0.0) * pick.rank_score_long
-        )
-        # 排序分归一化到 0~25
-        normalized_rank = min(max(rank_score, 0.0), 100.0) / 100.0 * 25.0
+        # 1. 排序模型分 (20%)
+        # MMoE rank_score 优先，否则用 XGBoost ranker
+        if hasattr(pick, 'pred_rank_score') and pick.pred_rank_score > 0:
+            normalized_rank = min(pick.pred_rank_score, 1.0) * 20.0
+        else:
+            w = self.rank_weights
+            rank_score = (
+                w.get('short', 0.0) * pick.rank_score_short +
+                w.get('medium', 0.0) * pick.rank_score_medium +
+                w.get('long', 0.0) * pick.rank_score_long
+            )
+            normalized_rank = min(max(rank_score, 0.0), 100.0) / 100.0 * 20.0
         score += normalized_rank
         
         # 2. ML预测分 (20%)
-        # 预测收益越高越好，但要有置信度
-        pred_score = min(pick.pred_return_5d * 3.33, 20)  # 6%收益=20分
-        pred_score *= pick.ml_confidence  # 乘以置信度
+        pred_score = min(pick.pred_return_5d * 3.33, 20)
+        pred_score *= pick.ml_confidence
         score += max(pred_score, 0)
         
-        # 3. 信号验证分 (25%)
-        signal_score = pick.signal_score * 5  # 5分=25
+        # 3. 信号验证分 (20%)
+        signal_score = pick.signal_score * 4  # 5分=20
         score += signal_score
         
-        # 4. 方向概率分 (15%)
-        direction_score = (pick.pred_direction_prob - 0.5) * 150  # 0.6 = 15分
-        score += max(direction_score, 0)
+        # 4. 方向概率分 (25%) — MMoE 的核心输出
+        direction_score = (pick.pred_direction_prob - 0.5) * 250  # 0.6=25分
+        score += max(min(direction_score, 25), 0)
         
-        # 5. 风险收益分 (15%)
-        rr_score = min(pick.risk_reward_ratio * 3.75, 15)  # 4:1 = 15分
+        # 5. 风险收益分 (15%) — 加入回撤惩罚
+        rr_score = min(pick.risk_reward_ratio * 3.75, 15)
+        # MMoE 预测回撤越大越扣分
+        if hasattr(pick, 'pred_max_dd') and pick.pred_max_dd < -5:
+            dd_penalty = min(abs(pick.pred_max_dd) * 0.3, 5)
+            rr_score = max(rr_score - dd_penalty, 0)
         score += rr_score
         
         return round(min(score, 100), 1)
