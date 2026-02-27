@@ -244,6 +244,20 @@ jobs:
         run: |
           python scripts/precompute_exit_results.py --market US --rules fixed_5d,fixed_10d,fixed_20d,tp_sl_time --batch-size 5000
       
+      # 预计算 MMoE 排名分（页面秒开）
+      - name: Pre-compute MMoE scores (US)
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+        continue-on-error: true  # MMoE 是增强功能，不阻断主流程
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu 2>/dev/null || true
+          pip install xgboost lightgbm scikit-learn joblib scipy 2>/dev/null || true
+          python scripts/precompute_mmoe_scores.py --market US
+      
       # 提交数据库到仓库 - 用于 Streamlit Cloud
       - name: Commit database to repo
         run: |
@@ -259,6 +273,7 @@ jobs:
           git add versions/v3/db/coral_creek.db || true
           git add versions/v3/db/precomputed.db || true
           git add versions/v2/scan_summary.json || true
+          git add versions/v3/ml/saved_models/mmoe_cache/ || true
           
           # 检查是否有变化
           if git diff --staged --quiet; then
