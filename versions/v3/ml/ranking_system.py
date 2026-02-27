@@ -9,16 +9,110 @@ logger = logging.getLogger(__name__)
 class RankingSystem:
     """
     智能排序系统 (Hybrid Smart Ranker)
-    整合 ML 技术评分、大师策略评分和舆情情绪评分，生成最终排序。
+    整合 MMoE 预测、大师策略评分和舆情情绪评分，生成最终排序。
     """
     
     def __init__(self):
         # 权重配置 (可根据回测调整)
         self.weights = {
-            'ml_technical': 0.4,   # 技术面 ML 模型
-            'master_strategy': 0.4, # 大师策略共识
+            'ml_technical': 0.5,   # 技术面 (MMoE 优先)
+            'master_strategy': 0.3, # 大师策略共识
             'sentiment': 0.2       # 舆情情绪
         }
+        self._picker = None
+        self._picker_loaded = False
+    
+    def _get_picker(self):
+        """惰性加载 SmartPicker (含 MMoE)"""
+        if not self._picker_loaded:
+            self._picker_loaded = True
+            try:
+                from ml.smart_picker import SmartPicker
+                self._picker = SmartPicker(market='US', horizon='short')
+                if self._picker.mmoe_model:
+                    logger.info("RankingSystem: MMoE 模型已加载")
+                else:
+                    logger.info("RankingSystem: XGBoost fallback")
+            except Exception as e:
+                logger.warning(f"RankingSystem: SmartPicker 加载失败: {e}")
+                self._picker = None
+        return self._picker
+    
+    def _batch_mmoe_predict(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        批量 MMoE 预测: 对 scan 表里每只股票跑一次 MMoE
+        
+        返回 df 添加了:
+          - mmoe_dir_prob: 方向概率
+          - mmoe_return_5d: 5d 收益预测
+          - mmoe_return_20d: 20d 收益预测
+          - mmoe_max_dd: 最大回撤预测
+        """
+        picker = self._get_picker()
+        if picker is None:
+            return df
+        
+        # 需要的列映射
+        ticker_col = 'Ticker' if 'Ticker' in df.columns else 'symbol'
+        price_col = 'Price' if 'Price' in df.columns else 'price'
+        
+        if ticker_col not in df.columns or price_col not in df.columns:
+            return df
+        
+        # 初始化新列
+        df['mmoe_dir_prob'] = np.nan
+        df['mmoe_return_5d'] = np.nan
+        df['mmoe_return_20d'] = np.nan
+        df['mmoe_max_dd'] = np.nan
+        df['mmoe_score'] = np.nan
+        
+        try:
+            from db.stock_history import get_stock_history
+        except ImportError:
+            return df
+        
+        success = 0
+        for idx, row in df.iterrows():
+            sym = str(row.get(ticker_col, '')).strip().upper()
+            price = float(row.get(price_col, 0) or 0)
+            if not sym or price <= 0:
+                continue
+            
+            try:
+                h = get_stock_history(sym, 'US', days=300)
+                if h is None or h.empty or len(h) < 60:
+                    continue
+                
+                if not isinstance(h.index, pd.DatetimeIndex):
+                    if 'Date' in h.columns:
+                        h = h.set_index('Date')
+                    elif 'date' in h.columns:
+                        h = h.set_index('date')
+                    h.index = pd.to_datetime(h.index)
+                
+                # 构造信号
+                sig = pd.Series({
+                    'symbol': sym,
+                    'price': price,
+                    'blue_daily': float(row.get('Day BLUE', row.get('blue_daily', 0)) or 0),
+                    'blue_weekly': float(row.get('Week BLUE', row.get('blue_weekly', 0)) or 0),
+                    'blue_monthly': float(row.get('Month BLUE', row.get('blue_monthly', 0)) or 0),
+                    'is_heima': 1 if row.get('黑马日') or row.get('heima_daily') else 0,
+                })
+                
+                pick = picker._analyze_stock(sig, h, skip_prefilter=True)
+                if pick:
+                    df.at[idx, 'mmoe_dir_prob'] = pick.pred_direction_prob
+                    df.at[idx, 'mmoe_return_5d'] = pick.pred_return_5d
+                    df.at[idx, 'mmoe_return_20d'] = getattr(pick, 'pred_return_20d', 0) or 0
+                    df.at[idx, 'mmoe_max_dd'] = getattr(pick, 'pred_max_dd', 0) or 0
+                    df.at[idx, 'mmoe_score'] = pick.overall_score
+                    success += 1
+            except Exception as e:
+                continue
+        
+        logger.info(f"RankingSystem: MMoE 预测完成 {success}/{len(df)}")
+        return df
     
     def calculate_integrated_score(self, 
                                  df: pd.DataFrame, 
@@ -33,65 +127,72 @@ class RankingSystem:
             sentiment_results: 舆情分析结果字典 {symbol: sentiment_report}
             
         Returns:
-            df: 添加了 'Rank_Score' 和 'Score_Breakdown' 的 DataFrame
+            df: 添加了 'Rank_Score' 和 MMoE 列的 DataFrame
         """
         if df.empty:
             return df
             
         df = df.copy()
         
-        # 1. 技术面评分 (ML Technical Score)
-        # 如果已有 ML 预测结果 (如 'Probability'), 直接使用
-        # 否则使用基于 BLUE 和 趋势 的简单打分作为基线
-        if 'Probability' in df.columns:
+        # 0. 批量 MMoE 预测 (如果模型可用)
+        df = self._batch_mmoe_predict(df)
+        has_mmoe = df['mmoe_dir_prob'].notna().any() if 'mmoe_dir_prob' in df.columns else False
+        
+        # 1. 技术面评分
+        if has_mmoe:
+            # MMoE 方向概率 → 0~100 分
+            mmoe_score = df['mmoe_dir_prob'].fillna(0.5) * 100
+            heuristic_score = self._calculate_heuristic_tech_score(df)
+            # 70% MMoE + 30% 启发式
+            df['score_tech'] = mmoe_score * 0.7 + heuristic_score * 0.3
+        elif 'Probability' in df.columns:
             df['score_tech'] = df['Probability'] * 100
         else:
-            # 简易规则打分
             df['score_tech'] = self._calculate_heuristic_tech_score(df)
             
-        # 2. 大师策略评分 (Master Strategy Score)
-        df['score_master'] = 50.0 # 默认中性
+        # 2. 大师策略评分
+        df['score_master'] = 50.0
         if master_results:
-            df['score_master'] = df['Ticker'].apply(
+            ticker_col = 'Ticker' if 'Ticker' in df.columns else 'symbol'
+            df['score_master'] = df[ticker_col].apply(
                 lambda x: self._quantify_master_result(master_results.get(x))
             )
             
-        # 3. 舆情评分 (Sentiment Score)
-        df['score_sentiment'] = 50.0 # 默认中性
+        # 3. 舆情评分
+        df['score_sentiment'] = 50.0
         if sentiment_results:
-            df['score_sentiment'] = df['Ticker'].apply(
+            ticker_col = 'Ticker' if 'Ticker' in df.columns else 'symbol'
+            df['score_sentiment'] = df[ticker_col].apply(
                 lambda x: self._quantify_sentiment_result(sentiment_results.get(x))
             )
             
-        # 4. 综合加权 (Hybrid Scoring)
-        # 基础分
+        # 4. 综合加权
         base_score = (
             df['score_tech'] * self.weights['ml_technical'] +
             df['score_master'] * self.weights['master_strategy'] +
             df['score_sentiment'] * self.weights['sentiment']
         )
         
-        # 🌟 优中选优：Alpha Bonus (强强联合奖励)
-        # 如果每一项都超过 60分，给予额外奖励
+        # Alpha Bonus
         bonus = pd.Series(0.0, index=df.index)
         all_good = (df['score_tech'] > 60) & (df['score_master'] > 55) & (df['score_sentiment'] > 50)
         bonus[all_good] += 10.0
-        
-        # 如果有大师强力推荐 (>80)，额外加分
         bonus[df['score_master'] > 80] += 5.0
-        
-        # 舆情极其火热 (>80)，且技术面不差 (>50)
         bonus[(df['score_sentiment'] > 80) & (df['score_tech'] > 50)] += 5.0
         
-        df['Rank_Score'] = base_score + bonus
+        # MMoE 额外奖惩
+        if has_mmoe:
+            # 方向概率 > 60%: 额外奖励
+            bonus[df['mmoe_dir_prob'].fillna(0) > 0.6] += 8.0
+            # 预测回撤 < -8%: 扣分
+            bonus[df['mmoe_max_dd'].fillna(0) < -8] -= 5.0
         
-        # 归一化到 0-100
-        df['Rank_Score'] = df['Rank_Score'].clip(0, 100)
+        df['Rank_Score'] = (base_score + bonus).clip(0, 100)
         
         # 排序
         df = df.sort_values('Rank_Score', ascending=False)
         
-        # 保存上下文用于未来 Pairwise 训练
+        # 保存上下文
         self._save_ranking_context(df)
         
         return df
