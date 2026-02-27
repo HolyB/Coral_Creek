@@ -45,8 +45,18 @@ class RankingSystem:
         cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  'saved_models', 'mmoe_cache')
         cache_file = os.path.join(cache_dir, f'{market.lower()}_latest.json')
+        logger.info(f"MMoE cache path: {cache_file} (exists={os.path.exists(cache_file)})")
+        
+        # 也检查 fallback 路径 (防止 Streamlit Cloud 路径不同)
         if not os.path.exists(cache_file):
-            return None
+            # 尝试从 app 根目录查找
+            alt_path = os.path.join(os.getcwd(), 'ml', 'saved_models', 'mmoe_cache', f'{market.lower()}_latest.json')
+            if os.path.exists(alt_path):
+                cache_file = alt_path
+                logger.info(f"MMoE: 使用备用路径 {alt_path}")
+            else:
+                logger.warning(f"MMoE cache not found: {cache_file} (also tried {alt_path})")
+                return None
         try:
             with open(cache_file, 'r') as f:
                 cache = json.load(f)
