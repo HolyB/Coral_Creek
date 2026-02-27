@@ -5928,6 +5928,9 @@ def render_scan_page():
         ranker = get_ranking_system()
         # 仅计算基础分，不自动加载耗时的大师/舆情数据
         df = ranker.calculate_integrated_score(df)
+        if 'mmoe_dir_prob' in df.columns and df['mmoe_dir_prob'].notna().any():
+            mmoe_count = df['mmoe_dir_prob'].notna().sum()
+            st.caption(f"🧠 MMoE 排名已加载 ({mmoe_count}/{len(df)} 只)")
     except ImportError:
         pass
     except Exception as e:
