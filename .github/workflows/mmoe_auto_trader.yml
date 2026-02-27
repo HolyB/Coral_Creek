@@ -1,0 +1,130 @@
+name: MMoE Auto-Trader (Paper)
+
+on:
+  schedule:
+    # 美股收盘后30分钟 (UTC 21:00 = ET 16:00)
+    - cron: '0 21 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '运行模式'
+        required: false
+        default: 'live'
+        type: choice
+        options:
+          - live        # 实际下单 (paper trading)
+          - dry-run     # 仅打印不下单
+          - record-only # 仅记录预测
+
+permissions:
+  contents: write
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install xgboost lightgbm scikit-learn pandas numpy joblib scipy
+          pip install polygon-api-client requests yfinance tqdm
+          pip install supabase alpaca-py
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+      
+      - name: Download database
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python -c "
+          from db.database import init_db
+          init_db()
+          print('✅ Database ready')
+          "
+      
+      - name: Fetch latest stock history
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          python -c "
+          from db.database import init_db, query_scan_results, get_scanned_dates
+          from ml.pipeline import MLPipeline
+          from collections import Counter
+          
+          init_db()
+          dates = get_scanned_dates(market='US')
+          if not dates:
+              print('No scan dates'); exit(0)
+          
+          # 最近一天的信号
+          latest = dates[0]
+          results = query_scan_results(scan_date=latest, market='US', limit=200)
+          symbols = list(set(r.get('symbol','') for r in results if r.get('symbol')))
+          print(f'Fetching history for {len(symbols)} symbols from {latest}...')
+          
+          pipeline = MLPipeline(market='US')
+          pipeline.fetch_and_store_history(symbols, days=300, batch_size=10)
+          "
+      
+      - name: Run Auto-Trader
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+          ALPACA_PAPER: 'true'
+        run: |
+          MODE="${{ github.event.inputs.mode || 'live' }}"
+          
+          FLAGS=""
+          if [ "$MODE" = "dry-run" ]; then
+            FLAGS="--dry-run"
+          elif [ "$MODE" = "record-only" ]; then
+            FLAGS="--record-only"
+          fi
+          
+          python ml/auto_trader.py --market US --max-picks 3 --hold-days 5 $FLAGS
+      
+      - name: Commit tracker data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "🤖 Auto-trade: $(date +%Y-%m-%d) [skip ci]"
+            if ! git pull --rebase origin main; then
+              git rebase --abort || true
+              git pull -X ours origin main || true
+            fi
+            git push
+          fi
+      
+      - name: Summary
+        run: |
+          echo "🤖 MMoE Auto-Trader Complete"
+          echo "Mode: ${{ github.event.inputs.mode || 'live' }}"
+          echo "Paper Trading: YES (Alpaca)"
