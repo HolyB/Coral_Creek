@@ -2398,26 +2398,81 @@ def _render_ml_prediction_tab(
             st.caption(stars)
         
         with m2:
-            color = "green" if pick.pred_return_5d > 0 else "red"
             st.metric(
-                "预测收益", 
+                "5日预测", 
                 f"{pick.pred_return_5d:+.1f}%",
                 delta=f"上涨概率 {pick.pred_direction_prob:.0%}"
             )
+            pred_20d = getattr(pick, 'pred_return_20d', 0) or 0
+            if pred_20d != 0:
+                st.caption(f"20日预测: {pred_20d:+.1f}%")
         
         with m3:
-            # 获取对应周期的排名分
+            # MMoE 方向概率
+            dir_prob = pick.pred_direction_prob
+            if dir_prob > 0.6:
+                dir_label = "🟢 看涨"
+            elif dir_prob > 0.5:
+                dir_label = "🟡 偏多"
+            elif dir_prob > 0.4:
+                dir_label = "🟠 偏空"
+            else:
+                dir_label = "🔴 看跌"
+            st.metric("方向概率", f"{dir_prob:.0%}")
+            st.caption(dir_label)
+        
+        with m4:
+            st.metric("风险收益比", f"1:{pick.risk_reward_ratio:.1f}")
+            st.caption(f"建议仓位: {pick.suggested_position_pct:.0f}%")
+        
+        # === 第二行: MMoE 额外输出 ===
+        m5, m6, m7, m8 = st.columns(4)
+        
+        with m5:
+            pred_dd = getattr(pick, 'pred_max_dd', 0) or 0
+            dd_color = "red" if pred_dd < -5 else "orange" if pred_dd < -3 else "green"
+            st.metric("预测回撤", f"{pred_dd:+.1f}%")
+            if pred_dd < -5:
+                st.caption("⚠️ 高回撤风险")
+        
+        with m6:
             rank_score = pick.rank_score_short
             if selected_horizon == 'medium':
                 rank_score = pick.rank_score_medium
             elif selected_horizon == 'long':
                 rank_score = pick.rank_score_long
-            st.metric("🏆 排序得分", f"{rank_score:.1f}")
-            st.caption("Learning to Rank")
+            
+            mmoe_rank = getattr(pick, 'pred_rank_score', 0) or 0
+            if mmoe_rank > 0:
+                st.metric("🏆 MMoE排序", f"{mmoe_rank:.2f}")
+                st.caption(f"XGB排序: {rank_score:.0f}")
+            else:
+                st.metric("🏆 排序得分", f"{rank_score:.1f}")
+                st.caption("Learning to Rank")
         
-        with m4:
-            st.metric("风险收益比", f"1:{pick.risk_reward_ratio:.1f}")
-            st.caption(f"建议仓位: {pick.suggested_position_pct:.0f}%")
+        with m7:
+            st.metric("ML置信度", f"{pick.ml_confidence:.0%}")
+        
+        with m8:
+            st.metric("止损/目标", f"{pick.stop_loss_pct:+.1f}% / +{pick.target_pct:.1f}%")
+
+        # === 方向概率可视化 ===
+        dir_prob = pick.pred_direction_prob
+        bar_pct = int(dir_prob * 100)
+        bar_color = "#00C853" if dir_prob > 0.6 else "#FFD600" if dir_prob > 0.5 else "#FF5252"
+        st.markdown(f"""
+        <div style="margin: 10px 0;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #8b949e;">
+                <span>看跌 0%</span>
+                <span>方向概率: <b style="color: {bar_color}">{dir_prob:.0%}</b></span>
+                <span>100% 看涨</span>
+            </div>
+            <div style="background: #333; border-radius: 8px; height: 12px; margin-top: 4px; overflow: hidden;">
+                <div style="background: {bar_color}; width: {bar_pct}%; height: 100%; border-radius: 8px;
+                            transition: width 0.5s;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         if getattr(pick, "is_trade_candidate", False):
             st.success("✅ 当前周期满足可交易门槛（可执行候选）")
