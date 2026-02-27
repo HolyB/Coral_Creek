@@ -111,24 +111,41 @@ def query_scan_results_supabase(scan_date: str = None, start_date: str = None,
 
 def get_scanned_dates_supabase(start_date: str = None, end_date: str = None, 
                                 market: str = None) -> List[str]:
-    """从 Supabase 获取已扫描日期"""
+    """从 Supabase 获取已扫描日期（解决默认1000行限制）"""
     supabase = get_supabase()
     if not supabase:
         return []
     
     try:
-        query = supabase.table('scan_results').select('scan_date')
+        # 分页拉取所有 scan_date，每次拉 1000 行
+        all_dates = set()
+        offset = 0
+        page_size = 1000
         
-        if start_date:
-            query = query.gte('scan_date', start_date)
-        if end_date:
-            query = query.lte('scan_date', end_date)
-        if market:
-            query = query.eq('market', market)
+        for _ in range(50):  # 最多 50 页 = 50,000 行
+            query = supabase.table('scan_results').select('scan_date')
+            
+            if start_date:
+                query = query.gte('scan_date', start_date)
+            if end_date:
+                query = query.lte('scan_date', end_date)
+            if market:
+                query = query.eq('market', market)
+            
+            query = query.order('scan_date', desc=True).range(offset, offset + page_size - 1)
+            result = query.execute()
+            
+            if not result.data:
+                break
+            
+            for r in result.data:
+                all_dates.add(r['scan_date'])
+            
+            if len(result.data) < page_size:
+                break  # 最后一页
+            offset += page_size
         
-        result = query.execute()
-        dates = list(set(r['scan_date'] for r in result.data))
-        return sorted(dates, reverse=True)
+        return sorted(all_dates, reverse=True)
     except Exception as e:
         print(f"⚠️ 获取日期失败: {e}")
         return []
@@ -243,27 +260,34 @@ def insert_scan_result_supabase(result_dict: Dict) -> bool:
 
 
 def get_scan_date_counts_supabase(market: str = None, limit: int = 30) -> List[Dict]:
-    """从 Supabase 获取每个扫描日期的记录数（轻量查询，仅取 scan_date 列）
-
-    Returns:
-        [{'scan_date': '2026-02-11', 'count': 275}, ...]  按日期降序
-    """
+    """从 Supabase 获取每个扫描日期的记录数（分页解决1000行限制）"""
     supabase = get_supabase()
     if not supabase:
         return []
 
     try:
-        query = supabase.table('scan_results').select('scan_date')
-        if market:
-            query = query.eq('market', market)
-        query = query.order('scan_date', desc=True)
-        result = query.execute()
-        if not result.data:
-            return []
-
-        # Python 端聚合计数
         from collections import Counter
-        counter = Counter(r['scan_date'] for r in result.data)
+        counter = Counter()
+        offset = 0
+        page_size = 1000
+        
+        for _ in range(50):
+            query = supabase.table('scan_results').select('scan_date')
+            if market:
+                query = query.eq('market', market)
+            query = query.order('scan_date', desc=True).range(offset, offset + page_size - 1)
+            result = query.execute()
+            
+            if not result.data:
+                break
+            
+            for r in result.data:
+                counter[r['scan_date']] += 1
+            
+            if len(result.data) < page_size:
+                break
+            offset += page_size
+        
         rows = [{'scan_date': d, 'count': c} for d, c in counter.items()]
         rows.sort(key=lambda x: x['scan_date'], reverse=True)
         return rows[:limit]
