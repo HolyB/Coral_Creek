@@ -15813,23 +15813,42 @@ def render_ai_smart_picks():
                         """)
                     
                     with content_cols[2]:
-                        st.markdown("**💡 建议**")
+                        st.markdown("**💡 AI 预测**")
                         # 获取当前周期的排名分
                         rank_score = pick.rank_score_short
                         if horizon == 'medium':
                             rank_score = pick.rank_score_medium
                         elif horizon == 'long':
                             rank_score = pick.rank_score_long
+                        
+                        pred_20d = getattr(pick, 'pred_return_20d', 0) or 0
+                        pred_dd = getattr(pick, 'pred_max_dd', 0) or 0
+                        
                         st.markdown(f"""
-                        - 仓位: **{pick.suggested_position_pct:.0f}%**
+                        - 5日预测: **{pick.pred_return_5d:+.1f}%**
+                        - 20日预测: **{pred_20d:+.1f}%**
                         - 上涨概率: **{pick.pred_direction_prob:.0%}**
-                        - 排序得分: **{rank_score:.1f}**
+                        - 预测回撤: **{pred_dd:+.1f}%**
+                        - 仓位建议: **{pick.suggested_position_pct:.0f}%**
                         - 综合评分: **{pick.overall_score:.0f}**/100
                         """)
                     
                     # 指标徽章
+                    dd_badge = ""
+                    pred_dd = getattr(pick, 'pred_max_dd', 0) or 0
+                    if pred_dd < -5:
+                        dd_badge = f"""
+                        <span style="background: #FF525233; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold;">
+                            ⚠️ 回撤 {pred_dd:+.0f}%
+                        </span>"""
+                    
+                    dir_color = "#00C853" if pick.pred_direction_prob > 0.6 else "#FFD600" if pick.pred_direction_prob > 0.5 else "#FF5252"
+                    
                     st.markdown(f"""
                     <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                        <span style="background: {dir_color}33; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold;">
+                            🎯 方向 {pick.pred_direction_prob:.0%}
+                        </span>
                         <span style="background: #E91E6333; padding: 4px 10px; border-radius: 12px; font-size: 0.85em; font-weight: bold;">
                             🏆 排名分 {rank_score:.0f}
                         </span>
@@ -15847,7 +15866,7 @@ def render_ai_smart_picks():
                         </span>
                         <span style="background: #FF572233; padding: 4px 10px; border-radius: 12px; font-size: 0.85em;">
                             量比 {pick.volume_ratio:.1f}x
-                        </span>
+                        </span>{dd_badge}
                     </div>
                     """, unsafe_allow_html=True)
                     
