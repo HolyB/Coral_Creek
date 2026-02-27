@@ -5931,7 +5931,9 @@ def render_scan_page():
             mmoe_count = df['mmoe_dir_prob'].notna().sum()
             st.success(f"🧠 MMoE 排名已加载 — {mmoe_count}/{len(df)} 只有 AI 评分")
         else:
-            st.info("ℹ️ Rank_Score 使用规则评分（MMoE 缓存未找到，将在下次扫描后生成）")
+            import ml.ranking_system as _rs
+            _cache_path = os.path.join(os.path.dirname(os.path.abspath(_rs.__file__)), 'saved_models', 'mmoe_cache', 'us_latest.json')
+            st.info(f"ℹ️ Rank_Score 使用规则评分（MMoE 缓存未找到）\n\n`检查路径: {_cache_path}`\n`存在: {os.path.exists(_cache_path)}`\n`cwd: {os.getcwd()}`")
     except ImportError as e:
         st.warning(f"⚠️ 排序模块未找到: {e}")
     except Exception as e:
