@@ -5926,15 +5926,16 @@ def render_scan_page():
     try:
         from ml.ranking_system import get_ranking_system
         ranker = get_ranking_system()
-        # 仅计算基础分，不自动加载耗时的大师/舆情数据
         df = ranker.calculate_integrated_score(df)
         if 'mmoe_dir_prob' in df.columns and df['mmoe_dir_prob'].notna().any():
             mmoe_count = df['mmoe_dir_prob'].notna().sum()
-            st.caption(f"🧠 MMoE 排名已加载 ({mmoe_count}/{len(df)} 只)")
-    except ImportError:
-        pass
+            st.success(f"🧠 MMoE 排名已加载 — {mmoe_count}/{len(df)} 只有 AI 评分")
+        else:
+            st.info("ℹ️ Rank_Score 使用规则评分（MMoE 缓存未找到，将在下次扫描后生成）")
+    except ImportError as e:
+        st.warning(f"⚠️ 排序模块未找到: {e}")
     except Exception as e:
-        print(f"Ranking error: {e}")
+        st.warning(f"⚠️ 排序计算异常: {e}")
 
     # 侧边栏：继续筛选器
     with st.sidebar:
