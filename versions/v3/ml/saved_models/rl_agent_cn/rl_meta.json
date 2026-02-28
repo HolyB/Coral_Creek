@@ -1,0 +1,31 @@
+{
+  "market": "CN",
+  "n_total": 200,
+  "n_train": 160,
+  "n_test": 40,
+  "total_data_points": 54400,
+  "avg_days": 272.0,
+  "total_timesteps": 1000000,
+  "train_time_s": 189.9750258922577,
+  "in_sample": {
+    "avg_return_pct": 21.186192559602326,
+    "avg_sharpe": 0.6196460146621903,
+    "avg_max_dd_pct": 15.508920657723444,
+    "avg_trades": 27.283333333333335,
+    "win_rate_pct": 68.33333333333333,
+    "best_return": 164.56673927751982,
+    "worst_return": -27.416529595230877,
+    "episodes": 60
+  },
+  "out_of_sample": {
+    "avg_return_pct": 4.033168711475563,
+    "avg_sharpe": -0.4358992297782386,
+    "avg_max_dd_pct": 19.532599645652105,
+    "avg_trades": 32.858333333333334,
+    "win_rate_pct": 45.0,
+    "best_return": 117.05783288948481,
+    "worst_return": -30.550364355030844,
+    "episodes": 120
+  },
+  "overfit_gap": 17.153023848126765
+}
