@@ -1,0 +1,30 @@
+{
+  "date": "2026-01-08",
+  "market": "US",
+  "computed_at": "2026-02-27T20:02:36.641163",
+  "model": "mmoe",
+  "total_signals": 4,
+  "computed": 2,
+  "scores": {
+    "WENNU": {
+      "dir_prob": 0.3752,
+      "return_5d": -0.96,
+      "return_20d": 0.2,
+      "max_dd": 2.6,
+      "overall_score": 19.2,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": 1.0
+    },
+    "ECDAW": {
+      "dir_prob": 0.2522,
+      "return_5d": -6.36,
+      "return_20d": -0.48,
+      "max_dd": 35.19,
+      "overall_score": 7.0,
+      "star_rating": 1,
+      "rank_short": -1.0,
+      "rank_medium": -2.3
+    }
+  }
+}

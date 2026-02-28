@@ -1,0 +1,20 @@
+{
+  "date": "2025-12-30",
+  "market": "US",
+  "computed_at": "2026-02-27T20:09:40.992683",
+  "model": "mmoe",
+  "total_signals": 1,
+  "computed": 1,
+  "scores": {
+    "INACR": {
+      "dir_prob": 0.3047,
+      "return_5d": -8.12,
+      "return_20d": -1.04,
+      "max_dd": 19.86,
+      "overall_score": 15.9,
+      "star_rating": 1,
+      "rank_short": 0.2,
+      "rank_medium": -0.9
+    }
+  }
+}
