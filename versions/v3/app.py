@@ -5925,7 +5925,7 @@ def render_scan_page():
     try:
         from ml.ranking_system import get_ranking_system
         ranker = get_ranking_system()
-        df = ranker.calculate_integrated_score(df)
+        df = ranker.calculate_integrated_score(df, scan_date=selected_date if 'selected_date' in dir() else None)
         
         if 'mmoe_dir_prob' in df.columns and df['mmoe_dir_prob'].notna().any():
             mmoe_valid = df['mmoe_dir_prob'].dropna()

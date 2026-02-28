@@ -39,36 +39,45 @@ class RankingSystem:
                 self._picker = None
         return self._picker
     
-    def _load_mmoe_cache(self, market: str = 'US') -> Optional[Dict]:
-        """尝试加载预计算的 MMoE 缓存"""
+    def _load_mmoe_cache(self, market: str = 'US', scan_date: str = None) -> Optional[Dict]:
+        """尝试加载预计算的 MMoE 缓存（支持按日期加载）"""
         import json
         cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  'saved_models', 'mmoe_cache')
-        cache_file = os.path.join(cache_dir, f'{market.lower()}_latest.json')
-        logger.info(f"MMoE cache path: {cache_file} (exists={os.path.exists(cache_file)})")
         
-        # 也检查 fallback 路径 (防止 Streamlit Cloud 路径不同)
-        if not os.path.exists(cache_file):
-            # 尝试从 app 根目录查找
-            alt_path = os.path.join(os.getcwd(), 'ml', 'saved_models', 'mmoe_cache', f'{market.lower()}_latest.json')
-            if os.path.exists(alt_path):
-                cache_file = alt_path
-                logger.info(f"MMoE: 使用备用路径 {alt_path}")
-            else:
-                logger.warning(f"MMoE cache not found: {cache_file} (also tried {alt_path})")
-                return None
+        # 优先加载按日期的缓存
+        candidates = []
+        if scan_date:
+            candidates.append(os.path.join(cache_dir, f'{market.lower()}_{scan_date}.json'))
+        candidates.append(os.path.join(cache_dir, f'{market.lower()}_latest.json'))
+        
+        # fallback 路径
+        if scan_date:
+            candidates.append(os.path.join(os.getcwd(), 'ml', 'saved_models', 'mmoe_cache', f'{market.lower()}_{scan_date}.json'))
+        candidates.append(os.path.join(os.getcwd(), 'ml', 'saved_models', 'mmoe_cache', f'{market.lower()}_latest.json'))
+        
+        cache_file = None
+        for c in candidates:
+            if os.path.exists(c):
+                cache_file = c
+                break
+        
+        if not cache_file:
+            logger.warning(f"MMoE cache not found for {market} {scan_date or 'latest'}")
+            return None
+        
         try:
             with open(cache_file, 'r') as f:
                 cache = json.load(f)
             scores = cache.get('scores', {})
             if scores:
-                logger.info(f"RankingSystem: 加载 MMoE 缓存 ({len(scores)} 只, {cache.get('date', '?')})")
+                logger.info(f"RankingSystem: 加载缓存 ({len(scores)} 只, date={cache.get('date', '?')}, file={os.path.basename(cache_file)})")
             return scores
         except Exception as e:
             logger.warning(f"RankingSystem: 缓存加载失败: {e}")
             return None
     
-    def _batch_mmoe_predict(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _batch_mmoe_predict(self, df: pd.DataFrame, scan_date: str = None) -> pd.DataFrame:
         """
         批量 MMoE 预测: 优先从缓存读取，否则实时计算
         
@@ -87,7 +96,7 @@ class RankingSystem:
             return df
         
         # === 优先从缓存读取 ===
-        cache = self._load_mmoe_cache('US')
+        cache = self._load_mmoe_cache('US', scan_date=scan_date)
         if cache:
             # 调试: 显示 df 样本和 cache 样本
             sample_tickers = list(df[ticker_col].head(5))
@@ -166,7 +175,8 @@ class RankingSystem:
     def calculate_integrated_score(self, 
                                  df: pd.DataFrame, 
                                  master_results: Optional[Dict] = None,
-                                 sentiment_results: Optional[Dict] = None) -> pd.DataFrame:
+                                 sentiment_results: Optional[Dict] = None,
+                                 scan_date: str = None) -> pd.DataFrame:
         """
         计算综合排序分数
         
@@ -184,7 +194,7 @@ class RankingSystem:
         df = df.copy()
         
         # 0. 批量 MMoE 预测 (如果模型可用)
-        df = self._batch_mmoe_predict(df)
+        df = self._batch_mmoe_predict(df, scan_date=scan_date)
         has_mmoe = df['mmoe_dir_prob'].notna().any() if 'mmoe_dir_prob' in df.columns else False
         
         # 1. 技术面评分
