@@ -1,0 +1,59 @@
+{
+  "algorithms_compared": {
+    "PPO_100k": {
+      "avg_return_pct": 76.17484144355788,
+      "avg_sharpe": 3.9072064648778726,
+      "avg_max_dd_pct": 8.85963877342055,
+      "avg_trades": 50.733333333333334,
+      "win_rate_pct": 80.0,
+      "best_return": 158.55707401680777,
+      "worst_return": -9.699348305845746,
+      "episodes": 15
+    },
+    "A2C_100k": {
+      "avg_return_pct": -0.00014028664264843134,
+      "avg_sharpe": 0.2005796541140496,
+      "avg_max_dd_pct": 2.3357576184622735,
+      "avg_trades": 19.533333333333335,
+      "win_rate_pct": 60.0,
+      "best_return": 1.6470010218434084,
+      "worst_return": -2.4745898845601078,
+      "episodes": 15
+    }
+  },
+  "training_stocks": [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "TSLA",
+    "AMZN",
+    "GOOGL",
+    "META"
+  ],
+  "n_features": 23,
+  "feature_names": [
+    "volatility_20",
+    "atr_pct",
+    "vol_ratio",
+    "roc_5",
+    "roc_20",
+    "momentum_acceleration",
+    "ma_distance_20",
+    "adx_14",
+    "trend_consistency",
+    "relative_volume_5",
+    "obv_slope_10",
+    "rsi_12",
+    "macd_dif_pct",
+    "kdj_j_9",
+    "bband_pctb_20",
+    "vwap_bias",
+    "mfi_14",
+    "cci_14",
+    "willr_14",
+    "return_skew_20",
+    "return_1d",
+    "return_5d",
+    "return_20d"
+  ]
+}
