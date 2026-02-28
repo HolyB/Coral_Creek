@@ -143,6 +143,10 @@ class SmartPicker:
         self.penny_feature_names = []
         self.penny_ranker_models = {}
         
+        # LightGBM Ensemble (Phase 3)
+        self.lgb_model = None
+        self.ensemble = None
+        
         self._load_models()
         self._load_penny_models()
         self.rank_weights = self._compute_dynamic_rank_weights()
@@ -261,6 +265,17 @@ class SmartPicker:
                     self.ranker_meta = json.load(f)
         except:
             self.ranker_meta = {}
+        
+        # 4. LightGBM Ensemble (Phase 3)
+        try:
+            from ml.ensemble_predictor import LGBPredictor, EnsemblePredictor
+            lgb_pred = LGBPredictor(market=self.market)
+            if lgb_pred.load():
+                self.lgb_model = lgb_pred
+                self.ensemble = EnsemblePredictor()
+                print(f"✓ LGB Ensemble 模型已加载 ({len(lgb_pred.models)} models)")
+        except Exception:
+            pass
     
     def _load_penny_models(self):
         """加载低价股专用模型"""
@@ -614,14 +629,32 @@ class SmartPicker:
                 max_dd = float(preds.get('max_dd', [0])[0])
                 rank_s = float(preds.get('rank_score', [0])[0])
                 
+                # === Phase 3: LGB Ensemble ===
+                if self.lgb_model is not None and self.ensemble is not None:
+                    try:
+                        lgb_preds = self.lgb_model.predict(X)
+                        lgb_dir = float(lgb_preds.get('direction', [0.5])[0])
+                        lgb_r5 = float(lgb_preds.get('return_5d', [0])[0])
+                        lgb_r20 = float(lgb_preds.get('return_20d', [0])[0])
+                        
+                        # ensemble 融合
+                        dir_prob = self.ensemble.ensemble_direction(dir_prob, lgb_dir)
+                        pred_5d = self.ensemble.ensemble_return(pred_5d, lgb_r5)
+                        pred_20d = self.ensemble.ensemble_return(pred_20d, lgb_r20)
+                        confidence = self.ensemble.ensemble_confidence(
+                            float(preds.get('direction', [0.5])[0]), lgb_dir
+                        )
+                    except Exception:
+                        confidence = min(abs(dir_prob - 0.5) * 2 + 0.3, 0.95)
+                else:
+                    confidence = min(abs(dir_prob - 0.5) * 2 + 0.3, 0.95)
+                
                 result['pred_return'] = pred_5d
                 result['pred_return_20d'] = pred_20d
                 result['direction_prob'] = np.clip(dir_prob, 0.01, 0.99)
                 result['pred_max_dd'] = max_dd
                 result['pred_rank'] = rank_s
-                
-                # MMoE 置信度: 方向概率越极端越高
-                result['confidence'] = min(abs(dir_prob - 0.5) * 2 + 0.3, 0.95)
+                result['confidence'] = confidence
             else:
                 # === XGBoost fallback ===
                 pred_return = float(ret_model.predict(X)[0])
