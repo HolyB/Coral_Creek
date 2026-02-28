@@ -1,59 +1,46 @@
 {
-  "algorithms_compared": {
-    "PPO_100k": {
-      "avg_return_pct": 76.17484144355788,
-      "avg_sharpe": 3.9072064648778726,
-      "avg_max_dd_pct": 8.85963877342055,
-      "avg_trades": 50.733333333333334,
-      "win_rate_pct": 80.0,
-      "best_return": 158.55707401680777,
-      "worst_return": -9.699348305845746,
-      "episodes": 15
-    },
-    "A2C_100k": {
-      "avg_return_pct": -0.00014028664264843134,
-      "avg_sharpe": 0.2005796541140496,
-      "avg_max_dd_pct": 2.3357576184622735,
-      "avg_trades": 19.533333333333335,
-      "win_rate_pct": 60.0,
-      "best_return": 1.6470010218434084,
-      "worst_return": -2.4745898845601078,
-      "episodes": 15
-    }
-  },
-  "training_stocks": [
-    "AAPL",
-    "MSFT",
-    "NVDA",
-    "TSLA",
-    "AMZN",
-    "GOOGL",
-    "META"
+  "version": "v4_conservative",
+  "n_train": 62,
+  "n_test": 16,
+  "test_symbols": [
+    "HSTM",
+    "CION",
+    "DUOL",
+    "VSTM",
+    "TARS",
+    "OTEX",
+    "GDDY",
+    "AMCX",
+    "NCNO",
+    "FLUT",
+    "AMR",
+    "TRI",
+    "VNO",
+    "GWRE",
+    "MAX",
+    "MLYS"
   ],
-  "n_features": 23,
-  "feature_names": [
-    "volatility_20",
-    "atr_pct",
-    "vol_ratio",
-    "roc_5",
-    "roc_20",
-    "momentum_acceleration",
-    "ma_distance_20",
-    "adx_14",
-    "trend_consistency",
-    "relative_volume_5",
-    "obv_slope_10",
-    "rsi_12",
-    "macd_dif_pct",
-    "kdj_j_9",
-    "bband_pctb_20",
-    "vwap_bias",
-    "mfi_14",
-    "cci_14",
-    "willr_14",
-    "return_skew_20",
-    "return_1d",
-    "return_5d",
-    "return_20d"
-  ]
+  "total_timesteps": 1000000,
+  "train_time_s": 185.10700726509094,
+  "in_sample": {
+    "avg_return_pct": 14.643503218057756,
+    "avg_sharpe": -7758798.137152966,
+    "avg_max_dd_pct": 18.92558625481256,
+    "avg_trades": 33.84444444444444,
+    "win_rate_pct": 64.44444444444444,
+    "best_return": 94.13089679910243,
+    "worst_return": -24.958454985550848,
+    "episodes": 45
+  },
+  "out_of_sample": {
+    "avg_return_pct": 13.489153335432462,
+    "avg_sharpe": -0.010142339859381991,
+    "avg_max_dd_pct": 21.82266507933241,
+    "avg_trades": 30.916666666666668,
+    "win_rate_pct": 56.25,
+    "best_return": 202.8802953532438,
+    "worst_return": -35.75368116475924,
+    "episodes": 48
+  },
+  "overfit_gap": 1.1543498826252936
 }
