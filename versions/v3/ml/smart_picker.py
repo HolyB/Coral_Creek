@@ -583,6 +583,23 @@ class SmartPicker:
             except Exception:
                 pass
             
+            # 追加 Alpha158 因子 (Phase 2)
+            try:
+                from ml.alpha_factors import Alpha158Factors
+                a158 = Alpha158Factors()
+                # 复用 hist_adv (已经标准化好了)
+                a158_df = a158.compute(hist_adv)
+                if len(a158_df) > 0:
+                    a158_row = a158_df.iloc[-1]
+                    skip_cols = {'Date', 'Open', 'High', 'Low', 'Close', 'Volume'}
+                    for col in a158_row.index:
+                        if col not in skip_cols:
+                            val = a158_row[col]
+                            if isinstance(val, (int, float, np.integer, np.floating)):
+                                features[f'a158_{col}'] = float(val)
+            except Exception:
+                pass
+            
             X = np.array([[features.get(f, 0) for f in feat_names]])
             X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
             X = np.clip(X, -1e6, 1e6)
@@ -699,6 +716,22 @@ class SmartPicker:
                                 val = adv_row[col]
                                 if isinstance(val, (int, float, np.integer, np.floating)):
                                     features[f'adv_{col}'] = float(val)
+            except Exception:
+                pass
+            
+            # 追加 Alpha158 因子 (Phase 2)
+            try:
+                from ml.alpha_factors import Alpha158Factors
+                a158 = Alpha158Factors()
+                a158_df = a158.compute(hist_adv)
+                if len(a158_df) > 0:
+                    a158_row = a158_df.iloc[-1]
+                    skip_cols = {'Date', 'Open', 'High', 'Low', 'Close', 'Volume'}
+                    for col in a158_row.index:
+                        if col not in skip_cols:
+                            val = a158_row[col]
+                            if isinstance(val, (int, float, np.integer, np.floating)):
+                                features[f'a158_{col}'] = float(val)
             except Exception:
                 pass
             
