@@ -1,0 +1,4990 @@
+{
+  "date": "2026-02-12",
+  "market": "US",
+  "computed_at": "2026-02-27T17:31:58.880638",
+  "model": "mmoe",
+  "total_signals": 500,
+  "computed": 498,
+  "scores": {
+    "Z": {
+      "dir_prob": 0.01,
+      "return_5d": -1032672768.0,
+      "return_20d": -939822720.0,
+      "max_dd": -764712064.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -2.7
+    },
+    "XGN": {
+      "dir_prob": 0.0894,
+      "return_5d": 4.98,
+      "return_20d": -6.18,
+      "max_dd": 25.5,
+      "overall_score": 43.5,
+      "star_rating": 2,
+      "rank_short": -0.7,
+      "rank_medium": -0.8
+    },
+    "VSEE": {
+      "dir_prob": 0.01,
+      "return_5d": 81937488.0,
+      "return_20d": 502963.06,
+      "max_dd": 11644927.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.4,
+      "rank_medium": -0.3
+    },
+    "TWFG": {
+      "dir_prob": 0.327,
+      "return_5d": -4.11,
+      "return_20d": -0.42,
+      "max_dd": 17.09,
+      "overall_score": 28.4,
+      "star_rating": 1,
+      "rank_short": -2.1,
+      "rank_medium": -1.6
+    },
+    "TPET": {
+      "dir_prob": 0.01,
+      "return_5d": 99645464.0,
+      "return_20d": 611657.31,
+      "max_dd": 14161567.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.0,
+      "rank_medium": -1.1
+    },
+    "TELO": {
+      "dir_prob": 0.01,
+      "return_5d": 189737408.0,
+      "return_20d": 1164672.12,
+      "max_dd": 26965388.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": 0.6,
+      "rank_medium": -1.0
+    },
+    "STUB": {
+      "dir_prob": 0.2995,
+      "return_5d": -3.81,
+      "return_20d": -0.74,
+      "max_dd": 19.24,
+      "overall_score": 28.6,
+      "star_rating": 1,
+      "rank_short": -2.4,
+      "rank_medium": -0.6
+    },
+    "SLMT": {
+      "dir_prob": 0.249,
+      "return_5d": 36.42,
+      "return_20d": 0.33,
+      "max_dd": 29.47,
+      "overall_score": 31.8,
+      "star_rating": 1,
+      "rank_short": -1.2,
+      "rank_medium": -1.0
+    },
+    "SINT": {
+      "dir_prob": 0.01,
+      "return_5d": 303664704.0,
+      "return_20d": 1863995.0,
+      "max_dd": 43156656.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -1.0,
+      "rank_medium": 0.2
+    },
+    "SGLY": {
+      "dir_prob": 0.01,
+      "return_5d": 75929296.0,
+      "return_20d": 466081.59,
+      "max_dd": 10791041.0,
+      "overall_score": 63.4,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": -0.2
+    },
+    "SBEV": {
+      "dir_prob": 0.2448,
+      "return_5d": -9.74,
+      "return_20d": 0.33,
+      "max_dd": 24.17,
+      "overall_score": 27.6,
+      "star_rating": 1,
+      "rank_short": -1.7,
+      "rank_medium": -2.7
+    },
+    "RXT": {
+      "dir_prob": 0.1016,
+      "return_5d": 75.05,
+      "return_20d": -0.92,
+      "max_dd": 25.73,
+      "overall_score": 45.5,
+      "star_rating": 2,
+      "rank_short": -0.7,
+      "rank_medium": -0.5
+    },
+    "RUBI": {
+      "dir_prob": 0.2443,
+      "return_5d": 110.42,
+      "return_20d": -0.92,
+      "max_dd": 41.98,
+      "overall_score": 31.4,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": -3.2
+    },
+    "PXED": {
+      "dir_prob": 0.2831,
+      "return_5d": -5.53,
+      "return_20d": 0.03,
+      "max_dd": 17.72,
+      "overall_score": 19.1,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -1.5
+    },
+    "OWLS": {
+      "dir_prob": 0.2089,
+      "return_5d": -8.93,
+      "return_20d": -1.18,
+      "max_dd": 25.95,
+      "overall_score": 27.1,
+      "star_rating": 1,
+      "rank_short": -2.0,
+      "rank_medium": 0.2
+    },
+    "MXCT": {
+      "dir_prob": 0.01,
+      "return_5d": 178329184.0,
+      "return_20d": 1094648.0,
+      "max_dd": 25344058.0,
+      "overall_score": 65.0,
+      "star_rating": 4,
+      "rank_short": 0.7,
+      "rank_medium": -1.8
+    },
+    "MLCI": {
+      "dir_prob": 0.3074,
+      "return_5d": -4.22,
+      "return_20d": -0.25,
+      "max_dd": 18.34,
+      "overall_score": 31.0,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": 0.3
+    },
+    "MDCX": {
+      "dir_prob": 0.3499,
+      "return_5d": -2.03,
+      "return_20d": 0.02,
+      "max_dd": 23.53,
+      "overall_score": 20.1,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -1.3
+    },
+    "HCTI": {
+      "dir_prob": 0.01,
+      "return_5d": -16412601344.0,
+      "return_20d": -14936910848.0,
+      "max_dd": -12153812992.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -1.3,
+      "rank_medium": -1.2
+    },
+    "GOVX": {
+      "dir_prob": 0.01,
+      "return_5d": 1783361408.0,
+      "return_20d": 10946861.0,
+      "max_dd": 253450272.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -1.4,
+      "rank_medium": -2.2
+    },
+    "GETY": {
+      "dir_prob": 0.01,
+      "return_5d": 158380960.0,
+      "return_20d": 972200.56,
+      "max_dd": 22509058.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.5,
+      "rank_medium": -1.2
+    },
+    "GEMI": {
+      "dir_prob": 0.2433,
+      "return_5d": -7.21,
+      "return_20d": -1.86,
+      "max_dd": 24.13,
+      "overall_score": 23.0,
+      "star_rating": 1,
+      "rank_short": -2.1,
+      "rank_medium": -1.9
+    },
+    "FIS": {
+      "dir_prob": 0.01,
+      "return_5d": -989360768.0,
+      "return_20d": -900405440.0,
+      "max_dd": -732639040.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -1.4,
+      "rank_medium": -0.7
+    },
+    "DXLG": {
+      "dir_prob": 0.01,
+      "return_5d": 107562752.0,
+      "return_20d": 660253.5,
+      "max_dd": 15286773.0,
+      "overall_score": 58.8,
+      "star_rating": 3,
+      "rank_short": 0.0,
+      "rank_medium": -1.4
+    },
+    "DEI": {
+      "dir_prob": 0.3668,
+      "return_5d": -3.37,
+      "return_20d": -0.95,
+      "max_dd": 13.27,
+      "overall_score": 31.2,
+      "star_rating": 1,
+      "rank_short": -0.4,
+      "rank_medium": 1.4
+    },
+    "CMRC": {
+      "dir_prob": 0.2955,
+      "return_5d": 61.55,
+      "return_20d": 0.42,
+      "max_dd": 18.26,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.7,
+      "rank_medium": 0.1
+    },
+    "CENN": {
+      "dir_prob": 0.01,
+      "return_5d": 48386700.0,
+      "return_20d": 297016.56,
+      "max_dd": 6876699.5,
+      "overall_score": 67.4,
+      "star_rating": 4,
+      "rank_short": -0.4,
+      "rank_medium": -0.1
+    },
+    "BRCC": {
+      "dir_prob": 0.01,
+      "return_5d": 142218624.0,
+      "return_20d": 872983.06,
+      "max_dd": 20212052.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -1.3,
+      "rank_medium": -1.3
+    },
+    "BNBX": {
+      "dir_prob": 0.2955,
+      "return_5d": -6.37,
+      "return_20d": -0.19,
+      "max_dd": 27.65,
+      "overall_score": 28.0,
+      "star_rating": 1,
+      "rank_short": -0.2,
+      "rank_medium": -1.8
+    },
+    "BDMD": {
+      "dir_prob": 0.3198,
+      "return_5d": 24.37,
+      "return_20d": 0.86,
+      "max_dd": 19.91,
+      "overall_score": 44.9,
+      "star_rating": 2,
+      "rank_short": -0.5,
+      "rank_medium": -0.7
+    },
+    "AURE": {
+      "dir_prob": 0.206,
+      "return_5d": -22.56,
+      "return_20d": -2.75,
+      "max_dd": 18.88,
+      "overall_score": 23.1,
+      "star_rating": 1,
+      "rank_short": -0.4,
+      "rank_medium": -0.8
+    },
+    "AMC": {
+      "dir_prob": 0.01,
+      "return_5d": 246904144.0,
+      "return_20d": 1515580.0,
+      "max_dd": 35089872.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.8,
+      "rank_medium": -1.2
+    },
+    "IPST": {
+      "dir_prob": 0.2367,
+      "return_5d": -6.72,
+      "return_20d": -0.66,
+      "max_dd": 27.47,
+      "overall_score": 8.3,
+      "star_rating": 1,
+      "rank_short": -1.7,
+      "rank_medium": -1.5
+    },
+    "TKNO": {
+      "dir_prob": 0.01,
+      "return_5d": 474344160.0,
+      "return_20d": 2911693.5,
+      "max_dd": 67413488.0,
+      "overall_score": 63.4,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": -0.8
+    },
+    "MSN": {
+      "dir_prob": 0.01,
+      "return_5d": 39187932.0,
+      "return_20d": 240551.16,
+      "max_dd": 5569382.5,
+      "overall_score": 56.1,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": -1.1
+    },
+    "ZG": {
+      "dir_prob": 0.01,
+      "return_5d": -991348864.0,
+      "return_20d": -902214080.0,
+      "max_dd": -734110848.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -1.9,
+      "rank_medium": -2.6
+    },
+    "CURI": {
+      "dir_prob": 0.01,
+      "return_5d": 379322336.0,
+      "return_20d": 2328418.5,
+      "max_dd": 53909028.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -1.0,
+      "rank_medium": -0.0
+    },
+    "HCKT": {
+      "dir_prob": 0.01,
+      "return_5d": -315100672.0,
+      "return_20d": -286769312.0,
+      "max_dd": -233337472.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.2,
+      "rank_medium": -0.4
+    },
+    "DEVS": {
+      "dir_prob": 0.233,
+      "return_5d": -9.17,
+      "return_20d": -0.04,
+      "max_dd": 29.11,
+      "overall_score": 24.1,
+      "star_rating": 1,
+      "rank_short": -0.8,
+      "rank_medium": -2.5
+    },
+    "REAL": {
+      "dir_prob": 0.01,
+      "return_5d": -129387392.0,
+      "return_20d": -117753904.0,
+      "max_dd": -95813624.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.3,
+      "rank_medium": -0.1
+    },
+    "VRSK": {
+      "dir_prob": 0.01,
+      "return_5d": -3695648256.0,
+      "return_20d": -3363364608.0,
+      "max_dd": -2736692736.0,
+      "overall_score": 43.4,
+      "star_rating": 2,
+      "rank_short": -1.2,
+      "rank_medium": -2.2
+    },
+    "FBYD": {
+      "dir_prob": 0.1869,
+      "return_5d": 8.34,
+      "return_20d": -5.97,
+      "max_dd": 38.97,
+      "overall_score": 43.4,
+      "star_rating": 2,
+      "rank_short": -1.3,
+      "rank_medium": -3.8
+    },
+    "IPM": {
+      "dir_prob": 0.01,
+      "return_5d": 175208224.0,
+      "return_20d": 1075486.0,
+      "max_dd": 24900490.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": -0.4
+    },
+    "QLYS": {
+      "dir_prob": 0.01,
+      "return_5d": -1890118784.0,
+      "return_20d": -1720173568.0,
+      "max_dd": -1399666688.0,
+      "overall_score": 50.0,
+      "star_rating": 3,
+      "rank_short": -0.9,
+      "rank_medium": -2.6
+    },
+    "MLYS": {
+      "dir_prob": 0.2741,
+      "return_5d": -7.0,
+      "return_20d": -1.23,
+      "max_dd": 19.58,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -2.1
+    },
+    "SSKN": {
+      "dir_prob": 0.01,
+      "return_5d": 180470768.0,
+      "return_20d": 1107793.38,
+      "max_dd": 25648430.0,
+      "overall_score": 59.6,
+      "star_rating": 3,
+      "rank_short": -1.0,
+      "rank_medium": -0.5
+    },
+    "GRI": {
+      "dir_prob": 0.01,
+      "return_5d": 5856904192.0,
+      "return_20d": 35951844.0,
+      "max_dd": 832380032.0,
+      "overall_score": 55.4,
+      "star_rating": 3,
+      "rank_short": -1.5,
+      "rank_medium": -2.8
+    },
+    "NMAX": {
+      "dir_prob": 0.2678,
+      "return_5d": -5.53,
+      "return_20d": -0.76,
+      "max_dd": 18.96,
+      "overall_score": 31.0,
+      "star_rating": 1,
+      "rank_short": -1.3,
+      "rank_medium": -1.3
+    },
+    "HPP": {
+      "dir_prob": 0.01,
+      "return_5d": -227093600.0,
+      "return_20d": -206675120.0,
+      "max_dd": -168166768.0,
+      "overall_score": 43.4,
+      "star_rating": 2,
+      "rank_short": -2.0,
+      "rank_medium": -1.7
+    },
+    "MAMO": {
+      "dir_prob": 0.01,
+      "return_5d": 263851104.0,
+      "return_20d": 1619601.0,
+      "max_dd": 37498360.0,
+      "overall_score": 67.4,
+      "star_rating": 4,
+      "rank_short": -1.4,
+      "rank_medium": -0.9
+    },
+    "UPLD": {
+      "dir_prob": 0.01,
+      "return_5d": 207474720.0,
+      "return_20d": 1273541.75,
+      "max_dd": 29486202.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": -0.8
+    },
+    "SMWB": {
+      "dir_prob": 0.01,
+      "return_5d": 722326656.0,
+      "return_20d": 4433897.5,
+      "max_dd": 102656632.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -1.3,
+      "rank_medium": -1.5
+    },
+    "INVE": {
+      "dir_prob": 0.01,
+      "return_5d": 313948448.0,
+      "return_20d": 1927127.12,
+      "max_dd": 44618160.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": 0.1
+    },
+    "ALKT": {
+      "dir_prob": 0.01,
+      "return_5d": -348104640.0,
+      "return_20d": -316805760.0,
+      "max_dd": -257777408.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.8,
+      "rank_medium": -0.0
+    },
+    "CANG": {
+      "dir_prob": 0.01,
+      "return_5d": 326008512.0,
+      "return_20d": 2001150.0,
+      "max_dd": 46332136.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.5,
+      "rank_medium": -1.5
+    },
+    "AMCX": {
+      "dir_prob": 0.3497,
+      "return_5d": -0.85,
+      "return_20d": -0.14,
+      "max_dd": 15.5,
+      "overall_score": 23.1,
+      "star_rating": 1,
+      "rank_short": -1.3,
+      "rank_medium": -0.9
+    },
+    "PVL": {
+      "dir_prob": 0.01,
+      "return_5d": 156426304.0,
+      "return_20d": 960209.56,
+      "max_dd": 22231230.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.2,
+      "rank_medium": 0.7
+    },
+    "GNS": {
+      "dir_prob": 0.01,
+      "return_5d": 61021916.0,
+      "return_20d": 374572.94,
+      "max_dd": 8672430.0,
+      "overall_score": 58.3,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": -0.1
+    },
+    "CLVT": {
+      "dir_prob": 0.01,
+      "return_5d": 355512160.0,
+      "return_20d": 2182253.25,
+      "max_dd": 50525216.0,
+      "overall_score": 67.4,
+      "star_rating": 4,
+      "rank_short": -0.8,
+      "rank_medium": -0.2
+    },
+    "PSBD": {
+      "dir_prob": 0.01,
+      "return_5d": -185463584.0,
+      "return_20d": -168788192.0,
+      "max_dd": -137338976.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": 0.8
+    },
+    "OPRX": {
+      "dir_prob": 0.01,
+      "return_5d": -183107696.0,
+      "return_20d": -166644080.0,
+      "max_dd": -135594400.0,
+      "overall_score": 44.5,
+      "star_rating": 2,
+      "rank_short": -2.4,
+      "rank_medium": -2.7
+    },
+    "GENI": {
+      "dir_prob": 0.2911,
+      "return_5d": -7.34,
+      "return_20d": -2.03,
+      "max_dd": 20.56,
+      "overall_score": 31.0,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": -0.9
+    },
+    "PZZA": {
+      "dir_prob": 0.01,
+      "return_5d": -610289664.0,
+      "return_20d": -555416960.0,
+      "max_dd": -451930016.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.0,
+      "rank_medium": -0.6
+    },
+    "NEPH": {
+      "dir_prob": 0.01,
+      "return_5d": 327584864.0,
+      "return_20d": 2010822.75,
+      "max_dd": 46556184.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -1.0,
+      "rank_medium": -0.4
+    },
+    "TGHL": {
+      "dir_prob": 0.3404,
+      "return_5d": -8.76,
+      "return_20d": -0.34,
+      "max_dd": 25.1,
+      "overall_score": 15.5,
+      "star_rating": 1,
+      "rank_short": -0.6,
+      "rank_medium": -2.0
+    },
+    "GNLN": {
+      "dir_prob": 0.01,
+      "return_5d": 5459206656.0,
+      "return_20d": 33510626.0,
+      "max_dd": 775859264.0,
+      "overall_score": 63.4,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": -1.6
+    },
+    "IMCC": {
+      "dir_prob": 0.01,
+      "return_5d": 177200640.0,
+      "return_20d": 1087720.62,
+      "max_dd": 25183666.0,
+      "overall_score": 63.4,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": -1.1
+    },
+    "MORN": {
+      "dir_prob": 0.01,
+      "return_5d": -3603203584.0,
+      "return_20d": -3279231488.0,
+      "max_dd": -2668234752.0,
+      "overall_score": 50.0,
+      "star_rating": 3,
+      "rank_short": -1.2,
+      "rank_medium": -2.8
+    },
+    "EDSA": {
+      "dir_prob": 0.01,
+      "return_5d": 186435216.0,
+      "return_20d": 1144394.75,
+      "max_dd": 26496066.0,
+      "overall_score": 66.2,
+      "star_rating": 4,
+      "rank_short": -0.2,
+      "rank_medium": -1.0
+    },
+    "AEYE": {
+      "dir_prob": 0.01,
+      "return_5d": -168420656.0,
+      "return_20d": -153277632.0,
+      "max_dd": -124718448.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.7,
+      "rank_medium": -1.2
+    },
+    "SGHT": {
+      "dir_prob": 0.01,
+      "return_5d": -61968984.0,
+      "return_20d": -56397204.0,
+      "max_dd": -45889096.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.6,
+      "rank_medium": -1.1
+    },
+    "CNDT": {
+      "dir_prob": 0.3477,
+      "return_5d": 17.64,
+      "return_20d": 0.03,
+      "max_dd": 21.64,
+      "overall_score": 41.0,
+      "star_rating": 2,
+      "rank_short": -0.9,
+      "rank_medium": -1.0
+    },
+    "MYPS": {
+      "dir_prob": 0.01,
+      "return_5d": 95580032.0,
+      "return_20d": 586710.19,
+      "max_dd": 13583802.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.6,
+      "rank_medium": -1.2
+    },
+    "WKHS": {
+      "dir_prob": 0.01,
+      "return_5d": 1490124544.0,
+      "return_20d": 9146865.0,
+      "max_dd": 211775520.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -1.8,
+      "rank_medium": -1.5
+    },
+    "IMG": {
+      "dir_prob": 0.1377,
+      "return_5d": 4.27,
+      "return_20d": 2.12,
+      "max_dd": 27.31,
+      "overall_score": 36.6,
+      "star_rating": 2,
+      "rank_short": -1.3,
+      "rank_medium": -0.9
+    },
+    "WOOF": {
+      "dir_prob": 0.01,
+      "return_5d": 282185312.0,
+      "return_20d": 1732152.12,
+      "max_dd": 40103996.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": 0.2,
+      "rank_medium": 0.2
+    },
+    "NOTV": {
+      "dir_prob": 0.01,
+      "return_5d": 150567248.0,
+      "return_20d": 924235.56,
+      "max_dd": 21398536.0,
+      "overall_score": 59.0,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": -1.1
+    },
+    "MAX": {
+      "dir_prob": 0.2705,
+      "return_5d": -5.41,
+      "return_20d": -1.17,
+      "max_dd": 18.88,
+      "overall_score": 27.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -2.0
+    },
+    "BYSI": {
+      "dir_prob": 0.01,
+      "return_5d": 167541200.0,
+      "return_20d": 1028427.69,
+      "max_dd": 23810886.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -1.1,
+      "rank_medium": -0.7
+    },
+    "NIVF": {
+      "dir_prob": 0.2283,
+      "return_5d": -10.71,
+      "return_20d": -1.64,
+      "max_dd": 32.89,
+      "overall_score": 18.5,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -2.9
+    },
+    "HFFG": {
+      "dir_prob": 0.01,
+      "return_5d": 266339136.0,
+      "return_20d": 1634888.5,
+      "max_dd": 37851992.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": 1.0,
+      "rank_medium": -0.5
+    },
+    "ORBS": {
+      "dir_prob": 0.1263,
+      "return_5d": -12.98,
+      "return_20d": -1.95,
+      "max_dd": 23.54,
+      "overall_score": 27.1,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -0.8
+    },
+    "OWLT": {
+      "dir_prob": 0.01,
+      "return_5d": -117544056.0,
+      "return_20d": -106975416.0,
+      "max_dd": -87043368.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.4,
+      "rank_medium": -1.5
+    },
+    "LGHL": {
+      "dir_prob": 0.2819,
+      "return_5d": -1.39,
+      "return_20d": -1.16,
+      "max_dd": 38.09,
+      "overall_score": 19.6,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -1.3
+    },
+    "FOFO": {
+      "dir_prob": 0.2684,
+      "return_5d": -6.81,
+      "return_20d": -3.91,
+      "max_dd": 24.0,
+      "overall_score": 25.4,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": -2.0
+    },
+    "HIMS": {
+      "dir_prob": 0.01,
+      "return_5d": -621821952.0,
+      "return_20d": -565912576.0,
+      "max_dd": -460469952.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.7,
+      "rank_medium": -2.3
+    },
+    "PMI": {
+      "dir_prob": 0.2832,
+      "return_5d": -7.23,
+      "return_20d": -0.84,
+      "max_dd": 27.04,
+      "overall_score": 29.3,
+      "star_rating": 1,
+      "rank_short": -1.3,
+      "rank_medium": -0.6
+    },
+    "TRI": {
+      "dir_prob": 0.01,
+      "return_5d": -2306152960.0,
+      "return_20d": -2098802048.0,
+      "max_dd": -1707746304.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.4,
+      "rank_medium": -3.0
+    },
+    "MBI": {
+      "dir_prob": 0.4338,
+      "return_5d": -2.23,
+      "return_20d": -1.04,
+      "max_dd": 11.15,
+      "overall_score": 19.1,
+      "star_rating": 1,
+      "rank_short": -1.4,
+      "rank_medium": -0.7
+    },
+    "ELAB": {
+      "dir_prob": 0.265,
+      "return_5d": 44.37,
+      "return_20d": -1.74,
+      "max_dd": 32.81,
+      "overall_score": 38.6,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -2.3
+    },
+    "EEIQ": {
+      "dir_prob": 0.137,
+      "return_5d": 589.72,
+      "return_20d": 6.23,
+      "max_dd": 99.65,
+      "overall_score": 34.1,
+      "star_rating": 1,
+      "rank_short": -0.4,
+      "rank_medium": -2.1
+    },
+    "ATNM": {
+      "dir_prob": 0.01,
+      "return_5d": 133278536.0,
+      "return_20d": 818116.69,
+      "max_dd": 18941484.0,
+      "overall_score": 51.0,
+      "star_rating": 3,
+      "rank_short": 0.1,
+      "rank_medium": -1.5
+    },
+    "TDOC": {
+      "dir_prob": 0.1423,
+      "return_5d": 27.55,
+      "return_20d": -1.97,
+      "max_dd": 16.44,
+      "overall_score": 50.3,
+      "star_rating": 3,
+      "rank_short": -0.8,
+      "rank_medium": -0.6
+    },
+    "VERX": {
+      "dir_prob": 0.01,
+      "return_5d": -423914624.0,
+      "return_20d": -385799456.0,
+      "max_dd": -313916288.0,
+      "overall_score": 50.0,
+      "star_rating": 3,
+      "rank_short": -1.7,
+      "rank_medium": -1.4
+    },
+    "SNWV": {
+      "dir_prob": 0.01,
+      "return_5d": -452464480.0,
+      "return_20d": -411782400.0,
+      "max_dd": -335057888.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.3,
+      "rank_medium": -2.0
+    },
+    "HRB": {
+      "dir_prob": 0.01,
+      "return_5d": -723705472.0,
+      "return_20d": -658635520.0,
+      "max_dd": -535916640.0,
+      "overall_score": 50.0,
+      "star_rating": 3,
+      "rank_short": -1.7,
+      "rank_medium": -2.5
+    },
+    "FEMY": {
+      "dir_prob": 0.01,
+      "return_5d": 78547072.0,
+      "return_20d": 482150.75,
+      "max_dd": 11163087.0,
+      "overall_score": 60.9,
+      "star_rating": 3,
+      "rank_short": -0.8,
+      "rank_medium": 0.7
+    },
+    "RMNI": {
+      "dir_prob": 0.2709,
+      "return_5d": 6.17,
+      "return_20d": 0.49,
+      "max_dd": 15.18,
+      "overall_score": 39.9,
+      "star_rating": 2,
+      "rank_short": -0.3,
+      "rank_medium": 0.9
+    },
+    "TMCI": {
+      "dir_prob": 0.01,
+      "return_5d": 515832192.0,
+      "return_20d": 3166359.75,
+      "max_dd": 73309744.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.5,
+      "rank_medium": -0.8
+    },
+    "AIIO": {
+      "dir_prob": 0.3338,
+      "return_5d": 43.75,
+      "return_20d": 0.81,
+      "max_dd": 21.87,
+      "overall_score": 41.2,
+      "star_rating": 2,
+      "rank_short": -0.9,
+      "rank_medium": -0.1
+    },
+    "BRTX": {
+      "dir_prob": 0.01,
+      "return_5d": 135348288.0,
+      "return_20d": 830813.94,
+      "max_dd": 19235644.0,
+      "overall_score": 67.4,
+      "star_rating": 4,
+      "rank_short": -1.3,
+      "rank_medium": -2.7
+    },
+    "KDK": {
+      "dir_prob": 0.4053,
+      "return_5d": -2.33,
+      "return_20d": -0.42,
+      "max_dd": 9.99,
+      "overall_score": 19.1,
+      "star_rating": 1,
+      "rank_short": -1.3,
+      "rank_medium": -1.6
+    },
+    "WK": {
+      "dir_prob": 0.01,
+      "return_5d": -1106768000.0,
+      "return_20d": -1007255744.0,
+      "max_dd": -819581056.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -2.4
+    },
+    "CHDN": {
+      "dir_prob": 0.01,
+      "return_5d": -1446363520.0,
+      "return_20d": -1316317568.0,
+      "max_dd": -1071057216.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.0,
+      "rank_medium": -1.0
+    },
+    "BHAT": {
+      "dir_prob": 0.01,
+      "return_5d": 185520368.0,
+      "return_20d": 1138781.62,
+      "max_dd": 26366074.0,
+      "overall_score": 67.1,
+      "star_rating": 4,
+      "rank_short": -0.1,
+      "rank_medium": -0.9
+    },
+    "OSRH": {
+      "dir_prob": 0.01,
+      "return_5d": 95829392.0,
+      "return_20d": 588237.62,
+      "max_dd": 13619230.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.2,
+      "rank_medium": -1.0
+    },
+    "MAPS": {
+      "dir_prob": 0.01,
+      "return_5d": 94500752.0,
+      "return_20d": 580083.44,
+      "max_dd": 13430400.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.7,
+      "rank_medium": -0.4
+    },
+    "ELMD": {
+      "dir_prob": 0.3942,
+      "return_5d": -5.15,
+      "return_20d": -1.76,
+      "max_dd": 14.8,
+      "overall_score": 27.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -1.8
+    },
+    "DOMH": {
+      "dir_prob": 0.01,
+      "return_5d": 472970016.0,
+      "return_20d": 2903258.0,
+      "max_dd": 67218256.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.4,
+      "rank_medium": -0.3
+    },
+    "CNNE": {
+      "dir_prob": 0.01,
+      "return_5d": -252833552.0,
+      "return_20d": -230100784.0,
+      "max_dd": -187227632.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -0.7,
+      "rank_medium": -0.2
+    },
+    "BWIN": {
+      "dir_prob": 0.01,
+      "return_5d": -464889216.0,
+      "return_20d": -423089888.0,
+      "max_dd": -344258432.0,
+      "overall_score": 47.9,
+      "star_rating": 2,
+      "rank_short": -2.2,
+      "rank_medium": -0.7
+    },
+    "RTAC": {
+      "dir_prob": 0.4176,
+      "return_5d": -0.44,
+      "return_20d": 0.52,
+      "max_dd": 4.82,
+      "overall_score": 19.5,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": 1.0
+    },
+    "MEDP": {
+      "dir_prob": 0.01,
+      "return_5d": -6205996544.0,
+      "return_20d": -5647998976.0,
+      "max_dd": -4595646976.0,
+      "overall_score": 36.9,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -1.7
+    },
+    "EVH": {
+      "dir_prob": 0.01,
+      "return_5d": 698742208.0,
+      "return_20d": 4289115.5,
+      "max_dd": 99304768.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": 0.1,
+      "rank_medium": -0.4
+    },
+    "SPSC": {
+      "dir_prob": 0.01,
+      "return_5d": -1610192256.0,
+      "return_20d": -1465416064.0,
+      "max_dd": -1192375040.0,
+      "overall_score": 47.6,
+      "star_rating": 2,
+      "rank_short": -0.9,
+      "rank_medium": -2.4
+    },
+    "WAY": {
+      "dir_prob": 0.01,
+      "return_5d": -508657472.0,
+      "return_20d": -462922944.0,
+      "max_dd": -376669760.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -2.3,
+      "rank_medium": -2.6
+    },
+    "EFOI": {
+      "dir_prob": 0.01,
+      "return_5d": 201899744.0,
+      "return_20d": 1239327.75,
+      "max_dd": 28693902.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.0,
+      "rank_medium": -0.4
+    },
+    "VGAS": {
+      "dir_prob": 0.01,
+      "return_5d": 284201408.0,
+      "return_20d": 1744525.25,
+      "max_dd": 40390508.0,
+      "overall_score": 67.4,
+      "star_rating": 4,
+      "rank_short": -1.0,
+      "rank_medium": -0.5
+    },
+    "RCON": {
+      "dir_prob": 0.01,
+      "return_5d": 171159872.0,
+      "return_20d": 1050638.0,
+      "max_dd": 24325152.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": -0.9
+    },
+    "USLM": {
+      "dir_prob": 0.01,
+      "return_5d": -1567977472.0,
+      "return_20d": -1426996864.0,
+      "max_dd": -1161113856.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.2,
+      "rank_medium": -2.6
+    },
+    "NITO": {
+      "dir_prob": 0.01,
+      "return_5d": 732303104.0,
+      "return_20d": 4495157.0,
+      "max_dd": 104074456.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -1.2,
+      "rank_medium": -0.7
+    },
+    "ENSC": {
+      "dir_prob": 0.4029,
+      "return_5d": -1.21,
+      "return_20d": 1.16,
+      "max_dd": 24.87,
+      "overall_score": 28.9,
+      "star_rating": 1,
+      "rank_short": -0.4,
+      "rank_medium": -1.4
+    },
+    "PD": {
+      "dir_prob": 0.01,
+      "return_5d": -216882656.0,
+      "return_20d": -197382288.0,
+      "max_dd": -160605392.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -2.4,
+      "rank_medium": -1.4
+    },
+    "ODD": {
+      "dir_prob": 0.01,
+      "return_5d": -747836416.0,
+      "return_20d": -680596736.0,
+      "max_dd": -553786112.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -2.0,
+      "rank_medium": -2.1
+    },
+    "BALY": {
+      "dir_prob": 0.01,
+      "return_5d": -189170832.0,
+      "return_20d": -172162112.0,
+      "max_dd": -140084288.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.7,
+      "rank_medium": -1.0
+    },
+    "G": {
+      "dir_prob": 0.01,
+      "return_5d": -631600512.0,
+      "return_20d": -574811904.0,
+      "max_dd": -467711264.0,
+      "overall_score": 36.4,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -0.9
+    },
+    "GTLB": {
+      "dir_prob": 0.01,
+      "return_5d": -629541248.0,
+      "return_20d": -572937792.0,
+      "max_dd": -466186144.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -2.4,
+      "rank_medium": -2.6
+    },
+    "TASK": {
+      "dir_prob": 0.01,
+      "return_5d": -205998128.0,
+      "return_20d": -187476352.0,
+      "max_dd": -152545184.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -0.6,
+      "rank_medium": -1.0
+    },
+    "TOON": {
+      "dir_prob": 0.3058,
+      "return_5d": -7.93,
+      "return_20d": 2.5,
+      "max_dd": 16.7,
+      "overall_score": 24.1,
+      "star_rating": 1,
+      "rank_short": -0.9,
+      "rank_medium": -0.1
+    },
+    "MCRB": {
+      "dir_prob": 0.01,
+      "return_5d": -200953344.0,
+      "return_20d": -182885152.0,
+      "max_dd": -148809456.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.8,
+      "rank_medium": -2.0
+    },
+    "FUBO": {
+      "dir_prob": 0.01,
+      "return_5d": 293366080.0,
+      "return_20d": 1800778.62,
+      "max_dd": 41693012.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.5,
+      "rank_medium": -0.2
+    },
+    "HAE": {
+      "dir_prob": 0.01,
+      "return_5d": -924478976.0,
+      "return_20d": -841357056.0,
+      "max_dd": -684592768.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.9,
+      "rank_medium": -2.8
+    },
+    "SLP": {
+      "dir_prob": 0.01,
+      "return_5d": -288076800.0,
+      "return_20d": -262175184.0,
+      "max_dd": -213325872.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.8,
+      "rank_medium": -1.2
+    },
+    "HSTM": {
+      "dir_prob": 0.01,
+      "return_5d": -382386496.0,
+      "return_20d": -348005280.0,
+      "max_dd": -283163904.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -0.9,
+      "rank_medium": 0.1
+    },
+    "BTCS": {
+      "dir_prob": 0.01,
+      "return_5d": 285556416.0,
+      "return_20d": 1752838.62,
+      "max_dd": 40583120.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.4,
+      "rank_medium": -0.4
+    },
+    "SNOA": {
+      "dir_prob": 0.01,
+      "return_5d": 311716544.0,
+      "return_20d": 1913424.75,
+      "max_dd": 44300980.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.6,
+      "rank_medium": 0.6
+    },
+    "ROP": {
+      "dir_prob": 0.01,
+      "return_5d": -7175448064.0,
+      "return_20d": -6530287104.0,
+      "max_dd": -5313543168.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -0.2,
+      "rank_medium": -2.7
+    },
+    "TOI": {
+      "dir_prob": 0.01,
+      "return_5d": 267732064.0,
+      "return_20d": 1643427.75,
+      "max_dd": 38049964.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": -0.0
+    },
+    "RICK": {
+      "dir_prob": 0.3734,
+      "return_5d": -4.16,
+      "return_20d": -1.26,
+      "max_dd": 13.57,
+      "overall_score": 23.3,
+      "star_rating": 1,
+      "rank_short": -2.3,
+      "rank_medium": -1.0
+    },
+    "COSM": {
+      "dir_prob": 0.01,
+      "return_5d": 55328876.0,
+      "return_20d": 339629.91,
+      "max_dd": 7863328.0,
+      "overall_score": 59.8,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": 0.3
+    },
+    "GCL": {
+      "dir_prob": 0.01,
+      "return_5d": 204224960.0,
+      "return_20d": 1253612.75,
+      "max_dd": 29024340.0,
+      "overall_score": 56.5,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": -1.2
+    },
+    "BOX": {
+      "dir_prob": 0.01,
+      "return_5d": -441635232.0,
+      "return_20d": -401927072.0,
+      "max_dd": -327038560.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -1.5,
+      "rank_medium": -2.4
+    },
+    "AGL": {
+      "dir_prob": 0.01,
+      "return_5d": 174056512.0,
+      "return_20d": 1068417.75,
+      "max_dd": 24736836.0,
+      "overall_score": 60.0,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": -0.3
+    },
+    "TTAN": {
+      "dir_prob": 0.01,
+      "return_5d": -1435131904.0,
+      "return_20d": -1306095616.0,
+      "max_dd": -1062740672.0,
+      "overall_score": 44.0,
+      "star_rating": 2,
+      "rank_short": -2.1,
+      "rank_medium": -2.8
+    },
+    "AUUD": {
+      "dir_prob": 0.01,
+      "return_5d": 286976160.0,
+      "return_20d": 1761559.88,
+      "max_dd": 40784852.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": -1.2
+    },
+    "VSTM": {
+      "dir_prob": 0.3471,
+      "return_5d": -4.31,
+      "return_20d": -1.11,
+      "max_dd": 15.7,
+      "overall_score": 23.2,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": 0.1
+    },
+    "GBTG": {
+      "dir_prob": 0.01,
+      "return_5d": -103554856.0,
+      "return_20d": -94243992.0,
+      "max_dd": -76684168.0,
+      "overall_score": 37.7,
+      "star_rating": 2,
+      "rank_short": -1.2,
+      "rank_medium": -0.3
+    },
+    "VS": {
+      "dir_prob": 0.01,
+      "return_5d": 173385888.0,
+      "return_20d": 1064304.12,
+      "max_dd": 24641484.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": 0.1,
+      "rank_medium": -0.8
+    },
+    "SURG": {
+      "dir_prob": 0.01,
+      "return_5d": 210036176.0,
+      "return_20d": 1289274.62,
+      "max_dd": 29850222.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.8,
+      "rank_medium": -1.2
+    },
+    "BFAM": {
+      "dir_prob": 0.3611,
+      "return_5d": -3.59,
+      "return_20d": -0.89,
+      "max_dd": 14.26,
+      "overall_score": 22.1,
+      "star_rating": 1,
+      "rank_short": -0.9,
+      "rank_medium": -1.4
+    },
+    "SMTI": {
+      "dir_prob": 0.01,
+      "return_5d": -397927072.0,
+      "return_20d": -362148544.0,
+      "max_dd": -294671904.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.1,
+      "rank_medium": -0.6
+    },
+    "CTEV": {
+      "dir_prob": 0.2103,
+      "return_5d": -6.61,
+      "return_20d": -0.98,
+      "max_dd": 26.06,
+      "overall_score": 23.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -2.3
+    },
+    "CRVO": {
+      "dir_prob": 0.2313,
+      "return_5d": 12.91,
+      "return_20d": -1.06,
+      "max_dd": 22.94,
+      "overall_score": 44.4,
+      "star_rating": 2,
+      "rank_short": -0.7,
+      "rank_medium": -1.9
+    },
+    "LXEO": {
+      "dir_prob": 0.01,
+      "return_5d": -80889136.0,
+      "return_20d": -73616192.0,
+      "max_dd": -59899760.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.1,
+      "rank_medium": -1.7
+    },
+    "NNOX": {
+      "dir_prob": 0.01,
+      "return_5d": 393678048.0,
+      "return_20d": 2416514.25,
+      "max_dd": 55949312.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": -0.2
+    },
+    "NCMI": {
+      "dir_prob": 0.01,
+      "return_5d": 443977248.0,
+      "return_20d": 2725297.25,
+      "max_dd": 63097796.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.0,
+      "rank_medium": 0.7
+    },
+    "MMA": {
+      "dir_prob": 0.01,
+      "return_5d": 98769424.0,
+      "return_20d": 606277.56,
+      "max_dd": 14037076.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": 0.0,
+      "rank_medium": -0.5
+    },
+    "BMRA": {
+      "dir_prob": 0.01,
+      "return_5d": 297953376.0,
+      "return_20d": 1828944.12,
+      "max_dd": 42344932.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": -0.5
+    },
+    "ARX": {
+      "dir_prob": 0.3447,
+      "return_5d": -3.47,
+      "return_20d": -0.85,
+      "max_dd": 14.93,
+      "overall_score": 31.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": 0.0
+    },
+    "FLUT": {
+      "dir_prob": 0.01,
+      "return_5d": -3434906880.0,
+      "return_20d": -3126067968.0,
+      "max_dd": -2543609600.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.1,
+      "rank_medium": -3.2
+    },
+    "MPX": {
+      "dir_prob": 0.01,
+      "return_5d": -122169040.0,
+      "return_20d": -111184560.0,
+      "max_dd": -90468280.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -0.1,
+      "rank_medium": 0.6
+    },
+    "LYRA": {
+      "dir_prob": 0.01,
+      "return_5d": 617941504.0,
+      "return_20d": 3793143.0,
+      "max_dd": 87821432.0,
+      "overall_score": 55.0,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": -1.1
+    },
+    "NBY": {
+      "dir_prob": 0.01,
+      "return_5d": 154283936.0,
+      "return_20d": 947049.81,
+      "max_dd": 21926764.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": -2.5
+    },
+    "HIPO": {
+      "dir_prob": 0.01,
+      "return_5d": -416023264.0,
+      "return_20d": -378617696.0,
+      "max_dd": -308072480.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.2,
+      "rank_medium": -0.4
+    },
+    "MTVA": {
+      "dir_prob": 0.3473,
+      "return_5d": 49.01,
+      "return_20d": 3.62,
+      "max_dd": 34.64,
+      "overall_score": 36.0,
+      "star_rating": 2,
+      "rank_short": -1.5,
+      "rank_medium": -1.1
+    },
+    "DAIC": {
+      "dir_prob": 0.3449,
+      "return_5d": -4.22,
+      "return_20d": -0.24,
+      "max_dd": 23.97,
+      "overall_score": 25.0,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": -0.4
+    },
+    "UPXI": {
+      "dir_prob": 0.01,
+      "return_5d": 471681728.0,
+      "return_20d": 2895342.75,
+      "max_dd": 67035184.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.7,
+      "rank_medium": -0.8
+    },
+    "LWAY": {
+      "dir_prob": 0.01,
+      "return_5d": -347200832.0,
+      "return_20d": -315983360.0,
+      "max_dd": -257108352.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -0.3
+    },
+    "III": {
+      "dir_prob": 0.01,
+      "return_5d": 434199872.0,
+      "return_20d": 2665277.25,
+      "max_dd": 61708280.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -1.1,
+      "rank_medium": 0.0
+    },
+    "ATON": {
+      "dir_prob": 0.2987,
+      "return_5d": -4.12,
+      "return_20d": -0.08,
+      "max_dd": 30.8,
+      "overall_score": 24.8,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -0.2
+    },
+    "WYY": {
+      "dir_prob": 0.2588,
+      "return_5d": 5.1,
+      "return_20d": -0.36,
+      "max_dd": 21.22,
+      "overall_score": 36.9,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -0.8
+    },
+    "SKBL": {
+      "dir_prob": 0.314,
+      "return_5d": -8.21,
+      "return_20d": 1.22,
+      "max_dd": 16.13,
+      "overall_score": 13.8,
+      "star_rating": 1,
+      "rank_short": -0.5,
+      "rank_medium": -1.3
+    },
+    "NXTT": {
+      "dir_prob": 0.01,
+      "return_5d": 14038609920.0,
+      "return_20d": 86173848.0,
+      "max_dd": 1995157888.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -2.0,
+      "rank_medium": -1.7
+    },
+    "BKNG": {
+      "dir_prob": 0.01,
+      "return_5d": -72888721408.0,
+      "return_20d": -66335109120.0,
+      "max_dd": -53975367680.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.0,
+      "rank_medium": -2.7
+    },
+    "AQMS": {
+      "dir_prob": 0.01,
+      "return_5d": 799037824.0,
+      "return_20d": 4904787.5,
+      "max_dd": 113558728.0,
+      "overall_score": 54.0,
+      "star_rating": 3,
+      "rank_short": -1.2,
+      "rank_medium": -1.0
+    },
+    "ATOS": {
+      "dir_prob": 0.01,
+      "return_5d": 1053963072.0,
+      "return_20d": 6469531.5,
+      "max_dd": 149788528.0,
+      "overall_score": 69.8,
+      "star_rating": 4,
+      "rank_short": -0.7,
+      "rank_medium": -2.0
+    },
+    "BCAX": {
+      "dir_prob": 0.01,
+      "return_5d": -194222784.0,
+      "return_20d": -176759888.0,
+      "max_dd": -143825472.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -1.5
+    },
+    "BFRG": {
+      "dir_prob": 0.3449,
+      "return_5d": -11.34,
+      "return_20d": -0.86,
+      "max_dd": 24.12,
+      "overall_score": 24.9,
+      "star_rating": 1,
+      "rank_short": -0.6,
+      "rank_medium": -1.2
+    },
+    "ACCS": {
+      "dir_prob": 0.01,
+      "return_5d": -138375392.0,
+      "return_20d": -125933760.0,
+      "max_dd": -102469384.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -0.9,
+      "rank_medium": 1.2
+    },
+    "SNAL": {
+      "dir_prob": 0.1932,
+      "return_5d": -11.53,
+      "return_20d": 2.01,
+      "max_dd": 19.56,
+      "overall_score": 16.6,
+      "star_rating": 1,
+      "rank_short": -0.9,
+      "rank_medium": -0.8
+    },
+    "AFRM": {
+      "dir_prob": 0.01,
+      "return_5d": -921692544.0,
+      "return_20d": -838821184.0,
+      "max_dd": -682529216.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -2.2,
+      "rank_medium": -2.7
+    },
+    "FOXA": {
+      "dir_prob": 0.01,
+      "return_5d": -841183744.0,
+      "return_20d": -765551040.0,
+      "max_dd": -622911360.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.9,
+      "rank_medium": -1.2
+    },
+    "CV": {
+      "dir_prob": 0.166,
+      "return_5d": 16.85,
+      "return_20d": 0.43,
+      "max_dd": 15.76,
+      "overall_score": 42.6,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -0.8
+    },
+    "RPD": {
+      "dir_prob": 0.01,
+      "return_5d": -285600672.0,
+      "return_20d": -259921728.0,
+      "max_dd": -211492288.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -1.7,
+      "rank_medium": -1.7
+    },
+    "ALIT": {
+      "dir_prob": 0.01,
+      "return_5d": 364055200.0,
+      "return_20d": 2234698.75,
+      "max_dd": 51739312.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -1.0,
+      "rank_medium": -0.8
+    },
+    "ORGN": {
+      "dir_prob": 0.01,
+      "return_5d": 51422432.0,
+      "return_20d": 315650.31,
+      "max_dd": 7308151.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.7,
+      "rank_medium": -0.9
+    },
+    "EHTH": {
+      "dir_prob": 0.01,
+      "return_5d": 423071872.0,
+      "return_20d": 2596961.5,
+      "max_dd": 60126772.0,
+      "overall_score": 65.0,
+      "star_rating": 4,
+      "rank_short": -0.5,
+      "rank_medium": 0.3
+    },
+    "ASAN": {
+      "dir_prob": 0.01,
+      "return_5d": -208022352.0,
+      "return_20d": -189318544.0,
+      "max_dd": -154044128.0,
+      "overall_score": 48.2,
+      "star_rating": 2,
+      "rank_short": -2.0,
+      "rank_medium": -1.7
+    },
+    "RYAN": {
+      "dir_prob": 0.01,
+      "return_5d": -849958016.0,
+      "return_20d": -773536512.0,
+      "max_dd": -629408768.0,
+      "overall_score": 39.4,
+      "star_rating": 2,
+      "rank_short": -1.9,
+      "rank_medium": -2.5
+    },
+    "OMF": {
+      "dir_prob": 0.01,
+      "return_5d": -802382592.0,
+      "return_20d": -730238464.0,
+      "max_dd": -594178176.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.8,
+      "rank_medium": -1.7
+    },
+    "NDAQ": {
+      "dir_prob": 0.01,
+      "return_5d": -1227519744.0,
+      "return_20d": -1117150464.0,
+      "max_dd": -908999488.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.8,
+      "rank_medium": -1.6
+    },
+    "CARG": {
+      "dir_prob": 0.01,
+      "return_5d": -472288128.0,
+      "return_20d": -429823584.0,
+      "max_dd": -349737504.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.8,
+      "rank_medium": -0.1
+    },
+    "GAIA": {
+      "dir_prob": 0.01,
+      "return_5d": 408351424.0,
+      "return_20d": 2506596.0,
+      "max_dd": 58034652.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.4,
+      "rank_medium": 0.3
+    },
+    "KRMD": {
+      "dir_prob": 0.01,
+      "return_5d": 357999488.0,
+      "return_20d": 2197523.75,
+      "max_dd": 50878664.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.1,
+      "rank_medium": -0.1
+    },
+    "AII": {
+      "dir_prob": 0.3032,
+      "return_5d": -4.54,
+      "return_20d": -0.77,
+      "max_dd": 19.05,
+      "overall_score": 23.2,
+      "star_rating": 1,
+      "rank_short": -1.9,
+      "rank_medium": -0.2
+    },
+    "AGMH": {
+      "dir_prob": 0.01,
+      "return_5d": 498748160.0,
+      "return_20d": 3061496.5,
+      "max_dd": 70881824.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.3,
+      "rank_medium": -0.9
+    },
+    "IQV": {
+      "dir_prob": 0.01,
+      "return_5d": -2656723200.0,
+      "return_20d": -2417850624.0,
+      "max_dd": -1967349376.0,
+      "overall_score": 34.8,
+      "star_rating": 1,
+      "rank_short": -1.4,
+      "rank_medium": -2.3
+    },
+    "THRY": {
+      "dir_prob": 0.01,
+      "return_5d": 988165440.0,
+      "return_20d": 6065713.5,
+      "max_dd": 140437456.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.2,
+      "rank_medium": -0.6
+    },
+    "SG": {
+      "dir_prob": 0.01,
+      "return_5d": -171226032.0,
+      "return_20d": -155830736.0,
+      "max_dd": -126795872.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.7,
+      "rank_medium": 0.6
+    },
+    "VCIG": {
+      "dir_prob": 0.01,
+      "return_5d": 9416451072.0,
+      "return_20d": 57801720.0,
+      "max_dd": 1338260736.0,
+      "overall_score": 58.6,
+      "star_rating": 3,
+      "rank_short": -2.2,
+      "rank_medium": -0.4
+    },
+    "NP": {
+      "dir_prob": 0.2816,
+      "return_5d": -1.83,
+      "return_20d": 0.11,
+      "max_dd": 19.34,
+      "overall_score": 28.4,
+      "star_rating": 1,
+      "rank_short": -2.3,
+      "rank_medium": -1.7
+    },
+    "SSTK": {
+      "dir_prob": 0.01,
+      "return_5d": -278375872.0,
+      "return_20d": -253346496.0,
+      "max_dd": -206142160.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.7,
+      "rank_medium": -0.7
+    },
+    "RVLV": {
+      "dir_prob": 0.01,
+      "return_5d": -326307232.0,
+      "return_20d": -296968256.0,
+      "max_dd": -241636240.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.0,
+      "rank_medium": -2.4
+    },
+    "DNUT": {
+      "dir_prob": 0.2441,
+      "return_5d": 14.17,
+      "return_20d": 2.0,
+      "max_dd": 16.62,
+      "overall_score": 39.8,
+      "star_rating": 2,
+      "rank_short": -0.6,
+      "rank_medium": 0.1
+    },
+    "CXM": {
+      "dir_prob": 0.01,
+      "return_5d": -113012552.0,
+      "return_20d": -102851320.0,
+      "max_dd": -83687744.0,
+      "overall_score": 50.0,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": 0.8
+    },
+    "LAW": {
+      "dir_prob": 0.01,
+      "return_5d": 485287296.0,
+      "return_20d": 2978883.25,
+      "max_dd": 68968736.0,
+      "overall_score": 60.1,
+      "star_rating": 3,
+      "rank_short": -0.9,
+      "rank_medium": -1.4
+    },
+    "ADP": {
+      "dir_prob": 0.01,
+      "return_5d": -4039903744.0,
+      "return_20d": -3676667904.0,
+      "max_dd": -2991618304.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": 0.1,
+      "rank_medium": -0.4
+    },
+    "STAA": {
+      "dir_prob": 0.01,
+      "return_5d": -303493216.0,
+      "return_20d": -276205408.0,
+      "max_dd": -224741968.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.1,
+      "rank_medium": 0.2
+    },
+    "PAYX": {
+      "dir_prob": 0.01,
+      "return_5d": -1870326272.0,
+      "return_20d": -1702161152.0,
+      "max_dd": -1385008896.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -1.5,
+      "rank_medium": -1.9
+    },
+    "IBEX": {
+      "dir_prob": 0.01,
+      "return_5d": -445890752.0,
+      "return_20d": -405799616.0,
+      "max_dd": -330189856.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -1.9
+    },
+    "STEM": {
+      "dir_prob": 0.01,
+      "return_5d": -194533168.0,
+      "return_20d": -177042160.0,
+      "max_dd": -144055120.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.6,
+      "rank_medium": -1.5
+    },
+    "CYRX": {
+      "dir_prob": 0.01,
+      "return_5d": -113330072.0,
+      "return_20d": -103140328.0,
+      "max_dd": -83922888.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.6,
+      "rank_medium": -1.3
+    },
+    "AKAN": {
+      "dir_prob": 0.3399,
+      "return_5d": -6.8,
+      "return_20d": -1.24,
+      "max_dd": 28.76,
+      "overall_score": 18.1,
+      "star_rating": 1,
+      "rank_short": -2.1,
+      "rank_medium": -1.8
+    },
+    "ADIL": {
+      "dir_prob": 0.01,
+      "return_5d": 47121544.0,
+      "return_20d": 289265.59,
+      "max_dd": 6696949.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": -1.7
+    },
+    "TBLA": {
+      "dir_prob": 0.01,
+      "return_5d": 317588160.0,
+      "return_20d": 1949482.62,
+      "max_dd": 45135436.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.2,
+      "rank_medium": 0.5
+    },
+    "LPSN": {
+      "dir_prob": 0.1761,
+      "return_5d": -1.99,
+      "return_20d": 0.57,
+      "max_dd": 25.69,
+      "overall_score": 27.5,
+      "star_rating": 1,
+      "rank_short": -1.2,
+      "rank_medium": -0.6
+    },
+    "FICO": {
+      "dir_prob": 0.01,
+      "return_5d": -23754737664.0,
+      "return_20d": -21618903040.0,
+      "max_dd": -17590804480.0,
+      "overall_score": 40.2,
+      "star_rating": 2,
+      "rank_short": -0.7,
+      "rank_medium": -2.2
+    },
+    "TCMD": {
+      "dir_prob": 0.4054,
+      "return_5d": -2.14,
+      "return_20d": -0.75,
+      "max_dd": 12.42,
+      "overall_score": 23.2,
+      "star_rating": 1,
+      "rank_short": -2.0,
+      "rank_medium": -2.2
+    },
+    "STEX": {
+      "dir_prob": 0.1194,
+      "return_5d": -17.48,
+      "return_20d": -1.61,
+      "max_dd": 26.99,
+      "overall_score": 27.0,
+      "star_rating": 1,
+      "rank_short": -1.4,
+      "rank_medium": -0.7
+    },
+    "SUIG": {
+      "dir_prob": 0.2799,
+      "return_5d": 4.89,
+      "return_20d": 1.35,
+      "max_dd": 18.86,
+      "overall_score": 35.6,
+      "star_rating": 2,
+      "rank_short": -0.3,
+      "rank_medium": -0.4
+    },
+    "BRLT": {
+      "dir_prob": 0.01,
+      "return_5d": 162237584.0,
+      "return_20d": 995871.69,
+      "max_dd": 23057120.0,
+      "overall_score": 61.1,
+      "star_rating": 3,
+      "rank_short": -0.4,
+      "rank_medium": -0.6
+    },
+    "KRC": {
+      "dir_prob": 0.01,
+      "return_5d": -521274528.0,
+      "return_20d": -474405280.0,
+      "max_dd": -386012672.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -1.4,
+      "rank_medium": -2.0
+    },
+    "GDYN": {
+      "dir_prob": 0.01,
+      "return_5d": -152363344.0,
+      "return_20d": -138664032.0,
+      "max_dd": -112827688.0,
+      "overall_score": 45.1,
+      "star_rating": 2,
+      "rank_short": -1.8,
+      "rank_medium": -0.2
+    },
+    "BBGI": {
+      "dir_prob": 0.01,
+      "return_5d": 475065056.0,
+      "return_20d": 2916118.0,
+      "max_dd": 67515936.0,
+      "overall_score": 58.3,
+      "star_rating": 3,
+      "rank_short": -1.1,
+      "rank_medium": -0.7
+    },
+    "HCAT": {
+      "dir_prob": 0.01,
+      "return_5d": 303722528.0,
+      "return_20d": 1864356.5,
+      "max_dd": 43164836.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.0,
+      "rank_medium": 0.1
+    },
+    "FOX": {
+      "dir_prob": 0.01,
+      "return_5d": -765087680.0,
+      "return_20d": -696296832.0,
+      "max_dd": -566560640.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -1.3
+    },
+    "RC": {
+      "dir_prob": 0.01,
+      "return_5d": 360282912.0,
+      "return_20d": 2211537.75,
+      "max_dd": 51203192.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -1.0,
+      "rank_medium": -0.0
+    },
+    "DH": {
+      "dir_prob": 0.01,
+      "return_5d": 287796576.0,
+      "return_20d": 1766600.12,
+      "max_dd": 40901472.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.3,
+      "rank_medium": 0.2
+    },
+    "TLYS": {
+      "dir_prob": 0.01,
+      "return_5d": 168691408.0,
+      "return_20d": 1035487.56,
+      "max_dd": 23974340.0,
+      "overall_score": 59.9,
+      "star_rating": 3,
+      "rank_short": -0.1,
+      "rank_medium": -0.6
+    },
+    "CPOP": {
+      "dir_prob": 0.01,
+      "return_5d": 63260300.0,
+      "return_20d": 388317.72,
+      "max_dd": 8990539.0,
+      "overall_score": 60.6,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": 0.3
+    },
+    "HNST": {
+      "dir_prob": 0.308,
+      "return_5d": -3.93,
+      "return_20d": 0.95,
+      "max_dd": 17.59,
+      "overall_score": 27.0,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -0.0
+    },
+    "ASST": {
+      "dir_prob": 0.01,
+      "return_5d": -756411200.0,
+      "return_20d": -688400576.0,
+      "max_dd": -560135616.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -2.4,
+      "rank_medium": -1.8
+    },
+    "SIEB": {
+      "dir_prob": 0.01,
+      "return_5d": 305985120.0,
+      "return_20d": 1878247.88,
+      "max_dd": 43486444.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.7,
+      "rank_medium": 0.2
+    },
+    "BBSI": {
+      "dir_prob": 0.01,
+      "return_5d": -576983808.0,
+      "return_20d": -525105952.0,
+      "max_dd": -427266560.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.4,
+      "rank_medium": -0.7
+    },
+    "BLND": {
+      "dir_prob": 0.01,
+      "return_5d": 299040800.0,
+      "return_20d": 1835613.75,
+      "max_dd": 42499492.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.6,
+      "rank_medium": -0.2
+    },
+    "KTTA": {
+      "dir_prob": 0.01,
+      "return_5d": 84288472.0,
+      "return_20d": 517391.06,
+      "max_dd": 11979058.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": 0.1
+    },
+    "PHR": {
+      "dir_prob": 0.01,
+      "return_5d": -338161024.0,
+      "return_20d": -307756320.0,
+      "max_dd": -250414080.0,
+      "overall_score": 50.0,
+      "star_rating": 3,
+      "rank_short": -2.3,
+      "rank_medium": -1.4
+    },
+    "GENK": {
+      "dir_prob": 0.01,
+      "return_5d": 334737536.0,
+      "return_20d": 2054738.0,
+      "max_dd": 47572696.0,
+      "overall_score": 68.6,
+      "star_rating": 4,
+      "rank_short": -0.6,
+      "rank_medium": -0.2
+    },
+    "GDDY": {
+      "dir_prob": 0.01,
+      "return_5d": -2113932800.0,
+      "return_20d": -1923864448.0,
+      "max_dd": -1565404160.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -0.4,
+      "rank_medium": -2.5
+    },
+    "BRN": {
+      "dir_prob": 0.01,
+      "return_5d": 117034896.0,
+      "return_20d": 718396.75,
+      "max_dd": 16632944.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.2,
+      "rank_medium": -0.7
+    },
+    "BIRD": {
+      "dir_prob": 0.01,
+      "return_5d": 600218240.0,
+      "return_20d": 3684355.75,
+      "max_dd": 85302656.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -1.1,
+      "rank_medium": -0.2
+    },
+    "NDLS": {
+      "dir_prob": 0.01,
+      "return_5d": 75174232.0,
+      "return_20d": 461445.97,
+      "max_dd": 10683736.0,
+      "overall_score": 66.2,
+      "star_rating": 4,
+      "rank_short": -0.4,
+      "rank_medium": 0.2
+    },
+    "GRWG": {
+      "dir_prob": 0.01,
+      "return_5d": 121873424.0,
+      "return_20d": 748107.81,
+      "max_dd": 17320602.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.1,
+      "rank_medium": -0.6
+    },
+    "ABP": {
+      "dir_prob": 0.01,
+      "return_5d": 658949120.0,
+      "return_20d": 4044871.75,
+      "max_dd": 93649472.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.8,
+      "rank_medium": -2.9
+    },
+    "DOX": {
+      "dir_prob": 0.01,
+      "return_5d": -1196976000.0,
+      "return_20d": -1089353344.0,
+      "max_dd": -886382016.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -0.8,
+      "rank_medium": -2.2
+    },
+    "VERI": {
+      "dir_prob": 0.01,
+      "return_5d": 305512640.0,
+      "return_20d": 1875340.25,
+      "max_dd": 43419264.0,
+      "overall_score": 56.2,
+      "star_rating": 3,
+      "rank_short": -1.0,
+      "rank_medium": -0.2
+    },
+    "TYRA": {
+      "dir_prob": 0.4166,
+      "return_5d": -1.23,
+      "return_20d": 0.5,
+      "max_dd": 8.16,
+      "overall_score": 15.2,
+      "star_rating": 1,
+      "rank_short": -1.4,
+      "rank_medium": -1.4
+    },
+    "YELP": {
+      "dir_prob": 0.01,
+      "return_5d": -460285984.0,
+      "return_20d": -418900896.0,
+      "max_dd": -340849952.0,
+      "overall_score": 39.4,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -1.7
+    },
+    "PRME": {
+      "dir_prob": 0.01,
+      "return_5d": 299478272.0,
+      "return_20d": 1838304.5,
+      "max_dd": 42561688.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": 0.2
+    },
+    "CYPH": {
+      "dir_prob": 0.163,
+      "return_5d": -14.04,
+      "return_20d": -0.55,
+      "max_dd": 26.34,
+      "overall_score": 23.4,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -1.8
+    },
+    "BXP": {
+      "dir_prob": 0.394,
+      "return_5d": -3.3,
+      "return_20d": -1.2,
+      "max_dd": 12.34,
+      "overall_score": 31.0,
+      "star_rating": 1,
+      "rank_short": -0.5,
+      "rank_medium": -1.6
+    },
+    "CAI": {
+      "dir_prob": 0.3594,
+      "return_5d": -2.76,
+      "return_20d": -0.69,
+      "max_dd": 13.55,
+      "overall_score": 31.0,
+      "star_rating": 1,
+      "rank_short": -2.6,
+      "rank_medium": -2.2
+    },
+    "SNES": {
+      "dir_prob": 0.01,
+      "return_5d": 300511776.0,
+      "return_20d": 1844641.12,
+      "max_dd": 42708540.0,
+      "overall_score": 59.3,
+      "star_rating": 3,
+      "rank_short": -1.0,
+      "rank_medium": 0.4
+    },
+    "CBZ": {
+      "dir_prob": 0.01,
+      "return_5d": -870165248.0,
+      "return_20d": -791926976.0,
+      "max_dd": -644372544.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -2.2,
+      "rank_medium": -2.5
+    },
+    "TBCH": {
+      "dir_prob": 0.01,
+      "return_5d": -195788512.0,
+      "return_20d": -178184752.0,
+      "max_dd": -144984800.0,
+      "overall_score": 41.5,
+      "star_rating": 2,
+      "rank_short": -1.0,
+      "rank_medium": -1.1
+    },
+    "NRC": {
+      "dir_prob": 0.01,
+      "return_5d": -212524832.0,
+      "return_20d": -193416272.0,
+      "max_dd": -157378304.0,
+      "overall_score": 32.2,
+      "star_rating": 1,
+      "rank_short": -1.2,
+      "rank_medium": -0.7
+    },
+    "GAMB": {
+      "dir_prob": 0.01,
+      "return_5d": 883062016.0,
+      "return_20d": 5420542.0,
+      "max_dd": 125500424.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.9,
+      "rank_medium": -0.5
+    },
+    "CSGP": {
+      "dir_prob": 0.01,
+      "return_5d": -1075197568.0,
+      "return_20d": -978523904.0,
+      "max_dd": -796202112.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -2.1,
+      "rank_medium": -2.7
+    },
+    "CRMT": {
+      "dir_prob": 0.01,
+      "return_5d": -539926144.0,
+      "return_20d": -491380224.0,
+      "max_dd": -399824736.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.2,
+      "rank_medium": -1.2
+    },
+    "HURN": {
+      "dir_prob": 0.01,
+      "return_5d": -2107474176.0,
+      "return_20d": -1917986432.0,
+      "max_dd": -1560621312.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -0.7,
+      "rank_medium": -2.8
+    },
+    "GOGO": {
+      "dir_prob": 0.01,
+      "return_5d": 823577344.0,
+      "return_20d": 5055421.5,
+      "max_dd": 117046216.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -1.3,
+      "rank_medium": -0.8
+    },
+    "PCTY": {
+      "dir_prob": 0.01,
+      "return_5d": -2379950592.0,
+      "return_20d": -2165964288.0,
+      "max_dd": -1762396032.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -1.5,
+      "rank_medium": -3.2
+    },
+    "BL": {
+      "dir_prob": 0.01,
+      "return_5d": -747756864.0,
+      "return_20d": -680524544.0,
+      "max_dd": -553726912.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -1.6,
+      "rank_medium": -2.0
+    },
+    "LFT": {
+      "dir_prob": 0.01,
+      "return_5d": 193573184.0,
+      "return_20d": 1188218.62,
+      "max_dd": 27510534.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": 0.0,
+      "rank_medium": -0.8
+    },
+    "NTRB": {
+      "dir_prob": 0.1536,
+      "return_5d": -16.69,
+      "return_20d": -1.79,
+      "max_dd": 24.88,
+      "overall_score": 12.3,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": -0.9
+    },
+    "PROF": {
+      "dir_prob": 0.01,
+      "return_5d": -84355928.0,
+      "return_20d": -76771312.0,
+      "max_dd": -62467036.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.8,
+      "rank_medium": -0.9
+    },
+    "IINN": {
+      "dir_prob": 0.01,
+      "return_5d": 85003448.0,
+      "return_20d": 521783.56,
+      "max_dd": 12080673.0,
+      "overall_score": 66.4,
+      "star_rating": 4,
+      "rank_short": -0.5,
+      "rank_medium": -0.5
+    },
+    "CARL": {
+      "dir_prob": 0.3486,
+      "return_5d": -3.54,
+      "return_20d": -0.32,
+      "max_dd": 15.62,
+      "overall_score": 31.1,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -0.3
+    },
+    "TTEC": {
+      "dir_prob": 0.01,
+      "return_5d": 352175744.0,
+      "return_20d": 2161779.25,
+      "max_dd": 50051028.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.8,
+      "rank_medium": -0.2
+    },
+    "ELOG": {
+      "dir_prob": 0.3326,
+      "return_5d": -6.78,
+      "return_20d": 1.14,
+      "max_dd": 24.11,
+      "overall_score": 29.9,
+      "star_rating": 1,
+      "rank_short": -1.0,
+      "rank_medium": -1.6
+    },
+    "CTLP": {
+      "dir_prob": 0.01,
+      "return_5d": -140777568.0,
+      "return_20d": -128119952.0,
+      "max_dd": -104248232.0,
+      "overall_score": 34.2,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": 1.6
+    },
+    "SMPL": {
+      "dir_prob": 0.01,
+      "return_5d": -392775008.0,
+      "return_20d": -357459840.0,
+      "max_dd": -290856960.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -0.6,
+      "rank_medium": 0.9
+    },
+    "EXFY": {
+      "dir_prob": 0.01,
+      "return_5d": 200836352.0,
+      "return_20d": 1232807.0,
+      "max_dd": 28542770.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.8,
+      "rank_medium": -1.2
+    },
+    "FIGS": {
+      "dir_prob": 0.01,
+      "return_5d": -101548352.0,
+      "return_20d": -92417944.0,
+      "max_dd": -75198312.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.0,
+      "rank_medium": 0.6
+    },
+    "EVEX": {
+      "dir_prob": 0.01,
+      "return_5d": 410386464.0,
+      "return_20d": 2519104.75,
+      "max_dd": 58323912.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": -0.2
+    },
+    "GSHD": {
+      "dir_prob": 0.01,
+      "return_5d": -1246903296.0,
+      "return_20d": -1134791808.0,
+      "max_dd": -923353920.0,
+      "overall_score": 43.4,
+      "star_rating": 2,
+      "rank_short": -1.8,
+      "rank_medium": -2.5
+    },
+    "WDAY": {
+      "dir_prob": 0.3066,
+      "return_5d": -4.08,
+      "return_20d": -2.01,
+      "max_dd": 16.15,
+      "overall_score": 31.0,
+      "star_rating": 1,
+      "rank_short": -2.1,
+      "rank_medium": -1.9
+    },
+    "BTMD": {
+      "dir_prob": 0.01,
+      "return_5d": 306572608.0,
+      "return_20d": 1881840.62,
+      "max_dd": 43569952.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.1,
+      "rank_medium": -0.1
+    },
+    "RDZN": {
+      "dir_prob": 0.01,
+      "return_5d": 114691728.0,
+      "return_20d": 704019.44,
+      "max_dd": 16299957.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": -0.9
+    },
+    "ZIP": {
+      "dir_prob": 0.3301,
+      "return_5d": 35.71,
+      "return_20d": 1.08,
+      "max_dd": 19.7,
+      "overall_score": 43.8,
+      "star_rating": 2,
+      "rank_short": -0.4,
+      "rank_medium": 0.2
+    },
+    "LSPD": {
+      "dir_prob": 0.01,
+      "return_5d": -161848640.0,
+      "return_20d": -147296432.0,
+      "max_dd": -119851720.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -2.0,
+      "rank_medium": 0.1
+    },
+    "GPRO": {
+      "dir_prob": 0.2607,
+      "return_5d": 24.74,
+      "return_20d": 3.09,
+      "max_dd": 18.41,
+      "overall_score": 38.6,
+      "star_rating": 2,
+      "rank_short": -0.3,
+      "rank_medium": -0.4
+    },
+    "REAX": {
+      "dir_prob": 0.01,
+      "return_5d": 379903264.0,
+      "return_20d": 2331969.5,
+      "max_dd": 53991620.0,
+      "overall_score": 65.9,
+      "star_rating": 4,
+      "rank_short": -0.5,
+      "rank_medium": 0.7
+    },
+    "NRDS": {
+      "dir_prob": 0.01,
+      "return_5d": -157368624.0,
+      "return_20d": -143219280.0,
+      "max_dd": -116534216.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.2,
+      "rank_medium": -0.3
+    },
+    "PAR": {
+      "dir_prob": 0.01,
+      "return_5d": -699449152.0,
+      "return_20d": -636560000.0,
+      "max_dd": -517954304.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -2.5,
+      "rank_medium": -2.8
+    },
+    "YDES": {
+      "dir_prob": 0.404,
+      "return_5d": -3.08,
+      "return_20d": -0.83,
+      "max_dd": 13.45,
+      "overall_score": 23.3,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": 0.5
+    },
+    "CRM": {
+      "dir_prob": 0.01,
+      "return_5d": -3663436032.0,
+      "return_20d": -3334049536.0,
+      "max_dd": -2712839168.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": -2.0,
+      "rank_medium": -1.7
+    },
+    "AMPL": {
+      "dir_prob": 0.01,
+      "return_5d": -154275792.0,
+      "return_20d": -140404544.0,
+      "max_dd": -114243904.0,
+      "overall_score": 50.0,
+      "star_rating": 3,
+      "rank_short": -1.7,
+      "rank_medium": -0.4
+    },
+    "VRDN": {
+      "dir_prob": 0.01,
+      "return_5d": -292367648.0,
+      "return_20d": -266080272.0,
+      "max_dd": -216503344.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.4,
+      "rank_medium": -2.4
+    },
+    "CELH": {
+      "dir_prob": 0.01,
+      "return_5d": -643344896.0,
+      "return_20d": -585500288.0,
+      "max_dd": -476407936.0,
+      "overall_score": 42.0,
+      "star_rating": 2,
+      "rank_short": -2.3,
+      "rank_medium": -2.6
+    },
+    "RGP": {
+      "dir_prob": 0.01,
+      "return_5d": 476027104.0,
+      "return_20d": 2922003.0,
+      "max_dd": 67652736.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.9,
+      "rank_medium": 0.3
+    },
+    "CSPI": {
+      "dir_prob": 0.01,
+      "return_5d": -182356160.0,
+      "return_20d": -165960128.0,
+      "max_dd": -135037824.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.4,
+      "rank_medium": -0.4
+    },
+    "WETO": {
+      "dir_prob": 0.3558,
+      "return_5d": -9.23,
+      "return_20d": 0.16,
+      "max_dd": 21.13,
+      "overall_score": 23.5,
+      "star_rating": 1,
+      "rank_short": -1.3,
+      "rank_medium": -0.6
+    },
+    "ONFO": {
+      "dir_prob": 0.01,
+      "return_5d": 90310928.0,
+      "return_20d": 554359.25,
+      "max_dd": 12834953.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.7,
+      "rank_medium": -0.9
+    },
+    "GDOT": {
+      "dir_prob": 0.01,
+      "return_5d": -153384096.0,
+      "return_20d": -139592944.0,
+      "max_dd": -113583584.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.5,
+      "rank_medium": 0.1
+    },
+    "RBOT": {
+      "dir_prob": 0.2917,
+      "return_5d": -0.11,
+      "return_20d": -0.15,
+      "max_dd": 28.12,
+      "overall_score": 31.0,
+      "star_rating": 1,
+      "rank_short": -0.4,
+      "rank_medium": -1.0
+    },
+    "DRMA": {
+      "dir_prob": 0.01,
+      "return_5d": 536784192.0,
+      "return_20d": 3294973.0,
+      "max_dd": 76287448.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -1.7,
+      "rank_medium": -0.4
+    },
+    "TCX": {
+      "dir_prob": 0.01,
+      "return_5d": -275158048.0,
+      "return_20d": -250418048.0,
+      "max_dd": -203759440.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.4,
+      "rank_medium": -0.1
+    },
+    "GFAI": {
+      "dir_prob": 0.01,
+      "return_5d": 90243392.0,
+      "return_20d": 553947.69,
+      "max_dd": 12825343.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -0.7,
+      "rank_medium": -0.2
+    },
+    "SPGI": {
+      "dir_prob": 0.01,
+      "return_5d": -7159104000.0,
+      "return_20d": -6515411456.0,
+      "max_dd": -5301440000.0,
+      "overall_score": 41.3,
+      "star_rating": 2,
+      "rank_short": -1.3,
+      "rank_medium": -2.0
+    },
+    "HRTX": {
+      "dir_prob": 0.3113,
+      "return_5d": -3.8,
+      "return_20d": 0.77,
+      "max_dd": 15.93,
+      "overall_score": 23.7,
+      "star_rating": 1,
+      "rank_short": -0.5,
+      "rank_medium": -0.6
+    },
+    "SUUN": {
+      "dir_prob": 0.01,
+      "return_5d": 178468864.0,
+      "return_20d": 1095501.62,
+      "max_dd": 25363912.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.1,
+      "rank_medium": -1.1
+    },
+    "SFIX": {
+      "dir_prob": 0.01,
+      "return_5d": 403393632.0,
+      "return_20d": 2476162.75,
+      "max_dd": 57330040.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": -0.4
+    },
+    "BMBL": {
+      "dir_prob": 0.01,
+      "return_5d": 464552512.0,
+      "return_20d": 2851586.0,
+      "max_dd": 66021856.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": -0.4,
+      "rank_medium": 0.5
+    },
+    "DFIN": {
+      "dir_prob": 0.3319,
+      "return_5d": -4.68,
+      "return_20d": -0.87,
+      "max_dd": 15.91,
+      "overall_score": 27.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -2.8
+    },
+    "APPN": {
+      "dir_prob": 0.01,
+      "return_5d": -447047168.0,
+      "return_20d": -406852096.0,
+      "max_dd": -331046240.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.7,
+      "rank_medium": -2.7
+    },
+    "GWAV": {
+      "dir_prob": 0.01,
+      "return_5d": 1521451776.0,
+      "return_20d": 9339209.0,
+      "max_dd": 216227744.0,
+      "overall_score": 65.1,
+      "star_rating": 4,
+      "rank_short": -1.5,
+      "rank_medium": -2.2
+    },
+    "OSTX": {
+      "dir_prob": 0.01,
+      "return_5d": 158782160.0,
+      "return_20d": 974653.69,
+      "max_dd": 22566064.0,
+      "overall_score": 51.0,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": -0.8
+    },
+    "FDS": {
+      "dir_prob": 0.01,
+      "return_5d": -5084048896.0,
+      "return_20d": -4626929664.0,
+      "max_dd": -3764826880.0,
+      "overall_score": 37.0,
+      "star_rating": 2,
+      "rank_short": -1.8,
+      "rank_medium": -2.7
+    },
+    "ICFI": {
+      "dir_prob": 0.3996,
+      "return_5d": -4.13,
+      "return_20d": -1.34,
+      "max_dd": 12.69,
+      "overall_score": 23.0,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -2.2
+    },
+    "VRAX": {
+      "dir_prob": 0.3341,
+      "return_5d": 4.79,
+      "return_20d": 2.66,
+      "max_dd": 23.06,
+      "overall_score": 37.8,
+      "star_rating": 2,
+      "rank_short": -1.2,
+      "rank_medium": 0.3
+    },
+    "VIA": {
+      "dir_prob": 0.2495,
+      "return_5d": -6.48,
+      "return_20d": -1.28,
+      "max_dd": 21.46,
+      "overall_score": 23.0,
+      "star_rating": 1,
+      "rank_short": -1.9,
+      "rank_medium": -1.5
+    },
+    "PHAT": {
+      "dir_prob": 0.01,
+      "return_5d": -142148976.0,
+      "return_20d": -129368080.0,
+      "max_dd": -105263856.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.9,
+      "rank_medium": -1.4
+    },
+    "RNAC": {
+      "dir_prob": 0.01,
+      "return_5d": -146191536.0,
+      "return_20d": -133047176.0,
+      "max_dd": -108257376.0,
+      "overall_score": 33.9,
+      "star_rating": 1,
+      "rank_short": -1.2,
+      "rank_medium": 0.1
+    },
+    "INAB": {
+      "dir_prob": 0.3221,
+      "return_5d": -7.92,
+      "return_20d": 1.37,
+      "max_dd": 17.38,
+      "overall_score": 15.6,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": 0.1
+    },
+    "CPRT": {
+      "dir_prob": 0.01,
+      "return_5d": -683492864.0,
+      "return_20d": -622038720.0,
+      "max_dd": -506138336.0,
+      "overall_score": 46.0,
+      "star_rating": 2,
+      "rank_short": 0.4,
+      "rank_medium": 0.0
+    },
+    "ASBP": {
+      "dir_prob": 0.2286,
+      "return_5d": -0.05,
+      "return_20d": -3.25,
+      "max_dd": 34.12,
+      "overall_score": 15.5,
+      "star_rating": 1,
+      "rank_short": -1.6,
+      "rank_medium": -1.9
+    },
+    "MYGN": {
+      "dir_prob": 0.01,
+      "return_5d": 613177664.0,
+      "return_20d": 3763912.5,
+      "max_dd": 87144456.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": -0.3
+    },
+    "GIB": {
+      "dir_prob": 0.01,
+      "return_5d": -1380259072.0,
+      "return_20d": -1256156544.0,
+      "max_dd": -1022105664.0,
+      "overall_score": 50.0,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": 0.2
+    },
+    "SLDP": {
+      "dir_prob": 0.2546,
+      "return_5d": 8.12,
+      "return_20d": 0.42,
+      "max_dd": 18.92,
+      "overall_score": 39.0,
+      "star_rating": 2,
+      "rank_short": -1.0,
+      "rank_medium": -0.2
+    },
+    "SMRT": {
+      "dir_prob": 0.01,
+      "return_5d": 120805944.0,
+      "return_20d": 741551.19,
+      "max_dd": 17168886.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.2,
+      "rank_medium": -0.5
+    },
+    "PLTK": {
+      "dir_prob": 0.2116,
+      "return_5d": -16.53,
+      "return_20d": -3.22,
+      "max_dd": 7.06,
+      "overall_score": 23.2,
+      "star_rating": 1,
+      "rank_short": -0.2,
+      "rank_medium": 1.4
+    },
+    "MSCI": {
+      "dir_prob": 0.01,
+      "return_5d": -7925069312.0,
+      "return_20d": -7212509184.0,
+      "max_dd": -5868650496.0,
+      "overall_score": 32.9,
+      "star_rating": 1,
+      "rank_short": -1.6,
+      "rank_medium": -2.5
+    },
+    "TBHC": {
+      "dir_prob": 0.3585,
+      "return_5d": -6.04,
+      "return_20d": 0.04,
+      "max_dd": 19.81,
+      "overall_score": 12.5,
+      "star_rating": 1,
+      "rank_short": 0.2,
+      "rank_medium": -1.4
+    },
+    "IMDX": {
+      "dir_prob": 0.2904,
+      "return_5d": -6.92,
+      "return_20d": -1.69,
+      "max_dd": 18.35,
+      "overall_score": 20.7,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -0.3
+    },
+    "RYTM": {
+      "dir_prob": 0.3443,
+      "return_5d": -5.62,
+      "return_20d": -1.47,
+      "max_dd": 16.01,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -2.2
+    },
+    "RSI": {
+      "dir_prob": 0.01,
+      "return_5d": -226988880.0,
+      "return_20d": -206579840.0,
+      "max_dd": -168089200.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.7,
+      "rank_medium": -0.2
+    },
+    "BEAT": {
+      "dir_prob": 0.01,
+      "return_5d": 149016448.0,
+      "return_20d": 914713.81,
+      "max_dd": 21178146.0,
+      "overall_score": 47.0,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -1.0
+    },
+    "BBW": {
+      "dir_prob": 0.01,
+      "return_5d": -726688768.0,
+      "return_20d": -661350720.0,
+      "max_dd": -538125632.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.8,
+      "rank_medium": -0.7
+    },
+    "SACH": {
+      "dir_prob": 0.3012,
+      "return_5d": -5.52,
+      "return_20d": 1.55,
+      "max_dd": 16.41,
+      "overall_score": 23.9,
+      "star_rating": 1,
+      "rank_short": -0.6,
+      "rank_medium": -0.8
+    },
+    "KALA": {
+      "dir_prob": 0.01,
+      "return_5d": 414461056.0,
+      "return_20d": 2544130.75,
+      "max_dd": 58902996.0,
+      "overall_score": 66.0,
+      "star_rating": 4,
+      "rank_short": -1.6,
+      "rank_medium": -0.7
+    },
+    "HSDT": {
+      "dir_prob": 0.01,
+      "return_5d": 7564097024.0,
+      "return_20d": 46431060.0,
+      "max_dd": 1075004416.0,
+      "overall_score": 60.0,
+      "star_rating": 3,
+      "rank_short": -1.3,
+      "rank_medium": -0.6
+    },
+    "FTEK": {
+      "dir_prob": 0.01,
+      "return_5d": 176403728.0,
+      "return_20d": 1082827.0,
+      "max_dd": 25070406.0,
+      "overall_score": 70.0,
+      "star_rating": 4,
+      "rank_short": 0.1,
+      "rank_medium": -0.2
+    },
+    "SPT": {
+      "dir_prob": 0.01,
+      "return_5d": -228245792.0,
+      "return_20d": -207723632.0,
+      "max_dd": -169019904.0,
+      "overall_score": 29.9,
+      "star_rating": 1,
+      "rank_short": -2.4,
+      "rank_medium": -0.8
+    },
+    "FCUV": {
+      "dir_prob": 0.0699,
+      "return_5d": -7.66,
+      "return_20d": -7.7,
+      "max_dd": 2.16,
+      "overall_score": 11.1,
+      "star_rating": 1,
+      "rank_short": -0.9,
+      "rank_medium": 0.3
+    },
+    "ARAI": {
+      "dir_prob": 0.3227,
+      "return_5d": 0.18,
+      "return_20d": -0.78,
+      "max_dd": 21.16,
+      "overall_score": 4.4,
+      "star_rating": 1,
+      "rank_short": -0.9,
+      "rank_medium": -1.2
+    },
+    "NRGV": {
+      "dir_prob": 0.01,
+      "return_5d": 214479072.0,
+      "return_20d": 1316540.38,
+      "max_dd": 30481656.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": -1.5
+    },
+    "BOW": {
+      "dir_prob": 0.3879,
+      "return_5d": -3.3,
+      "return_20d": -1.45,
+      "max_dd": 12.12,
+      "overall_score": 19.1,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -1.1
+    },
+    "BNRG": {
+      "dir_prob": 0.01,
+      "return_5d": 1884071168.0,
+      "return_20d": 11565139.0,
+      "max_dd": 267763040.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -1.2,
+      "rank_medium": -1.3
+    },
+    "NOTE": {
+      "dir_prob": 0.01,
+      "return_5d": 537711104.0,
+      "return_20d": 3300683.5,
+      "max_dd": 76419200.0,
+      "overall_score": 54.0,
+      "star_rating": 3,
+      "rank_short": -0.4,
+      "rank_medium": -0.7
+    },
+    "RDDT": {
+      "dir_prob": 0.01,
+      "return_5d": -2461034752.0,
+      "return_20d": -2239758080.0,
+      "max_dd": -1822438656.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -2.7
+    },
+    "PASG": {
+      "dir_prob": 0.1637,
+      "return_5d": -6.58,
+      "return_20d": 0.6,
+      "max_dd": 26.74,
+      "overall_score": 18.4,
+      "star_rating": 1,
+      "rank_short": -2.7,
+      "rank_medium": -0.7
+    },
+    "LYFT": {
+      "dir_prob": 0.01,
+      "return_5d": -235049312.0,
+      "return_20d": -213915392.0,
+      "max_dd": -174058000.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.2,
+      "rank_medium": -1.3
+    },
+    "JBGS": {
+      "dir_prob": 0.01,
+      "return_5d": -253462752.0,
+      "return_20d": -230673296.0,
+      "max_dd": -187693536.0,
+      "overall_score": 30.0,
+      "star_rating": 1,
+      "rank_short": -0.8,
+      "rank_medium": 0.2
+    },
+    "TRIP": {
+      "dir_prob": 0.01,
+      "return_5d": -214132768.0,
+      "return_20d": -194879616.0,
+      "max_dd": -158569040.0,
+      "overall_score": 34.2,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -0.9
+    },
+    "LESL": {
+      "dir_prob": 0.01,
+      "return_5d": 757888960.0,
+      "return_20d": 4652190.0,
+      "max_dd": 107710752.0,
+      "overall_score": 52.6,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": -1.9
+    },
+    "BAND": {
+      "dir_prob": 0.01,
+      "return_5d": -209364176.0,
+      "return_20d": -190539776.0,
+      "max_dd": -155037760.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.0,
+      "rank_medium": -0.5
+    },
+    "AIZ": {
+      "dir_prob": 0.4374,
+      "return_5d": -3.08,
+      "return_20d": -1.51,
+      "max_dd": 11.03,
+      "overall_score": 23.0,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": -0.9
+    },
+    "ADBE": {
+      "dir_prob": 0.01,
+      "return_5d": -5057592320.0,
+      "return_20d": -4602853888.0,
+      "max_dd": -3745235968.0,
+      "overall_score": 31.9,
+      "star_rating": 1,
+      "rank_short": -1.7,
+      "rank_medium": -2.5
+    },
+    "VINP": {
+      "dir_prob": 0.01,
+      "return_5d": -150134720.0,
+      "return_20d": -136635792.0,
+      "max_dd": -111177384.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": 0.1
+    },
+    "ACAD": {
+      "dir_prob": 0.01,
+      "return_5d": -310099104.0,
+      "return_20d": -282217312.0,
+      "max_dd": -229633712.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.8,
+      "rank_medium": 0.2
+    },
+    "GOCO": {
+      "dir_prob": 0.01,
+      "return_5d": 557436160.0,
+      "return_20d": 3421711.0,
+      "max_dd": 79222488.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -1.5,
+      "rank_medium": -0.1
+    },
+    "ASTH": {
+      "dir_prob": 0.01,
+      "return_5d": -383637728.0,
+      "return_20d": -349144096.0,
+      "max_dd": -284090304.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.7,
+      "rank_medium": -1.7
+    },
+    "QTRX": {
+      "dir_prob": 0.01,
+      "return_5d": -84492240.0,
+      "return_20d": -76895376.0,
+      "max_dd": -62567984.0,
+      "overall_score": 28.2,
+      "star_rating": 1,
+      "rank_short": -1.6,
+      "rank_medium": -0.9
+    },
+    "MAT": {
+      "dir_prob": 0.3943,
+      "return_5d": -5.45,
+      "return_20d": -1.97,
+      "max_dd": 13.89,
+      "overall_score": 16.1,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -0.0
+    },
+    "CHWY": {
+      "dir_prob": 0.01,
+      "return_5d": -511111168.0,
+      "return_20d": -465156192.0,
+      "max_dd": -378486720.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.8,
+      "rank_medium": -2.8
+    },
+    "QNTM": {
+      "dir_prob": 0.01,
+      "return_5d": 1136040832.0,
+      "return_20d": 6973419.5,
+      "max_dd": 161453392.0,
+      "overall_score": 43.0,
+      "star_rating": 2,
+      "rank_short": -1.6,
+      "rank_medium": -0.6
+    },
+    "VNO": {
+      "dir_prob": 0.01,
+      "return_5d": -528029568.0,
+      "return_20d": -480553440.0,
+      "max_dd": -391015136.0,
+      "overall_score": 36.0,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -2.1
+    },
+    "CDXS": {
+      "dir_prob": 0.01,
+      "return_5d": 222598624.0,
+      "return_20d": 1366388.75,
+      "max_dd": 31635614.0,
+      "overall_score": 54.1,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": -0.7
+    },
+    "SLG": {
+      "dir_prob": 0.01,
+      "return_5d": -767520320.0,
+      "return_20d": -698511040.0,
+      "max_dd": -568362112.0,
+      "overall_score": 27.9,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": -1.8
+    },
+    "FFAI": {
+      "dir_prob": 0.3765,
+      "return_5d": 5.96,
+      "return_20d": 0.44,
+      "max_dd": 18.88,
+      "overall_score": 29.9,
+      "star_rating": 1,
+      "rank_short": -0.3,
+      "rank_medium": -0.9
+    },
+    "PNNT": {
+      "dir_prob": 0.01,
+      "return_5d": -92913296.0,
+      "return_20d": -84559264.0,
+      "max_dd": -68803896.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.9,
+      "rank_medium": 1.5
+    },
+    "ZSPC": {
+      "dir_prob": 0.01,
+      "return_5d": 338699488.0,
+      "return_20d": 2079070.5,
+      "max_dd": 48135768.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": 0.1
+    },
+    "FA": {
+      "dir_prob": 0.01,
+      "return_5d": -214324096.0,
+      "return_20d": -195053792.0,
+      "max_dd": -158710768.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -0.7
+    },
+    "SLNO": {
+      "dir_prob": 0.01,
+      "return_5d": -885063744.0,
+      "return_20d": -805486144.0,
+      "max_dd": -655405632.0,
+      "overall_score": 30.0,
+      "star_rating": 1,
+      "rank_short": -2.3,
+      "rank_medium": -2.7
+    },
+    "HGTY": {
+      "dir_prob": 0.01,
+      "return_5d": -153886256.0,
+      "return_20d": -140049952.0,
+      "max_dd": -113955480.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.9,
+      "rank_medium": -0.2
+    },
+    "PINS": {
+      "dir_prob": 0.01,
+      "return_5d": -446238432.0,
+      "return_20d": -406116064.0,
+      "max_dd": -330447168.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.8,
+      "rank_medium": -1.5
+    },
+    "MRCC": {
+      "dir_prob": 0.4255,
+      "return_5d": -2.07,
+      "return_20d": -1.04,
+      "max_dd": 9.17,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -0.8,
+      "rank_medium": 1.1
+    },
+    "INM": {
+      "dir_prob": 0.01,
+      "return_5d": 205261408.0,
+      "return_20d": 1259960.25,
+      "max_dd": 29171642.0,
+      "overall_score": 39.0,
+      "star_rating": 2,
+      "rank_short": -0.2,
+      "rank_medium": -0.9
+    },
+    "FEIM": {
+      "dir_prob": 0.3918,
+      "return_5d": -3.46,
+      "return_20d": -0.63,
+      "max_dd": 12.01,
+      "overall_score": 15.0,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -2.8
+    },
+    "DHR": {
+      "dir_prob": 0.01,
+      "return_5d": -2926819328.0,
+      "return_20d": -2663663104.0,
+      "max_dd": -2167361792.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -2.0
+    },
+    "WVVI": {
+      "dir_prob": 0.01,
+      "return_5d": 419177536.0,
+      "return_20d": 2573078.0,
+      "max_dd": 59573328.0,
+      "overall_score": 43.0,
+      "star_rating": 2,
+      "rank_short": -1.2,
+      "rank_medium": -0.2
+    },
+    "DBX": {
+      "dir_prob": 0.01,
+      "return_5d": -399325184.0,
+      "return_20d": -363420992.0,
+      "max_dd": -295707328.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -0.5
+    },
+    "SLQT": {
+      "dir_prob": 0.3321,
+      "return_5d": 8.41,
+      "return_20d": 0.21,
+      "max_dd": 20.24,
+      "overall_score": 36.0,
+      "star_rating": 2,
+      "rank_short": -0.2,
+      "rank_medium": -0.7
+    },
+    "DASH": {
+      "dir_prob": 0.01,
+      "return_5d": -3116253952.0,
+      "return_20d": -2836064512.0,
+      "max_dd": -2307640320.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.9,
+      "rank_medium": -2.9
+    },
+    "HQY": {
+      "dir_prob": 0.01,
+      "return_5d": -1339827584.0,
+      "return_20d": -1219361024.0,
+      "max_dd": -992165632.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.0,
+      "rank_medium": -1.1
+    },
+    "STI": {
+      "dir_prob": 0.2342,
+      "return_5d": -6.8,
+      "return_20d": -0.8,
+      "max_dd": 24.85,
+      "overall_score": 11.1,
+      "star_rating": 1,
+      "rank_short": -2.4,
+      "rank_medium": 0.1
+    },
+    "NCNO": {
+      "dir_prob": 0.01,
+      "return_5d": -370305792.0,
+      "return_20d": -337010816.0,
+      "max_dd": -274217952.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.4,
+      "rank_medium": -1.1
+    },
+    "ACVA": {
+      "dir_prob": 0.01,
+      "return_5d": -168137536.0,
+      "return_20d": -153019872.0,
+      "max_dd": -124508728.0,
+      "overall_score": 30.1,
+      "star_rating": 1,
+      "rank_short": -2.1,
+      "rank_medium": -0.4
+    },
+    "NCPL": {
+      "dir_prob": 0.01,
+      "return_5d": 200880336.0,
+      "return_20d": 1233077.62,
+      "max_dd": 28548998.0,
+      "overall_score": 49.6,
+      "star_rating": 2,
+      "rank_short": -1.3,
+      "rank_medium": -0.9
+    },
+    "YAAS": {
+      "dir_prob": 0.01,
+      "return_5d": 6758171136.0,
+      "return_20d": 41484212.0,
+      "max_dd": 960467456.0,
+      "overall_score": 62.0,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": -0.1
+    },
+    "ARLO": {
+      "dir_prob": 0.01,
+      "return_5d": -203779600.0,
+      "return_20d": -185457360.0,
+      "max_dd": -150902320.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.4,
+      "rank_medium": -0.2
+    },
+    "SNAP": {
+      "dir_prob": 0.01,
+      "return_5d": 740699968.0,
+      "return_20d": 4546672.5,
+      "max_dd": 105267896.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.8,
+      "rank_medium": -0.3
+    },
+    "FRSH": {
+      "dir_prob": 0.01,
+      "return_5d": -190182560.0,
+      "return_20d": -173082816.0,
+      "max_dd": -140833536.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.5,
+      "rank_medium": -1.4
+    },
+    "RRGB": {
+      "dir_prob": 0.01,
+      "return_5d": 443300416.0,
+      "return_20d": 2721148.5,
+      "max_dd": 63001568.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": 1.0
+    },
+    "AREN": {
+      "dir_prob": 0.01,
+      "return_5d": 419539456.0,
+      "return_20d": 2575274.0,
+      "max_dd": 59624692.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": 0.1
+    },
+    "UNM": {
+      "dir_prob": 0.01,
+      "return_5d": -1084061440.0,
+      "return_20d": -986590912.0,
+      "max_dd": -802766528.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.0,
+      "rank_medium": -0.8
+    },
+    "EUDA": {
+      "dir_prob": 0.01,
+      "return_5d": 258980672.0,
+      "return_20d": 1589708.62,
+      "max_dd": 36806156.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -1.4,
+      "rank_medium": -0.5
+    },
+    "AIOT": {
+      "dir_prob": 0.291,
+      "return_5d": 9.21,
+      "return_20d": -0.63,
+      "max_dd": 17.56,
+      "overall_score": 37.5,
+      "star_rating": 2,
+      "rank_short": -1.2,
+      "rank_medium": -0.6
+    },
+    "ABNB": {
+      "dir_prob": 0.01,
+      "return_5d": -1800102528.0,
+      "return_20d": -1638251392.0,
+      "max_dd": -1333007232.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.0,
+      "rank_medium": -1.7
+    },
+    "CRL": {
+      "dir_prob": 0.01,
+      "return_5d": -2324823040.0,
+      "return_20d": -2115792768.0,
+      "max_dd": -1721571328.0,
+      "overall_score": 31.6,
+      "star_rating": 1,
+      "rank_short": -1.8,
+      "rank_medium": -2.7
+    },
+    "DGXX": {
+      "dir_prob": 0.2505,
+      "return_5d": -9.41,
+      "return_20d": -1.08,
+      "max_dd": 23.29,
+      "overall_score": 12.4,
+      "star_rating": 1,
+      "rank_short": -0.6,
+      "rank_medium": -1.4
+    },
+    "QNST": {
+      "dir_prob": 0.01,
+      "return_5d": -218858768.0,
+      "return_20d": -199180624.0,
+      "max_dd": -162068704.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -0.9
+    },
+    "FTRE": {
+      "dir_prob": 0.3395,
+      "return_5d": -5.69,
+      "return_20d": -1.42,
+      "max_dd": 17.24,
+      "overall_score": 15.1,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -0.1
+    },
+    "LFWD": {
+      "dir_prob": 0.0882,
+      "return_5d": 406.85,
+      "return_20d": 0.86,
+      "max_dd": 59.92,
+      "overall_score": 26.8,
+      "star_rating": 1,
+      "rank_short": -0.5,
+      "rank_medium": -1.3
+    },
+    "DMRC": {
+      "dir_prob": 0.01,
+      "return_5d": -167782000.0,
+      "return_20d": -152696384.0,
+      "max_dd": -124245432.0,
+      "overall_score": 28.5,
+      "star_rating": 1,
+      "rank_short": -1.7,
+      "rank_medium": -1.8
+    },
+    "AEON": {
+      "dir_prob": 0.01,
+      "return_5d": 112133944.0,
+      "return_20d": 688319.5,
+      "max_dd": 15936432.0,
+      "overall_score": 56.8,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": -0.1
+    },
+    "CSR": {
+      "dir_prob": 0.4002,
+      "return_5d": -2.85,
+      "return_20d": -1.04,
+      "max_dd": 10.71,
+      "overall_score": 15.1,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": -0.6
+    },
+    "CTKB": {
+      "dir_prob": 0.2826,
+      "return_5d": 9.43,
+      "return_20d": 1.18,
+      "max_dd": 15.06,
+      "overall_score": 33.8,
+      "star_rating": 1,
+      "rank_short": -0.8,
+      "rank_medium": -0.2
+    },
+    "AEMD": {
+      "dir_prob": 0.2294,
+      "return_5d": -11.42,
+      "return_20d": -0.27,
+      "max_dd": 26.2,
+      "overall_score": 15.7,
+      "star_rating": 1,
+      "rank_short": -1.3,
+      "rank_medium": -0.8
+    },
+    "AGYS": {
+      "dir_prob": 0.01,
+      "return_5d": -1448682112.0,
+      "return_20d": -1318427136.0,
+      "max_dd": -1072773824.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.7,
+      "rank_medium": -2.6
+    },
+    "SRAD": {
+      "dir_prob": 0.01,
+      "return_5d": -343992416.0,
+      "return_20d": -313063360.0,
+      "max_dd": -254732416.0,
+      "overall_score": 33.7,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": 0.4
+    },
+    "GVH": {
+      "dir_prob": 0.01,
+      "return_5d": 6585600512.0,
+      "return_20d": 40424900.0,
+      "max_dd": 935941504.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -1.9,
+      "rank_medium": -1.1
+    },
+    "SKIN": {
+      "dir_prob": 0.01,
+      "return_5d": 142817888.0,
+      "return_20d": 876665.38,
+      "max_dd": 20297218.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": 0.1,
+      "rank_medium": -1.0
+    },
+    "RGEN": {
+      "dir_prob": 0.4016,
+      "return_5d": -3.6,
+      "return_20d": -1.61,
+      "max_dd": 12.88,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -1.3,
+      "rank_medium": -3.4
+    },
+    "ENVB": {
+      "dir_prob": 0.01,
+      "return_5d": 1052174592.0,
+      "return_20d": 6458574.5,
+      "max_dd": 149534272.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -1.6,
+      "rank_medium": -0.3
+    },
+    "TSE": {
+      "dir_prob": 0.01,
+      "return_5d": 230388288.0,
+      "return_20d": 1414205.12,
+      "max_dd": 32742652.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -1.4,
+      "rank_medium": -1.1
+    },
+    "TPG": {
+      "dir_prob": 0.01,
+      "return_5d": -782156672.0,
+      "return_20d": -711831232.0,
+      "max_dd": -579200768.0,
+      "overall_score": 32.2,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -3.3
+    },
+    "BBLG": {
+      "dir_prob": 0.01,
+      "return_5d": 280234208.0,
+      "return_20d": 1720179.75,
+      "max_dd": 39826724.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": 0.4,
+      "rank_medium": -0.8
+    },
+    "INSE": {
+      "dir_prob": 0.01,
+      "return_5d": -120966496.0,
+      "return_20d": -110090112.0,
+      "max_dd": -89577792.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.4,
+      "rank_medium": 0.5
+    },
+    "GAUZ": {
+      "dir_prob": 0.01,
+      "return_5d": 577399360.0,
+      "return_20d": 3544276.5,
+      "max_dd": 82059576.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -2.2,
+      "rank_medium": -3.1
+    },
+    "BEAG": {
+      "dir_prob": 0.01,
+      "return_5d": -146950640.0,
+      "return_20d": -133737928.0,
+      "max_dd": -108819496.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -0.8,
+      "rank_medium": 0.6
+    },
+    "INSM": {
+      "dir_prob": 0.2999,
+      "return_5d": -5.29,
+      "return_20d": -1.55,
+      "max_dd": 18.13,
+      "overall_score": 19.1,
+      "star_rating": 1,
+      "rank_short": -2.3,
+      "rank_medium": -2.1
+    },
+    "A": {
+      "dir_prob": 0.01,
+      "return_5d": -1788037632.0,
+      "return_20d": -1627271680.0,
+      "max_dd": -1324073344.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.9,
+      "rank_medium": -0.3
+    },
+    "SKYH": {
+      "dir_prob": 0.38,
+      "return_5d": -3.55,
+      "return_20d": -1.3,
+      "max_dd": 11.28,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -0.1
+    },
+    "REFI": {
+      "dir_prob": 0.01,
+      "return_5d": -192418144.0,
+      "return_20d": -175117456.0,
+      "max_dd": -142488992.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.3,
+      "rank_medium": 1.2
+    },
+    "NABL": {
+      "dir_prob": 0.01,
+      "return_5d": -109047968.0,
+      "return_20d": -99243200.0,
+      "max_dd": -80751928.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.2,
+      "rank_medium": -0.0
+    },
+    "BTOG": {
+      "dir_prob": 0.3099,
+      "return_5d": 9.83,
+      "return_20d": 0.02,
+      "max_dd": 34.37,
+      "overall_score": 25.4,
+      "star_rating": 1,
+      "rank_short": -1.0,
+      "rank_medium": -2.5
+    },
+    "MCO": {
+      "dir_prob": 0.01,
+      "return_5d": -6834159104.0,
+      "return_20d": -6219684352.0,
+      "max_dd": -5060813824.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.0,
+      "rank_medium": -1.9
+    },
+    "CDTG": {
+      "dir_prob": 0.3766,
+      "return_5d": -8.56,
+      "return_20d": 2.09,
+      "max_dd": 24.45,
+      "overall_score": 16.6,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -0.3
+    },
+    "RPAY": {
+      "dir_prob": 0.3112,
+      "return_5d": 9.42,
+      "return_20d": 0.76,
+      "max_dd": 12.04,
+      "overall_score": 24.8,
+      "star_rating": 1,
+      "rank_short": -0.6,
+      "rank_medium": 0.7
+    },
+    "PMCB": {
+      "dir_prob": 0.3478,
+      "return_5d": -4.02,
+      "return_20d": 1.44,
+      "max_dd": 16.89,
+      "overall_score": 19.7,
+      "star_rating": 1,
+      "rank_short": -1.0,
+      "rank_medium": -0.4
+    },
+    "EXLS": {
+      "dir_prob": 0.01,
+      "return_5d": -606365696.0,
+      "return_20d": -551846208.0,
+      "max_dd": -449024576.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.7,
+      "rank_medium": -2.0
+    },
+    "CGNT": {
+      "dir_prob": 0.01,
+      "return_5d": -126429200.0,
+      "return_20d": -115061616.0,
+      "max_dd": -93623016.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -1.1
+    },
+    "DAIO": {
+      "dir_prob": 0.28,
+      "return_5d": -8.43,
+      "return_20d": 2.18,
+      "max_dd": 13.58,
+      "overall_score": 13.9,
+      "star_rating": 1,
+      "rank_short": -0.9,
+      "rank_medium": 0.1
+    },
+    "OGEN": {
+      "dir_prob": 0.01,
+      "return_5d": 259748096.0,
+      "return_20d": 1594427.0,
+      "max_dd": 36915264.0,
+      "overall_score": 55.4,
+      "star_rating": 3,
+      "rank_short": -0.4,
+      "rank_medium": -1.0
+    },
+    "CXAI": {
+      "dir_prob": 0.01,
+      "return_5d": 71338688.0,
+      "return_20d": 437898.84,
+      "max_dd": 10138635.0,
+      "overall_score": 54.0,
+      "star_rating": 3,
+      "rank_short": -0.6,
+      "rank_medium": -0.4
+    },
+    "ASTC": {
+      "dir_prob": 0.3024,
+      "return_5d": -4.38,
+      "return_20d": 2.62,
+      "max_dd": 16.74,
+      "overall_score": 14.2,
+      "star_rating": 1,
+      "rank_short": -0.9,
+      "rank_medium": 0.4
+    },
+    "ALNY": {
+      "dir_prob": 0.01,
+      "return_5d": -5030457856.0,
+      "return_20d": -4578158592.0,
+      "max_dd": -3725142272.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.5,
+      "rank_medium": -1.0
+    },
+    "WBUY": {
+      "dir_prob": 0.1736,
+      "return_5d": -16.33,
+      "return_20d": -2.06,
+      "max_dd": 28.06,
+      "overall_score": 23.0,
+      "star_rating": 1,
+      "rank_short": -1.7,
+      "rank_medium": -1.5
+    },
+    "PLNT": {
+      "dir_prob": 0.4063,
+      "return_5d": -1.95,
+      "return_20d": -0.91,
+      "max_dd": 10.78,
+      "overall_score": 19.2,
+      "star_rating": 1,
+      "rank_short": -1.4,
+      "rank_medium": -2.0
+    },
+    "PLUS": {
+      "dir_prob": 0.01,
+      "return_5d": -1029972608.0,
+      "return_20d": -937365632.0,
+      "max_dd": -762712640.0,
+      "overall_score": 30.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -0.9
+    },
+    "BRZE": {
+      "dir_prob": 0.01,
+      "return_5d": -432246240.0,
+      "return_20d": -393381888.0,
+      "max_dd": -320085696.0,
+      "overall_score": 28.2,
+      "star_rating": 1,
+      "rank_short": -2.9,
+      "rank_medium": -2.4
+    },
+    "QSR": {
+      "dir_prob": 0.01,
+      "return_5d": -946323072.0,
+      "return_20d": -861236544.0,
+      "max_dd": -700768384.0,
+      "overall_score": 30.0,
+      "star_rating": 1,
+      "rank_short": -0.0,
+      "rank_medium": -0.7
+    },
+    "HLNE": {
+      "dir_prob": 0.01,
+      "return_5d": -2014303360.0,
+      "return_20d": -1833193088.0,
+      "max_dd": -1491626496.0,
+      "overall_score": 30.0,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -2.6
+    },
+    "CZR": {
+      "dir_prob": 0.01,
+      "return_5d": -369732256.0,
+      "return_20d": -336488736.0,
+      "max_dd": -273793248.0,
+      "overall_score": 29.1,
+      "star_rating": 1,
+      "rank_short": -2.0,
+      "rank_medium": -1.2
+    },
+    "ONCO": {
+      "dir_prob": 0.01,
+      "return_5d": 466149824.0,
+      "return_20d": 2861397.75,
+      "max_dd": 66248920.0,
+      "overall_score": 47.0,
+      "star_rating": 2,
+      "rank_short": -1.4,
+      "rank_medium": -1.6
+    },
+    "SRTA": {
+      "dir_prob": 0.2839,
+      "return_5d": -0.89,
+      "return_20d": -0.34,
+      "max_dd": 14.0,
+      "overall_score": 19.4,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": 0.6
+    },
+    "CNXC": {
+      "dir_prob": 0.3277,
+      "return_5d": -6.96,
+      "return_20d": -1.71,
+      "max_dd": 16.83,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -2.2,
+      "rank_medium": -3.0
+    },
+    "TRAK": {
+      "dir_prob": 0.01,
+      "return_5d": -237868224.0,
+      "return_20d": -216480880.0,
+      "max_dd": -176145504.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.6,
+      "rank_medium": 0.9
+    },
+    "SHC": {
+      "dir_prob": 0.422,
+      "return_5d": -1.65,
+      "return_20d": -1.02,
+      "max_dd": 9.35,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -1.0,
+      "rank_medium": 1.2
+    },
+    "PGY": {
+      "dir_prob": 0.2349,
+      "return_5d": -8.36,
+      "return_20d": -1.92,
+      "max_dd": 23.23,
+      "overall_score": 23.0,
+      "star_rating": 1,
+      "rank_short": -2.9,
+      "rank_medium": -1.6
+    },
+    "MMI": {
+      "dir_prob": 0.01,
+      "return_5d": -435359584.0,
+      "return_20d": -396215552.0,
+      "max_dd": -322391488.0,
+      "overall_score": 30.0,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": -0.9
+    },
+    "PATH": {
+      "dir_prob": 0.3273,
+      "return_5d": -5.96,
+      "return_20d": -1.55,
+      "max_dd": 18.57,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -2.7,
+      "rank_medium": 0.0
+    },
+    "ATEC": {
+      "dir_prob": 0.01,
+      "return_5d": -202961328.0,
+      "return_20d": -184712560.0,
+      "max_dd": -150296448.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.8,
+      "rank_medium": -0.9
+    },
+    "ZVIA": {
+      "dir_prob": 0.01,
+      "return_5d": 235405888.0,
+      "return_20d": 1445004.12,
+      "max_dd": 33455762.0,
+      "overall_score": 54.0,
+      "star_rating": 3,
+      "rank_short": -1.5,
+      "rank_medium": -0.4
+    },
+    "AWRE": {
+      "dir_prob": 0.3235,
+      "return_5d": -5.73,
+      "return_20d": 0.62,
+      "max_dd": 16.85,
+      "overall_score": 19.4,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -0.5
+    },
+    "CGC": {
+      "dir_prob": 0.2526,
+      "return_5d": -2.04,
+      "return_20d": 0.8,
+      "max_dd": 15.92,
+      "overall_score": 15.0,
+      "star_rating": 1,
+      "rank_short": 0.2,
+      "rank_medium": -1.9
+    },
+    "OLB": {
+      "dir_prob": 0.01,
+      "return_5d": 112250904.0,
+      "return_20d": 689033.0,
+      "max_dd": 15953051.0,
+      "overall_score": 50.0,
+      "star_rating": 3,
+      "rank_short": -0.3,
+      "rank_medium": -1.1
+    },
+    "BROS": {
+      "dir_prob": 0.01,
+      "return_5d": -872819520.0,
+      "return_20d": -794342656.0,
+      "max_dd": -646338368.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.0,
+      "rank_medium": -2.2
+    },
+    "EXPI": {
+      "dir_prob": 0.3456,
+      "return_5d": -4.58,
+      "return_20d": -1.41,
+      "max_dd": 15.77,
+      "overall_score": 16.5,
+      "star_rating": 1,
+      "rank_short": -2.0,
+      "rank_medium": -0.1
+    },
+    "AJG": {
+      "dir_prob": 0.4065,
+      "return_5d": -3.26,
+      "return_20d": -1.41,
+      "max_dd": 12.36,
+      "overall_score": 15.8,
+      "star_rating": 1,
+      "rank_short": -1.4,
+      "rank_medium": -1.6
+    },
+    "NSP": {
+      "dir_prob": 0.3229,
+      "return_5d": -4.12,
+      "return_20d": -1.34,
+      "max_dd": 15.27,
+      "overall_score": 23.0,
+      "star_rating": 1,
+      "rank_short": -2.9,
+      "rank_medium": -2.4
+    },
+    "CCB": {
+      "dir_prob": 0.01,
+      "return_5d": -1400610560.0,
+      "return_20d": -1274678528.0,
+      "max_dd": -1037176192.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.3,
+      "rank_medium": -2.4
+    },
+    "CCRN": {
+      "dir_prob": 0.3153,
+      "return_5d": -5.56,
+      "return_20d": -1.26,
+      "max_dd": 18.96,
+      "overall_score": 19.1,
+      "star_rating": 1,
+      "rank_short": -1.9,
+      "rank_medium": -1.8
+    },
+    "ZD": {
+      "dir_prob": 0.3908,
+      "return_5d": -3.75,
+      "return_20d": -1.4,
+      "max_dd": 12.32,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -2.6,
+      "rank_medium": -2.6
+    },
+    "MNDO": {
+      "dir_prob": 0.3404,
+      "return_5d": -3.53,
+      "return_20d": 0.06,
+      "max_dd": 15.84,
+      "overall_score": 23.6,
+      "star_rating": 1,
+      "rank_short": -0.4,
+      "rank_medium": -0.1
+    },
+    "DSGX": {
+      "dir_prob": 0.01,
+      "return_5d": -1363191296.0,
+      "return_20d": -1240624000.0,
+      "max_dd": -1009467136.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -2.8
+    },
+    "HPQ": {
+      "dir_prob": 0.01,
+      "return_5d": -360475104.0,
+      "return_20d": -328064128.0,
+      "max_dd": -266938128.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.4,
+      "rank_medium": 0.9
+    },
+    "RKDA": {
+      "dir_prob": 0.01,
+      "return_5d": 329826432.0,
+      "return_20d": 2024599.75,
+      "max_dd": 46874704.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.7,
+      "rank_medium": -1.3
+    },
+    "TBH": {
+      "dir_prob": 0.3465,
+      "return_5d": -2.15,
+      "return_20d": 1.25,
+      "max_dd": 25.11,
+      "overall_score": 14.2,
+      "star_rating": 1,
+      "rank_short": -1.1,
+      "rank_medium": 0.1
+    },
+    "ACN": {
+      "dir_prob": 0.01,
+      "return_5d": -3916466176.0,
+      "return_20d": -3564328192.0,
+      "max_dd": -2900212224.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.0,
+      "rank_medium": -2.7
+    },
+    "ZENV": {
+      "dir_prob": 0.3445,
+      "return_5d": -7.08,
+      "return_20d": 0.39,
+      "max_dd": 21.63,
+      "overall_score": 11.7,
+      "star_rating": 1,
+      "rank_short": -0.1,
+      "rank_medium": -0.2
+    },
+    "STEP": {
+      "dir_prob": 0.01,
+      "return_5d": -845541888.0,
+      "return_20d": -769517568.0,
+      "max_dd": -626138688.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.1,
+      "rank_medium": -2.8
+    },
+    "LNZA": {
+      "dir_prob": 0.01,
+      "return_5d": -370122848.0,
+      "return_20d": -336844288.0,
+      "max_dd": -274082560.0,
+      "overall_score": 27.7,
+      "star_rating": 1,
+      "rank_short": -3.3,
+      "rank_medium": -0.9
+    },
+    "AMZN": {
+      "dir_prob": 0.01,
+      "return_5d": -3066558720.0,
+      "return_20d": -2790838016.0,
+      "max_dd": -2270839040.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.5,
+      "rank_medium": -0.9
+    },
+    "TNET": {
+      "dir_prob": 0.01,
+      "return_5d": -959440960.0,
+      "return_20d": -873175744.0,
+      "max_dd": -710482880.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.8,
+      "rank_medium": -2.6
+    },
+    "PYPL": {
+      "dir_prob": 0.01,
+      "return_5d": -929945024.0,
+      "return_20d": -846331520.0,
+      "max_dd": -688640256.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.9,
+      "rank_medium": -1.9
+    },
+    "SCSC": {
+      "dir_prob": 0.3064,
+      "return_5d": -6.61,
+      "return_20d": -1.12,
+      "max_dd": 15.67,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -1.9,
+      "rank_medium": -2.4
+    },
+    "ALRM": {
+      "dir_prob": 0.01,
+      "return_5d": -767456896.0,
+      "return_20d": -698453120.0,
+      "max_dd": -568315392.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -0.6
+    },
+    "HTFL": {
+      "dir_prob": 0.2835,
+      "return_5d": -5.18,
+      "return_20d": -1.29,
+      "max_dd": 17.39,
+      "overall_score": 11.1,
+      "star_rating": 1,
+      "rank_short": -3.1,
+      "rank_medium": -2.7
+    },
+    "VEEE": {
+      "dir_prob": 0.3085,
+      "return_5d": -8.07,
+      "return_20d": 0.93,
+      "max_dd": 19.7,
+      "overall_score": 4.1,
+      "star_rating": 1,
+      "rank_short": -1.6,
+      "rank_medium": -2.9
+    },
+    "PRKS": {
+      "dir_prob": 0.41,
+      "return_5d": -3.83,
+      "return_20d": -1.32,
+      "max_dd": 10.92,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -2.0,
+      "rank_medium": -2.8
+    },
+    "RCMT": {
+      "dir_prob": 0.01,
+      "return_5d": -303021408.0,
+      "return_20d": -275776096.0,
+      "max_dd": -224392592.0,
+      "overall_score": 30.0,
+      "star_rating": 1,
+      "rank_short": -2.5,
+      "rank_medium": -0.5
+    },
+    "OGI": {
+      "dir_prob": 0.356,
+      "return_5d": -2.84,
+      "return_20d": 0.32,
+      "max_dd": 17.65,
+      "overall_score": 19.4,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -0.5
+    },
+    "CWK": {
+      "dir_prob": 0.3615,
+      "return_5d": -5.77,
+      "return_20d": -1.76,
+      "max_dd": 15.15,
+      "overall_score": 16.7,
+      "star_rating": 1,
+      "rank_short": -1.9,
+      "rank_medium": -0.8
+    },
+    "SLND": {
+      "dir_prob": 0.01,
+      "return_5d": 338400928.0,
+      "return_20d": 2077231.5,
+      "max_dd": 48093340.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.2,
+      "rank_medium": -1.0
+    },
+    "OPK": {
+      "dir_prob": 0.01,
+      "return_5d": 127952360.0,
+      "return_20d": 785412.75,
+      "max_dd": 18184540.0,
+      "overall_score": 54.0,
+      "star_rating": 3,
+      "rank_short": -0.1,
+      "rank_medium": -0.3
+    },
+    "GAME": {
+      "dir_prob": 0.01,
+      "return_5d": 65174040.0,
+      "return_20d": 400062.84,
+      "max_dd": 9262529.0,
+      "overall_score": 58.0,
+      "star_rating": 3,
+      "rank_short": -0.5,
+      "rank_medium": -0.7
+    },
+    "CXW": {
+      "dir_prob": 0.4018,
+      "return_5d": -0.12,
+      "return_20d": -0.8,
+      "max_dd": 6.08,
+      "overall_score": 11.3,
+      "star_rating": 1,
+      "rank_short": -0.4,
+      "rank_medium": 0.6
+    },
+    "FOA": {
+      "dir_prob": 0.01,
+      "return_5d": -321780256.0,
+      "return_20d": -292848320.0,
+      "max_dd": -238283904.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.5,
+      "rank_medium": -0.7
+    },
+    "NWS": {
+      "dir_prob": 0.01,
+      "return_5d": -441920928.0,
+      "return_20d": -402186752.0,
+      "max_dd": -327250080.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.2,
+      "rank_medium": -2.0
+    },
+    "COIN": {
+      "dir_prob": 0.01,
+      "return_5d": -3858327808.0,
+      "return_20d": -3511416832.0,
+      "max_dd": -2857157888.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.3,
+      "rank_medium": -1.6
+    },
+    "CUZ": {
+      "dir_prob": 0.01,
+      "return_5d": -387216704.0,
+      "return_20d": -352401248.0,
+      "max_dd": -286740672.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.7,
+      "rank_medium": -1.8
+    },
+    "CISO": {
+      "dir_prob": 0.01,
+      "return_5d": 77230008.0,
+      "return_20d": 474068.31,
+      "max_dd": 10975902.0,
+      "overall_score": 43.0,
+      "star_rating": 2,
+      "rank_short": -0.5,
+      "rank_medium": -0.8
+    },
+    "PFLT": {
+      "dir_prob": 0.4152,
+      "return_5d": -1.44,
+      "return_20d": -0.61,
+      "max_dd": 9.6,
+      "overall_score": 20.2,
+      "star_rating": 1,
+      "rank_short": 0.5,
+      "rank_medium": 1.9
+    },
+    "MMS": {
+      "dir_prob": 0.01,
+      "return_5d": -1113984000.0,
+      "return_20d": -1013822912.0,
+      "max_dd": -824924416.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.6,
+      "rank_medium": -3.0
+    },
+    "WING": {
+      "dir_prob": 0.4046,
+      "return_5d": -2.89,
+      "return_20d": -1.46,
+      "max_dd": 13.18,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -1.9,
+      "rank_medium": -2.9
+    },
+    "ALLY": {
+      "dir_prob": 0.01,
+      "return_5d": -545839488.0,
+      "return_20d": -496761664.0,
+      "max_dd": -404203520.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.5,
+      "rank_medium": -0.9
+    },
+    "WAT": {
+      "dir_prob": 0.01,
+      "return_5d": -4886356480.0,
+      "return_20d": -4447012864.0,
+      "max_dd": -3618432000.0,
+      "overall_score": 35.4,
+      "star_rating": 2,
+      "rank_short": -1.1,
+      "rank_medium": -2.8
+    },
+    "APPF": {
+      "dir_prob": 0.01,
+      "return_5d": -3303236096.0,
+      "return_20d": -3006235904.0,
+      "max_dd": -2446104064.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.9,
+      "rank_medium": -2.9
+    },
+    "UPC": {
+      "dir_prob": 0.2906,
+      "return_5d": -1.34,
+      "return_20d": 1.92,
+      "max_dd": 16.71,
+      "overall_score": 13.3,
+      "star_rating": 1,
+      "rank_short": 0.2,
+      "rank_medium": -0.6
+    },
+    "VCYT": {
+      "dir_prob": 0.01,
+      "return_5d": -473657856.0,
+      "return_20d": -431070432.0,
+      "max_dd": -350752096.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -2.8,
+      "rank_medium": -2.9
+    },
+    "VRTS": {
+      "dir_prob": 0.01,
+      "return_5d": -2466730240.0,
+      "return_20d": -2244940800.0,
+      "max_dd": -1826656768.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -1.3,
+      "rank_medium": -2.4
+    },
+    "SCM": {
+      "dir_prob": 0.01,
+      "return_5d": -187785920.0,
+      "return_20d": -170901664.0,
+      "max_dd": -139058768.0,
+      "overall_score": 34.0,
+      "star_rating": 1,
+      "rank_short": -0.2,
+      "rank_medium": 0.7
+    },
+    "TYL": {
+      "dir_prob": 0.01,
+      "return_5d": -7518228992.0,
+      "return_20d": -6842246144.0,
+      "max_dd": -5567376896.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -1.5,
+      "rank_medium": -1.7
+    },
+    "QTWO": {
+      "dir_prob": 0.01,
+      "return_5d": -1099328128.0,
+      "return_20d": -1000485056.0,
+      "max_dd": -814071488.0,
+      "overall_score": 38.0,
+      "star_rating": 2,
+      "rank_short": -2.3,
+      "rank_medium": -2.5
+    },
+    "LOPE": {
+      "dir_prob": 0.4143,
+      "return_5d": -3.18,
+      "return_20d": -1.25,
+      "max_dd": 10.89,
+      "overall_score": 19.0,
+      "star_rating": 1,
+      "rank_short": -1.8,
+      "rank_medium": -2.5
+    }
+  }
+}
