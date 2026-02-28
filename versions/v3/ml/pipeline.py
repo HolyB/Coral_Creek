@@ -761,6 +761,18 @@ class MLPipeline:
         ranker.save(str(self.model_dir))
         results['signal_ranker'] = {h.value: m for h, m in ranker_metrics.items()}
         
+        # 3.5 训练 LightGBM Ensemble (Phase 3)
+        try:
+            from ml.ensemble_predictor import LGBPredictor
+            print("\n" + "="*60)
+            print("🌳 LightGBM Ensemble 训练")
+            lgb_pred = LGBPredictor(market=self.market)
+            lgb_metrics = lgb_pred.train(X, returns_dict, feature_names, groups)
+            lgb_pred.save()
+            results['lgb_ensemble'] = lgb_metrics
+        except Exception as e:
+            print(f"⚠️ LGB 训练跳过: {e}")
+        
         # 4. 保存特征名称
         import json
         with open(self.model_dir / "feature_names.json", 'w') as f:
