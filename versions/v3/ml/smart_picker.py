@@ -545,6 +545,44 @@ class SmartPicker:
             if not features:
                 return result
             
+            # 追加高级技术因子 (Phase 1: AdvancedFeatures)
+            try:
+                from ml.advanced_features import AdvancedFeatureEngineer
+                adv_eng = AdvancedFeatureEngineer()
+                
+                hist_adv = history.copy()
+                if not isinstance(hist_adv.index, pd.DatetimeIndex):
+                    if 'Date' in hist_adv.columns:
+                        hist_adv = hist_adv.set_index('Date')
+                    elif 'date' in hist_adv.columns:
+                        hist_adv = hist_adv.set_index('date')
+                    hist_adv.index = pd.to_datetime(hist_adv.index)
+                
+                col_map = {}
+                for c in hist_adv.columns:
+                    cl = c.lower()
+                    if cl == 'close': col_map[c] = 'Close'
+                    elif cl == 'open': col_map[c] = 'Open'
+                    elif cl == 'high': col_map[c] = 'High'
+                    elif cl == 'low': col_map[c] = 'Low'
+                    elif cl == 'volume': col_map[c] = 'Volume'
+                if col_map:
+                    hist_adv = hist_adv.rename(columns=col_map)
+                
+                if all(c in hist_adv.columns for c in ['Close', 'High', 'Low', 'Volume']):
+                    adv_df = adv_eng.transform(hist_adv)
+                    if len(adv_df) > 0:
+                        adv_row = adv_df.iloc[-1]
+                        skip_cols = {'Date', 'Open', 'High', 'Low', 'Close', 'Volume',
+                                    'open', 'high', 'low', 'close', 'volume'}
+                        for col in adv_row.index:
+                            if col not in skip_cols:
+                                val = adv_row[col]
+                                if isinstance(val, (int, float, np.integer, np.floating)):
+                                    features[f'adv_{col}'] = float(val)
+            except Exception:
+                pass
+            
             X = np.array([[features.get(f, 0) for f in feat_names]])
             X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
             X = np.clip(X, -1e6, 1e6)
@@ -629,6 +667,40 @@ class SmartPicker:
             features = calc.get_latest_features(history, blue_signals)
             if not features:
                 return result
+            
+            # 追加高级技术因子 (Phase 1)
+            try:
+                from ml.advanced_features import AdvancedFeatureEngineer
+                adv_eng = AdvancedFeatureEngineer()
+                hist_adv = history.copy()
+                if not isinstance(hist_adv.index, pd.DatetimeIndex):
+                    if 'Date' in hist_adv.columns:
+                        hist_adv = hist_adv.set_index('Date')
+                    elif 'date' in hist_adv.columns:
+                        hist_adv = hist_adv.set_index('date')
+                    hist_adv.index = pd.to_datetime(hist_adv.index)
+                col_map = {}
+                for c in hist_adv.columns:
+                    cl = c.lower()
+                    if cl == 'close': col_map[c] = 'Close'
+                    elif cl == 'open': col_map[c] = 'Open'
+                    elif cl == 'high': col_map[c] = 'High'
+                    elif cl == 'low': col_map[c] = 'Low'
+                    elif cl == 'volume': col_map[c] = 'Volume'
+                if col_map:
+                    hist_adv = hist_adv.rename(columns=col_map)
+                if all(c in hist_adv.columns for c in ['Close', 'High', 'Low', 'Volume']):
+                    adv_df = adv_eng.transform(hist_adv)
+                    if len(adv_df) > 0:
+                        adv_row = adv_df.iloc[-1]
+                        skip_cols = {'Date', 'Open', 'High', 'Low', 'Close', 'Volume'}
+                        for col in adv_row.index:
+                            if col not in skip_cols:
+                                val = adv_row[col]
+                                if isinstance(val, (int, float, np.integer, np.floating)):
+                                    features[f'adv_{col}'] = float(val)
+            except Exception:
+                pass
             
             # 构建特征向量
             X = np.array([[features.get(f, 0) for f in feat_names]])

@@ -17,23 +17,23 @@
   "horizons": {
     "1d": {
       "samples": 7466,
-      "avg_gross_return_pct": -0.7759992294490969,
-      "avg_net_return_pct": -1.0759992294490968,
-      "cost_drag_pct": 0.3,
-      "gross_win_rate_pct": 46.410393785159386,
-      "net_win_rate_pct": 41.414412001071526
+      "avg_gross_return_pct": -0.7807680550155482,
+      "avg_net_return_pct": -1.0807680550155483,
+      "cost_drag_pct": 0.30000000000000004,
+      "gross_win_rate_pct": 46.383605679078485,
+      "net_win_rate_pct": 41.401017948031075
     },
     "5d": {
-      "samples": 5589,
-      "avg_gross_return_pct": -2.744595828257288,
-      "avg_net_return_pct": -3.0445958282572883,
+      "samples": 5573,
+      "avg_gross_return_pct": -2.7559898840859116,
+      "avg_net_return_pct": -3.055989884085912,
       "cost_drag_pct": 0.30000000000000004,
-      "gross_win_rate_pct": 40.15029522275899,
-      "net_win_rate_pct": 36.87600644122383
+      "gross_win_rate_pct": 40.19379149470662,
+      "net_win_rate_pct": 36.910102278844434
     },
     "10d": {
       "samples": 3043,
-      "avg_gross_return_pct": -3.2593614071020096,
+      "avg_gross_return_pct": -3.2593614071020087,
       "avg_net_return_pct": -3.5593614071020094,
       "cost_drag_pct": 0.30000000000000004,
       "gross_win_rate_pct": 36.80578376602037,
@@ -41,17 +41,17 @@
     },
     "20d": {
       "samples": 606,
-      "avg_gross_return_pct": -4.76160657069581,
-      "avg_net_return_pct": 0.40662328771636397,
-      "cost_drag_pct": -5.168229858412172,
+      "avg_gross_return_pct": -4.761606570695808,
+      "avg_net_return_pct": 0.4066232877163628,
+      "cost_drag_pct": -5.168229858412173,
       "gross_win_rate_pct": 23.26732673267327,
       "net_win_rate_pct": 32.508250825082506
     },
     "30d": {
       "samples": 250,
-      "avg_gross_return_pct": 4.12929712688326,
-      "avg_net_return_pct": 3.8292971268832625,
-      "cost_drag_pct": 0.2999999999999996,
+      "avg_gross_return_pct": 4.129297126883262,
+      "avg_net_return_pct": 3.8292971268832634,
+      "cost_drag_pct": 0.29999999999999966,
       "gross_win_rate_pct": 41.199999999999996,
       "net_win_rate_pct": 38.4
     },
