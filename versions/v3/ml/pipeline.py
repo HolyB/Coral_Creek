@@ -331,6 +331,7 @@ class MLPipeline:
         from ml.features.feature_calculator import FeatureCalculator, FEATURE_COLUMNS
         from ml.features.fundamental_features import build_fundamental_features
         from ml.advanced_features import AdvancedFeatureEngineer
+        from ml.alpha_factors import Alpha158Factors
         
         print(f"\n📊 准备数据集...")
         
@@ -385,6 +386,7 @@ class MLPipeline:
         # 2. 为每个信号计算特征和标签
         calculator = FeatureCalculator()
         adv_engineer = AdvancedFeatureEngineer()
+        alpha158 = Alpha158Factors()
         
         all_features = []
         all_returns_gross = {f'{d}d': [] for d in [1, 5, 10, 20, 30, 60]}
@@ -497,10 +499,18 @@ class MLPipeline:
                     adv_features_df = adv_features_df.reset_index()
                     if 'Date' not in adv_features_df.columns and adv_features_df.columns[0] != 'Date':
                         adv_features_df = adv_features_df.rename(columns={adv_features_df.columns[0]: 'Date'})
+                    
+                    # Phase 2: Alpha158 因子
+                    alpha_df = alpha158.compute(hist_for_adv)
+                    alpha_df = alpha_df.reset_index()
+                    if 'Date' not in alpha_df.columns and alpha_df.columns[0] != 'Date':
+                        alpha_df = alpha_df.rename(columns={alpha_df.columns[0]: 'Date'})
                 else:
                     adv_features_df = None
+                    alpha_df = None
             except Exception:
                 adv_features_df = None
+                alpha_df = None
             
             # 获取该股票的信号
             symbol_signals = signals_df[signals_df['symbol'] == symbol]
@@ -553,6 +563,21 @@ class MLPipeline:
                                     val = adv_row[col]
                                     if isinstance(val, (int, float, np.integer, np.floating)):
                                         feature_dict[f'adv_{col}'] = float(val)
+                    except Exception:
+                        pass
+                
+                # 加入 Alpha158 因子 (Phase 2)
+                if alpha_df is not None and 'Date' in alpha_df.columns:
+                    try:
+                        a_eligible = alpha_df[alpha_df['Date'] <= signal_date]
+                        if len(a_eligible) > 0:
+                            a_row = a_eligible.iloc[-1]
+                            skip_cols = {'Date', 'Open', 'High', 'Low', 'Close', 'Volume'}
+                            for col in a_row.index:
+                                if col not in skip_cols and col not in feature_dict:
+                                    val = a_row[col]
+                                    if isinstance(val, (int, float, np.integer, np.floating)):
+                                        feature_dict[f'a158_{col}'] = float(val)
                     except Exception:
                         pass
                 
