@@ -330,6 +330,7 @@ class MLPipeline:
         from db.stock_history import get_stock_history, save_stock_history
         from ml.features.feature_calculator import FeatureCalculator, FEATURE_COLUMNS
         from ml.features.fundamental_features import build_fundamental_features
+        from ml.advanced_features import AdvancedFeatureEngineer
         
         print(f"\n📊 准备数据集...")
         
@@ -383,6 +384,7 @@ class MLPipeline:
         
         # 2. 为每个信号计算特征和标签
         calculator = FeatureCalculator()
+        adv_engineer = AdvancedFeatureEngineer()
         
         all_features = []
         all_returns_gross = {f'{d}d': [] for d in [1, 5, 10, 20, 30, 60]}
@@ -461,10 +463,44 @@ class MLPipeline:
             if history is None or history.empty or len(history) < 60:
                 continue
             
-            # 计算特征
+            # 计算基础特征
             features_df = calculator.calculate_all(history)
             if features_df.empty:
                 continue
+            
+            # 计算高级技术因子 (Phase 1: AdvancedFeatures)
+            try:
+                # 确保 history 有 OHLCV 列
+                hist_for_adv = history.copy()
+                if not isinstance(hist_for_adv.index, pd.DatetimeIndex):
+                    if 'Date' in hist_for_adv.columns:
+                        hist_for_adv = hist_for_adv.set_index('Date')
+                    elif 'date' in hist_for_adv.columns:
+                        hist_for_adv = hist_for_adv.set_index('date')
+                    hist_for_adv.index = pd.to_datetime(hist_for_adv.index)
+                
+                # 标准化列名
+                col_map = {}
+                for c in hist_for_adv.columns:
+                    cl = c.lower()
+                    if cl == 'close': col_map[c] = 'Close'
+                    elif cl == 'open': col_map[c] = 'Open'
+                    elif cl == 'high': col_map[c] = 'High'
+                    elif cl == 'low': col_map[c] = 'Low'
+                    elif cl == 'volume': col_map[c] = 'Volume'
+                if col_map:
+                    hist_for_adv = hist_for_adv.rename(columns=col_map)
+                
+                if all(c in hist_for_adv.columns for c in ['Close', 'High', 'Low', 'Volume']):
+                    adv_features_df = adv_engineer.transform(hist_for_adv)
+                    # reset index 以匹配 features_df 的 Date 列
+                    adv_features_df = adv_features_df.reset_index()
+                    if 'Date' not in adv_features_df.columns and adv_features_df.columns[0] != 'Date':
+                        adv_features_df = adv_features_df.rename(columns={adv_features_df.columns[0]: 'Date'})
+                else:
+                    adv_features_df = None
+            except Exception:
+                adv_features_df = None
             
             # 获取该股票的信号
             symbol_signals = signals_df[signals_df['symbol'] == symbol]
@@ -502,6 +538,23 @@ class MLPipeline:
                         external_cache=fundamental_external_cache,
                     )
                     feature_dict.update(fund_feats)
+                
+                # 加入高级技术因子 (Phase 1)
+                if adv_features_df is not None and 'Date' in adv_features_df.columns:
+                    try:
+                        adv_eligible = adv_features_df[adv_features_df['Date'] <= signal_date]
+                        if len(adv_eligible) > 0:
+                            adv_row = adv_eligible.iloc[-1]
+                            # 只取数值列，排除 OHLCV 原始列和 Date
+                            skip_cols = {'Date', 'Open', 'High', 'Low', 'Close', 'Volume',
+                                        'open', 'high', 'low', 'close', 'volume'}
+                            for col in adv_row.index:
+                                if col not in skip_cols and col not in feature_dict:
+                                    val = adv_row[col]
+                                    if isinstance(val, (int, float, np.integer, np.floating)):
+                                        feature_dict[f'adv_{col}'] = float(val)
+                    except Exception:
+                        pass
                 
                 # 计算未来收益 (标签)
                 # 入场口径: 信号后的下一交易日开盘价，更接近真实执行
