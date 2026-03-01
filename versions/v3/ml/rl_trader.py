@@ -354,16 +354,23 @@ def prepare_rl_data(symbol: str, market: str = 'US', days: int = 250) -> Tuple:
         elif f in df_alpha.columns:
             combined[f] = df_alpha[f]
     
-    # 添加 BLUE 信号值 (强预测特征)
+    # 添加蔡森图表特征 (核心信号系统)
     try:
-        from indicator_utils import calculate_blue_signal_series
-        blue = calculate_blue_signal_series(
-            history['Open'].values, history['High'].values,
-            history['Low'].values, history['Close'].values
-        )
-        combined['blue_signal'] = blue
+        from ml.caisen_features import compute_caisen_features
+        cs = compute_caisen_features(history)
+        # 选择最重要的蔡森特征加入 RL
+        cs_selected = [
+            'cs_blue_pct', 'cs_pink_norm', 'cs_fund_net_norm',
+            'cs_cci_value', 'cs_signal_strength', 'cs_bull_bear_ratio',
+            'cs_main_force', 'cs_heima', 'cs_juedi',
+            'cs_regime_bottom', 'cs_regime_top',
+            'cs_var50_slope',
+        ]
+        for col in cs_selected:
+            if col in cs.columns:
+                combined[col] = cs[col]
     except Exception:
-        combined['blue_signal'] = 0.0
+        pass
     
     # 添加价格动量特征
     combined['return_1d'] = history['Close'].pct_change() * 100

@@ -615,6 +615,20 @@ class SmartPicker:
             except Exception:
                 pass
             
+            # 追加蔡森图表特征 (Phase 3)
+            try:
+                from ml.caisen_features import compute_caisen_features
+                cs_df = compute_caisen_features(hist_adv)
+                if cs_df is not None and len(cs_df) > 0:
+                    cs_row = cs_df.iloc[-1]
+                    for col in cs_row.index:
+                        if col not in features:
+                            val = cs_row[col]
+                            if isinstance(val, (int, float, np.integer, np.floating)):
+                                features[col] = float(val)
+            except Exception:
+                pass
+            
             X = np.array([[features.get(f, 0) for f in feat_names]])
             X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
             X = np.clip(X, -1e6, 1e6)
