@@ -1,0 +1,18 @@
+{
+  "total_return": -14.734627404264188,
+  "cagr": -48.23791210843049,
+  "sharpe": -2.304798636342949,
+  "sortino": -2.7700814718175786,
+  "max_drawdown": -26.788404295141145,
+  "calmar": -1.8007012129938564,
+  "volatility": 26.96728949827973,
+  "win_rate": 44.26229508196721,
+  "avg_win": 1.0915066189497813,
+  "avg_loss": -1.3092921955048846,
+  "profit_factor": 0.6620253836121629,
+  "payoff_ratio": 0.8336615941782791,
+  "best_day": 4.164649662109395,
+  "worst_day": -5.0746221705941235,
+  "trading_days": 61,
+  "report_path": "/Users/bertwang/Cursor/Coral_Creek/versions/v3/reports/backtest/BLUE_Signal_US_20260228.html"
+}

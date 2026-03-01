@@ -1,0 +1,18 @@
+{
+  "total_return": 3.0419366871892617,
+  "cagr": 28.62272515177824,
+  "sharpe": 2.508518150918889,
+  "sortino": 4.378015338936894,
+  "max_drawdown": -2.218891283008051,
+  "calmar": 12.89956176355594,
+  "volatility": 10.241094221513945,
+  "win_rate": 53.333333333333336,
+  "avg_win": 0.5845132460134725,
+  "avg_loss": -0.4495630061587792,
+  "profit_factor": 1.485921059227854,
+  "payoff_ratio": 1.3001809268243723,
+  "best_day": 1.4103571697515198,
+  "worst_day": -1.2300605764260564,
+  "trading_days": 30,
+  "report_path": "/Users/bertwang/Cursor/Coral_Creek/versions/v3/reports/backtest/BLUE_HQ_CN_20260228.html"
+}
