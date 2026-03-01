@@ -1,0 +1,11 @@
+{
+  "market": "CN",
+  "method": "walk_forward_oos",
+  "total_return": -25.99283918129689,
+  "alpha": -1.624909382888717,
+  "sharpe": -3.2221606331718204,
+  "max_drawdown": -28.380184750252024,
+  "win_rate": 30.434782608695656,
+  "n_periods": 23,
+  "trained_at": "2026-03-01 11:37:42.605909"
+}
