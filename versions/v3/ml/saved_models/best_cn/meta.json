@@ -1,0 +1,67 @@
+{
+  "market": "CN",
+  "model": "B_adv+a158",
+  "auc": 0.5690173683543757,
+  "total_return": 182.8252207522253,
+  "alpha": 204.29700157738023,
+  "sharpe": 6.633188716917629,
+  "max_drawdown": -4.63689056768678,
+  "win_rate": 91.8918918918919,
+  "n_features": 94,
+  "feature_groups": {
+    "adv": 40,
+    "a158": 54,
+    "caisen": 75
+  },
+  "all_experiments": {
+    "A_adv_only": {
+      "auc": 0.5511,
+      "acc": 0.5773,
+      "prec": 0.3442,
+      "n_feat": 40
+    },
+    "B_adv+a158": {
+      "auc": 0.569,
+      "acc": 0.5829,
+      "prec": 0.5813,
+      "n_feat": 94
+    },
+    "C_adv+caisen": {
+      "auc": 0.5524,
+      "acc": 0.5865,
+      "prec": 0.608,
+      "n_feat": 115
+    },
+    "D_a158+caisen": {
+      "auc": 0.561,
+      "acc": 0.5888,
+      "prec": 0.5076,
+      "n_feat": 129
+    },
+    "E_full_shallow": {
+      "auc": 0.5684,
+      "acc": 0.5869,
+      "prec": 0.4373,
+      "n_feat": 169
+    },
+    "F_full_deep": {
+      "auc": 0.5626,
+      "acc": 0.5872,
+      "prec": 0.5415,
+      "n_feat": 169
+    },
+    "G_full_conserv": {
+      "auc": 0.5638,
+      "acc": 0.5933,
+      "prec": 0.5326,
+      "n_feat": 169
+    },
+    "H_caisen_only": {
+      "auc": 0.563,
+      "acc": 0.578,
+      "prec": 0.5659,
+      "n_feat": 75
+    }
+  },
+  "trained_at": "2026-03-01 11:19:02.076597"
+}

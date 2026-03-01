@@ -1,0 +1,33 @@
+{
+  "market": "CN",
+  "method": "v2_ranking",
+  "total_return": -2.111642100429001,
+  "alpha": 11.179708382293786,
+  "sharpe": -0.04148123080288661,
+  "max_drawdown": -24.43599780755007,
+  "win_rate": 46.875,
+  "n_periods": 32,
+  "features": [
+    "a158_return_kurt_60",
+    "a158_return_skew_60",
+    "a158_return_std_60",
+    "a158_gap_sum_5",
+    "adv_adx_14",
+    "adv_vol_ratio",
+    "adv_obv_slope_10",
+    "cs_var50",
+    "cs_var50_slope",
+    "a158_corr_ret_vol_20",
+    "a158_macd_dif",
+    "a158_macd_dea",
+    "a158_vol_ma5_ma20_ratio",
+    "adv_volatility_60",
+    "adv_atr_14",
+    "a158_return_mean_60",
+    "a158_chaikin_vol",
+    "a158_corr_close_vol_20",
+    "adv_volatility_20",
+    "adv_ma_slope_20"
+  ],
+  "trained_at": "2026-03-01 11:40:59.482627"
+}
