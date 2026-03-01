@@ -581,6 +581,24 @@ class MLPipeline:
                     except Exception:
                         pass
                 
+                # 加入蔡森图表特征 (Phase 3)
+                try:
+                    from ml.caisen_features import compute_caisen_features
+                    cs_df = compute_caisen_features(history)
+                    if cs_df is not None and not cs_df.empty and 'Date' not in cs_df.columns:
+                        cs_df['Date'] = cs_df.index
+                    if cs_df is not None and not cs_df.empty:
+                        cs_eligible = cs_df[cs_df['Date'] <= signal_date] if 'Date' in cs_df.columns else cs_df[cs_df.index <= signal_date]
+                        if len(cs_eligible) > 0:
+                            cs_row = cs_eligible.iloc[-1]
+                            for col in cs_row.index:
+                                if col != 'Date' and col not in feature_dict:
+                                    val = cs_row[col]
+                                    if isinstance(val, (int, float, np.integer, np.floating)):
+                                        feature_dict[col] = float(val)
+                except Exception:
+                    pass
+                
                 # 计算未来收益 (标签)
                 # 入场口径: 信号后的下一交易日开盘价，更接近真实执行
                 signal_idx = closest_idx
