@@ -599,6 +599,24 @@ class MLPipeline:
                 except Exception:
                     pass
                 
+                # 加入策略信号特征 (Phase 4)
+                try:
+                    from strategies.auto_backtester import generate_strategy_features
+                    sf_df = generate_strategy_features(history)
+                    if sf_df is not None and not sf_df.empty:
+                        if not isinstance(sf_df.index, pd.DatetimeIndex):
+                            sf_df.index = history.index[:len(sf_df)]
+                        sf_eligible = sf_df[sf_df.index <= signal_date]
+                        if len(sf_eligible) > 0:
+                            sf_row = sf_eligible.iloc[-1]
+                            for col in sf_row.index:
+                                if col not in feature_dict:
+                                    val = sf_row[col]
+                                    if isinstance(val, (int, float, np.integer, np.floating)):
+                                        feature_dict[col] = float(val)
+                except Exception:
+                    pass
+                
                 # 计算未来收益 (标签)
                 # 入场口径: 信号后的下一交易日开盘价，更接近真实执行
                 signal_idx = closest_idx
