@@ -207,6 +207,9 @@ def compute_caisen_features(hist: pd.DataFrame) -> pd.DataFrame:
     # 逐日滚动检测（不只看最后一天）
     _add_pattern_features(features, hist)
     
+    # === 6. TA-Lib 61 K线形态识别 ===
+    _add_talib_patterns(features, o, h, l, c)
+    
     # NaN 处理
     features = features.fillna(0)
     
@@ -362,6 +365,49 @@ def _add_pattern_features(features: pd.DataFrame, hist: pd.DataFrame):
         features.iloc[i, features.columns.get_loc('cs_pattern_score')] = bull - bear
 
 
+def _add_talib_patterns(features: pd.DataFrame, o, h, l, c):
+    """
+    用 TA-Lib 识别 61 种经典 K 线形态
+    
+    每个形态输出:
+      +100 = 看涨, -100 = 看跌, 0 = 无信号
+    我们归一化为 -1/0/+1
+    """
+    try:
+        import talib
+    except ImportError:
+        return
+    
+    cdl_funcs = [f for f in dir(talib) if f.startswith('CDL')]
+    
+    bull_sum = np.zeros(len(c), dtype=float)
+    bear_sum = np.zeros(len(c), dtype=float)
+    cdl_data = {}
+    
+    for func_name in cdl_funcs:
+        try:
+            func = getattr(talib, func_name)
+            result = func(o, h, l, c)
+            # 归一化到 -1/0/+1
+            normalized = np.sign(result).astype(float)
+            col_name = f'cdl_{func_name[3:].lower()}'
+            cdl_data[col_name] = normalized
+            
+            bull_sum += (normalized > 0).astype(float)
+            bear_sum += (normalized < 0).astype(float)
+        except Exception:
+            pass
+    
+    # 一次性添加所有列 (避免 fragmentation 警告)
+    cdl_data['cdl_bull_count'] = bull_sum
+    cdl_data['cdl_bear_count'] = bear_sum
+    cdl_data['cdl_net_score'] = bull_sum - bear_sum
+    
+    cdl_df = pd.DataFrame(cdl_data, index=features.index)
+    for col in cdl_df.columns:
+        features[col] = cdl_df[col].values
+
+
 def _consecutive_count(condition):
     """计算连续满足条件的天数"""
     n = len(condition)
@@ -385,6 +431,32 @@ def _signal_disappear(condition):
             result[i] = 1.0
     return result
 
+
+# TA-Lib K线形态名称
+TALIB_CDL_NAMES = [
+    'cdl_2crows', 'cdl_3blackcrows', 'cdl_3inside', 'cdl_3linestrike',
+    'cdl_3outside', 'cdl_3starsinsouth', 'cdl_3whitesoldiers',
+    'cdl_abandonedbaby', 'cdl_advanceblock', 'cdl_belthold',
+    'cdl_breakaway', 'cdl_closingmarubozu', 'cdl_concealbabyswall',
+    'cdl_counterattack', 'cdl_darkcloudcover', 'cdl_doji',
+    'cdl_dojistar', 'cdl_dragonflydoji', 'cdl_engulfing',
+    'cdl_eveningdojistar', 'cdl_eveningstar', 'cdl_gapsidesidewhite',
+    'cdl_gravestonedoji', 'cdl_hammer', 'cdl_hangingman',
+    'cdl_harami', 'cdl_haramicross', 'cdl_highwave',
+    'cdl_hikkake', 'cdl_hikkakemod', 'cdl_homingpigeon',
+    'cdl_identical3crows', 'cdl_inneck', 'cdl_invertedhammer',
+    'cdl_kicking', 'cdl_kickingbylength', 'cdl_ladderbottom',
+    'cdl_longleggeddoji', 'cdl_longline', 'cdl_marubozu',
+    'cdl_matchinglow', 'cdl_mathold', 'cdl_morningdojistar',
+    'cdl_morningstar', 'cdl_onneck', 'cdl_piercing',
+    'cdl_rickshawman', 'cdl_risefall3methods', 'cdl_separatinglines',
+    'cdl_shootingstar', 'cdl_shortline', 'cdl_spinningtop',
+    'cdl_stalledpattern', 'cdl_sticksandwich', 'cdl_takuri',
+    'cdl_tasukigap', 'cdl_thrusting', 'cdl_tristar',
+    'cdl_unique3river', 'cdl_upsidegap2crows', 'cdl_xsidegap3methods',
+    # 复合
+    'cdl_bull_count', 'cdl_bear_count', 'cdl_net_score',
+]
 
 # 所有蔡森特征列名
 CAISEN_FEATURE_NAMES = [
@@ -420,5 +492,5 @@ CAISEN_FEATURE_NAMES = [
     'cs_X07', 'cs_X08', 'cs_X09', 'cs_X10', 'cs_X11', 'cs_X12',
     # 图形汇总
     'cs_pattern_bull_count', 'cs_pattern_bear_count', 'cs_pattern_score',
-]
+] + TALIB_CDL_NAMES
 
