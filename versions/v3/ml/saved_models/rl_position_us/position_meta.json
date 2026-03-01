@@ -1,0 +1,35 @@
+{
+  "market": "US",
+  "version": "position_manager_v1",
+  "n_episodes": 500,
+  "n_train": 400,
+  "n_test": 100,
+  "baseline_10d": {
+    "avg_return": 0.44983036453864517,
+    "median_return": 0.0714931261888041,
+    "win_rate": 51.0,
+    "max_return": 73.82753403933432,
+    "max_loss": -69.53913043478262,
+    "avg_win": 14.046523395453953,
+    "avg_loss": -13.701829728863006
+  },
+  "baseline_20d": {
+    "avg_return": 4.0496039040931855,
+    "median_return": 2.6067876085786756,
+    "win_rate": 59.0,
+    "max_return": 102.8169014084507,
+    "max_loss": -70.0,
+    "avg_win": 17.435413446447065,
+    "avg_loss": -15.212902510513617
+  },
+  "rl_results": {
+    "avg_return": 1.131231547159617,
+    "win_rate": 70.0,
+    "worst": -47.45236644903778,
+    "sharpe": 2.079872843667055,
+    "avg_position": 0.7520145284142086,
+    "avg_days": 6.26,
+    "avg_max_dd": 6.658024479017504
+  },
+  "improvement_vs_10d": 0.6814011826209718
+}
