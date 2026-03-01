@@ -203,10 +203,163 @@ def compute_caisen_features(hist: pd.DataFrame) -> pd.DataFrame:
     features['cs_regime_rising'] = (regime == 1).astype(float)
     features['cs_regime_top'] = (regime == 2).astype(float)
     
+    # === 5. 蔡森16量价图形 + 萧明道12结构 ===
+    # 逐日滚动检测（不只看最后一天）
+    _add_pattern_features(features, hist)
+    
     # NaN 处理
     features = features.fillna(0)
     
     return features
+
+
+def _add_pattern_features(features: pd.DataFrame, hist: pd.DataFrame):
+    """
+    逐日计算蔡森16量价形态 + 萧明道12结构特征
+    每个形态 → 一个 0/1 特征列
+    """
+    n = len(hist)
+    close = hist['Close'].values.astype(float)
+    high = hist['High'].values.astype(float)
+    low = hist['Low'].values.astype(float)
+    opn = hist['Open'].values.astype(float)
+    vol = hist['Volume'].values.astype(float) if 'Volume' in hist.columns else np.ones(n)
+    
+    # 预计算滚动指标
+    ma5 = pd.Series(close).rolling(5).mean().values
+    ma20 = pd.Series(close).rolling(20).mean().values
+    ma60 = pd.Series(close).rolling(60).mean().values
+    vma5 = pd.Series(vol).rolling(5).mean().values
+    vma20 = pd.Series(vol).rolling(20).mean().values
+    
+    # 初始化所有图形列
+    p_codes = [f'cs_P{i:02d}' for i in range(1, 17)]
+    x_codes = [f'cs_X{i:02d}' for i in range(1, 13)]
+    for code in p_codes + x_codes:
+        features[code] = 0.0
+    
+    # 汇总列
+    features['cs_pattern_bull_count'] = 0.0
+    features['cs_pattern_bear_count'] = 0.0
+    features['cs_pattern_score'] = 0.0  # 多-空
+    
+    min_lookback = 25
+    
+    for i in range(min_lookback, n):
+        vr = vol[i] / max(vma20[i], 1e-9) if not np.isnan(vma20[i]) else 1.0
+        ret1 = (close[i] / close[i-1] - 1) * 100 if close[i-1] > 0 else 0
+        ret5 = (close[i] / close[max(0, i-5)] - 1) * 100 if close[max(0, i-5)] > 0 else 0
+        prev20_high = np.max(high[max(0, i-20):i]) if i > 1 else high[i]
+        prev20_low = np.min(low[max(0, i-20):i]) if i > 1 else low[i]
+        
+        upper_shadow = high[i] - max(close[i], opn[i])
+        body = max(abs(close[i] - opn[i]), 1e-9)
+        usr = upper_shadow / body
+        
+        bull = 0
+        bear = 0
+        
+        # --- 蔡森 P01-P16 ---
+        # P01 放量突破
+        if close[i] > prev20_high and vr >= 1.5:
+            features.iloc[i, features.columns.get_loc('cs_P01')] = 1; bull += 1
+        # P02 缩量回踩
+        if not np.isnan(ma20[i]) and abs(close[i] - ma20[i]) / max(ma20[i], 1e-9) <= 0.02 and vr <= 0.75 and close[i] >= close[i-1]:
+            features.iloc[i, features.columns.get_loc('cs_P02')] = 1; bull += 1
+        # P03 底部堆量
+        if i >= 6 and sum(vol[i-2:i+1]) > sum(vol[i-5:i-2]) * 1.4 and ret5 < -3:
+            features.iloc[i, features.columns.get_loc('cs_P03')] = 1; bull += 1
+        # P04 平台突破
+        if i >= 21:
+            box = (np.max(high[i-20:i]) - np.min(low[i-20:i])) / max(close[i], 1e-9)
+            if box < 0.12 and close[i] > np.max(high[i-20:i]) and vr > 1.3:
+                features.iloc[i, features.columns.get_loc('cs_P04')] = 1; bull += 1
+        # P05 量价齐升
+        if ret1 > 2.0 and vr > 1.3:
+            features.iloc[i, features.columns.get_loc('cs_P05')] = 1; bull += 1
+        # P06 缩量新高
+        if i >= 60 and close[i] >= np.max(close[i-60:i]) and vr < 0.85:
+            features.iloc[i, features.columns.get_loc('cs_P06')] = 1  # 中性
+        # P07 放量滞涨
+        if abs(ret1) < 1.0 and vr > 1.8:
+            features.iloc[i, features.columns.get_loc('cs_P07')] = 1; bear += 1
+        # P08 巨量阴线
+        if ret1 < -3.0 and vr > 2.0:
+            features.iloc[i, features.columns.get_loc('cs_P08')] = 1; bear += 1
+        # P09 价涨量缩背离
+        if ret5 > 5.0 and not np.isnan(vma5[i]) and not np.isnan(vma20[i]) and vma5[i] < vma20[i] * 0.9:
+            features.iloc[i, features.columns.get_loc('cs_P09')] = 1; bear += 1
+        # P10 放量长上影
+        if usr > 1.5 and vr > 1.5:
+            features.iloc[i, features.columns.get_loc('cs_P10')] = 1; bear += 1
+        # P11 跌破均线放量
+        if not np.isnan(ma20[i]) and close[i] < ma20[i] <= close[i-1] and vr > 1.3:
+            features.iloc[i, features.columns.get_loc('cs_P11')] = 1; bear += 1
+        # P12 缩量止跌
+        if ret5 < -5.0 and ret1 > 0 and vr < 0.85:
+            features.iloc[i, features.columns.get_loc('cs_P12')] = 1  # 中性
+        # P13 周线突破 (用日线近 27 天代替)
+        if i >= 27 and close[i] > np.max(high[i-27:i]) and vr > 1.2:
+            features.iloc[i, features.columns.get_loc('cs_P13')] = 1; bull += 1
+        # P14 月线转强 (日线 120 天)
+        if i >= 120:
+            ma120 = np.mean(close[i-120:i])
+            if close[i] > ma120 and close[i-1] <= ma120:
+                features.iloc[i, features.columns.get_loc('cs_P14')] = 1; bull += 1
+        # P15 多周期共振
+        if not np.isnan(ma20[i]) and not np.isnan(ma60[i]) and close[i] > ma20[i] > ma60[i] and ret5 > 0:
+            features.iloc[i, features.columns.get_loc('cs_P15')] = 1; bull += 1
+        # P16 下跌量能衰竭
+        if ret5 < -8.0 and vr < 0.75 and close[i] > prev20_low:
+            features.iloc[i, features.columns.get_loc('cs_P16')] = 1  # 中性
+        
+        # --- 萧明道 X01-X12 ---
+        # X01 上升结构完整
+        if not np.isnan(ma20[i]) and not np.isnan(ma60[i]) and close[i] > ma20[i] > ma60[i]:
+            features.iloc[i, features.columns.get_loc('cs_X01')] = 1; bull += 1
+        # X02 缩量回踩不破
+        if not np.isnan(ma20[i]) and abs(close[i] - ma20[i]) / max(ma20[i], 1e-9) <= 0.02 and vr <= 0.8 and close[i] >= close[i-1]:
+            features.iloc[i, features.columns.get_loc('cs_X02')] = 1; bull += 1
+        # X03 平台突破确认
+        if i >= 21:
+            box = (np.max(high[i-20:i]) - np.min(low[i-20:i])) / max(close[i], 1e-9)
+            if box < 0.12 and close[i] > np.max(high[i-20:i]) and vr > 1.3:
+                features.iloc[i, features.columns.get_loc('cs_X03')] = 1; bull += 1
+        # X04 黄金坑反包
+        if i >= 5 and ret1 > 2.0 and close[i] > opn[i] and close[i] > close[i-1]:
+            low3 = np.min(low[i-3:i])
+            if low3 < close[i-4]:
+                features.iloc[i, features.columns.get_loc('cs_X04')] = 1; bull += 1
+        # X05 多头排列共振
+        if not np.isnan(ma5[i]) and not np.isnan(ma20[i]) and not np.isnan(ma60[i]) and ma5[i] > ma20[i] > ma60[i]:
+            features.iloc[i, features.columns.get_loc('cs_X05')] = 1; bull += 1
+        # X06 高位量价背离
+        if i >= 60 and close[i] >= np.max(close[i-60:i]) and not np.isnan(vma5[i]) and not np.isnan(vma20[i]) and vma5[i] < vma20[i] * 0.9:
+            features.iloc[i, features.columns.get_loc('cs_X06')] = 1; bear += 1
+        # X07 巨量滞涨
+        if abs(ret1) < 1.0 and vr > 1.8:
+            features.iloc[i, features.columns.get_loc('cs_X07')] = 1; bear += 1
+        # X08 关键支撑失守
+        if not np.isnan(ma20[i]) and close[i] < ma20[i] <= close[i-1] and vr > 1.2:
+            features.iloc[i, features.columns.get_loc('cs_X08')] = 1; bear += 1
+        # X09 反弹无量
+        if ret5 < -5.0 and ret1 > 0 and vr < 0.9:
+            features.iloc[i, features.columns.get_loc('cs_X09')] = 1; bear += 1
+        # X10 结构中性整理
+        if i >= 21:
+            box = (np.max(high[i-20:i]) - np.min(low[i-20:i])) / max(close[i], 1e-9)
+            if box <= 0.15 and abs(ret5) < 4.0:
+                features.iloc[i, features.columns.get_loc('cs_X10')] = 1  # 中性
+        # X11 下跌结构衰竭
+        if ret5 < -8.0 and vr < 0.8 and close[i] > prev20_low:
+            features.iloc[i, features.columns.get_loc('cs_X11')] = 1  # 中性
+        # X12 趋势反转确认
+        if not np.isnan(ma20[i]) and close[i-1] <= ma20[i] < close[i] and close[i] > prev20_high:
+            features.iloc[i, features.columns.get_loc('cs_X12')] = 1; bull += 1
+        
+        features.iloc[i, features.columns.get_loc('cs_pattern_bull_count')] = bull
+        features.iloc[i, features.columns.get_loc('cs_pattern_bear_count')] = bear
+        features.iloc[i, features.columns.get_loc('cs_pattern_score')] = bull - bear
 
 
 def _consecutive_count(condition):
@@ -258,4 +411,14 @@ CAISEN_FEATURE_NAMES = [
     # 复合
     'cs_signal_strength', 'cs_bull_bear_ratio',
     'cs_regime', 'cs_regime_bottom', 'cs_regime_rising', 'cs_regime_top',
+    # 蔡森16量价图形
+    'cs_P01', 'cs_P02', 'cs_P03', 'cs_P04', 'cs_P05', 'cs_P06',
+    'cs_P07', 'cs_P08', 'cs_P09', 'cs_P10', 'cs_P11', 'cs_P12',
+    'cs_P13', 'cs_P14', 'cs_P15', 'cs_P16',
+    # 萧明道12结构
+    'cs_X01', 'cs_X02', 'cs_X03', 'cs_X04', 'cs_X05', 'cs_X06',
+    'cs_X07', 'cs_X08', 'cs_X09', 'cs_X10', 'cs_X11', 'cs_X12',
+    # 图形汇总
+    'cs_pattern_bull_count', 'cs_pattern_bear_count', 'cs_pattern_score',
 ]
+
