@@ -327,18 +327,20 @@ def prepare_rl_data(symbol: str, market: str = 'US', days: int = 250) -> Tuple:
     df_adv = adv.transform(history)
     df_alpha = alpha.compute(history)
     
-    # 精选 20 个最重要的特征 (基于 LGB feature importance)
+    # v9 优化特征集 (基于 permutation importance 分析)
+    # 移除有害: atr_pct(-3.6%), kdj_j_9(-3.6%), trend_consistency(-0.6%), relative_volume_5(-0.4%)
+    # 保留 top: obv_slope_10(+16%), mfi_14(+14%), momentum_acceleration(+12.5%)
     selected_features = [
-        # 波动率
-        'volatility_20', 'atr_pct', 'vol_ratio',
-        # 动量
+        # 波动率 (保留有用的)
+        'volatility_20', 'vol_ratio',
+        # 动量 (top performers)
         'roc_5', 'roc_20', 'momentum_acceleration',
         # 趋势
-        'ma_distance_20', 'adx_14', 'trend_consistency',
-        # 量价
-        'relative_volume_5', 'obv_slope_10',
-        # Alpha158
-        'rsi_12', 'macd_dif_pct', 'kdj_j_9',
+        'ma_distance_20', 'adx_14',
+        # 量价 (obv_slope_10 是最重要的!)
+        'obv_slope_10',
+        # Alpha158 (保留高 importance)
+        'rsi_12', 'macd_dif_pct',
         'bband_pctb_20', 'vwap_bias',
         'mfi_14', 'cci_14', 'willr_14',
         'return_skew_20',
@@ -352,10 +354,28 @@ def prepare_rl_data(symbol: str, market: str = 'US', days: int = 250) -> Tuple:
         elif f in df_alpha.columns:
             combined[f] = df_alpha[f]
     
-    # 添加简单价格特征
+    # 添加 BLUE 信号值 (强预测特征)
+    try:
+        from indicator_utils import calculate_blue_signal_series
+        blue = calculate_blue_signal_series(
+            history['Open'].values, history['High'].values,
+            history['Low'].values, history['Close'].values
+        )
+        combined['blue_signal'] = blue
+    except Exception:
+        combined['blue_signal'] = 0.0
+    
+    # 添加价格动量特征
     combined['return_1d'] = history['Close'].pct_change() * 100
     combined['return_5d'] = history['Close'].pct_change(5) * 100
     combined['return_20d'] = history['Close'].pct_change(20) * 100
+    
+    # 添加量价背离
+    combined['volume_price_corr'] = (
+        history['Close'].pct_change().rolling(10).corr(
+            history['Volume'].pct_change()
+        ) * 100
+    )
     
     # 丢弃 NaN
     valid_mask = combined.notna().all(axis=1)
