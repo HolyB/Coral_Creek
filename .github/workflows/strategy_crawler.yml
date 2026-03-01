@@ -1,0 +1,66 @@
+name: Strategy Crawler & Auto Backtest
+
+on:
+  schedule:
+    # 每天 UTC 7:00 (北京 15:00，美东 3:00) 
+    - cron: '0 7 * * 1-5'
+  workflow_dispatch:
+
+env:
+  PYTHONPATH: versions/v3
+
+jobs:
+  crawl-and-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: versions/v3
+        run: |
+          pip install -q numpy pandas requests yfinance akshare scipy
+
+      - name: Crawl strategies
+        working-directory: versions/v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -c "
+          from strategies.strategy_crawler import daily_crawl
+          daily_crawl()
+          "
+
+      - name: Run auto backtest
+        working-directory: versions/v3
+        run: |
+          python -c "
+          from strategies.auto_backtester import run_all_builtin_backtests
+          import json
+          
+          results = {}
+          for market in ['US', 'CN']:
+              print(f'\n=== {market} ===')
+              df = run_all_builtin_backtests(market=market, n_stocks=20, days=300)
+              if not df.empty:
+                  results[market] = df.to_dict('records')
+                  top = df.head(3)
+                  for _, r in top.iterrows():
+                      print(f'  🏆 {r[\"name\"]} Sharpe={r[\"avg_sharpe\"]:+.2f} Ret={r[\"avg_return\"]:+.1f}%')
+          
+          with open('backtest_results.json', 'w') as f:
+              json.dump(results, f, indent=2, default=str)
+          "
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: strategy-backtest-results
+          path: versions/v3/backtest_results.json
+          retention-days: 30
