@@ -1,0 +1,38 @@
+{
+  "BLUE_Signal": {
+    "total_return": 3.1429570754585967,
+    "cagr": 29.685809722451097,
+    "sharpe": 2.5372741424022913,
+    "sortino": 4.426336808045801,
+    "max_drawdown": -2.2681020413286346,
+    "calmar": 13.088392489193918,
+    "volatility": 10.458339474883086,
+    "win_rate": 50.0,
+    "avg_win": 0.646065614299832,
+    "avg_loss": -0.43546502444200647,
+    "profit_factor": 1.4836222843101663,
+    "payoff_ratio": 1.4836222843101663,
+    "best_day": 1.3834197701524302,
+    "worst_day": -1.247376266559281,
+    "trading_days": 30,
+    "report_path": "/Users/bertwang/Cursor/Coral_Creek/versions/v3/reports/backtest/BLUE_Signal_CN_20260228.html"
+  },
+  "BLUE_HQ": {
+    "total_return": 3.0419366871892617,
+    "cagr": 28.62272515177824,
+    "sharpe": 2.508518150918889,
+    "sortino": 4.378015338936894,
+    "max_drawdown": -2.218891283008051,
+    "calmar": 12.89956176355594,
+    "volatility": 10.241094221513945,
+    "win_rate": 53.333333333333336,
+    "avg_win": 0.5845132460134725,
+    "avg_loss": -0.4495630061587792,
+    "profit_factor": 1.485921059227854,
+    "payoff_ratio": 1.3001809268243723,
+    "best_day": 1.4103571697515198,
+    "worst_day": -1.2300605764260564,
+    "trading_days": 30,
+    "report_path": "/Users/bertwang/Cursor/Coral_Creek/versions/v3/reports/backtest/BLUE_HQ_CN_20260228.html"
+  }
+}
