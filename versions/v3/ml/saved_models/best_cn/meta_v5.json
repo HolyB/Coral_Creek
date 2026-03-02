@@ -1,0 +1,9 @@
+{
+  "market": "CN",
+  "model": "V3_50%",
+  "alpha": 9.222405563478098,
+  "n_features": 32,
+  "has_market_features": false,
+  "market_features": [],
+  "trained_at": "2026-03-01 22:14:52.464602"
+}
