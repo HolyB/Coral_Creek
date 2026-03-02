@@ -1,0 +1,38 @@
+{
+  "2022": {
+    "long_ret_ret": -8.22,
+    "short_ret_ret": 80.64,
+    "ls_ret_ret": 31.58,
+    "bench_ret_ret": -19.67
+  },
+  "2023": {
+    "long_ret_ret": 15.97,
+    "short_ret_ret": 13.13,
+    "ls_ret_ret": 16.26,
+    "bench_ret_ret": 13.06
+  },
+  "2024": {
+    "long_ret_ret": 5.99,
+    "short_ret_ret": 15.75,
+    "ls_ret_ret": 13.47,
+    "bench_ret_ret": 9.34
+  },
+  "2025": {
+    "long_ret_ret": 2.07,
+    "short_ret_ret": -163.6,
+    "ls_ret_ret": -61.44,
+    "bench_ret_ret": 11.68
+  },
+  "2026": {
+    "long_ret_ret": -9.45,
+    "short_ret_ret": 28.14,
+    "ls_ret_ret": 8.29,
+    "bench_ret_ret": -10.86
+  },
+  "_meta": {
+    "n_stocks": 1000,
+    "n_dates": 1268,
+    "n_rows": 1242044,
+    "date_range": "2021-02-17 00:00:00 \u2192 2026-02-17 00:00:00"
+  }
+}
