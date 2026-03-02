@@ -15,6 +15,12 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Tuple
 
+try:
+    import talib
+    HAS_TALIB = True
+except ImportError:
+    HAS_TALIB = False
+
 
 class AdvancedFeatureEngineer:
     """高级特征工程器"""
@@ -239,6 +245,122 @@ class AdvancedFeatureEngineer:
         
         return df
     
+    def create_talib_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        TradingView 经典指标 (via TA-Lib)
+        补充 advanced_features 缺失的 14 个 TV 核心指标
+        """
+        if not HAS_TALIB:
+            return df
+        
+        df = df.copy()
+        o = df['Open'].values.astype(float)
+        h = df['High'].values.astype(float)
+        l = df['Low'].values.astype(float)
+        c = df['Close'].values.astype(float)
+        v = df['Volume'].values.astype(float) if 'Volume' in df.columns else np.ones(len(c))
+        
+        # --- 1. Supertrend (ATR-based trend) ---
+        atr = talib.ATR(h, l, c, timeperiod=10)
+        hl2 = (h + l) / 2
+        upper_band = hl2 + 3 * atr
+        lower_band = hl2 - 3 * atr
+        supertrend = np.zeros(len(c))
+        direction = np.ones(len(c))  # 1=up, -1=down
+        for i in range(1, len(c)):
+            if c[i] > upper_band[i-1]:
+                direction[i] = 1
+            elif c[i] < lower_band[i-1]:
+                direction[i] = -1
+            else:
+                direction[i] = direction[i-1]
+            supertrend[i] = lower_band[i] if direction[i] == 1 else upper_band[i]
+        df['tv_supertrend_dir'] = direction  # +1/-1
+        df['tv_supertrend_dist'] = (c - supertrend) / (c + 1e-8) * 100  # % distance
+        
+        # --- 2. Ichimoku Cloud ---
+        tenkan = (pd.Series(h).rolling(9).max() + pd.Series(l).rolling(9).min()) / 2
+        kijun = (pd.Series(h).rolling(26).max() + pd.Series(l).rolling(26).min()) / 2
+        senkou_a = ((tenkan + kijun) / 2).shift(26)
+        senkou_b = ((pd.Series(h).rolling(52).max() + pd.Series(l).rolling(52).min()) / 2).shift(26)
+        df['tv_ichimoku_tenkan'] = ((c - tenkan.values) / (c + 1e-8) * 100)
+        df['tv_ichimoku_kijun'] = ((c - kijun.values) / (c + 1e-8) * 100)
+        df['tv_ichimoku_cloud'] = np.where(
+            senkou_a.values > senkou_b.values, 1,
+            np.where(senkou_a.values < senkou_b.values, -1, 0)
+        ).astype(float)
+        df['tv_ichimoku_above_cloud'] = np.where(
+            c > np.maximum(senkou_a.values, senkou_b.values), 1,
+            np.where(c < np.minimum(senkou_a.values, senkou_b.values), -1, 0)
+        ).astype(float)
+        
+        # --- 3. Stochastic RSI ---
+        stochrsi_k, stochrsi_d = talib.STOCHRSI(c, timeperiod=14, fastk_period=3, fastd_period=3)
+        df['tv_stochrsi_k'] = stochrsi_k
+        df['tv_stochrsi_d'] = stochrsi_d
+        
+        # --- 4. Parabolic SAR ---
+        sar = talib.SAR(h, l, acceleration=0.02, maximum=0.2)
+        df['tv_sar_dir'] = np.sign(c - sar).astype(float)  # above=1, below=-1
+        df['tv_sar_dist'] = (c - sar) / (c + 1e-8) * 100
+        
+        # --- 5. KAMA (Kaufman Adaptive MA) ---
+        kama = talib.KAMA(c, timeperiod=30)
+        df['tv_kama_dist'] = (c - kama) / (c + 1e-8) * 100
+        df['tv_kama_slope'] = pd.Series(kama).diff(5).values / (kama + 1e-8) * 100
+        
+        # --- 6. Aroon ---
+        aroon_down, aroon_up = talib.AROON(h, l, timeperiod=25)
+        df['tv_aroon_up'] = aroon_up
+        df['tv_aroon_down'] = aroon_down
+        df['tv_aroon_osc'] = aroon_up - aroon_down  # >0 bullish, <0 bearish
+        
+        # --- 7. Squeeze Momentum (Bollinger inside Keltner) ---
+        bb_upper, bb_mid, bb_lower = talib.BBANDS(c, timeperiod=20, nbdevup=2, nbdevdn=2)
+        kc_mid = talib.EMA(c, timeperiod=20)
+        kc_atr = talib.ATR(h, l, c, timeperiod=20)
+        kc_upper = kc_mid + 1.5 * kc_atr
+        kc_lower = kc_mid - 1.5 * kc_atr
+        squeeze_on = ((bb_lower > kc_lower) & (bb_upper < kc_upper)).astype(float)
+        df['tv_squeeze_on'] = squeeze_on  # 1=squeezed
+        df['tv_squeeze_mom'] = talib.LINEARREG(c - (pd.Series(h).rolling(20).max().values + pd.Series(l).rolling(20).min().values) / 2, timeperiod=20)
+        
+        # --- 8. Hull MA ---
+        wma_n = talib.WMA(c, timeperiod=20)
+        wma_n2 = talib.WMA(c, timeperiod=10)
+        hull_raw = 2 * wma_n2 - wma_n
+        hull = talib.WMA(hull_raw, timeperiod=4)  # sqrt(20)≈4
+        df['tv_hull_dist'] = (c - hull) / (c + 1e-8) * 100
+        df['tv_hull_slope'] = pd.Series(hull).diff(3).values / (hull + 1e-8) * 100
+        
+        # --- 9. TRIX ---
+        df['tv_trix'] = talib.TRIX(c, timeperiod=15)
+        
+        # --- 10. CMO (Chande Momentum Oscillator) ---
+        df['tv_cmo'] = talib.CMO(c, timeperiod=14)
+        
+        # --- 11. Ultimate Oscillator ---
+        df['tv_ultosc'] = talib.ULTOSC(h, l, c, timeperiod1=7, timeperiod2=14, timeperiod3=28)
+        
+        # --- 12. Balance of Power ---
+        df['tv_bop'] = talib.BOP(o, h, l, c)
+        
+        # --- 13. DI+/DI- ---
+        df['tv_plus_di'] = talib.PLUS_DI(h, l, c, timeperiod=14)
+        df['tv_minus_di'] = talib.MINUS_DI(h, l, c, timeperiod=14)
+        df['tv_di_spread'] = df['tv_plus_di'] - df['tv_minus_di']
+        
+        # --- 14. Hilbert Transform (Cycle detection) ---
+        df['tv_ht_trendmode'] = talib.HT_TRENDMODE(c).astype(float)
+        sine, leadsine = talib.HT_SINE(c)
+        df['tv_ht_sine'] = sine
+        df['tv_ht_dcperiod'] = talib.HT_DCPERIOD(c)  # dominant cycle period
+        
+        # --- 15. Williams %R ---
+        df['tv_willr'] = talib.WILLR(h, l, c, timeperiod=14)
+        
+        return df
+    
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         应用所有特征工程
@@ -255,6 +377,7 @@ class AdvancedFeatureEngineer:
         df = self.create_trend_features(df)
         df = self.create_pattern_features(df)
         df = self.create_interaction_features(df)
+        df = self.create_talib_features(df)
         
         # 记录特征名
         original_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
