@@ -1,26 +1,103 @@
 {
-  "date": "2026-02-27",
+  "date": "2026-03-02",
   "market": "CN",
-  "total_signals": 167,
+  "total_signals": 536,
   "top_signals": [
     {
-      "symbol": "920009.BJ",
-      "name": "丹娜生物",
-      "price": 76.26,
+      "symbol": "301656.SZ",
+      "name": "联合动力",
+      "price": 25.5,
       "day_blue": 200.0,
       "week_blue": 0.0
     },
     {
+      "symbol": "920124.BJ",
+      "name": "南特科技",
+      "price": 18.05,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920160.BJ",
+      "name": "北矿检测",
+      "price": 25.42,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920020.BJ",
+      "name": "泰凯英",
+      "price": 17.03,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920022.BJ",
+      "name": "世昌股份",
+      "price": 28.75,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920080.BJ",
+      "name": "奥美森",
+      "price": 27.11,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920009.BJ",
+      "name": "丹娜生物",
+      "price": 74.99,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
       "symbol": "920003.BJ",
       "name": "中诚咨询",
-      "price": 31.7,
+      "price": 30.85,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
       "symbol": "920091.BJ",
       "name": "大鹏工业",
-      "price": 65.6,
+      "price": 65.0,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920002.BJ",
+      "name": "万达轴承",
+      "price": 96.35,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "603376.SH",
+      "name": "大明电子",
+      "price": 36.68,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "301584.SZ",
+      "name": "建发致新",
+      "price": 28.07,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920122.BJ",
+      "name": "中纺标",
+      "price": 31.07,
+      "day_blue": 200.0,
+      "week_blue": 157.7
+    },
+    {
+      "symbol": "301563.SZ",
+      "name": "云汉芯城",
+      "price": 153.5,
       "day_blue": 200.0,
       "week_blue": 0.0
     },
@@ -30,83 +107,6 @@
       "price": 33.75,
       "day_blue": 200.0,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "300755.SZ",
-      "name": "华致酒行",
-      "price": 14.73,
-      "day_blue": 200.0,
-      "week_blue": 102.8
-    },
-    {
-      "symbol": "002304.SZ",
-      "name": "洋河股份",
-      "price": 53.2,
-      "day_blue": 181.5,
-      "week_blue": 104.9
-    },
-    {
-      "symbol": "600882.SH",
-      "name": "妙可蓝多",
-      "price": 22.27,
-      "day_blue": 175.6,
-      "week_blue": 114.7
-    },
-    {
-      "symbol": "688076.SH",
-      "name": "ST诺泰",
-      "price": 32.46,
-      "day_blue": 174.2,
-      "week_blue": 101.6
-    },
-    {
-      "symbol": "605179.SH",
-      "name": "一鸣食品",
-      "price": 19.66,
-      "day_blue": 174.0,
-      "week_blue": 73.6
-    },
-    {
-      "symbol": "688686.SH",
-      "name": "奥普特",
-      "price": 117.0,
-      "day_blue": 162.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920339.BJ",
-      "name": "恒太照明",
-      "price": 9.37,
-      "day_blue": 157.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603758.SH",
-      "name": "秦安股份",
-      "price": 14.69,
-      "day_blue": 155.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "601818.SH",
-      "name": "光大银行",
-      "price": 3.24,
-      "day_blue": 154.8,
-      "week_blue": 88.1
-    },
-    {
-      "symbol": "603983.SH",
-      "name": "丸美生物",
-      "price": 30.28,
-      "day_blue": 153.6,
-      "week_blue": 145.4
-    },
-    {
-      "symbol": "605008.SH",
-      "name": "长鸿高科",
-      "price": 12.89,
-      "day_blue": 149.9,
-      "week_blue": 80.3
     }
   ]
 }
