@@ -1,0 +1,32 @@
+{
+  "2022": {
+    "long_ret_ret": -29.01,
+    "short_ret_ret": 10.04,
+    "ls_ret_ret": -7.38,
+    "bench_ret_ret": -29.3
+  },
+  "2023": {
+    "long_ret_ret": -19.85,
+    "short_ret_ret": -93.68,
+    "ls_ret_ret": -49.58,
+    "bench_ret_ret": -14.4
+  },
+  "2024": {
+    "long_ret_ret": -65.77,
+    "short_ret_ret": 98.94,
+    "ls_ret_ret": -9.99,
+    "bench_ret_ret": -48.14
+  },
+  "2025": {
+    "long_ret_ret": -90.36,
+    "short_ret_ret": 189.15,
+    "ls_ret_ret": -33.22,
+    "bench_ret_ret": -75.72
+  },
+  "2026": {
+    "long_ret_ret": -44.25,
+    "short_ret_ret": -160.43,
+    "ls_ret_ret": -58.19,
+    "bench_ret_ret": -37.01
+  }
+}
