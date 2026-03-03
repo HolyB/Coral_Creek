@@ -1,8 +1,15 @@
 {
   "date": "2026-03-02",
   "market": "CN",
-  "total_signals": 536,
+  "total_signals": 635,
   "top_signals": [
+    {
+      "symbol": "000860.SZ",
+      "name": "顺鑫农业",
+      "price": 14.1,
+      "day_blue": 200.0,
+      "week_blue": 193.9
+    },
     {
       "symbol": "301656.SZ",
       "name": "联合动力",
@@ -98,13 +105,6 @@
       "symbol": "301563.SZ",
       "name": "云汉芯城",
       "price": 153.5,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301053.SZ",
-      "name": "远信工业",
-      "price": 33.75,
       "day_blue": 200.0,
       "week_blue": 0.0
     }
