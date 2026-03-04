@@ -1,8 +1,22 @@
 {
   "date": "2026-03-03",
   "market": "CN",
-  "total_signals": 797,
+  "total_signals": 1011,
   "top_signals": [
+    {
+      "symbol": "600559.SH",
+      "name": "老白干酒",
+      "price": 15.19,
+      "day_blue": 200.0,
+      "week_blue": 155.7
+    },
+    {
+      "symbol": "000860.SZ",
+      "name": "顺鑫农业",
+      "price": 14.15,
+      "day_blue": 200.0,
+      "week_blue": 194.4
+    },
     {
       "symbol": "301656.SZ",
       "name": "联合动力",
@@ -91,20 +105,6 @@
       "symbol": "688759.SH",
       "name": "必贝特-U",
       "price": 36.53,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301575.SZ",
-      "name": "艾芬达",
-      "price": 47.64,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "001386.SZ",
-      "name": "马可波罗",
-      "price": 22.51,
       "day_blue": 200.0,
       "week_blue": 0.0
     }
