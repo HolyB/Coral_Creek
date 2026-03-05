@@ -1,8 +1,15 @@
 {
   "date": "2026-03-04",
   "market": "CN",
-  "total_signals": 1529,
+  "total_signals": 1674,
   "top_signals": [
+    {
+      "symbol": "600197.SH",
+      "name": "伊力特",
+      "price": 12.82,
+      "day_blue": 200.0,
+      "week_blue": 156.4
+    },
     {
       "symbol": "002567.SZ",
       "name": "唐人神",
@@ -100,13 +107,6 @@
       "price": 36.52,
       "day_blue": 200.0,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "920339.BJ",
-      "name": "恒太照明",
-      "price": 9.03,
-      "day_blue": 200.0,
-      "week_blue": 85.8
     }
   ]
 }
