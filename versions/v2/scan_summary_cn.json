@@ -1,8 +1,22 @@
 {
   "date": "2026-03-04",
   "market": "CN",
-  "total_signals": 1343,
+  "total_signals": 1529,
   "top_signals": [
+    {
+      "symbol": "002567.SZ",
+      "name": "唐人神",
+      "price": 4.26,
+      "day_blue": 200.0,
+      "week_blue": 184.8
+    },
+    {
+      "symbol": "002304.SZ",
+      "name": "洋河股份",
+      "price": 50.31,
+      "day_blue": 200.0,
+      "week_blue": 119.3
+    },
     {
       "symbol": "603092.SH",
       "name": "德力佳",
@@ -93,20 +107,6 @@
       "price": 9.03,
       "day_blue": 200.0,
       "week_blue": 85.8
-    },
-    {
-      "symbol": "301575.SZ",
-      "name": "艾芬达",
-      "price": 47.91,
-      "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "301501.SZ",
-      "name": "恒鑫生活",
-      "price": 39.05,
-      "day_blue": 200.0,
-      "week_blue": 200.0
     }
   ]
 }
