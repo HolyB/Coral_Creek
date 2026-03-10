@@ -338,7 +338,7 @@ def format_monitor_message(alerts: List[Dict], opportunities: List[Dict], market
             msg += f"   理由: {', '.join(o['reasons'])}\n\n"
     
     msg += "━" * 25 + "\n"
-    msg += "🔗 [详情](https://coralcreek.streamlit.app/)"
+    msg += "🔗 [详情](https://facaila.streamlit.app/)"
     
     return msg
 

@@ -217,7 +217,7 @@ def send_alert_telegram(alerts: list) -> bool:
         lines.append('')
     
     lines.extend([
-        '[📱 打开监控面板](https://coralcreek.streamlit.app/)',
+        '[📱 打开监控面板](https://facaila.streamlit.app/)',
         '━━━━━━━━━━━━━━━━━━'
     ])
     

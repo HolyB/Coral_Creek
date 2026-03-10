@@ -96,7 +96,7 @@ def generate_picks_message(market: str = 'US') -> str:
     
     lines.append("")
     lines.append("⚠️ 以上仅供参考，不构成投资建议")
-    lines.append("🌐 [查看详情](https://coralcreek.streamlit.app/)")
+    lines.append("🌐 [查看详情](https://facaila.streamlit.app/)")
     
     return "\n".join(lines)
 

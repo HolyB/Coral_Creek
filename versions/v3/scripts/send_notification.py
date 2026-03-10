@@ -156,7 +156,7 @@ def send_telegram(summary):
         lines.append('💡 *建议:* 信号偏弱，继续观望')
     
     lines.append('')
-    lines.append('[📱 查看详情](https://coralcreek.streamlit.app/)')
+    lines.append('[📱 查看详情](https://facaila.streamlit.app/)')
     lines.append('━━━━━━━━━━━━━━━━━━')
     
     message = '\n'.join(lines)
@@ -266,7 +266,7 @@ def send_telegram_detailed(summary):
     lines.extend([
         '━━━━━━━━━━━━━━━━━━',
         '⚠️ *本报告仅供参考*',
-        '[📱 查看完整分析](https://coralcreek.streamlit.app/)',
+        '[📱 查看完整分析](https://facaila.streamlit.app/)',
     ])
     
     message = '\n'.join(lines)
@@ -295,7 +295,7 @@ def send_email(summary):
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
     
-    smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
+    smtp_host = os.getenv('SMTP_HOST') or 'smtp.gmail.com'
     smtp_port = int(os.getenv('SMTP_PORT') or 587)
     smtp_sender = os.getenv('SMTP_SENDER')
     smtp_password = os.getenv('SMTP_PASSWORD')
@@ -389,7 +389,7 @@ def send_email(summary):
             </div>
             
             <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
-                <a href="https://coralcreek.streamlit.app/" style="color: #667eea;">查看完整报告</a>
+                <a href="https://facaila.streamlit.app/" style="color: #667eea;">查看完整报告</a>
                 <br><br>
                 Coral Creek V2.0 - 智能量化系统
             </div>
