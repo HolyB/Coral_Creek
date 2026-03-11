@@ -297,7 +297,7 @@ def get_scan_date_counts_supabase(market: str = None, limit: int = 30) -> List[D
 
 
 def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dict[str, str]:
-    """从 Supabase 获取股票首次出现的日期 (限最近90天)
+    """从 Supabase 获取股票首次出现的日期 (限最近2年)
     
     Args:
         symbols: 股票代码列表
@@ -312,7 +312,7 @@ def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dic
     
     try:
         from datetime import datetime, timedelta
-        cutoff_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+        cutoff_date = (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')
         
         # 分批查询避免 URL 过长
         batch_size = 50
