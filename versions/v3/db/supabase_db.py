@@ -312,10 +312,10 @@ def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dic
     
     try:
         from datetime import datetime, timedelta
-        cutoff_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
+        cutoff_date = (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')
         
         # 小批量查询，每批只查 20 只，确保不超 limit
-        batch_size = 10
+        batch_size = 5
         first_dates = {}
         
         for i in range(0, len(symbols), batch_size):
@@ -327,7 +327,7 @@ def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dic
                 .in_('symbol', batch)\
                 .gte('scan_date', cutoff_date)\
                 .order('scan_date', desc=False)\
-                .limit(1000)\
+                .limit(5000)\
                 .execute()
             
             if result.data:
