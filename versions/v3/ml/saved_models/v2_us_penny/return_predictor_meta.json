@@ -86,53 +86,41 @@
     "blue_daily",
     "blue_weekly",
     "blue_monthly",
-    "fund_market_cap",
-    "fund_market_cap_log",
-    "fund_cap_small",
-    "fund_cap_mid",
-    "fund_cap_large",
-    "fund_industry_hash",
-    "fund_has_market_cap",
-    "fund_pe_ttm",
-    "fund_pe_fwd",
-    "fund_pb",
-    "fund_ps",
-    "fund_ev_ebitda",
-    "fund_dividend_yield",
-    "fund_beta",
-    "fund_roe",
-    "fund_roa",
-    "fund_profit_margin",
-    "fund_current_ratio",
-    "fund_quick_ratio",
-    "fund_debt_to_equity",
-    "fund_revenue_growth",
-    "fund_earnings_growth",
-    "fund_target_upside",
-    "fund_has_external"
+    "is_heima",
+    "profit_ratio"
   ],
   "metrics": {
     "5d": {
-      "mse": 5650.4527651928665,
-      "rmse": 75.16949358079292,
-      "mae": 18.462732412892247,
-      "r2": 0.25774768506398404,
-      "direction_accuracy": 0.6040044493882091,
-      "train_samples": 2622,
-      "test_samples": 899
+      "mse": 105946.15002200213,
+      "rmse": 325.4937019697956,
+      "mae": 27.490548114696583,
+      "r2": 0.02621775065121712,
+      "direction_accuracy": 0.4422001645012657,
+      "train_samples": 1218906,
+      "test_samples": 626135
     },
     "20d": {
-      "mse": 1666.5216746973624,
-      "rmse": 40.82305322605553,
-      "mae": 20.894406005822606,
-      "r2": 0.2510521450152422,
-      "direction_accuracy": 0.6637168141592921,
-      "train_samples": 243,
-      "test_samples": 113
+      "mse": 359414.7021491197,
+      "rmse": 599.512053381014,
+      "mae": 68.88830252065883,
+      "r2": 0.03019914854703698,
+      "direction_accuracy": 0.45644114018570225,
+      "train_samples": 1202687,
+      "test_samples": 616040
+    },
+    "60d": {
+      "mse": 3834957.8074828256,
+      "rmse": 1958.3048300718726,
+      "mae": 141.3208783596862,
+      "r2": 0.040795596045597016,
+      "direction_accuracy": 0.48000141487505305,
+      "train_samples": 1157011,
+      "test_samples": 593692
     }
   },
   "horizons": [
     "5d",
-    "20d"
+    "20d",
+    "60d"
   ]
 }

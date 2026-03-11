@@ -314,10 +314,13 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
             duokongwang_buy = False
             duokongwang_sell = False
         
-        # 只保存有信号的股票（含空头信号）
-        has_signal = (is_strat_d or is_strat_c or legacy_signal or week_blue_val > 100 
+        # 保存任何有信号的股票（不管强弱）
+        has_signal = (day_blue_val > 0 or week_blue_val > 0 or month_blue_val > 0
+                      or curr_heima or curr_juedi
+                      or heima_weekly or juedi_weekly
+                      or heima_monthly or juedi_monthly
                       or duokongwang_buy or duokongwang_sell 
-                      or lired_daily_val > 0 or pink_daily_val > 90)
+                      or lired_daily_val > 0 or pink_daily_val > 80)
         
         if not has_signal:
             return None
