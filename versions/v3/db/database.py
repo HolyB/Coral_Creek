@@ -26,8 +26,12 @@ except ImportError:
 # 避免重复刷屏日志
 _SUPABASE_LAG_WARNED = False
 
-# 检查是否使用 Supabase
-USE_SUPABASE = os.environ.get('SUPABASE_URL') is not None
+# 检查是否使用 Supabase (动态检查，因为 Streamlit secrets 在 import 后才注入)
+def _check_use_supabase():
+    return os.environ.get('SUPABASE_URL') is not None
+
+# 模块级变量（首次检查）- 后续代码中全部改用 _check_use_supabase()
+USE_SUPABASE = _check_use_supabase()
 
 # 数据库文件路径 (SQLite 备用)
 DB_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -91,7 +95,7 @@ def get_connection():
 
 def _rehydrate_scan_results_from_supabase(conn, recent_days: int = 14) -> int:
     """恢复后从 Supabase 回灌最近 N 天 scan_results 到本地 SQLite。"""
-    if not (USE_SUPABASE and SUPABASE_LAYER_AVAILABLE):
+    if not (_check_use_supabase() and SUPABASE_LAYER_AVAILABLE):
         return 0
     try:
         markets = ["US", "CN"]
@@ -615,7 +619,7 @@ def get_scanned_dates(start_date=None, end_date=None, market=None):
             raise
 
     # 优先使用 Supabase
-    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+    if _check_use_supabase() and SUPABASE_LAYER_AVAILABLE:
         try:
             dates = get_scanned_dates_supabase(start_date, end_date, market)
             # 容错: 若 Supabase 日期落后于本地 SQLite，则优先使用本地最新日期
@@ -646,7 +650,7 @@ def get_scan_date_counts(market=None, limit=30):
         [{'scan_date': '2026-02-11', 'count': 275}, ...]  按日期降序
     """
     # 优先 Supabase
-    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+    if _check_use_supabase() and SUPABASE_LAYER_AVAILABLE:
         try:
             rows = get_scan_date_counts_supabase(market=market, limit=limit)
             if rows:
@@ -804,7 +808,7 @@ def insert_scan_result(result_dict):
         ))
     
     # 2. 同步写入 Supabase (云端)
-    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+    if _check_use_supabase() and SUPABASE_LAYER_AVAILABLE:
         try:
             insert_scan_result_supabase(result_dict)
         except Exception as e:
@@ -821,7 +825,7 @@ def query_scan_results(scan_date=None, start_date=None, end_date=None,
                        min_blue=None, symbols=None, market=None, limit=None):
     """查询扫描结果 - 优先使用 Supabase"""
     # 优先使用 Supabase
-    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+    if _check_use_supabase() and SUPABASE_LAYER_AVAILABLE:
         try:
             results = query_scan_results_supabase(
                 scan_date=scan_date,
@@ -917,7 +921,7 @@ def get_first_scan_dates(symbols, market='US'):
         return {}
     
     # 优先使用 Supabase
-    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+    if _check_use_supabase() and SUPABASE_LAYER_AVAILABLE:
         try:
             from db.supabase_db import get_first_scan_dates_supabase
             result = get_first_scan_dates_supabase(symbols, market)
@@ -985,7 +989,7 @@ def update_scan_job(scan_date, **kwargs):
 def get_db_stats():
     """获取数据库统计信息 - 优先使用 Supabase"""
     # 优先使用 Supabase
-    if USE_SUPABASE and SUPABASE_LAYER_AVAILABLE:
+    if _check_use_supabase() and SUPABASE_LAYER_AVAILABLE:
         try:
             stats = get_db_stats_supabase()
             if stats and stats.get('total_records', 0) > 0:
