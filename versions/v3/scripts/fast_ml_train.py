@@ -160,9 +160,11 @@ def fast_prepare_dataset(market='US', days_back=365, price_tier='standard', max_
         print(f"📦 检查特征缓存 ({cutoff} ~ {end_date})...")
         _init_cache_db()
         X, returns_dict, groups, feature_names, n = _load_from_cache(market, cutoff, end_date, price_tier)
-        if n > 0:
+        if n > 10000:  # 缓存太少不值得用
             print(f"✅ 从缓存加载 {n:,} 样本, {len(feature_names)} 特征 ({time.time()-t0:.1f}s)")
             return X, returns_dict, groups, feature_names, None
+        elif n > 0:
+            print(f"   缓存只有 {n:,} 样本，不够，重新计算...")
     
     # 1. 一次性读取所有 scan_results
     db_path = str(V3_DIR / "db" / "coral_creek.db")
@@ -259,10 +261,43 @@ def fast_prepare_dataset(market='US', days_back=365, price_tier='standard', max_
     import gc; gc.collect()
     
     # 4. 计算特征 + 标签 (向量化)
-    print(f"\n🧮 计算特征和标签...")
+    print(f"\n🧮 计算特征和标签（含高级特征）...")
     t2 = time.time()
     
     calculator = FeatureCalculator()
+    
+    # 初始化高级特征计算器
+    try:
+        from ml.advanced_features import AdvancedFeatureEngineer
+        adv_engineer = AdvancedFeatureEngineer()
+        print("   ✅ AdvancedFeatureEngineer 已加载")
+    except Exception as e:
+        adv_engineer = None
+        print(f"   ⚠️ AdvancedFeatureEngineer 跳过: {e}")
+    
+    try:
+        from ml.alpha_factors import Alpha158Factors
+        alpha158 = Alpha158Factors()
+        print("   ✅ Alpha158Factors 已加载")
+    except Exception as e:
+        alpha158 = None
+        print(f"   ⚠️ Alpha158Factors 跳过: {e}")
+    
+    has_caisen = False
+    try:
+        from ml.caisen_features import compute_caisen_features
+        has_caisen = True
+        print("   ✅ Caisen 筹码特征 已加载")
+    except Exception as e:
+        print(f"   ⚠️ Caisen 筹码特征 跳过: {e}")
+    
+    has_strategy = False
+    try:
+        from strategies.auto_backtester import generate_strategy_features
+        has_strategy = True
+        print("   ✅ 策略信号特征 已加载")
+    except Exception as e:
+        print(f"   ⚠️ 策略信号特征 跳过: {e}")
     
     all_features = []
     all_returns = {f'{d}d': [] for d in [1, 5, 10, 20, 30, 60]}
@@ -279,7 +314,7 @@ def fast_prepare_dataset(market='US', days_back=365, price_tier='standard', max_
         calc_hist = hist.reset_index()
         calc_hist = calc_hist.rename(columns={'trade_date': 'Date'})
         
-        # 计算特征序列
+        # 计算基础特征序列
         try:
             features_df = calculator.calculate_all(calc_hist)
         except Exception:
@@ -289,6 +324,65 @@ def fast_prepare_dataset(market='US', days_back=365, price_tier='standard', max_
         if features_df.empty or len(features_df) < 60:
             skipped += 1
             continue
+        
+        # 计算高级特征（每只股票只算一次）
+        adv_features_df = None
+        alpha_df = None
+        caisen_df = None
+        strategy_df = None
+        
+        # 准备标准化 OHLCV for 高级特征
+        hist_std = hist.copy()
+        col_map = {}
+        for c in hist_std.columns:
+            cl = c.lower()
+            if cl == 'close': col_map[c] = 'Close'
+            elif cl == 'open': col_map[c] = 'Open'
+            elif cl == 'high': col_map[c] = 'High'
+            elif cl == 'low': col_map[c] = 'Low'
+            elif cl == 'volume': col_map[c] = 'Volume'
+        if col_map:
+            hist_std = hist_std.rename(columns=col_map)
+        
+        # AdvancedFeatureEngineer
+        if adv_engineer and all(c in hist_std.columns for c in ['Close', 'High', 'Low', 'Volume']):
+            try:
+                adv_features_df = adv_engineer.transform(hist_std).reset_index()
+                if 'Date' not in adv_features_df.columns:
+                    adv_features_df = adv_features_df.rename(columns={adv_features_df.columns[0]: 'Date'})
+            except Exception:
+                pass
+        
+        # Alpha158
+        if alpha158 and all(c in hist_std.columns for c in ['Close', 'High', 'Low', 'Volume']):
+            try:
+                alpha_df = alpha158.compute(hist_std).reset_index()
+                if 'Date' not in alpha_df.columns:
+                    alpha_df = alpha_df.rename(columns={alpha_df.columns[0]: 'Date'})
+            except Exception:
+                pass
+        
+        # Caisen 筹码特征
+        if has_caisen:
+            try:
+                caisen_df = compute_caisen_features(calc_hist)
+                if caisen_df is not None and not caisen_df.empty:
+                    if 'Date' not in caisen_df.columns and caisen_df.index.name:
+                        caisen_df = caisen_df.reset_index()
+                        if 'Date' not in caisen_df.columns:
+                            caisen_df = caisen_df.rename(columns={caisen_df.columns[0]: 'Date'})
+            except Exception:
+                caisen_df = None
+        
+        # 策略信号特征
+        if has_strategy:
+            try:
+                strategy_df = generate_strategy_features(calc_hist)
+                if strategy_df is not None and not strategy_df.empty:
+                    if not isinstance(strategy_df.index, pd.DatetimeIndex):
+                        strategy_df.index = calc_hist['Date'].iloc[:len(strategy_df)]
+            except Exception:
+                strategy_df = None
         
         # 获取该股票的信号日期
         sym_signals = signals_df[signals_df['symbol'] == symbol]
@@ -305,7 +399,7 @@ def fast_prepare_dataset(market='US', days_back=365, price_tier='standard', max_
             if (signal_date - ref_date).days > 3:
                 continue
             
-            # 提取特征
+            # 提取基础特征
             feature_row = features_df.loc[closest_idx]
             feature_dict = {col: feature_row.get(col, np.nan) 
                            for col in features_df.columns if col not in ['Date', 'date_diff']}
@@ -315,6 +409,62 @@ def fast_prepare_dataset(market='US', days_back=365, price_tier='standard', max_
             feature_dict['is_heima'] = signal.get('is_heima', 0)
             feature_dict['profit_ratio'] = signal.get('profit_ratio', 0)
             
+            # 加入高级特征
+            skip_cols = {'Date', 'Open', 'High', 'Low', 'Close', 'Volume',
+                        'open', 'high', 'low', 'close', 'volume', 'Symbol'}
+            
+            if adv_features_df is not None and 'Date' in adv_features_df.columns:
+                try:
+                    adv_eligible = adv_features_df[adv_features_df['Date'] <= signal_date]
+                    if len(adv_eligible) > 0:
+                        adv_row = adv_eligible.iloc[-1]
+                        for col in adv_row.index:
+                            if col not in skip_cols and col not in feature_dict:
+                                val = adv_row[col]
+                                if isinstance(val, (int, float, np.integer, np.floating)):
+                                    feature_dict[f'adv_{col}'] = float(val)
+                except Exception:
+                    pass
+            
+            if alpha_df is not None and 'Date' in alpha_df.columns:
+                try:
+                    a_eligible = alpha_df[alpha_df['Date'] <= signal_date]
+                    if len(a_eligible) > 0:
+                        a_row = a_eligible.iloc[-1]
+                        for col in a_row.index:
+                            if col not in skip_cols and col not in feature_dict:
+                                val = a_row[col]
+                                if isinstance(val, (int, float, np.integer, np.floating)):
+                                    feature_dict[f'a158_{col}'] = float(val)
+                except Exception:
+                    pass
+            
+            if caisen_df is not None and 'Date' in caisen_df.columns:
+                try:
+                    cs_eligible = caisen_df[caisen_df['Date'] <= signal_date]
+                    if len(cs_eligible) > 0:
+                        cs_row = cs_eligible.iloc[-1]
+                        for col in cs_row.index:
+                            if col != 'Date' and col not in feature_dict:
+                                val = cs_row[col]
+                                if isinstance(val, (int, float, np.integer, np.floating)):
+                                    feature_dict[col] = float(val)
+                except Exception:
+                    pass
+            
+            if strategy_df is not None:
+                try:
+                    sf_eligible = strategy_df[strategy_df.index <= signal_date]
+                    if len(sf_eligible) > 0:
+                        sf_row = sf_eligible.iloc[-1]
+                        for col in sf_row.index:
+                            if col not in feature_dict:
+                                val = sf_row[col]
+                                if isinstance(val, (int, float, np.integer, np.floating)):
+                                    feature_dict[col] = float(val)
+                except Exception:
+                    pass
+            
             # 计算标签（未来收益）
             entry_idx = closest_idx + 1
             if entry_idx >= len(features_df):
@@ -323,7 +473,6 @@ def fast_prepare_dataset(market='US', days_back=365, price_tier='standard', max_
             if pd.isna(entry_price) or float(entry_price) <= 0:
                 continue
             
-            valid = True
             for days in [1, 5, 10, 20, 30, 60]:
                 future_idx = entry_idx + days
                 if future_idx < len(features_df):
@@ -343,7 +492,8 @@ def fast_prepare_dataset(market='US', days_back=365, price_tier='standard', max_
         
         if (sym_idx + 1) % 500 == 0:
             elapsed = time.time() - t2
-            print(f"   {sym_idx+1}/{len(hist_groups)} 股票, {processed} 样本 ({elapsed:.0f}s)")
+            n_feat = len(all_features[-1]) if all_features else 0
+            print(f"   {sym_idx+1}/{len(hist_groups)} 股票, {processed} 样本, ~{n_feat} 特征 ({elapsed:.0f}s)")
     
     print(f"   完成: {processed} 样本, {skipped} 跳过 ({time.time()-t2:.0f}s)")
     
@@ -386,7 +536,11 @@ def train_models(X, returns_dict, groups, feature_names, market='US', price_tier
     # Drawdowns (简单估算)
     drawdowns_dict = {}
     for days_key in ['5d', '20d', '30d', '60d']:
-        drawdowns_dict[days_key] = np.abs(np.minimum(returns_dict.get(days_key, np.zeros(len(X))), 0))
+        ret = returns_dict.get(days_key)
+        if ret is not None:
+            drawdowns_dict[days_key] = np.abs(np.minimum(np.nan_to_num(ret, nan=0.0), 0))
+        else:
+            drawdowns_dict[days_key] = np.zeros(len(X))
     
     # 1. ReturnPredictor
     print(f"\n{'='*60}")
