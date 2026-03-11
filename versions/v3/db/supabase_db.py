@@ -297,7 +297,7 @@ def get_scan_date_counts_supabase(market: str = None, limit: int = 30) -> List[D
 
 
 def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dict[str, str]:
-    """从 Supabase 获取股票首次出现的日期 (限最近2年)
+    """从 Supabase 获取股票首次出现的日期 (最近90天)
     
     Args:
         symbols: 股票代码列表
@@ -312,28 +312,31 @@ def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dic
     
     try:
         from datetime import datetime, timedelta
-        cutoff_date = (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')
+        cutoff_date = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d')
         
-        # 分批查询避免 URL 过长
-        batch_size = 50
+        # 小批量查询，每批只查 20 只，确保不超 limit
+        batch_size = 20
         first_dates = {}
         
         for i in range(0, len(symbols), batch_size):
             batch = symbols[i:i+batch_size]
+            # 只取每只股票最早的那条记录
             result = supabase.table('scan_results')\
                 .select('symbol, scan_date')\
                 .eq('market', market)\
                 .in_('symbol', batch)\
                 .gte('scan_date', cutoff_date)\
                 .order('scan_date', desc=False)\
-                .limit(5000)\
+                .limit(1000)\
                 .execute()
             
             if result.data:
                 for row in result.data:
                     symbol = row['symbol']
-                    if symbol not in first_dates:
-                        first_dates[symbol] = row['scan_date']
+                    scan_date = row['scan_date']
+                    # 保留最早的日期
+                    if symbol not in first_dates or scan_date < first_dates[symbol]:
+                        first_dates[symbol] = scan_date
         
         return first_dates
     except Exception as e:
