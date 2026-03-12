@@ -6894,10 +6894,11 @@ def render_scan_page():
 
     display_cols = [
         'Ticker', 'Name', '新发现', '信号日期', '历史信号',
+        '价格变化(%)', '信号价', '现价', 'Mkt Cap',
         '信号方向', 'Rank_Score', 'mmoe_dir_prob', 'mmoe_return_5d', 'mmoe_return_20d', 'mmoe_max_dd', 'mmoe_score',
         '信号类型', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️',
         '新闻', '大师建议',
-        'Mkt Cap', 'Cap_Category', '信号价', '现价', '价格变化(%)', 'Turnover',
+        'Cap_Category', 'Turnover',
         'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy',
         '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime'
     ]
