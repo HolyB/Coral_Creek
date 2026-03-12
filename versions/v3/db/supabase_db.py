@@ -321,11 +321,18 @@ def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dic
 
 
 def get_signal_history_dates_supabase(symbols: List[str], market: str = 'US', 
-                                       limit_per_stock: int = 90) -> Dict[str, List[str]]:
-    """从 Supabase 获取每只股票的历史信号日期列表（最近N条，降序）
+                                       end_date: str = None,
+                                       limit_per_stock: int = 30) -> Dict[str, List[str]]:
+    """从 Supabase 获取每只股票的历史信号日期列表
+    
+    Args:
+        symbols: 股票代码列表
+        market: 市场
+        end_date: 截止日期（含），只返回 <= 此日期的记录
+        limit_per_stock: 每只股票最多返回多少条
     
     Returns:
-        dict: {symbol: ['2026-03-11', '2026-03-09', '2026-02-28', ...]}
+        dict: {symbol: ['2026-03-11', '2026-03-09', '2026-02-28', ...]}  降序
     """
     supabase = get_supabase()
     if not supabase or not symbols:
@@ -334,11 +341,13 @@ def get_signal_history_dates_supabase(symbols: List[str], market: str = 'US',
     try:
         history = {}
         for symbol in symbols:
-            result = supabase.table('scan_results')\
+            query = supabase.table('scan_results')\
                 .select('scan_date')\
                 .eq('market', market)\
-                .eq('symbol', symbol)\
-                .order('scan_date', desc=True)\
+                .eq('symbol', symbol)
+            if end_date:
+                query = query.lte('scan_date', end_date)
+            result = query.order('scan_date', desc=True)\
                 .limit(limit_per_stock)\
                 .execute()
             if result.data:
