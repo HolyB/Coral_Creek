@@ -6432,7 +6432,7 @@ def render_scan_page():
         # 状态列：基于上一次信号日期（只看 selected_date 之前的）
         def get_newness_label(ticker):
             dates = history_dates.get(ticker, [])
-            prev_dates = [d for d in dates if d < selected_date]  # 严格小于，排除当天和未来
+            prev_dates = [d for d in dates if d <= selected_date]  # 包含当天
             if not prev_dates:
                 return "🆕新发现"
             
@@ -6457,7 +6457,7 @@ def render_scan_page():
                 cutoff = (selected_dt - timedelta(days=30)).strftime('%Y-%m-%d')
             except:
                 cutoff = '1970-01-01'
-            dates = [d for d in dates if cutoff <= d < selected_date]  # 30天内且严格小于选中日期
+            dates = [d for d in dates if cutoff <= d <= selected_date]  # 30天内含当天
             if not dates:
                 return ""
             short = []
@@ -6474,7 +6474,7 @@ def render_scan_page():
         # 信号日期 = 上一次出信号的日期（selected_date 之前）
         def get_last_signal_date(ticker):
             dates = history_dates.get(ticker, [])
-            prev = [d for d in dates if d < selected_date]  # 严格小于
+            prev = [d for d in dates if d <= selected_date]  # 包含当天
             return prev[0] if prev else None
         
         df['信号日期'] = df['Ticker'].apply(get_last_signal_date)
