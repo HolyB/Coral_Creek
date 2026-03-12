@@ -6426,36 +6426,44 @@ def render_scan_page():
     if 'Ticker' in df.columns and len(df) > 0:
         tickers = df['Ticker'].tolist()
         
-        # 先获取历史信号日期（一次查完，两列共用）
+        # 获取 90 天内历史信号日期
         history_dates = {}
         if get_signal_history_dates_supabase:
             try:
-                history_dates = get_signal_history_dates_supabase(tickers, market=selected_market, end_date=selected_date, limit_per_stock=30)
+                history_dates = get_signal_history_dates_supabase(tickers, market=selected_market, end_date=selected_date, limit_per_stock=90)
                 print(f"✅ 历史信号: {len(history_dates)} 只股票有历史数据")
             except Exception as e:
                 print(f"⚠️ 获取历史信号日期失败: {e}")
         else:
             print("⚠️ get_signal_history_dates_supabase 未导入")
         
-        # fallback: 如果 history_dates 为空，用 get_first_scan_dates
+        # fallback
         first_dates = get_first_scan_dates(tickers, market=selected_market)
         
-        # 状态列：基于上一次信号日期
-        def get_newness_label(ticker):
+        # 信号日期 = 90 天内最早出现的日期
+        def get_signal_date(ticker):
             dates = history_dates.get(ticker, [])
-            prev_dates = [d for d in dates if d < selected_date]  # 此处用 < ：不含当天
-            if not prev_dates:
+            prev = [d for d in dates if d <= selected_date]  # 90天内（含当天）
+            if prev:
+                return prev[-1]  # 降序列表，最后一个 = 最早
+            return first_dates.get(ticker, selected_date)
+        
+        df['信号日期'] = df['Ticker'].apply(get_signal_date)
+        
+        # 状态列：基于最早出现的日期
+        def get_newness_label(ticker):
+            sig_date = get_signal_date(ticker)
+            if sig_date == selected_date:
                 return "🆕新发现"
-            last_date = prev_dates[0]
             try:
-                days_diff = (datetime.strptime(selected_date, '%Y-%m-%d') - datetime.strptime(last_date, '%Y-%m-%d')).days
-                return f"📅{days_diff}天前" if days_diff > 0 else "🆕新发现"
+                days_diff = (datetime.strptime(selected_date, '%Y-%m-%d') - datetime.strptime(sig_date, '%Y-%m-%d')).days
+                return f"📅{days_diff}天" if days_diff > 0 else "🆕新发现"
             except:
                 return "📅"
         
         df['新发现'] = df['Ticker'].apply(get_newness_label)
 
-        # 历史信号列：显示 selected_date 前 30 天内的信号日期
+        # 历史信号列：显示 30 天内的信号日期（可读性）
         def format_history(ticker):
             dates = history_dates.get(ticker, [])
             try:
@@ -6468,17 +6476,6 @@ def render_scan_page():
             return ", ".join(f"{datetime.strptime(d,'%Y-%m-%d').month}/{datetime.strptime(d,'%Y-%m-%d').day}" for d in dates)
         
         df['历史信号'] = df['Ticker'].apply(format_history)
-
-        # 信号日期 = 上一次出信号的日期，fallback 到 first_scan_date
-        def get_signal_date(ticker):
-            dates = history_dates.get(ticker, [])
-            prev = [d for d in dates if d < selected_date]
-            if prev:
-                return prev[0]
-            # fallback 到首次扫描日期
-            return first_dates.get(ticker, selected_date)
-        
-        df['信号日期'] = df['Ticker'].apply(get_signal_date)
 
         # 用“首次信号日价格”覆盖信号价，避免与现价同值导致无信息量
         try:
