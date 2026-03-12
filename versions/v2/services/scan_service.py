@@ -175,10 +175,14 @@ def analyze_stock_for_date(symbol, target_date, market='US'):
             vp_rating = "Poor"
         
         # 波浪理论
-        wave_phase, wave_desc = analyze_elliott_wave_proxy(closes, highs, lows)
+        wave_result = analyze_elliott_wave_proxy(closes, highs, lows)
+        wave_phase = wave_result.get('phase', 'Unknown') if isinstance(wave_result, dict) else str(wave_result)
+        wave_desc = wave_result.get('desc', '') if isinstance(wave_result, dict) else ''
         
         # 缠论
-        chan_signal, chan_desc = analyze_chanlun_proxy(closes, highs, lows)
+        chan_result = analyze_chanlun_proxy(closes, highs, lows)
+        chan_signal = chan_result.get('signal', 'N/A') if isinstance(chan_result, dict) else str(chan_result)
+        chan_desc = chan_result.get('desc', '') if isinstance(chan_result, dict) else ''
         
         # Regime 分类
         regime = "Standard"
