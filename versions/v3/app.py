@@ -6457,9 +6457,14 @@ def render_scan_page():
         
         df['历史信号'] = df['Ticker'].apply(format_history)
 
-        # 保留 first_dates 用于信号价
-        first_dates = get_first_scan_dates(tickers, market=selected_market)
-        df['信号日期'] = df['Ticker'].map(first_dates)
+        # 信号日期 = 上一次出信号的日期
+        def get_last_signal_date(ticker):
+            dates = history_dates.get(ticker, [])
+            prev = [d for d in dates if d != selected_date]
+            return prev[0] if prev else None
+        
+        df['信号日期'] = df['Ticker'].apply(get_last_signal_date)
+        first_dates = {t: get_last_signal_date(t) for t in tickers}
 
         # 用“首次信号日价格”覆盖信号价，避免与现价同值导致无信息量
         try:
