@@ -233,33 +233,24 @@
   ],
   "metrics": {
     "short": {
-      "ndcg@10": 0.23797747693928592,
-      "top10_avg_return": -3.3460859471583975,
-      "train_samples": 13448,
-      "test_samples": 4244,
-      "n_train_groups": 72,
-      "n_test_groups": 19
-    },
-    "medium": {
-      "ndcg@10": 0.27475934106235267,
-      "top10_avg_return": -4.977814144296307,
-      "train_samples": 11330,
-      "test_samples": 2978,
-      "n_train_groups": 61,
-      "n_test_groups": 16
-    },
-    "long": {
-      "ndcg@10": 0.9004866584785518,
-      "top10_avg_return": 1271.4271027629043,
-      "train_samples": 9016,
-      "test_samples": 1461,
+      "ndcg@10": 0.7898365472821811,
+      "top10_avg_return": 5.847403221548393,
+      "train_samples": 25216,
+      "test_samples": 33868,
       "n_train_groups": 39,
       "n_test_groups": 10
+    },
+    "medium": {
+      "ndcg@10": 0.733699721848807,
+      "top10_avg_return": 0.34504997640551704,
+      "train_samples": 4459,
+      "test_samples": 870,
+      "n_train_groups": 29,
+      "n_test_groups": 8
     }
   },
   "horizons": [
     "short",
-    "medium",
-    "long"
+    "medium"
   ]
 }
