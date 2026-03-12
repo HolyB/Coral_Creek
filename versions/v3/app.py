@@ -6398,6 +6398,7 @@ def render_scan_page():
         "Profit_Ratio": st.column_config.NumberColumn("获利盘", format="%.0f%%", help="获利盘比例"),
         "筹码形态": st.column_config.TextColumn("筹码", width="small", help="🔥=强势顶格峰 📍=底部密集"),
         "新发现": st.column_config.TextColumn("状态", width="small", help="🆕=今日新发现, 📅=之前出现过"),
+        "历史信号": st.column_config.TextColumn("历史信号", width="medium", help="之前出过信号的日期"),
         "新闻": st.column_config.TextColumn("新闻", width="small", help="🟢利好/🔴利空 (利好数/利空数)")
     }
     if "Qlib_Fusion_Score" in df.columns:
@@ -6439,6 +6440,32 @@ def render_scan_page():
                     return "📅老股"
         
         df['新发现'] = df['Ticker'].apply(get_newness_label)
+
+        # === 历史信号日期 ===
+        try:
+            from db.supabase_db import get_signal_history_dates_supabase
+            history_dates = get_signal_history_dates_supabase(tickers, market=selected_market, limit_per_stock=30)
+        except:
+            history_dates = {}
+        
+        def format_history(ticker):
+            dates = history_dates.get(ticker, [])
+            # 排除当前选中日期
+            dates = [d for d in dates if d != selected_date]
+            if not dates:
+                return ""
+            # 只显示最近 5 个日期，格式简化为 M/D
+            short = []
+            for d in dates[:5]:
+                try:
+                    dt = datetime.strptime(d, '%Y-%m-%d')
+                    short.append(f"{dt.month}/{dt.day}")
+                except:
+                    short.append(d[-5:])
+            suffix = f" +{len(dates)-5}" if len(dates) > 5 else ""
+            return ", ".join(short) + suffix
+        
+        df['历史信号'] = df['Ticker'].apply(format_history)
 
         # 用“首次信号日价格”覆盖信号价，避免与现价同值导致无信息量
         try:

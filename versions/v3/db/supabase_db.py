@@ -318,3 +318,32 @@ def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dic
     except Exception as e:
         print(f"⚠️ 获取首次日期失败: {e}")
         return {}
+
+
+def get_signal_history_dates_supabase(symbols: List[str], market: str = 'US', 
+                                       limit_per_stock: int = 90) -> Dict[str, List[str]]:
+    """从 Supabase 获取每只股票的历史信号日期列表（最近N条，降序）
+    
+    Returns:
+        dict: {symbol: ['2026-03-11', '2026-03-09', '2026-02-28', ...]}
+    """
+    supabase = get_supabase()
+    if not supabase or not symbols:
+        return {}
+    
+    try:
+        history = {}
+        for symbol in symbols:
+            result = supabase.table('scan_results')\
+                .select('scan_date')\
+                .eq('market', market)\
+                .eq('symbol', symbol)\
+                .order('scan_date', desc=True)\
+                .limit(limit_per_stock)\
+                .execute()
+            if result.data:
+                history[symbol] = [row['scan_date'] for row in result.data]
+        return history
+    except Exception as e:
+        print(f"⚠️ 获取历史信号日期失败: {e}")
+        return {}
