@@ -6449,21 +6449,25 @@ def render_scan_page():
         
         df['新发现'] = df['Ticker'].apply(get_newness_label)
 
-        # 历史信号列：只显示 selected_date 之前的信号日期
+        # 历史信号列：显示 selected_date 前 30 天内的信号日期
         def format_history(ticker):
             dates = history_dates.get(ticker, [])
-            dates = [d for d in dates if d < selected_date]  # 严格小于
+            try:
+                selected_dt = datetime.strptime(selected_date, '%Y-%m-%d')
+                cutoff = (selected_dt - timedelta(days=30)).strftime('%Y-%m-%d')
+            except:
+                cutoff = '1970-01-01'
+            dates = [d for d in dates if cutoff <= d < selected_date]  # 30天内且严格小于选中日期
             if not dates:
                 return ""
             short = []
-            for d in dates[:5]:
+            for d in dates:
                 try:
                     dt = datetime.strptime(d, '%Y-%m-%d')
                     short.append(f"{dt.month}/{dt.day}")
                 except:
                     short.append(d[-5:])
-            suffix = f" +{len(dates)-5}" if len(dates) > 5 else ""
-            return ", ".join(short) + suffix
+            return ", ".join(short)
         
         df['历史信号'] = df['Ticker'].apply(format_history)
 
