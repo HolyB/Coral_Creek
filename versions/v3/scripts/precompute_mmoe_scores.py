@@ -80,13 +80,17 @@ def precompute(market: str = 'US'):
                 'is_heima': 1 if s.get('heima_daily') else 0,
             })
             
-            pick = picker._analyze_stock(sig, h, skip_prefilter=True)
+            # 临时去掉 symbol 以跳过新闻特征计算（调用 Gemini API 太慢）
+            sig_for_predict = sig.copy()
+            sig_for_predict['symbol'] = ''  # 跳过 _add_news_features
+            
+            pick = picker._analyze_stock(sig_for_predict, h, skip_prefilter=True)
             if pick:
                 results[sym] = {
-                    'dir_prob': round(pick.pred_direction_prob, 4),
-                    'return_5d': round(pick.pred_return_5d, 2),
-                    'return_20d': round(getattr(pick, 'pred_return_20d', 0) or 0, 2),
-                    'max_dd': round(getattr(pick, 'pred_max_dd', 0) or 0, 2),
+                    'dir_prob': round(float(np.clip(pick.pred_direction_prob, 0.01, 0.99)), 4),
+                    'return_5d': round(float(np.clip(pick.pred_return_5d, -100, 200)), 2),
+                    'return_20d': round(float(np.clip(getattr(pick, 'pred_return_20d', 0) or 0, -100, 500)), 2),
+                    'max_dd': round(float(np.clip(getattr(pick, 'pred_max_dd', 0) or 0, -100, 0)), 2),
                     'overall_score': round(pick.overall_score, 1),
                     'star_rating': pick.star_rating,
                     'rank_short': round(pick.rank_score_short, 1),

@@ -663,11 +663,12 @@ class SmartPicker:
                 else:
                     confidence = min(abs(dir_prob - 0.5) * 2 + 0.3, 0.95)
                 
-                result['pred_return'] = pred_5d
-                result['pred_return_20d'] = pred_20d
-                result['direction_prob'] = np.clip(dir_prob, 0.01, 0.99)
-                result['pred_max_dd'] = max_dd
-                result['pred_rank'] = rank_s
+                # Clamp outputs to prevent absurd penny model predictions
+                result['pred_return'] = float(np.clip(pred_5d, -100, 200))
+                result['pred_return_20d'] = float(np.clip(pred_20d, -100, 500))
+                result['direction_prob'] = float(np.clip(dir_prob, 0.01, 0.99))
+                result['pred_max_dd'] = float(np.clip(max_dd, -100, 0))
+                result['pred_rank'] = float(np.clip(rank_s, -10, 10))
                 result['confidence'] = confidence
             else:
                 # === XGBoost fallback ===
