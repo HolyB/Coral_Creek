@@ -6900,9 +6900,10 @@ def render_scan_page():
         '新闻', '大师建议',
         'Cap_Category', 'Turnover',
         'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy',
-        '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime'
+        '筹码形态',
     ]
-    existing_cols = [c for c in display_cols if c in df.columns]
+    # Auto-hide columns that are entirely None/NaN
+    existing_cols = [c for c in display_cols if c in df.columns and not df[c].isna().all()]
 
     # === 按用户要求分4个标签页 ===
     # 预先计算各类别数据
