@@ -1,251 +1,251 @@
 {
   "summary": {
-    "feature_count": 195,
-    "avg_missing_rate": 0.005576914755156999,
-    "avg_drift_score": 0.12735875402671645,
-    "avg_abs_ic20": 0.1352431762151625,
-    "avg_abs_ic60": NaN
+    "feature_count": 225,
+    "avg_missing_rate": 0.004721183173159924,
+    "avg_drift_score": Infinity,
+    "avg_abs_ic20": 0.10818863508022061,
+    "avg_abs_ic60": 0.18939097409106007
   },
   "top_stable_features": [
     {
-      "feature": "volatility_5d",
+      "feature": "a158_return_std_60",
       "missing_rate": 0.0,
-      "drift_score": 0.03212736784627998,
-      "ic_20d": -0.34725711865712267,
-      "ic_60d": NaN,
-      "stability_score": 0.7014317971529435
-    },
-    {
-      "feature": "atr_14",
-      "missing_rate": 0.0,
-      "drift_score": 0.037266136937433254,
-      "ic_20d": -0.35422394770434795,
-      "ic_60d": NaN,
-      "stability_score": 0.7012110108970299
-    },
-    {
-      "feature": "adv_volatility_10",
-      "missing_rate": 0.0,
-      "drift_score": 0.024016653145903448,
-      "ic_20d": -0.33075190484397415,
-      "ic_60d": NaN,
-      "stability_score": 0.7008455689219178
-    },
-    {
-      "feature": "volatility_60d",
-      "missing_rate": 0.0007789173049461248,
-      "drift_score": 0.025586050912965178,
-      "ic_20d": -0.30130386702051754,
-      "ic_60d": NaN,
-      "stability_score": 0.6949712346175152
+      "drift_score": 0.06378015582934919,
+      "ic_20d": -0.36870183239867327,
+      "ic_60d": 0.386118075785681,
+      "stability_score": 0.7641066408388342
     },
     {
       "feature": "adv_volatility_60",
-      "missing_rate": 0.0007789173049461248,
-      "drift_score": 0.025586050912965178,
-      "ic_20d": -0.30130386702051754,
-      "ic_60d": NaN,
-      "stability_score": 0.6949712346175152
+      "missing_rate": 0.0010358519882603442,
+      "drift_score": 0.06398123431551597,
+      "ic_20d": -0.36765188412940825,
+      "ic_60d": 0.386118075785681,
+      "stability_score": 0.7635070549112157
     },
     {
-      "feature": "ma_60",
-      "missing_rate": 0.0005192782032974166,
-      "drift_score": 0.002254958446016341,
-      "ic_20d": -0.2595572055033428,
-      "ic_60d": NaN,
-      "stability_score": 0.6945657980773139
+      "feature": "volatility_60d",
+      "missing_rate": 0.0010358519882603442,
+      "drift_score": 0.06398123431551597,
+      "ic_20d": -0.36765188412940825,
+      "ic_60d": 0.386118075785681,
+      "stability_score": 0.7635070549112157
     },
     {
-      "feature": "bb_upper",
+      "feature": "a158_bband_width_20",
       "missing_rate": 0.0,
-      "drift_score": 0.005198583763530122,
-      "ic_20d": -0.26304483193425476,
-      "ic_60d": NaN,
-      "stability_score": 0.694481336111412
+      "drift_score": 0.00617424392146355,
+      "ic_20d": -0.2869639398941084,
+      "ic_60d": 0.3154097296640389,
+      "stability_score": 0.7535744852048926
     },
     {
-      "feature": "intraday_range_ma",
+      "feature": "bb_width",
       "missing_rate": 0.0,
-      "drift_score": 0.02671743528108163,
-      "ic_20d": -0.2972426729889949,
-      "ic_60d": NaN,
-      "stability_score": 0.6942108110349131
+      "drift_score": 0.006174244683007764,
+      "ic_20d": -0.2869639398941084,
+      "ic_60d": 0.3154097296640389,
+      "stability_score": 0.7535744849792245
     },
     {
-      "feature": "a158_return_std_20",
+      "feature": "a158_bias_60",
       "missing_rate": 0.0,
-      "drift_score": 0.024806353810690972,
-      "ic_20d": -0.2846081864610457,
-      "ic_60d": NaN,
-      "stability_score": 0.6925446644775729
+      "drift_score": 0.04930432983600509,
+      "ic_20d": 0.32001925680037663,
+      "ic_60d": -0.33662223350053155,
+      "stability_score": 0.7508159700219725
     },
     {
-      "feature": "volatility_20d",
-      "missing_rate": 0.0,
-      "drift_score": 0.02480635381069106,
-      "ic_20d": -0.2846081864610457,
-      "ic_60d": NaN,
-      "stability_score": 0.6925446644775729
+      "feature": "ma_60_bias",
+      "missing_rate": 0.0006905679921735627,
+      "drift_score": 0.04949739536436644,
+      "ic_20d": 0.3199466307818183,
+      "ic_60d": -0.33662223350053155,
+      "stability_score": 0.7505089668285186
     },
     {
-      "feature": "adv_volatility_20",
-      "missing_rate": 0.0,
-      "drift_score": 0.02480635381069106,
-      "ic_20d": -0.2846081864610457,
-      "ic_60d": NaN,
-      "stability_score": 0.6925446644775729
+      "feature": "adv_ma_distance_60",
+      "missing_rate": 0.0006905679921735627,
+      "drift_score": 0.04949739536436644,
+      "ic_20d": 0.3199466307818183,
+      "ic_60d": -0.33662223350053155,
+      "stability_score": 0.7505089668285186
     },
     {
-      "feature": "adv_true_range_pct",
+      "feature": "a158_return_mean_60",
       "missing_rate": 0.0,
-      "drift_score": 0.013701676709778675,
-      "ic_20d": -0.26626725661511386,
-      "ic_60d": NaN,
-      "stability_score": 0.6925418264194628
-    },
-    {
-      "feature": "a158_return_std_60",
-      "missing_rate": 0.0,
-      "drift_score": 0.024452089384230873,
-      "ic_20d": -0.27570555145039427,
-      "ic_60d": NaN,
-      "stability_score": 0.6910879347727372
-    },
-    {
-      "feature": "ema_26",
-      "missing_rate": 0.0,
-      "drift_score": 0.014359910326443338,
-      "ic_20d": -0.2519641039976771,
-      "ic_60d": NaN,
-      "stability_score": 0.6898467314505345
-    },
-    {
-      "feature": "adv_lower_wick",
-      "missing_rate": 0.0,
-      "drift_score": 0.008800105421512943,
-      "ic_20d": -0.24180988556546515,
-      "ic_60d": NaN,
-      "stability_score": 0.6896997282386613
-    },
-    {
-      "feature": "lower_shadow_pct",
-      "missing_rate": 0.0,
-      "drift_score": 0.008800105421512943,
-      "ic_20d": -0.24180988556546515,
-      "ic_60d": NaN,
-      "stability_score": 0.6896997282386613
-    },
-    {
-      "feature": "a158_high_low_ratio_5",
-      "missing_rate": 0.0,
-      "drift_score": 0.0432787225169976,
-      "ic_20d": -0.2954942555832089,
-      "ic_60d": NaN,
-      "stability_score": 0.6892664822151844
-    },
-    {
-      "feature": "ma_20",
-      "missing_rate": 0.0,
-      "drift_score": 0.01596473058548055,
-      "ic_20d": -0.2498757640190122,
-      "ic_60d": NaN,
-      "stability_score": 0.6890140998044407
-    },
-    {
-      "feature": "bb_middle",
-      "missing_rate": 0.0,
-      "drift_score": 0.01596473058548055,
-      "ic_20d": -0.2498757640190122,
-      "ic_60d": NaN,
-      "stability_score": 0.6890140998044407
-    },
-    {
-      "feature": "a158_return_skew_20",
-      "missing_rate": 0.0,
-      "drift_score": 0.01750539635868408,
-      "ic_20d": 0.24917615475842747,
-      "ic_60d": NaN,
-      "stability_score": 0.6884445582320641
-    },
-    {
-      "feature": "ema_12",
-      "missing_rate": 0.0,
-      "drift_score": 0.020441600609822357,
-      "ic_20d": -0.24601803190370788,
-      "ic_60d": NaN,
-      "stability_score": 0.6870435219311282
-    },
-    {
-      "feature": "ma_10",
-      "missing_rate": 0.0,
-      "drift_score": 0.021463644281291265,
-      "ic_20d": -0.24646413083006338,
-      "ic_60d": NaN,
-      "stability_score": 0.6868274319376123
-    },
-    {
-      "feature": "adv_atr_pct",
-      "missing_rate": 0.0,
-      "drift_score": 0.02546762772833011,
-      "ic_20d": -0.2524766313414559,
-      "ic_60d": NaN,
-      "stability_score": 0.686732869763714
+      "drift_score": 0.029426679862403916,
+      "ic_20d": 0.30487889242723565,
+      "ic_60d": 0.3106838146936639,
+      "stability_score": 0.7491478227246575
     },
     {
       "feature": "atr_14_pct",
       "missing_rate": 0.0,
-      "drift_score": 0.02546762772833011,
-      "ic_20d": -0.2524766313414559,
-      "ic_60d": NaN,
-      "stability_score": 0.686732869763714
+      "drift_score": 0.02583252942991421,
+      "ic_20d": -0.29719914873073866,
+      "ic_60d": 0.30191742280205214,
+      "stability_score": 0.7472907957269501
     },
     {
-      "feature": "intraday_range",
+      "feature": "adv_atr_pct",
       "missing_rate": 0.0,
-      "drift_score": 0.035337119694277414,
-      "ic_20d": -0.26789327411930486,
-      "ic_60d": NaN,
-      "stability_score": 0.6866420147237118
+      "drift_score": 0.02583252942991421,
+      "ic_20d": -0.29719914873073866,
+      "ic_60d": 0.30191742280205214,
+      "stability_score": 0.7472907957269501
     },
     {
-      "feature": "ma_5",
+      "feature": "volatility_20d",
       "missing_rate": 0.0,
-      "drift_score": 0.02408584791511995,
-      "ic_20d": -0.24125351852019217,
-      "ic_60d": NaN,
-      "stability_score": 0.6851635565144472
+      "drift_score": 0.06938144718021103,
+      "ic_20d": -0.33146421652688124,
+      "ic_60d": 0.3219755046610486,
+      "stability_score": 0.7448879571307998
     },
     {
-      "feature": "High",
+      "feature": "adv_volatility_20",
       "missing_rate": 0.0,
-      "drift_score": 0.02620944799160311,
-      "ic_20d": -0.24335871405158152,
-      "ic_60d": NaN,
-      "stability_score": 0.6849257578017405
+      "drift_score": 0.06938144718021103,
+      "ic_20d": -0.33146421652688124,
+      "ic_60d": 0.3219755046610486,
+      "stability_score": 0.7448879571307998
     },
     {
-      "feature": "Open",
+      "feature": "a158_return_std_20",
       "missing_rate": 0.0,
-      "drift_score": 0.02560604585610727,
-      "ic_20d": -0.24086989342616827,
-      "ic_60d": NaN,
-      "stability_score": 0.68466220748723
+      "drift_score": 0.06938144718021103,
+      "ic_20d": -0.33146421652688124,
+      "ic_60d": 0.3219755046610486,
+      "stability_score": 0.7448879571307998
+    },
+    {
+      "feature": "a158_vwap_bias",
+      "missing_rate": 0.0,
+      "drift_score": 0.029930547927673582,
+      "ic_20d": 0.25067553930846515,
+      "ic_60d": -0.3396525911914591,
+      "stability_score": 0.7445891996559634
+    },
+    {
+      "feature": "adv_tv_ichimoku_cloud",
+      "missing_rate": 0.0,
+      "drift_score": 0.008541063085133239,
+      "ic_20d": 0.14567160957474012,
+      "ic_60d": 0.3889362285883381,
+      "stability_score": 0.7410157523430186
+    },
+    {
+      "feature": "adv_ma_slope_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.016016285955631607,
+      "ic_20d": 0.22545448753827185,
+      "ic_60d": -0.3146882159281038,
+      "stability_score": 0.7397958306183434
     },
     {
       "feature": "a158_high_low_ratio_20",
       "missing_rate": 0.0,
-      "drift_score": 0.007355991682552969,
-      "ic_20d": -0.2062202059586033,
-      "ic_60d": NaN,
-      "stability_score": 0.683897853182886
+      "drift_score": 0.07262302881938656,
+      "ic_20d": -0.30156817577110023,
+      "ic_60d": 0.32675517735385945,
+      "stability_score": 0.739644782872803
     },
     {
-      "feature": "Close",
+      "feature": "a158_high_low_ratio_5",
       "missing_rate": 0.0,
-      "drift_score": 0.028465413560805966,
-      "ic_20d": -0.24069666233298917,
-      "ic_60d": NaN,
-      "stability_score": 0.6838186478006218
+      "drift_score": 0.10308620697314021,
+      "ic_20d": -0.29977899642862554,
+      "ic_60d": 0.3711600556189473,
+      "stability_score": 0.7393785723551233
+    },
+    {
+      "feature": "a158_macd_dif_pct",
+      "missing_rate": 0.0,
+      "drift_score": 0.08710017718070509,
+      "ic_20d": 0.29573667471729376,
+      "ic_60d": -0.3450278685241758,
+      "stability_score": 0.738097322897804
+    },
+    {
+      "feature": "intraday_range_ma",
+      "missing_rate": 0.0,
+      "drift_score": 0.06538494020215056,
+      "ic_20d": -0.27278880475026085,
+      "ic_60d": 0.3302368369375057,
+      "stability_score": 0.7371178490973167
+    },
+    {
+      "feature": "bb_lower",
+      "missing_rate": 0.0,
+      "drift_score": 0.038860794596001225,
+      "ic_20d": 0.11189880757534029,
+      "ic_60d": -0.42475513634500683,
+      "stability_score": 0.7326923029762972
+    },
+    {
+      "feature": "adv_volatility_10",
+      "missing_rate": 0.0,
+      "drift_score": 0.0814937367781847,
+      "ic_20d": -0.2983424336016117,
+      "ic_60d": 0.3012680604397106,
+      "stability_score": 0.7323259533142671
+    },
+    {
+      "feature": "roc_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.021713638449502783,
+      "ic_20d": 0.2334583610302904,
+      "ic_60d": -0.2693410776245813,
+      "stability_score": 0.731614248851976
+    },
+    {
+      "feature": "return_20d",
+      "missing_rate": 0.0,
+      "drift_score": 0.021713638449502783,
+      "ic_20d": 0.23345806051822593,
+      "ic_60d": -0.2693410776245813,
+      "stability_score": 0.7316141962623648
+    },
+    {
+      "feature": "momentum_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.02171363844950292,
+      "ic_20d": 0.23345806051822593,
+      "ic_60d": -0.2693410776245813,
+      "stability_score": 0.7316141962623646
+    },
+    {
+      "feature": "adv_tv_ichimoku_kijun",
+      "missing_rate": 0.0,
+      "drift_score": 0.16476560336998325,
+      "ic_20d": 0.27234746948851946,
+      "ic_60d": -0.4260899367564868,
+      "stability_score": 0.7297890969889692
+    },
+    {
+      "feature": "adv_tv_trix",
+      "missing_rate": 0.00046037866144904186,
+      "drift_score": 0.039328371407297995,
+      "ic_20d": 0.26277529051572257,
+      "ic_60d": -0.25227727776971576,
+      "stability_score": 0.7286210132780598
+    },
+    {
+      "feature": "adv_ma_distance_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.05100907120496153,
+      "ic_20d": 0.2500467645007461,
+      "ic_60d": -0.280344162097592,
+      "stability_score": 0.7282583842912539
+    },
+    {
+      "feature": "ma_20_bias",
+      "missing_rate": 0.0,
+      "drift_score": 0.05100907120496153,
+      "ic_20d": 0.2500467645007461,
+      "ic_60d": -0.280344162097592,
+      "stability_score": 0.7282583842912539
     }
   ],
   "top_unstable_features": [
@@ -258,236 +258,236 @@
       "stability_score": 0.3
     },
     {
-      "feature": "blue_weekly",
+      "feature": "volume_change",
+      "missing_rate": 5.754733268113023e-05,
+      "drift_score": Infinity,
+      "ic_20d": 0.0023754545305601613,
+      "ic_60d": 0.020130233232589927,
+      "stability_score": 0.35391835379211284
+    },
+    {
+      "feature": "adv_volume_momentum",
+      "missing_rate": 0.00017264199804339068,
+      "drift_score": Infinity,
+      "ic_20d": -0.012488926771689874,
+      "ic_60d": -0.08383989611566128,
+      "stability_score": 0.36679711930597125
+    },
+    {
+      "feature": "adv_trend_consistency",
       "missing_rate": 0.0,
-      "drift_score": 0.7077174820308536,
-      "ic_20d": -0.04487090559076691,
-      "ic_60d": NaN,
-      "stability_score": 0.5335254944288973
-    },
-    {
-      "feature": "adv_price_position_60",
-      "missing_rate": 0.0005192782032974166,
-      "drift_score": 0.6688513716253284,
-      "ic_20d": -0.04176874996113977,
-      "ic_60d": NaN,
-      "stability_score": 0.5368921446178581
-    },
-    {
-      "feature": "a158_rsi_24",
-      "missing_rate": 0.0,
-      "drift_score": 0.53967126427154,
-      "ic_20d": 0.03299069533616652,
-      "ic_60d": NaN,
-      "stability_score": 0.5506201594115575
-    },
-    {
-      "feature": "a158_price_efficiency_20",
-      "missing_rate": 0.0,
-      "drift_score": 0.4764211973775263,
-      "ic_20d": 0.01800405298320082,
-      "ic_60d": NaN,
-      "stability_score": 0.5563447575103753
-    },
-    {
-      "feature": "kdj_d",
-      "missing_rate": 0.0,
-      "drift_score": 0.44173069792263514,
-      "ic_20d": -0.013289772014037835,
-      "ic_60d": NaN,
-      "stability_score": 0.5604089536875899
-    },
-    {
-      "feature": "a158_kdj_d_9",
-      "missing_rate": 0.0,
-      "drift_score": 0.44173069188031355,
-      "ic_20d": -0.013289772014037835,
-      "ic_60d": NaN,
-      "stability_score": 0.5604089545596709
-    },
-    {
-      "feature": "a158_kdj_d_14",
-      "missing_rate": 0.0,
-      "drift_score": 0.5006867295740868,
-      "ic_20d": -0.06822062476896712,
-      "ic_60d": NaN,
-      "stability_score": 0.5618470872919532
-    },
-    {
-      "feature": "rsi_14",
-      "missing_rate": 0.0,
-      "drift_score": 0.4289147550280794,
-      "ic_20d": -0.022161213224754884,
-      "ic_60d": NaN,
-      "stability_score": 0.5638277554514275
-    },
-    {
-      "feature": "a158_rsi_12",
-      "missing_rate": 0.0,
-      "drift_score": 0.40087818152677174,
-      "ic_20d": 0.021042119652500014,
-      "ic_60d": NaN,
-      "stability_score": 0.5678337539474086
-    },
-    {
-      "feature": "rsi_oversold",
-      "missing_rate": 0.0,
-      "drift_score": 0.3836623381458671,
-      "ic_20d": -0.012571270733595112,
-      "ic_60d": NaN,
-      "stability_score": 0.5690158758899291
-    },
-    {
-      "feature": "a158_kdj_k_14",
-      "missing_rate": 0.0,
-      "drift_score": 0.43403062830579375,
-      "ic_20d": -0.06304191476119636,
-      "ic_60d": NaN,
-      "stability_score": 0.5702328877620798
-    },
-    {
-      "feature": "kdj_k",
-      "missing_rate": 0.0,
-      "drift_score": 0.3672173204584023,
-      "ic_20d": -0.026658593484780536,
-      "ic_60d": NaN,
-      "stability_score": 0.5740890393187683
-    },
-    {
-      "feature": "a158_kdj_k_9",
-      "missing_rate": 0.0,
-      "drift_score": 0.36721731572256017,
-      "ic_20d": -0.026658593484780536,
-      "ic_60d": NaN,
-      "stability_score": 0.5740890400788204
-    },
-    {
-      "feature": "adv_trend_strength_direction",
-      "missing_rate": 0.0,
-      "drift_score": 0.3764683741494833,
-      "ic_20d": -0.06980876961988272,
-      "ic_60d": NaN,
-      "stability_score": 0.5801656032084787
-    },
-    {
-      "feature": "blue_monthly",
-      "missing_rate": 0.0,
-      "drift_score": 0.35874729682733925,
-      "ic_20d": 0.05742062506432403,
-      "ic_60d": NaN,
-      "stability_score": 0.5808402169946006
-    },
-    {
-      "feature": "adv_momentum_volatility",
-      "missing_rate": 0.0,
-      "drift_score": 0.36801540199491334,
-      "ic_20d": 0.06830188502221012,
-      "ic_60d": NaN,
-      "stability_score": 0.5812486064926032
-    },
-    {
-      "feature": "return_60d",
-      "missing_rate": 0.0007789173049461248,
-      "drift_score": 0.4975166477926452,
-      "ic_20d": 0.18646662488211452,
-      "ic_60d": NaN,
-      "stability_score": 0.5826907010155146
-    },
-    {
-      "feature": "momentum_60",
-      "missing_rate": 0.0007789173049461248,
-      "drift_score": 0.49751664779264515,
-      "ic_20d": 0.18646662488211452,
-      "ic_60d": NaN,
-      "stability_score": 0.5826907010155146
-    },
-    {
-      "feature": "a158_willr_28",
-      "missing_rate": 0.0,
-      "drift_score": 0.3871477845688959,
-      "ic_20d": -0.13064595002817156,
-      "ic_60d": NaN,
-      "stability_score": 0.5891341576689862
-    },
-    {
-      "feature": "adv_price_position_20",
-      "missing_rate": 0.0,
-      "drift_score": 0.3760169893477157,
-      "ic_20d": -0.12183958249340489,
-      "ic_60d": NaN,
-      "stability_score": 0.5893424908700886
-    },
-    {
-      "feature": "a158_willr_14",
-      "missing_rate": 0.0,
-      "drift_score": 0.35100659275763213,
-      "ic_20d": -0.10351020187637792,
-      "ic_60d": NaN,
-      "stability_score": 0.590170936723123
-    },
-    {
-      "feature": "near_high_20",
-      "missing_rate": 0.0,
-      "drift_score": 0.2731618400581819,
-      "ic_20d": 0.03396239705938051,
-      "ic_60d": NaN,
-      "stability_score": 0.5915772490276674
-    },
-    {
-      "feature": "adv_below_20d_low",
-      "missing_rate": 0.0,
-      "drift_score": 0.27218041134552734,
-      "ic_20d": 0.03588032132514974,
-      "ic_60d": NaN,
-      "stability_score": 0.5920946664429588
-    },
-    {
-      "feature": "near_high_60",
-      "missing_rate": 0.0,
-      "drift_score": 0.24512232341571685,
-      "ic_20d": 0.025380140026343735,
-      "ic_60d": NaN,
-      "stability_score": 0.5953817071342304
-    },
-    {
-      "feature": "adv_adx_14",
-      "missing_rate": 0.0,
-      "drift_score": 0.32910298538785965,
-      "ic_20d": 0.12507341462166685,
-      "ic_60d": NaN,
-      "stability_score": 0.5976039909263079
-    },
-    {
-      "feature": "a158_mfi_14",
-      "missing_rate": 0.0,
-      "drift_score": 0.27774629890614655,
-      "ic_20d": -0.07962024662570348,
-      "ic_60d": NaN,
-      "stability_score": 0.5987219360171602
-    },
-    {
-      "feature": "a158_bias_60",
-      "missing_rate": 0.0,
-      "drift_score": 0.36169723249375324,
-      "ic_20d": 0.1687545752704518,
-      "ic_60d": NaN,
-      "stability_score": 0.5998453426738065
-    },
-    {
-      "feature": "adv_body_direction",
-      "missing_rate": 0.0,
-      "drift_score": 0.21691359252596806,
-      "ic_20d": -0.023117046640877388,
-      "ic_60d": NaN,
-      "stability_score": 0.6005707926356758
+      "drift_score": 0.5203633077651898,
+      "ic_20d": 0.0038968396161994296,
+      "ic_60d": 0.015544288812393631,
+      "stability_score": 0.5507234551426697
     },
     {
       "feature": "a158_kdj_j_14",
       "missing_rate": 0.0,
-      "drift_score": 0.19911986556463143,
-      "ic_20d": -0.008843186152522402,
+      "drift_score": 0.5588423000130339,
+      "ic_20d": 0.047032286345648336,
+      "ic_60d": -0.022006168946021247,
+      "stability_score": 0.5545322424684469
+    },
+    {
+      "feature": "a158_cci_14",
+      "missing_rate": 0.0,
+      "drift_score": 0.6050301871384552,
+      "ic_20d": -0.0018649998815117527,
+      "ic_60d": 0.10678403291839818,
+      "stability_score": 0.555925953107795
+    },
+    {
+      "feature": "a158_willr_14",
+      "missing_rate": 0.0,
+      "drift_score": 0.5453659906179382,
+      "ic_20d": 0.036266241463827564,
+      "ic_60d": -0.04191994805783064,
+      "stability_score": 0.5578113538402458
+    },
+    {
+      "feature": "adv_tv_willr",
+      "missing_rate": 0.0,
+      "drift_score": 0.5453659928921706,
+      "ic_20d": 0.03603700704460451,
+      "ic_60d": -0.042318307274594215,
+      "stability_score": 0.5578409503941265
+    },
+    {
+      "feature": "kdj_j",
+      "missing_rate": 0.0,
+      "drift_score": 0.5068311353430398,
+      "ic_20d": 0.06006603570215139,
+      "ic_60d": -0.004148703981626956,
+      "stability_score": 0.5603308905419946
+    },
+    {
+      "feature": "a158_kdj_j_9",
+      "missing_rate": 0.0,
+      "drift_score": 0.5068311781108065,
+      "ic_20d": 0.060066102263451104,
+      "ic_60d": -0.004148703981626956,
+      "stability_score": 0.5603308965394389
+    },
+    {
+      "feature": "a158_cci_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.6030525969652235,
+      "ic_20d": 0.02262723885795251,
+      "ic_60d": 0.11937444761046608,
+      "stability_score": 0.5619932501216829
+    },
+    {
+      "feature": "adv_tv_aroon_osc",
+      "missing_rate": 0.0,
+      "drift_score": 0.5162458201121402,
+      "ic_20d": 0.03952509605320015,
+      "ic_60d": -0.048040819922883476,
+      "stability_score": 0.5631811347322452
+    },
+    {
+      "feature": "kdj_k",
+      "missing_rate": 0.0,
+      "drift_score": 0.4807187516021305,
+      "ic_20d": 0.05729062577222849,
+      "ic_60d": 0.012229657824100333,
+      "stability_score": 0.5647703589726419
+    },
+    {
+      "feature": "a158_kdj_k_9",
+      "missing_rate": 0.0,
+      "drift_score": 0.48071875052784124,
+      "ic_20d": 0.05729062577222849,
+      "ic_60d": 0.012229657824100333,
+      "stability_score": 0.5647703591196351
+    },
+    {
+      "feature": "a158_rsi_12",
+      "missing_rate": 0.0,
+      "drift_score": 0.45279025311603255,
+      "ic_20d": 0.03953153653623744,
+      "ic_60d": 0.017208102602052678,
+      "stability_score": 0.5664286196159779
+    },
+    {
+      "feature": "rsi_6",
+      "missing_rate": 0.0,
+      "drift_score": 0.46800514957002265,
+      "ic_20d": 0.050899642785383926,
+      "ic_60d": 0.03239262742424899,
+      "stability_score": 0.5689351034442099
+    },
+    {
+      "feature": "adv_tv_aroon_down",
+      "missing_rate": 0.0,
+      "drift_score": 0.7106181155136915,
+      "ic_20d": 0.05682655815973633,
+      "ic_60d": 0.20337165018690423,
+      "stability_score": 0.5709098898910965
+    },
+    {
+      "feature": "adv_price_position_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.5682032002744514,
+      "ic_20d": 0.03453303111475906,
+      "ic_60d": -0.1485864819601086,
+      "stability_score": 0.5733476542230787
+    },
+    {
+      "feature": "ma_bullish",
+      "missing_rate": 0.0,
+      "drift_score": 0.36340515722433425,
+      "ic_20d": -0.0350196919913537,
       "ic_60d": NaN,
-      "stability_score": 0.6017310535016285
+      "stability_score": 0.5761657537251869
+    },
+    {
+      "feature": "kdj_d",
+      "missing_rate": 0.0,
+      "drift_score": 0.39455598767359096,
+      "ic_20d": 0.04145661696038279,
+      "ic_60d": 0.034849113445666435,
+      "stability_score": 0.5784757371749926
+    },
+    {
+      "feature": "a158_kdj_d_9",
+      "missing_rate": 0.0,
+      "drift_score": 0.3945559502106103,
+      "ic_20d": 0.041456684157112574,
+      "ic_60d": 0.034849113445666435,
+      "stability_score": 0.5784757547134067
+    },
+    {
+      "feature": "a158_kdj_k_14",
+      "missing_rate": 0.0,
+      "drift_score": 0.49615786942087614,
+      "ic_20d": 0.04268246497961192,
+      "ic_60d": -0.11724598208945747,
+      "stability_score": 0.5785010778588451
+    },
+    {
+      "feature": "a158_bband_pctb_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.6097102614419223,
+      "ic_20d": 0.029920001927017943,
+      "ic_60d": 0.2225148361623919,
+      "stability_score": 0.5805450396897599
+    },
+    {
+      "feature": "bb_position",
+      "missing_rate": 0.0,
+      "drift_score": 0.6097102605794679,
+      "ic_20d": 0.029920001927017943,
+      "ic_60d": 0.2225148361623919,
+      "stability_score": 0.5805450397896131
+    },
+    {
+      "feature": "adv_tv_sar_dir",
+      "missing_rate": 0.0,
+      "drift_score": 0.5472485560785193,
+      "ic_20d": -0.027250215388462503,
+      "ic_60d": 0.1916588424261269,
+      "stability_score": 0.5822016557852847
+    },
+    {
+      "feature": "adv_tv_stochrsi_k",
+      "missing_rate": 0.0,
+      "drift_score": 0.3229156178426801,
+      "ic_20d": 0.006168818997579627,
+      "ic_60d": -0.030102221461863286,
+      "stability_score": 0.5831192654111023
+    },
+    {
+      "feature": "rsi_14",
+      "missing_rate": 0.0,
+      "drift_score": 0.41757034110187624,
+      "ic_20d": 0.017524793991772983,
+      "ic_60d": 0.10627897330324358,
+      "stability_score": 0.5832953691411911
+    },
+    {
+      "feature": "a158_willr_28",
+      "missing_rate": 0.0,
+      "drift_score": 0.5870931847843788,
+      "ic_20d": 0.04747408569025615,
+      "ic_60d": -0.21450603369351204,
+      "stability_score": 0.5848713386382943
+    },
+    {
+      "feature": "a158_corr_ret_vol_10",
+      "missing_rate": 0.0,
+      "drift_score": 0.3041109448956372,
+      "ic_20d": 0.019192239569582163,
+      "ic_60d": -0.02478399682937147,
+      "stability_score": 0.5877376190070775
+    },
+    {
+      "feature": "bb_breakout_lower",
+      "missing_rate": 0.0,
+      "drift_score": 0.3416946016531111,
+      "ic_20d": -0.02695880275258263,
+      "ic_60d": -0.09162940381447017,
+      "stability_score": 0.5943507650667599
     }
   ]
 }
