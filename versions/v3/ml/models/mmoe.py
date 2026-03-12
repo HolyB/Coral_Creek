@@ -46,8 +46,15 @@ ALL_TASK_DEFS = [
     {'name': 'volatility',  'type': 'regression',     'weight': 0.6,  'label_key': '_vol'},
 ]
 
-# 默认任务集 (向后兼容)
-TASK_DEFS = ALL_TASK_DEFS
+# ====== 3 个核心任务 (推荐：方向一致，loss 尺度接近) ======
+CORE_TASK_DEFS = [
+    {'name': 'return_5d',   'type': 'regression',     'weight': 1.0,  'label_key': '5d'},
+    {'name': 'return_20d',  'type': 'regression',     'weight': 1.0,  'label_key': '20d'},
+    {'name': 'direction',   'type': 'classification', 'weight': 1.0,  'label_key': '_dir_5d'},
+]
+
+# 默认任务集 — 改用核心 3 任务
+TASK_DEFS = CORE_TASK_DEFS
 
 
 class ExpertNetwork(nn.Module):
@@ -136,9 +143,9 @@ class MMoEPredictor:
                  expert_hidden: int = 128,
                  expert_out: int = 64,
                  tower_hidden: int = 32,
-                 dropout: float = 0.1,
-                 lr: float = 1e-3,
-                 weight_decay: float = 1e-4,
+                 dropout: float = 0.3,
+                 lr: float = 3e-4,
+                 weight_decay: float = 1e-3,
                  epochs: int = 100,
                  batch_size: int = 256,
                  patience: int = 15,
@@ -147,7 +154,7 @@ class MMoEPredictor:
         if not TORCH_AVAILABLE:
             raise ImportError("pip install torch")
 
-        self.task_defs = task_defs or ALL_TASK_DEFS
+        self.task_defs = task_defs or CORE_TASK_DEFS
         self.config = dict(
             num_experts=num_experts, expert_hidden=expert_hidden,
             expert_out=expert_out, tower_hidden=tower_hidden,
@@ -315,16 +322,27 @@ class MMoEPredictor:
                 ybs = [batch[i+1].to(self.device) for i in range(num_tasks)]
                 preds = self.model(xb)
 
-                loss = torch.tensor(0.0, device=self.device)
+                # 分别计算每个任务的 loss，然后 GradNorm 平衡
+                task_losses = []
                 for i, td in enumerate(task_defs):
                     if td['type'] == 'classification':
-                        loss += td['weight'] * bce(preds[i], ybs[i])
+                        tl = bce(preds[i], ybs[i])
                     else:
-                        loss += td['weight'] * mse(preds[i], ybs[i])
+                        tl = mse(preds[i], ybs[i])
+                    task_losses.append(td['weight'] * tl)
+
+                # GradNorm: 归一化每个任务 loss 到相近量级
+                with torch.no_grad():
+                    loss_magnitudes = torch.stack([tl.detach() for tl in task_losses])
+                    loss_mean = loss_magnitudes.mean().clamp(min=1e-6)
+                    norm_weights = loss_mean / loss_magnitudes.clamp(min=1e-6)
+                    norm_weights = norm_weights.clamp(0.1, 10.0)  # 防止极端权重
+
+                loss = sum(tl * nw for tl, nw in zip(task_losses, norm_weights))
 
                 optimizer.zero_grad()
                 loss.backward()
-                nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+                nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
                 optimizer.step()
                 ep_loss += loss.item()
 
