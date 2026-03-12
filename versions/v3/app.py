@@ -6441,9 +6441,14 @@ def render_scan_page():
         first_dates = get_first_scan_dates(tickers, market=selected_market)
         
         # 信号日期 = 90 天内最早出现的日期
+        try:
+            cutoff_90 = (datetime.strptime(selected_date, '%Y-%m-%d') - timedelta(days=90)).strftime('%Y-%m-%d')
+        except:
+            cutoff_90 = '1970-01-01'
+        
         def get_signal_date(ticker):
             dates = history_dates.get(ticker, [])
-            prev = [d for d in dates if d <= selected_date]  # 90天内（含当天）
+            prev = [d for d in dates if cutoff_90 <= d <= selected_date]  # 90天内
             if prev:
                 return prev[-1]  # 降序列表，最后一个 = 最早
             return first_dates.get(ticker, selected_date)
