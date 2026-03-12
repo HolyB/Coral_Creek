@@ -347,7 +347,8 @@ def get_signal_history_dates_supabase(symbols: List[str], market: str = 'US',
             query = supabase.table('scan_results')\
                 .select('symbol,scan_date')\
                 .eq('market', market)\
-                .in_('symbol', batch)
+                .in_('symbol', batch)\
+                .or_('blue_daily.gt.0,blue_weekly.gt.0,blue_monthly.gt.0')
             if end_date:
                 query = query.lte('scan_date', end_date)
             if start_date:
