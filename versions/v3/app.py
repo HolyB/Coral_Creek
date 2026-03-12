@@ -6408,53 +6408,43 @@ def render_scan_page():
             help="Qlib 组合结论与现有技术特征融合后的执行分",
         )
 
-    # === 新发现标记 ===
-    # 查询每只股票首次出现在扫描结果中的日期
+    # === 新发现标记 + 历史信号 ===
     if 'Ticker' in df.columns and len(df) > 0:
         tickers = df['Ticker'].tolist()
-        first_dates = get_first_scan_dates(tickers, market=selected_market)
-        df['信号日期'] = df['Ticker'].map(first_dates)
         
-        def get_newness_label(ticker):
-            first_date = first_dates.get(ticker)
-            if not first_date:
-                return "🆕新发现"  # 没有历史记录，是新发现
-            
-            # 比较首次日期和选择的日期
-            if first_date == selected_date:
-                return "🆕新发现"
-            else:
-                # 计算距今天数
-                from datetime import datetime
-                try:
-                    first_dt = datetime.strptime(first_date, '%Y-%m-%d')
-                    selected_dt = datetime.strptime(selected_date, '%Y-%m-%d')
-                    days_diff = (selected_dt - first_dt).days
-                    if days_diff <= 3:
-                        return f"📅{days_diff}天前"
-                    elif days_diff <= 7:
-                        return f"📅{days_diff}天"
-                    else:
-                        return f"📅{days_diff}天"
-                except:
-                    return "📅老股"
-        
-        df['新发现'] = df['Ticker'].apply(get_newness_label)
-
-        # === 历史信号日期 ===
+        # 先获取历史信号日期（一次查完，两列共用）
         try:
             from db.supabase_db import get_signal_history_dates_supabase
             history_dates = get_signal_history_dates_supabase(tickers, market=selected_market, limit_per_stock=30)
         except:
             history_dates = {}
         
+        # 状态列：基于上一次信号日期（不是首次）
+        def get_newness_label(ticker):
+            dates = history_dates.get(ticker, [])
+            prev_dates = [d for d in dates if d != selected_date]
+            if not prev_dates:
+                return "🆕新发现"
+            
+            last_date = prev_dates[0]  # 降序，第一个就是上一次
+            try:
+                last_dt = datetime.strptime(last_date, '%Y-%m-%d')
+                selected_dt = datetime.strptime(selected_date, '%Y-%m-%d')
+                days_diff = (selected_dt - last_dt).days
+                if days_diff <= 0:
+                    return "🆕新发现"
+                return f"📅{days_diff}天前"
+            except:
+                return "📅"
+        
+        df['新发现'] = df['Ticker'].apply(get_newness_label)
+
+        # 历史信号列：显示之前出过信号的日期
         def format_history(ticker):
             dates = history_dates.get(ticker, [])
-            # 排除当前选中日期
             dates = [d for d in dates if d != selected_date]
             if not dates:
                 return ""
-            # 只显示最近 5 个日期，格式简化为 M/D
             short = []
             for d in dates[:5]:
                 try:
@@ -6466,6 +6456,10 @@ def render_scan_page():
             return ", ".join(short) + suffix
         
         df['历史信号'] = df['Ticker'].apply(format_history)
+
+        # 保留 first_dates 用于信号价
+        first_dates = get_first_scan_dates(tickers, market=selected_market)
+        df['信号日期'] = df['Ticker'].map(first_dates)
 
         # 用“首次信号日价格”覆盖信号价，避免与现价同值导致无信息量
         try:
