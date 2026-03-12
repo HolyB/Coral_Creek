@@ -6425,7 +6425,7 @@ def render_scan_page():
         # 先获取历史信号日期（一次查完，两列共用）
         try:
             from db.supabase_db import get_signal_history_dates_supabase
-            history_dates = get_signal_history_dates_supabase(tickers, market=selected_market, limit_per_stock=30)
+            history_dates = get_signal_history_dates_supabase(tickers, market=selected_market, end_date=selected_date, limit_per_stock=30)
         except:
             history_dates = {}
         
