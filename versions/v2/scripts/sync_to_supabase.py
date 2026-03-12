@@ -66,7 +66,12 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
     
     # 可选列 (可能不存在于旧数据库)
     optional_cols = ['heima_daily', 'heima_weekly', 'heima_monthly',
-                     'juedi_daily', 'juedi_weekly', 'juedi_monthly']
+                     'juedi_daily', 'juedi_weekly', 'juedi_monthly',
+                     # 策略/分析字段
+                     'wave_phase', 'wave_desc', 'chan_signal', 'chan_desc',
+                     'stop_loss', 'shares_rec', 'regime',
+                     'strat_d_trend', 'strat_c_resonance', 'legacy_signal',
+                     'adaptive_thresh', 'vp_rating', 'profit_ratio', 'risk_reward_score']
     
     # 只选择存在的列
     select_cols = [c for c in base_cols if c in existing_cols]
@@ -106,33 +111,26 @@ def sync_to_supabase(db_path: str = None, days_back: int = 3):
         
         for row in batch:
             row_keys = row.keys()
-            record = {
-                'symbol': row['symbol'],
-                'scan_date': row['scan_date'],
-                'price': row['price'] if 'price' in row_keys else None,
-                'turnover_m': row['turnover_m'] if 'turnover_m' in row_keys else None,
-                'blue_daily': row['blue_daily'] if 'blue_daily' in row_keys else None,
-                'blue_weekly': row['blue_weekly'] if 'blue_weekly' in row_keys else None,
-                'blue_monthly': row['blue_monthly'] if 'blue_monthly' in row_keys else None,
-                'adx': row['adx'] if 'adx' in row_keys else None,
-                'volatility': row['volatility'] if 'volatility' in row_keys else None,
-                'is_heima': sqlite_bool_to_python(row['is_heima']) if 'is_heima' in row_keys else None,
-                'is_juedi': sqlite_bool_to_python(row['is_juedi']) if 'is_juedi' in row_keys else None,
-                'heima_daily': sqlite_bool_to_python(row['heima_daily']) if 'heima_daily' in row_keys else None,
-                'heima_weekly': sqlite_bool_to_python(row['heima_weekly']) if 'heima_weekly' in row_keys else None,
-                'heima_monthly': sqlite_bool_to_python(row['heima_monthly']) if 'heima_monthly' in row_keys else None,
-                'juedi_daily': sqlite_bool_to_python(row['juedi_daily']) if 'juedi_daily' in row_keys else None,
-                'juedi_weekly': sqlite_bool_to_python(row['juedi_weekly']) if 'juedi_weekly' in row_keys else None,
-                'juedi_monthly': sqlite_bool_to_python(row['juedi_monthly']) if 'juedi_monthly' in row_keys else None,
-                'market': row['market'] if 'market' in row_keys else 'US',
-                'company_name': row['company_name'] if 'company_name' in row_keys else None,
-                'industry': row['industry'] if 'industry' in row_keys else None,
-            }
-            # 可选字段 - 只在存在时添加
-            if row['market_cap'] is not None:
-                record['market_cap'] = row['market_cap']
-            if row['cap_category'] is not None:
-                record['cap_category'] = row['cap_category']
+            # 布尔类型字段
+            bool_cols = {'is_heima', 'is_juedi', 'heima_daily', 'heima_weekly', 'heima_monthly',
+                         'juedi_daily', 'juedi_weekly', 'juedi_monthly',
+                         'strat_d_trend', 'strat_c_resonance', 'legacy_signal'}
+            record = {}
+            for col in select_cols:
+                if col not in row_keys:
+                    continue
+                val = row[col]
+                if val is None:
+                    continue  # 不上传 None 值
+                if col in bool_cols:
+                    record[col] = sqlite_bool_to_python(val)
+                elif isinstance(val, bytes):
+                    # 兜底：任何未知 bytes 字段当 bool 处理
+                    record[col] = sqlite_bool_to_python(val)
+                else:
+                    record[col] = val
+            # 确保必需字段
+            record.setdefault('market', 'US')
             records.append(record)
         
         try:
