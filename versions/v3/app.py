@@ -6892,8 +6892,15 @@ def render_scan_page():
     elif heima_filter == "有任意掘地":
         df = df[(df['日掘地'] == True) | (df['周掘地'] == True) | (df['月掘地'] == True)]
 
-    # 显示列顺序
-    display_cols = ['Rank_Score', '信号方向', 'mmoe_dir_prob', 'mmoe_return_5d', 'mmoe_return_20d', 'mmoe_max_dd', 'mmoe_score', '新发现', '信号类型', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️', '新闻', '大师建议', 'Ticker', 'Name', 'Mkt Cap', 'Cap_Category', '信号日期', '信号价', '现价', '价格变化(%)', 'Turnover', 'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy', '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime']
+    display_cols = [
+        'Ticker', 'Name', '新发现', '信号日期', '历史信号',
+        '信号方向', 'Rank_Score', 'mmoe_dir_prob', 'mmoe_return_5d', 'mmoe_return_20d', 'mmoe_max_dd', 'mmoe_score',
+        '信号类型', '日🐴', '周🐴', '月🐴', '日⛏️', '周⛏️', '月⛏️',
+        '新闻', '大师建议',
+        'Mkt Cap', 'Cap_Category', '信号价', '现价', '价格变化(%)', 'Turnover',
+        'Day BLUE', 'Week BLUE', 'Month BLUE', 'ADX', 'Strategy',
+        '筹码形态', 'Wave_Desc', 'Chan_Desc', 'Stop Loss', 'Shares Rec', 'Regime'
+    ]
     existing_cols = [c for c in display_cols if c in df.columns]
 
     # === 按用户要求分4个标签页 ===
