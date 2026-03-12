@@ -18,6 +18,16 @@ from typing import Dict
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 
+# ⚠️ 必须在 db.database import 之前注入 secrets，否则 USE_SUPABASE 为 False
+try:
+    if hasattr(st, "secrets"):
+        for key in st.secrets:
+            value = st.secrets[key]
+            if isinstance(value, str) and (key not in os.environ or not os.environ[key]):
+                os.environ[key] = value
+except:
+    pass
+
 from chart_utils import create_candlestick_chart, create_candlestick_chart_dynamic, analyze_chip_flow, create_chip_flow_chart, create_chip_change_chart, quick_chip_analysis
 from data_fetcher import get_us_stock_data as fetch_data_from_polygon, get_ticker_details, get_stock_data, get_cn_stock_data
 from components.stock_detail import render_unified_stock_detail
