@@ -339,9 +339,9 @@ def get_signal_history_dates_supabase(symbols: List[str], market: str = 'US',
         else:
             start_date = None
         
-        # 批量查询：一次拿所有股票的信号（分批处理，Supabase in_ 限制）
+        # 批量查询：分批处理（Supabase 单次最多返回 1000 行）
         all_rows = []
-        batch_size = 50  # Supabase in_ 一次最多约 50-100 个
+        batch_size = 10  # 10 stocks × 30 dates = 300 rows, 远低于 1000 上限
         for i in range(0, len(symbols), batch_size):
             batch = symbols[i:i+batch_size]
             query = supabase.table('scan_results')\
@@ -353,7 +353,7 @@ def get_signal_history_dates_supabase(symbols: List[str], market: str = 'US',
             if start_date:
                 query = query.gte('scan_date', start_date)
             result = query.order('scan_date', desc=True)\
-                .limit(batch_size * limit_per_stock)\
+                .limit(1000)\
                 .execute()
             if result.data:
                 all_rows.extend(result.data)
