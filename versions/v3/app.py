@@ -38,6 +38,10 @@ from db.database import (
     get_stock_history, init_db, get_scan_job, get_stock_info_batch,
     get_first_scan_dates, USE_SUPABASE, SUPABASE_LAYER_AVAILABLE
 )
+try:
+    from db.supabase_db import get_signal_history_dates_supabase
+except ImportError:
+    get_signal_history_dates_supabase = None
 
 # 设置页面配置
 st.set_page_config(
@@ -6424,11 +6428,14 @@ def render_scan_page():
         
         # 先获取历史信号日期（一次查完，两列共用）
         history_dates = {}
-        try:
-            from db.supabase_db import get_signal_history_dates_supabase
-            history_dates = get_signal_history_dates_supabase(tickers, market=selected_market, end_date=selected_date, limit_per_stock=30)
-        except Exception as e:
-            print(f"⚠️ 获取历史信号日期失败: {e}")
+        if get_signal_history_dates_supabase:
+            try:
+                history_dates = get_signal_history_dates_supabase(tickers, market=selected_market, end_date=selected_date, limit_per_stock=30)
+                print(f"✅ 历史信号: {len(history_dates)} 只股票有历史数据")
+            except Exception as e:
+                print(f"⚠️ 获取历史信号日期失败: {e}")
+        else:
+            print("⚠️ get_signal_history_dates_supabase 未导入")
         
         # fallback: 如果 history_dates 为空，用 get_first_scan_dates
         first_dates = get_first_scan_dates(tickers, market=selected_market)

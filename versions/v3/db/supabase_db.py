@@ -323,35 +323,50 @@ def get_first_scan_dates_supabase(symbols: List[str], market: str = 'US') -> Dic
 def get_signal_history_dates_supabase(symbols: List[str], market: str = 'US', 
                                        end_date: str = None,
                                        limit_per_stock: int = 30) -> Dict[str, List[str]]:
-    """从 Supabase 获取每只股票的历史信号日期列表
+    """从 Supabase 批量获取股票历史信号日期
     
-    Args:
-        symbols: 股票代码列表
-        market: 市场
-        end_date: 截止日期（含），只返回 <= 此日期的记录
-        limit_per_stock: 每只股票最多返回多少条
-    
-    Returns:
-        dict: {symbol: ['2026-03-11', '2026-03-09', '2026-02-28', ...]}  降序
+    使用单次批量查询代替逐个查询，避免 N+1 问题
     """
     supabase = get_supabase()
     if not supabase or not symbols:
         return {}
     
     try:
-        history = {}
-        for symbol in symbols:
+        from datetime import datetime, timedelta
+        # 计算日期范围：end_date 往前 30 天
+        if end_date:
+            start_date = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=45)).strftime('%Y-%m-%d')
+        else:
+            start_date = None
+        
+        # 批量查询：一次拿所有股票的信号（分批处理，Supabase in_ 限制）
+        all_rows = []
+        batch_size = 50  # Supabase in_ 一次最多约 50-100 个
+        for i in range(0, len(symbols), batch_size):
+            batch = symbols[i:i+batch_size]
             query = supabase.table('scan_results')\
-                .select('scan_date')\
+                .select('symbol,scan_date')\
                 .eq('market', market)\
-                .eq('symbol', symbol)
+                .in_('symbol', batch)
             if end_date:
                 query = query.lte('scan_date', end_date)
+            if start_date:
+                query = query.gte('scan_date', start_date)
             result = query.order('scan_date', desc=True)\
-                .limit(limit_per_stock)\
+                .limit(batch_size * limit_per_stock)\
                 .execute()
             if result.data:
-                history[symbol] = [row['scan_date'] for row in result.data]
+                all_rows.extend(result.data)
+        
+        # 按 symbol 分组
+        history = {}
+        for row in all_rows:
+            sym = row['symbol']
+            if sym not in history:
+                history[sym] = []
+            if len(history[sym]) < limit_per_stock:
+                history[sym].append(row['scan_date'])
+        
         return history
     except Exception as e:
         print(f"⚠️ 获取历史信号日期失败: {e}")
