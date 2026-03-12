@@ -6429,10 +6429,10 @@ def render_scan_page():
         except:
             history_dates = {}
         
-        # 状态列：基于上一次信号日期（不是首次）
+        # 状态列：基于上一次信号日期（只看 selected_date 之前的）
         def get_newness_label(ticker):
             dates = history_dates.get(ticker, [])
-            prev_dates = [d for d in dates if d != selected_date]
+            prev_dates = [d for d in dates if d < selected_date]  # 严格小于，排除当天和未来
             if not prev_dates:
                 return "🆕新发现"
             
@@ -6449,10 +6449,10 @@ def render_scan_page():
         
         df['新发现'] = df['Ticker'].apply(get_newness_label)
 
-        # 历史信号列：显示之前出过信号的日期
+        # 历史信号列：只显示 selected_date 之前的信号日期
         def format_history(ticker):
             dates = history_dates.get(ticker, [])
-            dates = [d for d in dates if d != selected_date]
+            dates = [d for d in dates if d < selected_date]  # 严格小于
             if not dates:
                 return ""
             short = []
@@ -6467,10 +6467,10 @@ def render_scan_page():
         
         df['历史信号'] = df['Ticker'].apply(format_history)
 
-        # 信号日期 = 上一次出信号的日期
+        # 信号日期 = 上一次出信号的日期（selected_date 之前）
         def get_last_signal_date(ticker):
             dates = history_dates.get(ticker, [])
-            prev = [d for d in dates if d != selected_date]
+            prev = [d for d in dates if d < selected_date]  # 严格小于
             return prev[0] if prev else None
         
         df['信号日期'] = df['Ticker'].apply(get_last_signal_date)
