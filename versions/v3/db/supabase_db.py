@@ -333,15 +333,15 @@ def get_signal_history_dates_supabase(symbols: List[str], market: str = 'US',
     
     try:
         from datetime import datetime, timedelta
-        # 计算日期范围：end_date 往前 30 天
+        # 计算日期范围：end_date 往前 120 天（覆盖 90 天历史 + buffer）
         if end_date:
-            start_date = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=45)).strftime('%Y-%m-%d')
+            start_date = (datetime.strptime(end_date, '%Y-%m-%d') - timedelta(days=120)).strftime('%Y-%m-%d')
         else:
             start_date = None
         
         # 批量查询：分批处理（Supabase 单次最多返回 1000 行）
         all_rows = []
-        batch_size = 10  # 10 stocks × 30 dates = 300 rows, 远低于 1000 上限
+        batch_size = 5  # 5 stocks × ~90 dates = ~450 rows, 远低于 1000 上限
         for i in range(0, len(symbols), batch_size):
             batch = symbols[i:i+batch_size]
             query = supabase.table('scan_results')\
