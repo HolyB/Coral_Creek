@@ -257,11 +257,13 @@ class MMoEPredictor:
         print(f"   任务: {', '.join(t['name'] for t in task_defs)}")
         print(f"{'='*50}")
 
-        # 特征标准化
-        self.feature_mean = np.nanmean(X_v, axis=0)
-        self.feature_std = np.nanstd(X_v, axis=0) + 1e-8
+        # 特征标准化 (先清除 NaN/Inf，再用快速 std)
+        print(f"   标准化特征...", end='', flush=True)
+        X_v = np.nan_to_num(X_v, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+        self.feature_mean = X_v.mean(axis=0)
+        self.feature_std = X_v.std(axis=0) + 1e-8
         X_norm = (X_v - self.feature_mean) / self.feature_std
-        X_norm = np.nan_to_num(X_norm, 0.0)
+        print(f" ✅", flush=True)
 
         # 标签标准化 (回归任务)
         Y_list = []
@@ -285,15 +287,28 @@ class MMoEPredictor:
         Y_tr = [y[tmask] for y in Y_list]
         Y_va = [y[~tmask] for y in Y_list]
 
-        print(f"   训练: {len(X_tr)}, 验证: {len(X_va)}")
+        print(f"   训练: {len(X_tr)}, 验证: {len(X_va)}", flush=True)
 
-        # DataLoader
-        tr_tensors = [torch.FloatTensor(X_tr)] + [torch.FloatTensor(y) for y in Y_tr]
-        va_tensors = [torch.FloatTensor(X_va)] + [torch.FloatTensor(y) for y in Y_va]
-        tr_loader = DataLoader(TensorDataset(*tr_tensors), batch_size=self.config['batch_size'], shuffle=True)
-        va_loader = DataLoader(TensorDataset(*va_tensors), batch_size=self.config['batch_size'])
+        # DataLoader (逐步创建以定位卡点)
+        print(f"   [1/6] torch.FloatTensor(X_tr) [{X_tr.shape}, {X_tr.dtype}]...", end='', flush=True)
+        xt = torch.FloatTensor(X_tr)
+        print(f" ✅", flush=True)
+        print(f"   [2/6] Y_tr tensors...", end='', flush=True)
+        yt = [torch.FloatTensor(y) for y in Y_tr]
+        print(f" ✅", flush=True)
+        print(f"   [3/6] torch.FloatTensor(X_va)...", end='', flush=True)
+        xv = torch.FloatTensor(X_va)
+        print(f" ✅", flush=True)
+        print(f"   [4/6] Y_va tensors...", end='', flush=True)
+        yv = [torch.FloatTensor(y) for y in Y_va]
+        print(f" ✅", flush=True)
+        print(f"   [5/6] TensorDataset + DataLoader...", end='', flush=True)
+        tr_loader = DataLoader(TensorDataset(xt, *yt), batch_size=self.config['batch_size'], shuffle=True)
+        va_loader = DataLoader(TensorDataset(xv, *yv), batch_size=self.config['batch_size'])
+        print(f" ✅ ({len(tr_loader)} batches)", flush=True)
 
         # 模型
+        print(f"   创建模型...", end='', flush=True)
         self.model = MMoEModel(
             input_dim=n_feat, num_experts=self.config['num_experts'],
             expert_hidden=self.config['expert_hidden'],
@@ -301,23 +316,30 @@ class MMoEPredictor:
             tower_hidden=self.config['tower_hidden'],
             num_tasks=num_tasks, dropout=self.config['dropout'],
         ).to(self.device)
+        print(f" ✅", flush=True)
 
+        print(f"   创建优化器...", end='', flush=True)
         optimizer = optim.AdamW(self.model.parameters(), lr=self.config['lr'],
                                 weight_decay=self.config['weight_decay'])
         scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.config['epochs'])
 
         mse = nn.MSELoss()
         bce = nn.BCEWithLogitsLoss()
+        print(f" ✅", flush=True)
 
         best_val = float('inf')
         patience_cnt = 0
         best_state = None
 
+        print(f"   开始训练...", flush=True)
+        n_batches = len(tr_loader)
         for epoch in range(self.config['epochs']):
             # Train
             self.model.train()
             ep_loss = 0.0
-            for batch in tr_loader:
+            for bi, batch in enumerate(tr_loader):
+                if epoch == 0 and bi % 20 == 0:
+                    print(f"   batch {bi}/{n_batches}", end='\r', flush=True)
                 xb = batch[0].to(self.device)
                 ybs = [batch[i+1].to(self.device) for i in range(num_tasks)]
                 preds = self.model(xb)
@@ -398,9 +420,10 @@ class MMoEPredictor:
             else:
                 mae5 = 999
 
-            if (epoch + 1) % 10 == 0 or epoch == 0:
+            # Update progress
+            if (epoch + 1) % 5 == 0 or epoch == 0:
                 print(f"   Epoch {epoch+1:3d}: val_loss={avg_vl:.4f}, "
-                      f"dir_acc={dir_acc:.1%}, mae_5d={mae5:.2f}%")
+                      f"dir_acc={dir_acc:.1%}, mae_5d={mae5:.2f}%", flush=True)
 
             if avg_vl < best_val:
                 best_val = avg_vl
