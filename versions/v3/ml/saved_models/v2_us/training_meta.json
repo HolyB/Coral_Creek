@@ -1,28 +1,28 @@
 {
   "market": "US",
   "price_tier": "standard",
-  "samples": 78701,
-  "features": 230,
-  "groups": 57,
-  "trained_at": "2026-03-12T11:26:20.335577",
+  "samples": 78695,
+  "features": 210,
+  "groups": 58,
+  "trained_at": "2026-03-12T20:21:57.848361",
   "return_predictor": {
     "5d": {
-      "mse": 87.28118434440077,
-      "rmse": 9.342439956692298,
-      "mae": 5.363008213151899,
-      "r2": -0.026548268834093447,
-      "direction_accuracy": 0.6586748553206566,
-      "train_samples": 25216,
-      "test_samples": 33868
+      "mse": 85.45904115490576,
+      "rmse": 9.244405938453037,
+      "mae": 5.361465758227193,
+      "r2": -0.006567199927019152,
+      "direction_accuracy": 0.6596586546979272,
+      "train_samples": 25212,
+      "test_samples": 33866
     },
     "20d": {
-      "mse": 266.12520809421534,
-      "rmse": 16.31334447911327,
-      "mae": 11.961691133995782,
-      "r2": -0.13312804287898872,
-      "direction_accuracy": 0.5770114942528736,
-      "train_samples": 4459,
-      "test_samples": 870
+      "mse": 259.7246479654514,
+      "rmse": 16.11597493065348,
+      "mae": 11.792792400601074,
+      "r2": -0.11759868014314967,
+      "direction_accuracy": 0.5776754890678941,
+      "train_samples": 4456,
+      "test_samples": 869
     }
   }
 }

@@ -538,6 +538,7 @@ def train_models(X, returns_dict, groups, feature_names, market='US', price_tier
     for days_key in ['5d', '20d', '30d', '60d']:
         ret = returns_dict.get(days_key)
         if ret is not None:
+            ret = np.array(ret, dtype=float)
             drawdowns_dict[days_key] = np.abs(np.minimum(np.nan_to_num(ret, nan=0.0), 0))
         else:
             drawdowns_dict[days_key] = np.zeros(len(X))
@@ -591,6 +592,11 @@ def run(market='US', days_back=365, all_tiers=False, max_samples=2000000):
         if X is None:
             print("❌ 数据准备失败")
             continue
+        
+        # Ensure returns_dict values are float numpy arrays (convert None → NaN)
+        for k in returns_dict:
+            if returns_dict[k] is not None:
+                returns_dict[k] = np.array(returns_dict[k], dtype=np.float64)
         
         train_models(X, returns_dict, groups, feature_names, market, tier)
     
