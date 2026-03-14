@@ -183,6 +183,20 @@ jobs:
             mv scan_summary.json scan_summary_cn.json
           fi
 
+      # ML Daily Scorer (CN)
+      - name: ML Daily Scorer & Paper Trading (CN)
+        working-directory: versions/v3
+        env:
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+        continue-on-error: true
+        run: |
+          pip install xgboost joblib scikit-learn 2>/dev/null || true
+          # 1. ML scorer: 输出 Top-3 per exchange+tier
+          python scripts/ml_daily_scorer.py --market CN --top 3 || echo "ML scorer failed (no cache?)"
+          # 2. Paper trading: 模拟盘下单和结算
+          python scripts/paper_trading.py --market CN || echo "Paper trading update skipped"
+
       # 回填并刷新 candidate_tracking（避免策略统计样本为0或收益全0）
       - name: Rebuild candidate tracking (CN)
         working-directory: versions/v3
@@ -213,6 +227,7 @@ jobs:
           git add versions/v2/db/coral_creek.db || true
           git add versions/v3/db/coral_creek.db || true
           git add versions/v3/db/precomputed.db || true
+          git add versions/v3/db/ml_daily_picks.db || true
           git add versions/v2/scan_summary_cn.json || true
           
           # 检查是否有变化
