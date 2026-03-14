@@ -5,7 +5,9 @@ on:
   schedule:
     # 盘前: UTC 13:00 = 美东 8:00 AM
     - cron: '0 13 * * 1-5'
-    # 盘后: UTC 21:30 = 美东 16:30 (30分钟后)
+    # 收盘前: UTC 19:45 = 美东 3:45 PM (收盘前15分钟出信号,可当天买入)
+    - cron: '45 19 * * 1-5'
+    # 盘后: UTC 21:30 = 美东 16:30 (完整收盘数据)
     - cron: '30 21 * * 1-5'
   
   # 手动触发
@@ -224,6 +226,28 @@ jobs:
         run: |
           python scripts/send_trading_signals.py --market US
 
+      # ML 模型每日选股 (按市值分层 Top-5)
+      - name: ML Daily Scorer & Paper Trading
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+          WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
+          WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
+          WXPUSHER_TOPIC_IDS: ${{ secrets.WXPUSHER_TOPIC_IDS }}
+          BARK_URL: ${{ secrets.BARK_URL }}
+          BARK_GROUP: ${{ secrets.BARK_GROUP }}
+        continue-on-error: true
+        run: |
+          pip install xgboost joblib scikit-learn 2>/dev/null || true
+          # 1. ML scorer: 输出 Top-5 per tier
+          python scripts/ml_daily_scorer.py --market US || echo "ML scorer failed (no cache?)"
+          # 2. Paper trading: 模拟盘下单和结算
+          python scripts/paper_trading.py --market US || echo "Paper trading update skipped"
+
       # 回填并刷新 candidate_tracking（避免策略统计样本为0或收益全0）
       - name: Rebuild candidate tracking (US)
         working-directory: versions/v3
@@ -272,6 +296,8 @@ jobs:
           git add versions/v2/db/coral_creek.db || true
           git add versions/v3/db/coral_creek.db || true
           git add versions/v3/db/precomputed.db || true
+          git add versions/v3/db/ml_daily_picks.db || true
+          git add versions/v3/db/paper_trading.db || true
           git add versions/v2/scan_summary.json || true
           git add versions/v3/ml/saved_models/mmoe_cache/ || true
           
