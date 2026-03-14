@@ -1,28 +1,19 @@
 {
   "market": "CN",
   "price_tier": "standard",
-  "samples": 6051,
-  "features": 230,
-  "groups": 34,
-  "trained_at": "2026-03-11T12:31:40.716705",
+  "samples": 10103,
+  "features": 267,
+  "groups": 2,
+  "trained_at": "2026-03-14T15:25:59.429156",
   "return_predictor": {
     "5d": {
-      "mse": 51.39184020864885,
-      "rmse": 7.168810236618685,
-      "mae": 5.734840217198779,
-      "r2": -0.7761574196844736,
-      "direction_accuracy": 0.25193798449612403,
-      "train_samples": 2413,
-      "test_samples": 516
-    },
-    "20d": {
-      "mse": 45.843823249511566,
-      "rmse": 6.770806691193566,
-      "mae": 5.275341022131853,
-      "r2": -0.13614696334933973,
-      "direction_accuracy": 0.6207674943566591,
-      "train_samples": 656,
-      "test_samples": 443
+      "mse": 37.09351259515812,
+      "rmse": 6.0904443676268905,
+      "mae": 3.843879705695029,
+      "r2": 0.4908803402206443,
+      "direction_accuracy": 0.8283730158730159,
+      "train_samples": 4032,
+      "test_samples": 1008
     }
   }
 }

@@ -102,16 +102,33 @@ def generate_picks_message(market: str = 'US') -> str:
 
 
 def send_daily_picks(markets: list = None):
-    """发送每日精选到 Telegram"""
+    """发送每日精选到 Telegram (策略共识 + ML 模型选股)"""
     if markets is None:
         markets = ['US', 'CN']
     
     for market in markets:
+        # 1. 策略共识推送
         message = generate_picks_message(market)
         if message:
             send_telegram_message(message)
         else:
-            print(f"⚠️ No picks for {market}")
+            print(f"⚠️ No strategy picks for {market}")
+        
+        # 2. ML 模型选股推送
+        try:
+            from scripts.ml_daily_scorer import score_daily_signals, format_picks_message as fmt_ml
+            results = score_daily_signals(market=market, top_n=5)
+            if results:
+                from db.database import get_scanned_dates
+                dates = get_scanned_dates(market=market)
+                date = dates[0] if dates else 'latest'
+                ml_msg = fmt_ml(results, date, market)
+                send_telegram_message(ml_msg)
+                print(f"✅ ML picks sent for {market}")
+            else:
+                print(f"⚠️ No ML picks for {market}")
+        except Exception as e:
+            print(f"⚠️ ML picks error ({market}): {e}")
 
 
 if __name__ == "__main__":
