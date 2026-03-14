@@ -247,6 +247,8 @@ jobs:
           python scripts/ml_daily_scorer.py --market US || echo "ML scorer failed (no cache?)"
           # 2. Paper trading: 模拟盘下单和结算
           python scripts/paper_trading.py --market US || echo "Paper trading update skipped"
+          # 3. 推送 ML 选股通知 (Telegram + WeChat + Bark)
+          python scripts/send_daily_picks.py --market US || echo "ML picks notification failed"
 
       # 回填并刷新 candidate_tracking（避免策略统计样本为0或收益全0）
       - name: Rebuild candidate tracking (US)
