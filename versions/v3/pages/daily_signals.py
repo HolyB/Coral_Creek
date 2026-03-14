@@ -195,11 +195,209 @@ def render_daily_signals_page():
             strong_count = len([s for s in buy_signals if s['strength'] == '强烈'])
             st.metric("强烈信号", strong_count)
             
+        # === ML 模型推荐 ===
+        st.subheader("🤖 ML 每日机会")
+        
+        try:
+            from scripts.ml_daily_scorer import get_historical_picks
+            
+            # Load historical picks from v2 table
+            hist_df = get_historical_picks(market=market, days=60)
+            
+            if hist_df.empty:
+                st.info("📦 暂无 ML 推荐数据。请运行回填: `PYTHONPATH=. python scripts/backfill_daily_picks.py`")
+            else:
+                # Get latest date's picks
+                latest_date = hist_df['date'].max()
+                latest_picks = hist_df[hist_df['date'] == latest_date]
+                
+                st.caption(f"📅 最新推荐日期: {latest_date} | 市场: {'🇺🇸 美股' if market == 'US' else '🇨🇳 A股'}")
+                
+                if market == 'CN':
+                    _render_cn_picks(latest_picks, hist_df)
+                else:
+                    _render_us_picks(latest_picks, hist_df)
+                
+                # Historical Performance Tracking
+                _render_historical_performance(hist_df, market)
+        
+        except Exception as e:
+            st.warning(f"ML 模型推荐暂不可用: {e}")
+            import traceback
+            st.code(traceback.format_exc())
+        
     except Exception as e:
         import traceback
         st.error(f"❌ 运行错误: {str(e)}")
         st.code(traceback.format_exc())
 
 
+def _render_cn_picks(latest_picks, hist_df):
+    """Render CN picks with exchange tabs"""
+    exchanges = ['上证主板', '深证主板', '创业板', '科创板']
+    available = [ex for ex in exchanges if any(latest_picks['exchange'] == ex)]
+    
+    if not available:
+        available = [ex for ex in exchanges if any(latest_picks['segment'].str.contains(ex))]
+    
+    if not available:
+        st.info("暂无 A 股推荐")
+        return
+    
+    ex_tabs = st.tabs([f"{'📊' if i==0 else '📈'} {ex}" for i, ex in enumerate(available)])
+    
+    for tab, exchange in zip(ex_tabs, available):
+        with tab:
+            # Filter picks for this exchange
+            ex_picks = latest_picks[latest_picks['segment'].str.contains(exchange)]
+            
+            if ex_picks.empty:
+                st.info(f"{exchange} 暂无推荐")
+                continue
+            
+            # Separate "全部" picks and tier picks
+            all_picks = ex_picks[ex_picks['segment'].str.contains('全部')]
+            tier_picks = ex_picks[~ex_picks['segment'].str.contains('全部')]
+            
+            # Show overall top picks for this exchange
+            if not all_picks.empty:
+                st.markdown(f"**🏆 {exchange} Top Picks**")
+                _render_pick_table(all_picks, market='CN')
+            
+            # Show by tier
+            if not tier_picks.empty:
+                tiers = tier_picks['tier'].unique()
+                tier_tabs = st.tabs([f"💰 {t}" for t in tiers])
+                for ttab, tier in zip(tier_tabs, tiers):
+                    with ttab:
+                        t_df = tier_picks[tier_picks['tier'] == tier]
+                        _render_pick_table(t_df, market='CN')
+
+
+def _render_us_picks(latest_picks, hist_df):
+    """Render US picks with market cap tabs"""
+    tiers = latest_picks['tier'].unique() if 'tier' in latest_picks.columns else latest_picks['segment'].unique()
+    
+    if len(tiers) == 0:
+        st.info("暂无美股推荐")
+        return
+    
+    tier_tabs = st.tabs([f"💰 {t}" for t in tiers])
+    for tab, tier in zip(tier_tabs, tiers):
+        with tab:
+            if 'tier' in latest_picks.columns:
+                t_df = latest_picks[latest_picks['tier'] == tier]
+            else:
+                t_df = latest_picks[latest_picks['segment'] == tier]
+            _render_pick_table(t_df, market='US')
+
+
+def _render_pick_table(picks_df, market='US'):
+    """Render a styled picks table"""
+    if picks_df.empty:
+        st.info("暂无数据")
+        return
+    
+    price_sym = "¥" if market == 'CN' else "$"
+    pred_col = 'pred_30d' if market == 'CN' else 'pred_10d'
+    pred_label = '预测30d' if market == 'CN' else '预测10d'
+    actual_col = 'actual_30d' if market == 'CN' else 'actual_10d'
+    
+    display_df = picks_df.copy()
+    
+    # Format columns
+    display_df['排名'] = display_df['rank'].astype(int)
+    display_df['代码'] = display_df['symbol']
+    display_df['价格'] = display_df['price'].apply(lambda x: f"{price_sym}{x:.2f}")
+    
+    if pred_col in display_df.columns:
+        display_df[pred_label] = display_df[pred_col].apply(
+            lambda x: f"{x:+.1f}%" if pd.notna(x) else "—")
+    
+    if 'market_cap' in display_df.columns:
+        if market == 'CN':
+            display_df['市值'] = display_df['market_cap'].apply(
+                lambda x: f"¥{x/1e8:.0f}亿" if x >= 1e8 else "—")
+        else:
+            display_df['市值'] = display_df['market_cap'].apply(
+                lambda x: f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M" if x > 0 else "—")
+    
+    if actual_col in display_df.columns and display_df[actual_col].notna().any():
+        display_df['实际收益'] = display_df[actual_col].apply(
+            lambda x: f"{x:+.1f}%" if pd.notna(x) else "⏳")
+        display_df['结果'] = display_df[actual_col].apply(
+            lambda x: "✅" if pd.notna(x) and x > 0 else ("❌" if pd.notna(x) else "⏳"))
+    
+    show_cols = ['排名', '代码', '价格', pred_label]
+    if '市值' in display_df.columns:
+        show_cols.append('市值')
+    if '实际收益' in display_df.columns:
+        show_cols.extend(['实际收益', '结果'])
+    
+    show_df = display_df[[c for c in show_cols if c in display_df.columns]]
+    show_df = show_df.reset_index(drop=True)
+    
+    st.dataframe(show_df, use_container_width=True, hide_index=True)
+
+
+def _render_historical_performance(hist_df, market):
+    """Render historical performance tracking"""
+    with st.expander("📈 历史推荐表现追踪"):
+        actual_col = 'actual_30d' if market == 'CN' else 'actual_10d'
+        pred_col = 'pred_30d' if market == 'CN' else 'pred_10d'
+        period = '30d' if market == 'CN' else '10d'
+        
+        if actual_col not in hist_df.columns or hist_df[actual_col].isna().all():
+            st.info("⏳ 暂无已验证的推荐（需要等待持仓期结束）")
+            # Still show recent picks
+            recent = hist_df.sort_values('date', ascending=False).head(30)
+            show_cols = ['date', 'segment', 'rank', 'symbol', 'price', pred_col]
+            show_cols = [c for c in show_cols if c in recent.columns]
+            st.dataframe(recent[show_cols], use_container_width=True, hide_index=True)
+            return
+        
+        verified = hist_df[hist_df[actual_col].notna()].copy()
+        if verified.empty:
+            st.info("⏳ 暂无已验证的推荐")
+            return
+        
+        # Overall stats
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            total = len(verified)
+            wins = (verified[actual_col] > 0).sum()
+            st.metric("总推荐数", total)
+        with col2:
+            win_rate = wins / total * 100 if total > 0 else 0
+            st.metric("胜率", f"{win_rate:.0f}%")
+        with col3:
+            avg_ret = verified[actual_col].mean()
+            st.metric(f"平均{period}收益", f"{avg_ret:+.1f}%")
+        with col4:
+            median_ret = verified[actual_col].median()
+            st.metric(f"中位{period}收益", f"{median_ret:+.1f}%")
+        
+        # Top-1 vs Top-3 performance
+        if 'rank' in verified.columns:
+            st.markdown("**📊 按排名表现**")
+            for rank_filter, label in [(1, 'Top-1'), (3, 'Top-3')]:
+                rank_df = verified[verified['rank'] <= rank_filter]
+                if not rank_df.empty:
+                    wr = (rank_df[actual_col] > 0).sum() / len(rank_df) * 100
+                    avg = rank_df[actual_col].mean()
+                    st.caption(f"{label}: 胜率 {wr:.0f}%, 平均收益 {avg:+.1f}% (n={len(rank_df)})")
+        
+        # By segment performance
+        if 'segment' in verified.columns:
+            st.markdown("**📊 按板块/市值表现**")
+            seg_stats = verified.groupby('segment').agg({
+                actual_col: ['count', 'mean', lambda x: (x > 0).mean() * 100]
+            }).round(1)
+            seg_stats.columns = ['推荐次数', f'平均{period}收益%', '胜率%']
+            seg_stats = seg_stats.sort_values(f'平均{period}收益%', ascending=False)
+            st.dataframe(seg_stats, use_container_width=True)
+
+
 if __name__ == "__main__":
     render_daily_signals_page()
+
