@@ -189,7 +189,6 @@ def score_daily_signals(market='US', date=None, top_n=5):
         # Try 2: Compute features live from stock_history
         if feat is None and hist_db and fc:
             try:
-                import pandas as pd
                 df = pd.read_sql_query(
                     '''SELECT trade_date, open as Open, high as High, low as Low,
                        close as Close, volume as Volume
