@@ -145,10 +145,28 @@ def score_daily_signals(market='US', date=None, top_n=5):
     mcap_dict, sector_dict = load_market_data(market)
     
     # 5. Build features and score
-    cache_db = sqlite3.connect(os.path.join(parent_dir, 'db', 'ml_feature_cache.db'))
+    cache_db_path = os.path.join(parent_dir, 'db', 'ml_feature_cache.db')
+    cache_db = None
+    if os.path.exists(cache_db_path):
+        cache_db = sqlite3.connect(cache_db_path)
+    
+    # Prepare live feature computation fallback
+    hist_db = None
+    fc = None
+    try:
+        from db.stock_history import get_history_db_path
+        from ml.features.feature_calculator import FeatureCalculator
+        hist_path = get_history_db_path()
+        if os.path.exists(hist_path):
+            hist_db = sqlite3.connect(hist_path)
+            fc = FeatureCalculator()
+    except:
+        pass
     
     min_price = 3 if market == 'CN' else 5
     scored = []
+    cache_hits = 0
+    live_hits = 0
     
     for _, row in signals_df.iterrows():
         symbol = row.get('symbol', '')
@@ -156,16 +174,46 @@ def score_daily_signals(market='US', date=None, top_n=5):
         if price < min_price:
             continue
         
-        # Get features from cache
-        cache_row = cache_db.execute(
-            'SELECT features_json FROM feature_cache WHERE symbol=? AND trade_date=? LIMIT 1',
-            (symbol, date)
-        ).fetchone()
+        feat = None
         
-        if cache_row is None:
+        # Try 1: Get features from cache
+        if cache_db:
+            cache_row = cache_db.execute(
+                'SELECT features_json FROM feature_cache WHERE symbol=? AND trade_date=? LIMIT 1',
+                (symbol, date)
+            ).fetchone()
+            if cache_row:
+                feat = json.loads(cache_row[0])
+                cache_hits += 1
+        
+        # Try 2: Compute features live from stock_history
+        if feat is None and hist_db and fc:
+            try:
+                import pandas as pd
+                df = pd.read_sql_query(
+                    '''SELECT trade_date, open as Open, high as High, low as Low,
+                       close as Close, volume as Volume
+                    FROM stock_history WHERE symbol=? AND market=?
+                    ORDER BY trade_date DESC LIMIT 150''',
+                    hist_db, params=(symbol, market)
+                )
+                if not df.empty and len(df) >= 20:
+                    df = df.sort_values('trade_date').reset_index(drop=True)
+                    feat = fc.get_latest_features(df)
+                    if feat:
+                        # Add mcap features
+                        mc = mcap_dict.get(symbol, 0)
+                        feat['mcap_log'] = float(np.log10(mc)) if mc > 0 else 0
+                        feat['mcap_bucket'] = (0 if mc <= 0 else 1 if mc < 1e9 else 2 if mc < 5e9
+                            else 3 if mc < 1e10 else 4 if mc < 3e10 else 5 if mc < 1e11 else 6)
+                        feat['sector_id'] = 0
+                        feat['is_etf'] = 0
+                        live_hits += 1
+            except:
+                pass
+        
+        if feat is None:
             continue
-        
-        feat = json.loads(cache_row[0])
         
         # Build feature vector
         X = np.array([[float(feat.get(fn, 0) or 0) for fn in feature_names]], dtype=np.float32)
@@ -203,14 +251,17 @@ def score_daily_signals(market='US', date=None, top_n=5):
             'holding_period': '10d' if market == 'US' else '30d',
         })
     
-    cache_db.close()
+    if cache_db:
+        cache_db.close()
+    if hist_db:
+        hist_db.close()
     
     if not scored:
-        print("   ❌ 无法评分（缓存中无匹配）")
+        print(f"   ❌ 无法评分（cache={cache_hits}, live={live_hits}）")
         return {}
     
     scored_df = pd.DataFrame(scored).sort_values('primary_pred', ascending=False)
-    print(f"   评分完成: {len(scored_df)} 只股票")
+    print(f"   评分完成: {len(scored_df)} 只股票 (cache={cache_hits}, live={live_hits})")
     
     # 6. Group by tier and exchange
     tiers = US_TIERS if market == 'US' else CN_TIERS
