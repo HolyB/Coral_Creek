@@ -263,6 +263,18 @@ jobs:
           pip install supabase 2>/dev/null || true
           python scripts/build_partial_history.py --market US --days 90 --upload
 
+      # 最优策略 → Alpaca 模拟盘同步
+      - name: Alpaca Strategy Bridge (US)
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_SECRET_KEY: ${{ secrets.ALPACA_SECRET_KEY }}
+        continue-on-error: true
+        run: |
+          pip install alpaca-py 2>/dev/null || true
+          python scripts/alpaca_strategy_bridge.py --market US --execute
+
       # 回填并刷新 candidate_tracking（避免策略统计样本为0或收益全0）
       - name: Rebuild candidate tracking (US)
         working-directory: versions/v3
