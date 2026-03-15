@@ -1,251 +1,251 @@
 {
   "summary": {
-    "feature_count": 110,
-    "avg_missing_rate": 0.009675290178212085,
-    "avg_drift_score": 0.062034582149937186,
-    "avg_abs_ic20": 0.2388018776866145,
+    "feature_count": 225,
+    "avg_missing_rate": 0.004630225080385853,
+    "avg_drift_score": 0.08835600178282368,
+    "avg_abs_ic20": NaN,
     "avg_abs_ic60": NaN
   },
   "top_stable_features": [
     {
-      "feature": "intraday_range_ma",
+      "feature": "fund_cap_large",
       "missing_rate": 0.0,
-      "drift_score": 0.022684512666187772,
-      "ic_20d": -0.48868656667430665,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7288657472331249
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "Close",
+      "feature": "fund_roa",
       "missing_rate": 0.0,
-      "drift_score": 0.009539283989723209,
-      "ic_20d": -0.44296666424561154,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7246844224719352
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "Low",
+      "feature": "fund_has_external",
       "missing_rate": 0.0,
-      "drift_score": 0.007082487220177911,
-      "ic_20d": -0.42873363494703265,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7229185826060714
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "volatility_60d",
+      "feature": "fund_target_upside",
       "missing_rate": 0.0,
-      "drift_score": 0.02361499956222873,
-      "ic_20d": -0.4457051681823223,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7210773453699559
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "High",
+      "feature": "fund_earnings_growth",
       "missing_rate": 0.0,
-      "drift_score": 0.03210904420290779,
-      "ic_20d": -0.4557727424014039,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7204271915993659
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "Open",
+      "feature": "fund_revenue_growth",
       "missing_rate": 0.0,
-      "drift_score": 0.031439870411650375,
-      "ic_20d": -0.4466908468278033,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7190264377235723
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "volatility_20d",
+      "feature": "fund_debt_to_equity",
       "missing_rate": 0.0,
-      "drift_score": 0.03660213665466711,
-      "ic_20d": -0.45077194153937034,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.718292172189809
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "atr_14_pct",
+      "feature": "fund_quick_ratio",
       "missing_rate": 0.0,
-      "drift_score": 0.052715541925230085,
-      "ic_20d": -0.47523966935152717,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7181442109734085
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "ma_5",
+      "feature": "fund_current_ratio",
       "missing_rate": 0.0,
-      "drift_score": 0.03873969648684546,
-      "ic_20d": -0.4475299170817089,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7171292645130184
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "ma_60_bias",
+      "feature": "fund_profit_margin",
       "missing_rate": 0.0,
-      "drift_score": 0.08736576548017796,
-      "ic_20d": 0.4889500122916377,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7114623760900873
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "return_20d",
+      "feature": "fund_roe",
       "missing_rate": 0.0,
-      "drift_score": 0.003717557022702946,
-      "ic_20d": 0.34514128684235046,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7092885888035048
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "roc_20",
+      "feature": "fund_beta",
       "missing_rate": 0.0,
-      "drift_score": 0.003717557022702946,
-      "ic_20d": 0.34514128684235046,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7092885888035048
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "momentum_20",
+      "feature": "fund_dividend_yield",
       "missing_rate": 0.0,
-      "drift_score": 0.0037175570227030467,
-      "ic_20d": 0.34514128684235046,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7092885888035048
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "ma_10",
+      "feature": "fund_ev_ebitda",
       "missing_rate": 0.0,
-      "drift_score": 0.07834256598729833,
-      "ic_20d": -0.4470984940914201,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.706446964223665
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "atr_14",
+      "feature": "fund_ps",
       "missing_rate": 0.0,
-      "drift_score": 0.1435496576014857,
-      "ic_20d": -0.532462894358613,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7055220408577184
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "lower_shadow_pct",
+      "feature": "fund_pb",
       "missing_rate": 0.0,
-      "drift_score": 0.0038983972858241504,
-      "ic_20d": -0.3052978246860681,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.7022621416799848
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "ema_12",
+      "feature": "fund_pe_fwd",
       "missing_rate": 0.0,
-      "drift_score": 0.12040983948088409,
-      "ic_20d": -0.4694900119737852,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6999199143489303
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "intraday_range",
+      "feature": "fund_pe_ttm",
       "missing_rate": 0.0,
-      "drift_score": 0.048079544870840436,
-      "ic_20d": -0.361544514968115,
+      "drift_score": 0.0,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6995081061975598
+      "stability_score": 0.6499999999999999
     },
     {
-      "feature": "momentum_60",
+      "feature": "adv_tv_kama_slope",
       "missing_rate": 0.0,
-      "drift_score": 0.15110442471393487,
-      "ic_20d": 0.4961278412170602,
+      "drift_score": 0.0031060160498006992,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6974416466759032
+      "stability_score": 0.6490710804241713
     },
     {
-      "feature": "return_60d",
+      "feature": "adv_tv_supertrend_dist",
       "missing_rate": 0.0,
-      "drift_score": 0.1511044247139351,
-      "ic_20d": 0.4961278412170602,
+      "drift_score": 0.0041456277726643325,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6974416466759031
+      "stability_score": 0.6487614462510204
     },
     {
-      "feature": "bb_upper",
+      "feature": "a158_price_efficiency_20",
       "missing_rate": 0.0,
-      "drift_score": 0.15201042693067576,
-      "ic_20d": -0.4887385642696507,
+      "drift_score": 0.004235775927721056,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6959435583635487
+      "stability_score": 0.6487346270579313
     },
     {
-      "feature": "ma_20",
+      "feature": "adv_shadow_ratio",
       "missing_rate": 0.0,
-      "drift_score": 0.14452722161598355,
-      "ic_20d": -0.4704614994255667,
+      "drift_score": 0.0044302250821550695,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6944477259230007
+      "stability_score": 0.648676794573224
     },
     {
-      "feature": "bb_middle",
+      "feature": "adv_above_20d_high",
       "missing_rate": 0.0,
-      "drift_score": 0.14452722161598355,
-      "ic_20d": -0.4704614994255667,
+      "drift_score": 0.005445360819761117,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6944477259230007
+      "stability_score": 0.6483752391630746
     },
     {
-      "feature": "ma_20_bias",
+      "feature": "adv_tv_sar_dist",
       "missing_rate": 0.0,
-      "drift_score": 0.027454627712168042,
-      "ic_20d": 0.2915007802633817,
+      "drift_score": 0.00583719174618327,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6929963328656165
+      "stability_score": 0.648259004997802
     },
     {
-      "feature": "fund_cap_small",
+      "feature": "adv_volatility_10",
       "missing_rate": 0.0,
-      "drift_score": 0.01633381518871454,
-      "ic_20d": 0.2608462216981917,
+      "drift_score": 0.006146506563737821,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6908266959798005
+      "stability_score": 0.6481673126556698
     },
     {
-      "feature": "macd_signal",
+      "feature": "obv",
       "missing_rate": 0.0,
-      "drift_score": 0.2517059012111013,
-      "ic_20d": 0.5579202344923121,
+      "drift_score": 0.006651281684211341,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6873089543856338
+      "stability_score": 0.6480177996675025
     },
     {
-      "feature": "macd",
+      "feature": "a158_return_kurt_60",
       "missing_rate": 0.0,
-      "drift_score": 0.25410311327001106,
-      "ic_20d": 0.5594447880294564,
+      "drift_score": 0.006785926739172179,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6871176176354794
+      "stability_score": 0.6479779435054827
     },
     {
-      "feature": "ema_26",
+      "feature": "a158_kdj_d_14",
       "missing_rate": 0.0,
-      "drift_score": 0.2084627528577084,
-      "ic_20d": -0.5020148403268897,
+      "drift_score": 0.00726667758929917,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6861018701858776
+      "stability_score": 0.6478357238204214
     },
     {
-      "feature": "fund_market_cap",
+      "feature": "obv_ma",
       "missing_rate": 0.0,
-      "drift_score": 0.09782879329788116,
-      "ic_20d": 0.3565383917238351,
+      "drift_score": 0.008779275453435906,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6856608716322475
+      "stability_score": 0.6473891388333222
     },
     {
-      "feature": "return_10d",
+      "feature": "volatility_5d",
       "missing_rate": 0.0,
-      "drift_score": 0.02102369516941426,
-      "ic_20d": 0.23365061177655896,
+      "drift_score": 0.008940391113391474,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6847116169237062
+      "stability_score": 0.6473416493604169
     }
   ],
   "top_unstable_features": [
@@ -258,236 +258,236 @@
       "stability_score": 0.3
     },
     {
-      "feature": "fund_has_market_cap",
+      "feature": "lower_shadow_pct",
       "missing_rate": 0.0,
-      "drift_score": 0.3694387443660898,
-      "ic_20d": -0.18872428252945558,
-      "ic_60d": NaN,
-      "stability_score": 0.6020945983947955
-    },
-    {
-      "feature": "kdj_cross",
-      "missing_rate": 0.0,
-      "drift_score": 0.12393101539385942,
-      "ic_20d": 0.00014758487543425506,
-      "ic_60d": NaN,
-      "stability_score": 0.6169461239648848
-    },
-    {
-      "feature": "consecutive_down",
-      "missing_rate": 0.0,
-      "drift_score": 0.17823291615334544,
-      "ic_20d": -0.07327975355367027,
-      "ic_60d": NaN,
-      "stability_score": 0.6174425436445566
-    },
-    {
-      "feature": "fund_cap_large",
-      "missing_rate": 0.0,
-      "drift_score": 0.10321077163822155,
+      "drift_score": 0.34125296145992073,
       "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6219335304843993
+      "stability_score": 0.573671453946657
     },
     {
-      "feature": "near_high_20",
+      "feature": "adv_lower_wick",
       "missing_rate": 0.0,
-      "drift_score": 0.0920256205751482,
+      "drift_score": 0.34125296145992073,
       "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6247188292542036
+      "stability_score": 0.573671453946657
     },
     {
-      "feature": "fund_cap_mid",
+      "feature": "adv_tv_minus_di",
       "missing_rate": 0.0,
-      "drift_score": 0.09173096361302432,
+      "drift_score": 0.33869532405454505,
       "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6247929755579765
-    },
-    {
-      "feature": "kdj_j",
-      "missing_rate": 0.0,
-      "drift_score": 0.10339951331427215,
-      "ic_20d": 0.032314976165245694,
-      "ic_60d": NaN,
-      "stability_score": 0.6275421358040219
-    },
-    {
-      "feature": "consecutive_up",
-      "missing_rate": 0.0,
-      "drift_score": 0.07956786888124313,
-      "ic_20d": 0.000649685815194104,
-      "ic_60d": NaN,
-      "stability_score": 0.6280026621197368
-    },
-    {
-      "feature": "blue_daily",
-      "missing_rate": 0.0,
-      "drift_score": 0.07997326595301547,
-      "ic_20d": -0.004281295641179,
-      "ic_60d": NaN,
-      "stability_score": 0.6285338807260872
-    },
-    {
-      "feature": "kdj_overbought",
-      "missing_rate": 0.0,
-      "drift_score": 0.09730085108210398,
-      "ic_20d": -0.04351843873971726,
-      "ic_60d": NaN,
-      "stability_score": 0.6310138561112146
-    },
-    {
-      "feature": "blue_weekly",
-      "missing_rate": 0.0,
-      "drift_score": 0.22163754933763852,
-      "ic_20d": -0.22353074167269674,
-      "ic_60d": NaN,
-      "stability_score": 0.63468989922079
-    },
-    {
-      "feature": "rsi_6",
-      "missing_rate": 0.0,
-      "drift_score": 0.06332579514886333,
-      "ic_20d": 0.01782524696312912,
-      "ic_60d": NaN,
-      "stability_score": 0.6352530797629857
-    },
-    {
-      "feature": "rsi_14",
-      "missing_rate": 0.0,
-      "drift_score": 0.1156544803822949,
-      "ic_20d": 0.09901184574940906,
-      "ic_60d": NaN,
-      "stability_score": 0.6362275303387794
-    },
-    {
-      "feature": "kdj_k",
-      "missing_rate": 0.0,
-      "drift_score": 0.11508321999087509,
-      "ic_20d": 0.10131219455992221,
-      "ic_60d": NaN,
-      "stability_score": 0.6367678498705283
-    },
-    {
-      "feature": "volume_ma_5",
-      "missing_rate": 0.0,
-      "drift_score": 0.06841345760579065,
-      "ic_20d": 0.03579176678589296,
-      "ic_60d": NaN,
-      "stability_score": 0.637053732565046
-    },
-    {
-      "feature": "rsi_divergence",
-      "missing_rate": 0.0,
-      "drift_score": 0.038542866514717104,
-      "ic_20d": NaN,
-      "ic_60d": NaN,
-      "stability_score": 0.638866266066398
-    },
-    {
-      "feature": "blue_monthly",
-      "missing_rate": 0.0,
-      "drift_score": 0.03436509691085136,
-      "ic_20d": -0.0037870645697525946,
-      "ic_60d": NaN,
-      "stability_score": 0.6406957245511036
-    },
-    {
-      "feature": "rsi_oversold",
-      "missing_rate": 0.0,
-      "drift_score": 0.09090322019988618,
-      "ic_20d": -0.09227919144634673,
-      "ic_60d": NaN,
-      "stability_score": 0.64115033841902
-    },
-    {
-      "feature": "bb_lower",
-      "missing_rate": 0.0,
-      "drift_score": 0.10175470348858996,
-      "ic_20d": -0.10983315088746785,
-      "ic_60d": NaN,
-      "stability_score": 0.6415137165615405
-    },
-    {
-      "feature": "rsi_overbought",
-      "missing_rate": 0.0,
-      "drift_score": 0.021786731948053025,
-      "ic_20d": NaN,
-      "ic_60d": NaN,
-      "stability_score": 0.6436033426741069
-    },
-    {
-      "feature": "return_1d",
-      "missing_rate": 0.0,
-      "drift_score": 0.03469397337696272,
-      "ic_20d": 0.023131509089906046,
-      "ic_60d": NaN,
-      "stability_score": 0.6439888156408582
-    },
-    {
-      "feature": "ma_bullish",
-      "missing_rate": 0.0,
-      "drift_score": 0.019895338769909822,
-      "ic_20d": NaN,
-      "ic_60d": NaN,
-      "stability_score": 0.6441478292878839
-    },
-    {
-      "feature": "kdj_d",
-      "missing_rate": 0.0,
-      "drift_score": 0.09291964195047042,
-      "ic_20d": 0.11482691483315047,
-      "ic_60d": NaN,
-      "stability_score": 0.6445888160527657
-    },
-    {
-      "feature": "volume_price_confirm",
-      "missing_rate": 0.0,
-      "drift_score": 0.02540565499401306,
-      "ic_20d": 0.011786584804353392,
-      "ic_60d": NaN,
-      "stability_score": 0.6446297925149123
-    },
-    {
-      "feature": "volume_ma_20",
-      "missing_rate": 0.0,
-      "drift_score": 0.1012404104962713,
-      "ic_20d": 0.1301156707122322,
-      "ic_60d": NaN,
-      "stability_score": 0.6451903217148146
-    },
-    {
-      "feature": "fund_market_cap_log",
-      "missing_rate": 0.0,
-      "drift_score": 0.2878699211817097,
-      "ic_20d": 0.3565383917238351,
-      "ic_60d": NaN,
-      "stability_score": 0.6453369987702892
-    },
-    {
-      "feature": "fund_industry_hash",
-      "missing_rate": 0.0,
-      "drift_score": 0.026533730346343796,
-      "ic_20d": 0.021535307016397793,
-      "ic_60d": NaN,
-      "stability_score": 0.6460143119023222
+      "stability_score": 0.574098788282446
     },
     {
       "feature": "volume_ratio",
       "missing_rate": 0.0,
-      "drift_score": 0.051062739916273636,
-      "ic_20d": 0.06328147249215894,
+      "drift_score": 0.33627112392620373,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.646499654864509
+      "stability_score": 0.5745053377480359
     },
     {
-      "feature": "volume_change",
+      "feature": "a158_turnover_chg_5",
       "missing_rate": 0.0,
-      "drift_score": 0.016553098270113354,
-      "ic_20d": -0.009249853565602848,
+      "drift_score": 0.3362711239262039,
+      "ic_20d": NaN,
       "ic_60d": NaN,
-      "stability_score": 0.6467336578786989
+      "stability_score": 0.5745053377480359
+    },
+    {
+      "feature": "adv_relative_volume_5",
+      "missing_rate": 0.0,
+      "drift_score": 0.33627112392620373,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5745053377480359
+    },
+    {
+      "feature": "a158_cci_14",
+      "missing_rate": 0.0,
+      "drift_score": 0.32359808632164433,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.57665490612314
+    },
+    {
+      "feature": "fund_has_market_cap",
+      "missing_rate": 0.0,
+      "drift_score": 0.3139275495814312,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5783230914029993
+    },
+    {
+      "feature": "adv_tv_aroon_down",
+      "missing_rate": 0.0,
+      "drift_score": 0.3039959454215904,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5800620650342652
+    },
+    {
+      "feature": "fund_market_cap_log",
+      "missing_rate": 0.0,
+      "drift_score": 0.30151478615288296,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5805006467784841
+    },
+    {
+      "feature": "a158_cci_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.29197819409900544,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5822020614358843
+    },
+    {
+      "feature": "blue_daily",
+      "missing_rate": 0.0,
+      "drift_score": 0.2895241054742416,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5826439643326176
+    },
+    {
+      "feature": "volume_surge",
+      "missing_rate": 0.0,
+      "drift_score": 0.2730715296110853,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5856505451752958
+    },
+    {
+      "feature": "a158_corr_close_vol_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.25418988059312486,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5891982303812925
+    },
+    {
+      "feature": "bb_position",
+      "missing_rate": 0.0,
+      "drift_score": 0.25163776893219414,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5896859598252121
+    },
+    {
+      "feature": "a158_bband_pctb_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.25163776834978346,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5896859599367424
+    },
+    {
+      "feature": "a158_corr_close_vol_10",
+      "missing_rate": 0.0,
+      "drift_score": 0.23082669386224808,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5937386201453114
+    },
+    {
+      "feature": "adv_relative_volume_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.22924982298299001,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5940512859070399
+    },
+    {
+      "feature": "a158_turnover_chg_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.2292498229829899,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5940512859070399
+    },
+    {
+      "feature": "adv_vol_deviation",
+      "missing_rate": 0.0,
+      "drift_score": 0.22924976328071658,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5940512977601369
+    },
+    {
+      "feature": "blue_weekly",
+      "missing_rate": 0.0,
+      "drift_score": 0.22770168212199984,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5943590363755714
+    },
+    {
+      "feature": "adv_tv_aroon_osc",
+      "missing_rate": 0.0,
+      "drift_score": 0.22218156804616723,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5954627101598275
+    },
+    {
+      "feature": "macd_hist_trend",
+      "missing_rate": 0.0,
+      "drift_score": 0.21357112426318117,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5972042997744732
+    },
+    {
+      "feature": "adv_true_range_pct",
+      "missing_rate": 0.0,
+      "drift_score": 0.20462025303101317,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.599041139101848
+    },
+    {
+      "feature": "adv_trend_volume_interaction",
+      "missing_rate": 0.0,
+      "drift_score": 0.20444693558207688,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5990769756120622
+    },
+    {
+      "feature": "adv_tv_sar_dir",
+      "missing_rate": 0.0,
+      "drift_score": 0.20221455222800855,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5995394848149391
+    },
+    {
+      "feature": "a158_corr_ret_vol_20",
+      "missing_rate": 0.0,
+      "drift_score": 0.20216816652367806,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.5995491133054314
+    },
+    {
+      "feature": "adv_tv_di_spread",
+      "missing_rate": 0.0,
+      "drift_score": 0.1978233895740786,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.6004542845057266
+    },
+    {
+      "feature": "fund_industry_hash",
+      "missing_rate": 0.0,
+      "drift_score": 0.19479178379127313,
+      "ic_20d": NaN,
+      "ic_60d": NaN,
+      "stability_score": 0.601089774862738
     }
   ]
 }

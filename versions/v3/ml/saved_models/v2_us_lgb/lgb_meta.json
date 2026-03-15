@@ -228,7 +228,6 @@
   ],
   "models": [
     "direction",
-    "return_5d",
-    "return_20d"
+    "return_5d"
   ]
 }
