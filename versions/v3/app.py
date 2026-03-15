@@ -2481,26 +2481,48 @@ def render_ml_daily_picks_page():
                                     _days_since = (pd.Timestamp(_today) - pd.Timestamp(_buy_date)).days
                                     _expired = _days_since >= _hold_n * 1.4  # ~10 trading days ≈ 14 calendar days
                                     
+                                    _pr = None
                                     if _expired:
                                         # Get sell price at end of holding period
                                         _target = (pd.Timestamp(_buy_date) + pd.Timedelta(days=int(_hold_n * 1.4))).strftime('%Y-%m-%d')
                                         _pr = _hconn.execute(
-                                            'SELECT close FROM stock_history WHERE symbol=? AND trade_date<=? ORDER BY trade_date DESC LIMIT 1',
+                                            'SELECT close, trade_date FROM stock_history WHERE symbol=? AND trade_date<=? ORDER BY trade_date DESC LIMIT 1',
                                             (_sym, _target)
                                         ).fetchone()
+                                        # Verify the data is recent enough (within holding period range)
+                                        if _pr and _pr[1] < _buy_date:
+                                            _pr = None  # Data is before buy date, not useful
                                     else:
                                         # Get latest price
                                         _pr = _hconn.execute(
-                                            'SELECT close FROM stock_history WHERE symbol=? ORDER BY trade_date DESC LIMIT 1',
+                                            'SELECT close, trade_date FROM stock_history WHERE symbol=? ORDER BY trade_date DESC LIMIT 1',
                                             (_sym,)
                                         ).fetchone()
-                                    _cur_prices[_sym] = float(_pr[0]) if _pr else None
+                                        # Verify it's after buy date
+                                        if _pr and _pr[1] < _buy_date:
+                                            _pr = None
+                                    
+                                    if _pr:
+                                        _cur_prices[_sym] = float(_pr[0])
+                                    else:
+                                        # Fallback: derive from actual returns
+                                        _act = _row.get('actual_10d') if _ml_market == 'US' else _row.get('actual_30d')
+                                        if pd.notna(_act) and _buy_price and _buy_price > 0:
+                                            _cur_prices[_sym] = round(_buy_price * (1 + _act / 100), 2)
+                                        else:
+                                            _cur_prices[_sym] = None
                                 _hconn.close()
                                 _picks_df['current_price'] = _picks_df['symbol'].map(_cur_prices)
                             else:
                                 _picks_df['current_price'] = None
                         except:
                             _picks_df['current_price'] = None
+                        
+                        # Final fallback: derive current_price from actual returns for any remaining nulls
+                        _act_col_fb = 'actual_10d' if _ml_market == 'US' else 'actual_30d'
+                        if _act_col_fb in _picks_df.columns:
+                            _mask = _picks_df['current_price'].isna() & _picks_df[_act_col_fb].notna() & (_picks_df['price'] > 0)
+                            _picks_df.loc[_mask, 'current_price'] = (_picks_df.loc[_mask, 'price'] * (1 + _picks_df.loc[_mask, _act_col_fb] / 100)).round(2)
                         
                         # Summary metrics (if we have actual returns)
                         _act_col = 'actual_10d' if _ml_market == 'US' else 'actual_30d'
