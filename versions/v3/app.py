@@ -2433,60 +2433,88 @@ def render_ml_daily_picks_page():
                     # ============ Tab 1: Portfolio Overview ============
                     with _tab_portfolio:
                         try:
-                            from scripts.ml_portfolio_tracker import build_portfolio_history, compute_metrics, compute_signal_streaks
+                            from scripts.ml_portfolio_tracker import (
+                                build_portfolio_history, compute_metrics, 
+                                compare_all_strategies, STRATEGIES
+                            )
+                            import plotly.graph_objects as go
+                            
+                            _pfx = '¥' if _ml_market == 'CN' else '$'
                             
                             @st.cache_data(ttl=300)
-                            def _load_portfolio(mkt):
-                                nav_df, trades, holdings = build_portfolio_history(mkt)
-                                metrics = compute_metrics(nav_df, trades)
-                                return nav_df, trades, holdings, metrics
+                            def _load_all_strategies(mkt):
+                                return compare_all_strategies(mkt)
                             
-                            _nav_df, _trades, _holdings, _metrics = _load_portfolio(_ml_market)
+                            _all_results = _load_all_strategies(_ml_market)
                             
-                            if _nav_df.empty:
+                            if not _all_results:
                                 st.info("暂无组合数据")
                             else:
-                                # Metrics row
-                                _m1, _m2, _m3, _m4, _m5, _m6 = st.columns(6)
-                                _pfx = '¥' if _ml_market == 'CN' else '$'
-                                with _m1:
-                                    st.metric("累计收益", f"{_metrics['total_return']:+.1f}%")
-                                with _m2:
-                                    st.metric("年化收益", f"{_metrics['ann_return']:+.1f}%")
-                                with _m3:
-                                    st.metric("最大回撤", f"{_metrics['max_drawdown']:.1f}%")
-                                with _m4:
-                                    st.metric("Sharpe", f"{_metrics['sharpe']:.2f}")
-                                with _m5:
-                                    st.metric("胜率", f"{_metrics['win_rate']:.0f}%")
-                                with _m6:
-                                    st.metric("盈亏比", f"{_metrics['profit_factor']:.2f}")
+                                # === Comparison Table ===
+                                st.subheader("📊 策略对比")
+                                _comp_rows = []
+                                for _sk, _sr in _all_results.items():
+                                    _sm = _sr['metrics']
+                                    if not _sm:
+                                        continue
+                                    _comp_rows.append({
+                                        '策略': _sr['name'],
+                                        '说明': _sr['desc'],
+                                        '累计收益': f"{_sm['total_return']:+.1f}%",
+                                        'Sharpe': f"{_sm['sharpe']:.2f}",
+                                        '胜率': f"{_sm['win_rate']:.0f}%",
+                                        '最大回撤': f"{_sm['max_drawdown']:.1f}%",
+                                        '交易数': _sm['total_trades'],
+                                        '持仓数': _sr['n_holdings'],
+                                    })
+                                if _comp_rows:
+                                    st.dataframe(pd.DataFrame(_comp_rows), hide_index=True, use_container_width=True)
                                 
-                                # NAV Chart
-                                import plotly.graph_objects as go
+                                # === Combined NAV Chart ===
+                                _colors = ['#00d4aa', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94']
                                 _fig = go.Figure()
-                                _fig.add_trace(go.Scatter(
-                                    x=_nav_df['date'], y=_nav_df['nav'],
-                                    mode='lines', name='NAV',
-                                    line=dict(color='#00d4aa', width=2),
-                                    fill='tozeroy', fillcolor='rgba(0,212,170,0.1)'
-                                ))
-                                _initial = _nav_df.iloc[0]['nav']
-                                _fig.add_hline(y=_initial, line_dash="dash", line_color="gray",
-                                              annotation_text=f"起始 {_pfx}{_initial:,.0f}")
+                                for _i, (_sk, _sr) in enumerate(_all_results.items()):
+                                    _ndf = _sr['nav_df']
+                                    if _ndf.empty:
+                                        continue
+                                    # Normalize to % return
+                                    _base = _ndf.iloc[0]['nav']
+                                    _fig.add_trace(go.Scatter(
+                                        x=_ndf['date'], 
+                                        y=(_ndf['nav'] / _base - 1) * 100,
+                                        mode='lines', name=_sr['name'],
+                                        line=dict(color=_colors[_i % len(_colors)], width=2),
+                                    ))
+                                _fig.add_hline(y=0, line_dash="dash", line_color="gray")
                                 _fig.update_layout(
-                                    title=f"ML 虚拟组合净值 ({_ml_market})",
-                                    xaxis_title="日期", yaxis_title=f"NAV ({_pfx})",
-                                    height=350, margin=dict(t=40, b=30),
-                                    template='plotly_dark' if True else 'plotly_white'
+                                    title=f"策略净值对比 ({_ml_market})",
+                                    xaxis_title="日期", yaxis_title="收益率 (%)",
+                                    height=400, margin=dict(t=40, b=30),
+                                    legend=dict(orientation="h", yanchor="bottom", y=1.02),
                                 )
                                 st.plotly_chart(_fig, use_container_width=True)
                                 
-                                # Holdings count over time
+                                # === Strategy Detail ===
+                                st.divider()
+                                _strat_names = {k: f"{v['name']} — {v['desc']}" for k, v in STRATEGIES.items()}
+                                _sel_strat = st.selectbox("选择策略查看详情", list(_strat_names.keys()),
+                                    format_func=lambda x: _strat_names[x], key="ml_strat_sel")
+                                
+                                _sr = _all_results.get(_sel_strat, {})
+                                _sm = _sr.get('metrics', {})
+                                if _sm:
+                                    _m1, _m2, _m3, _m4, _m5, _m6 = st.columns(6)
+                                    with _m1: st.metric("累计收益", f"{_sm['total_return']:+.1f}%")
+                                    with _m2: st.metric("年化收益", f"{_sm['ann_return']:+.1f}%")
+                                    with _m3: st.metric("最大回撤", f"{_sm['max_drawdown']:.1f}%")
+                                    with _m4: st.metric("Sharpe", f"{_sm['sharpe']:.2f}")
+                                    with _m5: st.metric("胜率", f"{_sm['win_rate']:.0f}%")
+                                    with _m6: st.metric("盈亏比", f"{_sm['profit_factor']:.2f}")
+                                
                                 _col_a, _col_b = st.columns(2)
                                 
                                 with _col_a:
-                                    # Current Holdings
+                                    _holdings = _sr.get('holdings', [])
                                     if _holdings:
                                         st.subheader(f"📋 当前持仓 ({len(_holdings)})")
                                         _h_df = pd.DataFrame(_holdings).sort_values('pnl_pct', ascending=False)
@@ -2501,7 +2529,7 @@ def render_ml_daily_picks_page():
                                         st.info("当前无持仓")
                                 
                                 with _col_b:
-                                    # Recent trades
+                                    _trades = _sr.get('trades', [])
                                     if _trades:
                                         st.subheader(f"📝 最近交易 ({len(_trades)} 笔)")
                                         _t_df = pd.DataFrame(_trades[-20:]).sort_values('sell_date', ascending=False)
@@ -2513,8 +2541,6 @@ def render_ml_daily_picks_page():
                                         st.dataframe(_t_display, hide_index=True, use_container_width=True, height=400)
                                     else:
                                         st.info("暂无已完成交易")
-                                
-                                st.caption(f"⚙️ 策略: 去重等权 | 持有 {'10' if _ml_market == 'US' else '30'} 交易日 | 最大单笔 5%")
                         except Exception as _pe:
                             st.warning(f"组合追踪加载失败: {_pe}")
                     

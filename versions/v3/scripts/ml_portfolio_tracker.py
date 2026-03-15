@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
-ML Picks 虚拟组合追踪器
-========================
-模拟按 ML daily picks 实际投资的效果：
-- 去重：同一只股票在持仓期内只买一次
-- 等权：每笔交易等金额
-- 到期自动卖出
-- 计算 NAV 净值曲线
+ML Picks 虚拟组合追踪器 (多策略版)
+====================================
+内置多种选股策略，模拟不同仓位管理方式的投资效果。
+
+策略列表：
+- all_in:       买入当天所有 picks（去重），5% 仓位上限
+- top1_daily:   每天只买 pred 最高的 1 只（集中火力）
+- top3_daily:   每天只买 pred 最高的 3 只
+- top10pct:     每天只买 pred 排名前 10% 的
+- streak_only:  只买连续出现 ≥2 天的股票（信号确认）
+- large_cap:    只买大市值 (Mid+Large+Mega)
 
 用法:
-    PYTHONPATH=. python scripts/ml_portfolio_tracker.py --market US
-    PYTHONPATH=. python scripts/ml_portfolio_tracker.py --market CN
-    PYTHONPATH=. python scripts/ml_portfolio_tracker.py --market US --initial 100000
+    PYTHONPATH=. python scripts/ml_portfolio_tracker.py --market US --strategy top1_daily
+    PYTHONPATH=. python scripts/ml_portfolio_tracker.py --market US --compare
 """
 
 import os
@@ -31,12 +34,59 @@ DB_DIR = os.path.join(parent_dir, 'db')
 PICKS_DB = os.path.join(DB_DIR, 'ml_daily_picks.db')
 HIST_DB = os.path.join(DB_DIR, 'stock_history.db')
 
+# ===================== Strategy Definitions =====================
+STRATEGIES = {
+    'all_in': {
+        'name': '全仓买入',
+        'desc': '买入所有 picks，5% 单笔上限',
+        'max_per_pos': 0.05,
+        'daily_pick_limit': None,
+        'filter_fn': None,
+    },
+    'top1_daily': {
+        'name': '每日 Top1',
+        'desc': '每天只买预测最高的 1 只，10% 仓位',
+        'max_per_pos': 0.10,
+        'daily_pick_limit': 1,
+        'filter_fn': None,
+    },
+    'top3_daily': {
+        'name': '每日 Top3',
+        'desc': '每天只买预测最高的 3 只，10% 仓位',
+        'max_per_pos': 0.10,
+        'daily_pick_limit': 3,
+        'filter_fn': None,
+    },
+    'top10pct': {
+        'name': '前10%精选',
+        'desc': '每天只买预测排名前 10% 的 picks',
+        'max_per_pos': 0.10,
+        'daily_pick_limit': None,
+        'filter_fn': 'top10pct',
+    },
+    'streak_only': {
+        'name': '连续信号',
+        'desc': '只买连续出现 ≥2 天的股票',
+        'max_per_pos': 0.10,
+        'daily_pick_limit': None,
+        'filter_fn': 'streak_ge2',
+    },
+    'large_cap': {
+        'name': '大盘精选',
+        'desc': '只买中/大/超大市值的 picks',
+        'max_per_pos': 0.10,
+        'daily_pick_limit': 3,
+        'filter_fn': 'large_cap',
+    },
+}
+
 
 def _get_all_picks(market='US'):
     """Load all picks from DB, sorted by date"""
     conn = sqlite3.connect(PICKS_DB)
     df = pd.read_sql_query(
-        '''SELECT date, symbol, price, primary_pred, holding_period, tier, segment, market
+        '''SELECT date, symbol, price, primary_pred, holding_period, 
+                  tier, segment, market, market_cap
            FROM ml_picks_v2 WHERE market=? ORDER BY date, primary_pred DESC''',
         conn, params=(market,)
     )
@@ -45,9 +95,7 @@ def _get_all_picks(market='US'):
 
 
 def _get_price_map(symbols, market, dates):
-    """
-    Build a price lookup: {symbol: {date_str: close_price}}
-    """
+    """Build a price lookup: {symbol: {date_str: close_price}}"""
     conn = sqlite3.connect(HIST_DB)
     min_date = min(dates) if dates else '2020-01-01'
     max_date = max(dates) if dates else '2030-01-01'
@@ -67,7 +115,6 @@ def _get_price_map(symbols, market, dates):
     price_map = defaultdict(dict)
     for _, row in df.iterrows():
         price_map[row['symbol']][row['trade_date']] = row['close']
-
     return dict(price_map)
 
 
@@ -85,48 +132,61 @@ def _get_trading_days(market, start_date, end_date):
 
 
 def compute_signal_streaks(picks_df):
-    """
-    Compute consecutive appearance days for each (symbol, date).
-    Returns dict: {(symbol, date): streak_count}
-    
-    If AEYE appears on 3/10, 3/11, 3/12, 3/13:
-      - 3/10: streak=1, 3/11: streak=2, 3/12: streak=3, 3/13: streak=4
-    """
+    """Compute consecutive appearance days for each (symbol, date)."""
     streaks = {}
-    # Group by symbol, sort by date
     for symbol, grp in picks_df.groupby('symbol'):
         dates = sorted(grp['date'].unique())
         if len(dates) <= 1:
             for d in dates:
                 streaks[(symbol, d)] = 1
             continue
-
         streak = 1
         streaks[(symbol, dates[0])] = 1
-
         for i in range(1, len(dates)):
             prev = pd.Timestamp(dates[i - 1])
             curr = pd.Timestamp(dates[i])
             gap = (curr - prev).days
-            # Allow weekend gaps (1-3 calendar days = consecutive trading days)
             if gap <= 4:
                 streak += 1
             else:
                 streak = 1
             streaks[(symbol, dates[i])] = streak
-
     return streaks
 
 
-def build_portfolio_history(market='US', initial_capital=100000.0):
+def _filter_picks(day_picks, strategy_cfg, streaks, td):
+    """Apply strategy filters to day's picks."""
+    picks = list(day_picks.itertuples(index=False))
+    # Already sorted by primary_pred desc
+    
+    filter_fn = strategy_cfg.get('filter_fn')
+    
+    if filter_fn == 'top10pct':
+        n = max(1, len(picks) // 10)
+        picks = picks[:n]
+    elif filter_fn == 'streak_ge2':
+        picks = [p for p in picks if streaks.get((p.symbol, td), 1) >= 2]
+    elif filter_fn == 'large_cap':
+        # Mid cap and above: US >= 2B, CN >= 10B
+        min_mc = 2e9 if hasattr(picks[0], 'market') and picks[0].market == 'US' else 1e10
+        picks = [p for p in picks if (getattr(p, 'market_cap', 0) or 0) >= min_mc]
+    
+    limit = strategy_cfg.get('daily_pick_limit')
+    if limit:
+        picks = picks[:limit]
+    
+    return picks
+
+
+def build_portfolio_history(market='US', initial_capital=100000.0, strategy='all_in'):
     """
-    Simulate a dedup equal-weight portfolio from historical ML picks.
+    Simulate a portfolio with the given strategy.
     
     Returns:
-        nav_df: DataFrame with columns [date, nav, cash, holdings_value, n_holdings, n_trades]
-        trades: list of dicts with trade details
-        current_holdings: list of dicts for currently open positions
+        nav_df, trades, current_holdings
     """
+    strategy_cfg = STRATEGIES.get(strategy, STRATEGIES['all_in'])
+    
     picks_df = _get_all_picks(market)
     if picks_df.empty:
         return pd.DataFrame(), [], []
@@ -134,59 +194,43 @@ def build_portfolio_history(market='US', initial_capital=100000.0):
     pick_dates = sorted(picks_df['date'].unique())
     all_symbols = picks_df['symbol'].unique().tolist()
 
-    # Determine date range
     first_date = pick_dates[0]
     last_date = pick_dates[-1]
-    # Extend to cover holding periods
     hold_days = 10 if market == 'US' else 30
     extend_date = (pd.Timestamp(last_date) + pd.Timedelta(days=int(hold_days * 2))).strftime('%Y-%m-%d')
     today = datetime.now().strftime('%Y-%m-%d')
     end_date = min(extend_date, today)
 
-    # Get all trading days and build price map
     trading_days = _get_trading_days(market, first_date, end_date)
     if not trading_days:
         return pd.DataFrame(), [], []
 
     price_map = _get_price_map(all_symbols, market, [first_date, end_date])
-
-    # Signal streaks
     streaks = compute_signal_streaks(picks_df)
 
-    # --- Portfolio simulation ---
     cash = initial_capital
-    holdings = {}  # symbol -> {buy_date, buy_price, shares, sell_target_idx}
+    holdings = {}
     trades = []
     nav_records = []
-
-    # Index trading days
     td_to_idx = {d: i for i, d in enumerate(trading_days)}
-
-    # Group picks by date
-    picks_by_date = {}
-    for d, grp in picks_df.groupby('date'):
-        picks_by_date[d] = grp
+    picks_by_date = {d: grp for d, grp in picks_df.groupby('date')}
+    
+    max_per_pos = strategy_cfg.get('max_per_pos', 0.05)
 
     for td in trading_days:
-        # 1. Sell expired holdings
-        to_sell = []
-        for sym, pos in holdings.items():
-            if td_to_idx.get(td, 0) >= pos['sell_target_idx']:
-                to_sell.append(sym)
-
+        # 1. Sell expired
+        to_sell = [s for s, p in holdings.items() if td_to_idx.get(td, 0) >= p['sell_target_idx']]
         for sym in to_sell:
             pos = holdings.pop(sym)
             sell_price = price_map.get(sym, {}).get(td)
             if sell_price is None:
-                # Try to find nearest available price
                 sym_prices = price_map.get(sym, {})
                 for fallback_d in trading_days[td_to_idx[td]::-1]:
                     if fallback_d in sym_prices:
                         sell_price = sym_prices[fallback_d]
                         break
                 if sell_price is None:
-                    sell_price = pos['buy_price']  # worst case
-
+                    sell_price = pos['buy_price']
             proceeds = sell_price * pos['shares']
             pnl = (sell_price / pos['buy_price'] - 1) * 100
             cash += proceeds
@@ -202,107 +246,71 @@ def build_portfolio_history(market='US', initial_capital=100000.0):
                 'streak': pos.get('streak', 1),
             })
 
-        # 2. Buy new picks (dedup: skip already held)
+        # 2. Buy new picks (dedup + strategy filter)
         if td in picks_by_date:
-            day_picks = picks_by_date[td]
-            new_picks = [r for _, r in day_picks.iterrows() if r['symbol'] not in holdings]
+            day_picks_df = picks_by_date[td]
+            filtered = _filter_picks(day_picks_df, strategy_cfg, streaks, td)
+            new_picks = [p for p in filtered if p.symbol not in holdings]
 
             if new_picks:
-                # Equal-weight: allocate a portion of cash to new picks
-                # Use a max allocation of 5% per position
-                max_per_pos = cash * 0.05
-                alloc_per_pick = min(max_per_pos, cash / max(len(new_picks), 1))
-
+                alloc_per_pick = min(cash * max_per_pos, cash / max(len(new_picks), 1))
                 for pick in new_picks:
-                    sym = pick['symbol']
-                    buy_price = pick['price']
+                    buy_price = pick.price
                     if buy_price <= 0 or alloc_per_pick < 10:
                         continue
-
-                    # Determine sell target
-                    hp_str = pick.get('holding_period', '10d')
+                    hp_str = pick.holding_period if hasattr(pick, 'holding_period') and isinstance(pick.holding_period, str) else '10d'
                     hp_days = int(hp_str.replace('d', '')) if isinstance(hp_str, str) else 10
                     buy_idx = td_to_idx.get(td, 0)
-                    sell_target_idx = buy_idx + hp_days
-
                     shares = alloc_per_pick / buy_price
-                    cost = shares * buy_price
-                    cash -= cost
-
-                    streak = streaks.get((sym, td), 1)
-
-                    holdings[sym] = {
+                    cash -= shares * buy_price
+                    holdings[pick.symbol] = {
                         'buy_date': td,
                         'buy_price': buy_price,
                         'shares': shares,
-                        'sell_target_idx': sell_target_idx,
-                        'streak': streak,
-                        'pred': pick.get('primary_pred', 0),
+                        'sell_target_idx': buy_idx + hp_days,
+                        'streak': streaks.get((pick.symbol, td), 1),
+                        'pred': pick.primary_pred if hasattr(pick, 'primary_pred') else 0,
                     }
 
-        # 3. Calculate NAV
-        holdings_value = 0
-        for sym, pos in holdings.items():
-            current_price = price_map.get(sym, {}).get(td)
-            if current_price is None:
-                current_price = pos['buy_price']
-            holdings_value += current_price * pos['shares']
-
-        nav = cash + holdings_value
+        # 3. NAV
+        hv = sum(price_map.get(s, {}).get(td, p['buy_price']) * p['shares'] for s, p in holdings.items())
+        nav = cash + hv
         nav_records.append({
-            'date': td,
-            'nav': round(nav, 2),
-            'cash': round(cash, 2),
-            'holdings_value': round(holdings_value, 2),
-            'n_holdings': len(holdings),
-            'n_trades': len([t for t in trades if t['sell_date'] == td]),
+            'date': td, 'nav': round(nav, 2), 'cash': round(cash, 2),
+            'holdings_value': round(hv, 2), 'n_holdings': len(holdings),
         })
 
-    # Current holdings (still open)
-    current_holdings = []
+    # Current holdings
     last_td = trading_days[-1] if trading_days else None
+    current_holdings = []
     for sym, pos in holdings.items():
-        latest_price = price_map.get(sym, {}).get(last_td, pos['buy_price'])
-        pnl = (latest_price / pos['buy_price'] - 1) * 100
+        cp = price_map.get(sym, {}).get(last_td, pos['buy_price'])
         current_holdings.append({
-            'symbol': sym,
-            'buy_date': pos['buy_date'],
-            'buy_price': pos['buy_price'],
-            'current_price': latest_price,
+            'symbol': sym, 'buy_date': pos['buy_date'],
+            'buy_price': pos['buy_price'], 'current_price': cp,
             'shares': pos['shares'],
-            'pnl_pct': round(pnl, 2),
-            'streak': pos.get('streak', 1),
-            'pred': pos.get('pred', 0),
+            'pnl_pct': round((cp / pos['buy_price'] - 1) * 100, 2),
+            'streak': pos.get('streak', 1), 'pred': pos.get('pred', 0),
         })
 
-    nav_df = pd.DataFrame(nav_records)
-    return nav_df, trades, current_holdings
+    return pd.DataFrame(nav_records), trades, current_holdings
 
 
 def compute_metrics(nav_df, trades):
     """Compute portfolio performance metrics"""
     if nav_df.empty:
         return {}
-
     first_nav = nav_df.iloc[0]['nav']
     last_nav = nav_df.iloc[-1]['nav']
     total_return = (last_nav / first_nav - 1) * 100
-
-    # Annualized
     n_days = (pd.Timestamp(nav_df.iloc[-1]['date']) - pd.Timestamp(nav_df.iloc[0]['date'])).days
     ann_return = ((last_nav / first_nav) ** (365 / max(n_days, 1)) - 1) * 100 if n_days > 0 else 0
-
-    # Max drawdown
     nav_series = nav_df['nav'].values
     peak = np.maximum.accumulate(nav_series)
     drawdowns = (nav_series - peak) / peak * 100
     max_dd = drawdowns.min()
-
-    # Daily returns for Sharpe
     daily_rets = pd.Series(nav_series).pct_change().dropna()
     sharpe = (daily_rets.mean() / daily_rets.std() * np.sqrt(252)) if daily_rets.std() > 0 else 0
-
-    # Trade stats
     if trades:
         pnls = [t['pnl_pct'] for t in trades]
         wins = [p for p in pnls if p > 0]
@@ -312,63 +320,68 @@ def compute_metrics(nav_df, trades):
         avg_loss = abs(np.mean(losses)) if losses else 1
         profit_factor = avg_win / avg_loss if avg_loss > 0 else float('inf')
     else:
-        win_rate = 0
-        avg_win = 0
-        avg_loss = 0
-        profit_factor = 0
-
+        win_rate = avg_win = avg_loss = profit_factor = 0
     return {
-        'total_return': round(total_return, 2),
-        'ann_return': round(ann_return, 2),
-        'max_drawdown': round(max_dd, 2),
-        'sharpe': round(sharpe, 2),
-        'total_trades': len(trades),
-        'win_rate': round(win_rate, 1),
-        'avg_win': round(avg_win, 2),
-        'avg_loss': round(avg_loss, 2),
+        'total_return': round(total_return, 2), 'ann_return': round(ann_return, 2),
+        'max_drawdown': round(max_dd, 2), 'sharpe': round(sharpe, 2),
+        'total_trades': len(trades), 'win_rate': round(win_rate, 1),
+        'avg_win': round(avg_win, 2), 'avg_loss': round(avg_loss, 2),
         'profit_factor': round(profit_factor, 2),
     }
+
+
+def compare_all_strategies(market='US', initial=100000.0):
+    """Run all strategies and return comparison results."""
+    results = {}
+    for key, cfg in STRATEGIES.items():
+        nav_df, trades, holdings = build_portfolio_history(market, initial, strategy=key)
+        metrics = compute_metrics(nav_df, trades)
+        results[key] = {
+            'name': cfg['name'],
+            'desc': cfg['desc'],
+            'nav_df': nav_df,
+            'trades': trades,
+            'holdings': holdings,
+            'metrics': metrics,
+            'n_holdings': len(holdings),
+        }
+    return results
 
 
 # ===================== Main =====================
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='ML Portfolio Tracker')
     parser.add_argument('--market', default='US', choices=['US', 'CN'])
-    parser.add_argument('--initial', type=float, default=100000, help='Initial capital')
+    parser.add_argument('--initial', type=float, default=100000)
+    parser.add_argument('--strategy', default='all_in', choices=list(STRATEGIES.keys()))
+    parser.add_argument('--compare', action='store_true', help='Compare all strategies')
 
     args = parser.parse_args()
 
-    print(f"\n{'='*60}")
-    print(f"📊 ML Virtual Portfolio: {args.market}")
-    print(f"{'='*60}")
-
-    nav_df, trades, holdings = build_portfolio_history(args.market, args.initial)
-
-    if nav_df.empty:
-        print("❌ No data")
-        sys.exit(0)
-
-    metrics = compute_metrics(nav_df, trades)
-
-    print(f"\n📈 Performance ({nav_df.iloc[0]['date']} → {nav_df.iloc[-1]['date']}):")
-    print(f"   Total Return: {metrics['total_return']:+.2f}%")
-    print(f"   Annualized:   {metrics['ann_return']:+.2f}%")
-    print(f"   Max Drawdown: {metrics['max_drawdown']:.2f}%")
-    print(f"   Sharpe Ratio: {metrics['sharpe']:.2f}")
-    print(f"   Win Rate:     {metrics['win_rate']:.1f}% ({metrics['total_trades']} trades)")
-    print(f"   Profit Factor:{metrics['profit_factor']:.2f}")
-
-    if holdings:
-        print(f"\n📋 Current Holdings ({len(holdings)}):")
-        for h in sorted(holdings, key=lambda x: x['pnl_pct'], reverse=True):
-            print(f"   {h['symbol']:8s} buy={h['buy_price']:.2f} now={h['current_price']:.2f} "
-                  f"pnl={h['pnl_pct']:+.1f}% streak={h['streak']}d")
-
-    if trades:
-        print(f"\n📝 Last 10 Trades:")
-        for t in trades[-10:]:
-            print(f"   {t['symbol']:8s} {t['buy_date']}→{t['sell_date']} "
-                  f"buy={t['buy_price']:.2f} sell={t['sell_price']:.2f} "
-                  f"pnl={t['pnl_pct']:+.1f}% streak={t['streak']}d")
-
-    print(f"\n📊 NAV: ${nav_df.iloc[0]['nav']:,.0f} → ${nav_df.iloc[-1]['nav']:,.0f}")
+    if args.compare:
+        print(f"\n{'='*80}")
+        print(f"📊 Strategy Comparison: {args.market}")
+        print(f"{'='*80}")
+        results = compare_all_strategies(args.market, args.initial)
+        print(f"\n{'Strategy':<18} {'Return':>10} {'Sharpe':>8} {'WinRate':>8} {'MaxDD':>8} {'Trades':>7} {'Hold':>5}")
+        print('-' * 72)
+        for key, r in results.items():
+            m = r['metrics']
+            if not m:
+                continue
+            print(f"{r['name']:<18} {m['total_return']:>+9.1f}% {m['sharpe']:>7.2f} "
+                  f"{m['win_rate']:>7.1f}% {m['max_drawdown']:>7.1f}% {m['total_trades']:>6d} {r['n_holdings']:>5d}")
+    else:
+        nav_df, trades, holdings = build_portfolio_history(args.market, args.initial, args.strategy)
+        if nav_df.empty:
+            print("❌ No data")
+            sys.exit(0)
+        metrics = compute_metrics(nav_df, trades)
+        cfg = STRATEGIES[args.strategy]
+        print(f"\n{'='*60}")
+        print(f"📊 {cfg['name']} ({args.market}): {cfg['desc']}")
+        print(f"{'='*60}")
+        print(f"  Return: {metrics['total_return']:+.2f}%  Sharpe: {metrics['sharpe']:.2f}  "
+              f"WinRate: {metrics['win_rate']:.1f}%  MaxDD: {metrics['max_drawdown']:.1f}%")
+        print(f"  Trades: {metrics['total_trades']}  Holdings: {len(holdings)}")
+        print(f"  NAV: ${nav_df.iloc[0]['nav']:,.0f} → ${nav_df.iloc[-1]['nav']:,.0f}")
