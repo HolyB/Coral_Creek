@@ -200,12 +200,25 @@ jobs:
         continue-on-error: true
         run: |
           pip install xgboost joblib scikit-learn 2>/dev/null || true
-          # 1. ML scorer: 输出 Top-3 per exchange+tier
+          # 1. ML scorer: 输出 Top-3 per board+tier
           python scripts/ml_daily_scorer.py --market CN --top 3 || echo "ML scorer failed (no cache?)"
           # 2. Paper trading: 模拟盘下单和结算
           python scripts/paper_trading.py --market CN || echo "Paper trading update skipped"
           # 3. 推送 ML 选股通知 (Telegram + WeChat + Bark)
           python scripts/send_daily_picks.py --market CN || echo "ML picks notification failed"
+
+      # 构建精简版价格数据 + 同步到 Supabase（供 portfolio tracker 使用）
+      - name: Build partial stock history & sync (CN)
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        continue-on-error: true
+        run: |
+          pip install supabase tushare 2>/dev/null || true
+          python scripts/build_partial_history.py --market CN --days 90 --upload
 
       # 回填并刷新 candidate_tracking（避免策略统计样本为0或收益全0）
       - name: Rebuild candidate tracking (CN)
@@ -238,6 +251,7 @@ jobs:
           git add versions/v3/db/coral_creek.db || true
           git add versions/v3/db/precomputed.db || true
           git add versions/v3/db/ml_daily_picks.db || true
+          git add versions/v3/db/partial_stock_history.db || true
           git add versions/v2/scan_summary_cn.json || true
           
           # 检查是否有变化

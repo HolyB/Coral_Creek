@@ -32,7 +32,10 @@ sys.path.insert(0, parent_dir)
 
 DB_DIR = os.path.join(parent_dir, 'db')
 PICKS_DB = os.path.join(DB_DIR, 'ml_daily_picks.db')
-HIST_DB = os.path.join(DB_DIR, 'stock_history.db')
+# Prefer full stock_history.db, fallback to partial
+_full_hist = os.path.join(DB_DIR, 'stock_history.db')
+_partial_hist = os.path.join(DB_DIR, 'partial_stock_history.db')
+HIST_DB = _full_hist if os.path.exists(_full_hist) else _partial_hist
 
 # ===================== Strategy Definitions =====================
 STRATEGIES = {
