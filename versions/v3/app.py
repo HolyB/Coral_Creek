@@ -2398,6 +2398,91 @@ def render_todays_picks_page():
         st.error(f"⚠️ 每日工作台加载异常: {e}")
         st.code(traceback.format_exc(), language='text')
         st.info("请刷新页面重试。若持续出错请截图以上错误信息反馈。")
+    
+    # === ML 每日推荐 ===
+    st.divider()
+    st.subheader("🤖 ML 每日机会")
+    try:
+        import sqlite3 as _sql3
+        _picks_db_path = os.path.join(current_dir, 'db', 'ml_daily_picks.db')
+        if not os.path.exists(_picks_db_path):
+            st.info("ML 推荐数据暂未生成，请等待每日 Action 运行。")
+        else:
+            _pconn = _sql3.connect(_picks_db_path)
+            # Check which table exists
+            _tables = [r[0] for r in _pconn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+            _tbl = 'daily_picks_v2' if 'daily_picks_v2' in _tables else 'daily_picks' if 'daily_picks' in _tables else None
+            if not _tbl:
+                st.info("ML 推荐表不存在")
+                _pconn.close()
+            else:
+                # Get latest dates per market
+                _ml_market = st.radio("ML 市场", ["US", "CN"], horizontal=True, key="ml_picks_market")
+                _dates = [r[0] for r in _pconn.execute(
+                    f'SELECT DISTINCT pick_date FROM {_tbl} WHERE market=? ORDER BY pick_date DESC LIMIT 10',
+                    (_ml_market,)
+                ).fetchall()]
+                
+                if not _dates:
+                    st.info(f"暂无 {_ml_market} ML 推荐数据")
+                else:
+                    _sel_date = st.selectbox("日期", _dates, key="ml_picks_date")
+                    _picks_df = pd.read_sql_query(
+                        f'SELECT * FROM {_tbl} WHERE market=? AND pick_date=? ORDER BY primary_pred DESC',
+                        _pconn, params=(_ml_market, _sel_date)
+                    )
+                    _pconn.close()
+                    
+                    if _picks_df.empty:
+                        st.info("该日无推荐")
+                    else:
+                        # Group by tier
+                        _tiers = _picks_df['tier'].unique() if 'tier' in _picks_df.columns else ['all']
+                        
+                        for _tier in _tiers:
+                            _tier_df = _picks_df[_picks_df['tier'] == _tier] if 'tier' in _picks_df.columns else _picks_df
+                            _tier_label = _tier if _tier else 'All'
+                            
+                            with st.expander(f"🏷️ {_tier_label} ({len(_tier_df)} picks)", expanded=True):
+                                _show_cols = ['symbol', 'price']
+                                if 'primary_pred' in _tier_df.columns:
+                                    _show_cols.append('primary_pred')
+                                if 'pred_10d' in _tier_df.columns:
+                                    _show_cols.append('pred_10d')
+                                if 'pred_30d' in _tier_df.columns:
+                                    _show_cols.append('pred_30d')
+                                if 'market_cap' in _tier_df.columns:
+                                    _show_cols.append('market_cap')
+                                if 'exchange' in _tier_df.columns:
+                                    _show_cols.append('exchange')
+                                if 'sector' in _tier_df.columns:
+                                    _show_cols.append('sector')
+                                
+                                _display = _tier_df[[c for c in _show_cols if c in _tier_df.columns]].copy()
+                                
+                                # Format
+                                if 'primary_pred' in _display.columns:
+                                    _display['primary_pred'] = _display['primary_pred'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+                                if 'pred_10d' in _display.columns:
+                                    _display['pred_10d'] = _display['pred_10d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+                                if 'pred_30d' in _display.columns:
+                                    _display['pred_30d'] = _display['pred_30d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+                                if 'market_cap' in _display.columns:
+                                    _display['market_cap'] = _display['market_cap'].apply(
+                                        lambda x: f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M" if x > 0 else "N/A"
+                                    )
+                                if 'price' in _display.columns:
+                                    _display['price'] = _display['price'].apply(lambda x: f"${x:.2f}" if x else "")
+                                
+                                _display.columns = [c.replace('primary_pred', '预测').replace('pred_10d', '10d预测').replace('pred_30d', '30d预测')
+                                    .replace('market_cap', '市值').replace('exchange', '板块').replace('sector', '行业')
+                                    .replace('symbol', '代码').replace('price', '价格') for c in _display.columns]
+                                
+                                st.dataframe(_display, hide_index=True, use_container_width=True)
+                        
+                        st.caption("⚠️ ML 模型预测，仅供参考，不构成投资建议")
+    except Exception as _e:
+        st.warning(f"ML 推荐加载失败: {_e}")
 
 
 def _render_todays_picks_page_inner():
