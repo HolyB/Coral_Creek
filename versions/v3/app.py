@@ -2388,7 +2388,7 @@ def _cached_escape_warning_scan(symbols: tuple, market: str):
 
 def render_todays_picks_page():
     """🎯 每日工作台 - SOP 三步法驱动的交易工作流"""
-    st.header("🎯 每日工作台")
+    st.header("📈 策略每日机会")
     st.caption("① 处理风险 → ② 执行买入 → ③ 收盘复盘")
     
     try:
@@ -2398,10 +2398,12 @@ def render_todays_picks_page():
         st.error(f"⚠️ 每日工作台加载异常: {e}")
         st.code(traceback.format_exc(), language='text')
         st.info("请刷新页面重试。若持续出错请截图以上错误信息反馈。")
-    
-    # === ML 每日推荐 ===
-    st.divider()
-    st.subheader("🤖 ML 每日机会")
+
+
+def render_ml_daily_picks_page():
+    """🤖 ML 每日机会 - 模型预测的每日 Top Picks"""
+    st.header("🤖 ML 每日机会")
+    st.caption("基于 ML 模型预测的每日推荐 + 实际收益追踪")
     try:
         import sqlite3 as _sql3
         _picks_db_path = os.path.join(current_dir, 'db', 'ml_daily_picks.db')
@@ -17231,8 +17233,12 @@ render_data_source_status_bar()
 render_action_health_panel()
 
 if page == "🎯 每日机会":
-    # 整合: 每日工作台 + 买卖点信号
-    render_todays_picks_page()
+    # 整合: 策略每日机会 + ML每日机会
+    daily_tab1, daily_tab2 = st.tabs(["📈 策略每日机会", "🤖 ML每日机会"])
+    with daily_tab1:
+        render_todays_picks_page()
+    with daily_tab2:
+        render_ml_daily_picks_page()
 elif page == "📊 全量扫描":
     render_scan_page()
 elif page == "🔬 个股研究":
