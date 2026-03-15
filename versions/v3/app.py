@@ -2436,17 +2436,27 @@ def render_todays_picks_page():
                     if _picks_df.empty:
                         st.info("该日无推荐")
                     else:
-                        # Lookup stock names from scan_results or stock_info
+                        # Lookup stock names from stock_info or scan_results
                         try:
                             from db.database import get_connection as _get_conn
                             _main_conn = _get_conn()
                             _syms = _picks_df['symbol'].tolist()
                             _placeholders = ','.join(['?' for _ in _syms])
+                            # Try stock_info first (has name for all stocks)
                             _name_rows = _main_conn.execute(
-                                f'SELECT DISTINCT symbol, name FROM scan_results WHERE symbol IN ({_placeholders}) AND name IS NOT NULL AND name != ""',
+                                f'SELECT symbol, name FROM stock_info WHERE symbol IN ({_placeholders})',
                                 _syms
                             ).fetchall()
-                            _name_map = {r[0]: r[1] for r in _name_rows}
+                            _name_map = {r[0]: r[1] for r in _name_rows if r[1]}
+                            # Fallback to scan_results.company_name
+                            if len(_name_map) < len(_syms):
+                                _name_rows2 = _main_conn.execute(
+                                    f'SELECT DISTINCT symbol, company_name FROM scan_results WHERE symbol IN ({_placeholders}) AND company_name IS NOT NULL',
+                                    _syms
+                                ).fetchall()
+                                for r in _name_rows2:
+                                    if r[0] not in _name_map and r[1]:
+                                        _name_map[r[0]] = r[1]
                             _main_conn.close()
                             _picks_df['name'] = _picks_df['symbol'].map(_name_map).fillna('')
                         except:
@@ -2463,8 +2473,10 @@ def render_todays_picks_page():
                                 _show_cols = ['symbol', 'name', 'price']
                                 if 'primary_pred' in _tier_df.columns:
                                     _show_cols.append('primary_pred')
-                                if 'pred_10d' in _tier_df.columns:
+                                if _ml_market == 'US' and 'pred_10d' in _tier_df.columns:
                                     _show_cols.append('pred_10d')
+                                if _ml_market == 'CN' and 'pred_5d' in _tier_df.columns:
+                                    _show_cols.append('pred_5d')
                                 if 'pred_30d' in _tier_df.columns and _ml_market == 'CN':
                                     _show_cols.append('pred_30d')
                                 if 'market_cap' in _tier_df.columns:
@@ -2481,6 +2493,8 @@ def render_todays_picks_page():
                                     _display['primary_pred'] = _display['primary_pred'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
                                 if 'pred_10d' in _display.columns:
                                     _display['pred_10d'] = _display['pred_10d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+                                if 'pred_5d' in _display.columns:
+                                    _display['pred_5d'] = _display['pred_5d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
                                 if 'pred_30d' in _display.columns:
                                     _display['pred_30d'] = _display['pred_30d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
                                 if 'market_cap' in _display.columns:
@@ -2498,7 +2512,7 @@ def render_todays_picks_page():
                                 if 'name' in _display.columns:
                                     _display['name'] = _display['name'].apply(lambda x: str(x)[:8] if x else '')
                                 
-                                _display.columns = [c.replace('primary_pred', '预测').replace('pred_10d', '10d预测').replace('pred_30d', '30d预测')
+                                _display.columns = [c.replace('primary_pred', '预测').replace('pred_10d', '10d预测').replace('pred_5d', '5d预测').replace('pred_30d', '30d预测')
                                     .replace('market_cap', '市值').replace('exchange', '板块').replace('sector', '行业')
                                     .replace('symbol', '代码').replace('price', '价格').replace('name', '名称') for c in _display.columns]
                                 
