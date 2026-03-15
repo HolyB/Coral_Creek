@@ -2411,7 +2411,7 @@ def render_todays_picks_page():
             _pconn = _sql3.connect(_picks_db_path)
             # Check which table exists
             _tables = [r[0] for r in _pconn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
-            _tbl = 'daily_picks_v2' if 'daily_picks_v2' in _tables else 'daily_picks' if 'daily_picks' in _tables else None
+            _tbl = 'ml_picks_v2' if 'ml_picks_v2' in _tables else 'ml_picks' if 'ml_picks' in _tables else None
             if not _tbl:
                 st.info("ML 推荐表不存在")
                 _pconn.close()
@@ -2419,7 +2419,7 @@ def render_todays_picks_page():
                 # Get latest dates per market
                 _ml_market = st.radio("ML 市场", ["US", "CN"], horizontal=True, key="ml_picks_market")
                 _dates = [r[0] for r in _pconn.execute(
-                    f'SELECT DISTINCT pick_date FROM {_tbl} WHERE market=? ORDER BY pick_date DESC LIMIT 10',
+                    f'SELECT DISTINCT date FROM {_tbl} WHERE market=? ORDER BY date DESC LIMIT 10',
                     (_ml_market,)
                 ).fetchall()]
                 
@@ -2428,7 +2428,7 @@ def render_todays_picks_page():
                 else:
                     _sel_date = st.selectbox("日期", _dates, key="ml_picks_date")
                     _picks_df = pd.read_sql_query(
-                        f'SELECT * FROM {_tbl} WHERE market=? AND pick_date=? ORDER BY primary_pred DESC',
+                        f'SELECT * FROM {_tbl} WHERE market=? AND date=? ORDER BY primary_pred DESC',
                         _pconn, params=(_ml_market, _sel_date)
                     )
                     _pconn.close()
