@@ -2436,6 +2436,22 @@ def render_todays_picks_page():
                     if _picks_df.empty:
                         st.info("该日无推荐")
                     else:
+                        # Lookup stock names from scan_results or stock_info
+                        try:
+                            from db.database import get_connection as _get_conn
+                            _main_conn = _get_conn()
+                            _syms = _picks_df['symbol'].tolist()
+                            _placeholders = ','.join(['?' for _ in _syms])
+                            _name_rows = _main_conn.execute(
+                                f'SELECT DISTINCT symbol, name FROM scan_results WHERE symbol IN ({_placeholders}) AND name IS NOT NULL AND name != ""',
+                                _syms
+                            ).fetchall()
+                            _name_map = {r[0]: r[1] for r in _name_rows}
+                            _main_conn.close()
+                            _picks_df['name'] = _picks_df['symbol'].map(_name_map).fillna('')
+                        except:
+                            _picks_df['name'] = ''
+                        
                         # Group by tier
                         _tiers = _picks_df['tier'].unique() if 'tier' in _picks_df.columns else ['all']
                         
@@ -2444,16 +2460,16 @@ def render_todays_picks_page():
                             _tier_label = _tier if _tier else 'All'
                             
                             with st.expander(f"🏷️ {_tier_label} ({len(_tier_df)} picks)", expanded=True):
-                                _show_cols = ['symbol', 'price']
+                                _show_cols = ['symbol', 'name', 'price']
                                 if 'primary_pred' in _tier_df.columns:
                                     _show_cols.append('primary_pred')
                                 if 'pred_10d' in _tier_df.columns:
                                     _show_cols.append('pred_10d')
-                                if 'pred_30d' in _tier_df.columns:
+                                if 'pred_30d' in _tier_df.columns and _ml_market == 'CN':
                                     _show_cols.append('pred_30d')
                                 if 'market_cap' in _tier_df.columns:
                                     _show_cols.append('market_cap')
-                                if 'exchange' in _tier_df.columns:
+                                if 'exchange' in _tier_df.columns and _ml_market == 'CN':
                                     _show_cols.append('exchange')
                                 if 'sector' in _tier_df.columns:
                                     _show_cols.append('sector')
@@ -2468,15 +2484,23 @@ def render_todays_picks_page():
                                 if 'pred_30d' in _display.columns:
                                     _display['pred_30d'] = _display['pred_30d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
                                 if 'market_cap' in _display.columns:
-                                    _display['market_cap'] = _display['market_cap'].apply(
-                                        lambda x: f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M" if x > 0 else "N/A"
-                                    )
+                                    if _ml_market == 'CN':
+                                        _display['market_cap'] = _display['market_cap'].apply(
+                                            lambda x: f"¥{x/1e8:.0f}亿" if x >= 1e8 else f"¥{x/1e4:.0f}万" if x > 0 else "N/A"
+                                        )
+                                    else:
+                                        _display['market_cap'] = _display['market_cap'].apply(
+                                            lambda x: f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M" if x > 0 else "N/A"
+                                        )
                                 if 'price' in _display.columns:
-                                    _display['price'] = _display['price'].apply(lambda x: f"${x:.2f}" if x else "")
+                                    _pfx = '¥' if _ml_market == 'CN' else '$'
+                                    _display['price'] = _display['price'].apply(lambda x: f"{_pfx}{x:.2f}" if x else "")
+                                if 'name' in _display.columns:
+                                    _display['name'] = _display['name'].apply(lambda x: str(x)[:8] if x else '')
                                 
                                 _display.columns = [c.replace('primary_pred', '预测').replace('pred_10d', '10d预测').replace('pred_30d', '30d预测')
                                     .replace('market_cap', '市值').replace('exchange', '板块').replace('sector', '行业')
-                                    .replace('symbol', '代码').replace('price', '价格') for c in _display.columns]
+                                    .replace('symbol', '代码').replace('price', '价格').replace('name', '名称') for c in _display.columns]
                                 
                                 st.dataframe(_display, hide_index=True, use_container_width=True)
                         
