@@ -2462,6 +2462,26 @@ def render_todays_picks_page():
                         except:
                             _picks_df['name'] = ''
                         
+                        # Summary metrics (if we have actual returns)
+                        _act_col = 'actual_10d' if _ml_market == 'US' else 'actual_30d'
+                        if _act_col in _picks_df.columns and _picks_df[_act_col].notna().sum() > 0:
+                            _valid = _picks_df[_picks_df[_act_col].notna()]
+                            _mc1, _mc2, _mc3, _mc4 = st.columns(4)
+                            with _mc1:
+                                _wr = (_valid[_act_col] > 0).mean() * 100
+                                st.metric("胜率", f"{_wr:.0f}%")
+                            with _mc2:
+                                _avg_ret = _valid[_act_col].mean()
+                                st.metric("平均收益", f"{_avg_ret:+.1f}%")
+                            with _mc3:
+                                _pred_col = 'pred_10d' if _ml_market == 'US' else 'primary_pred'
+                                if _pred_col in _valid.columns:
+                                    _dir_ok = ((_valid[_pred_col] > 0) & (_valid[_act_col] > 0)).sum() + ((_valid[_pred_col] <= 0) & (_valid[_act_col] <= 0)).sum()
+                                    _dir_acc = _dir_ok / len(_valid) * 100
+                                    st.metric("方向准确率", f"{_dir_acc:.0f}%")
+                            with _mc4:
+                                st.metric("样本数", f"{len(_valid)}")
+                        
                         # Group by tier
                         _tiers = _picks_df['tier'].unique() if 'tier' in _picks_df.columns else ['all']
                         
@@ -2483,6 +2503,11 @@ def render_todays_picks_page():
                                     _show_cols.append('market_cap')
                                 if 'exchange' in _tier_df.columns and _ml_market == 'CN':
                                     _show_cols.append('exchange')
+                                # Actual returns
+                                if _ml_market == 'US' and 'actual_10d' in _tier_df.columns:
+                                    _show_cols.append('actual_10d')
+                                if _ml_market == 'CN' and 'actual_30d' in _tier_df.columns:
+                                    _show_cols.append('actual_30d')
                                 if 'sector' in _tier_df.columns:
                                     _show_cols.append('sector')
                                 
@@ -2497,6 +2522,12 @@ def render_todays_picks_page():
                                     _display['pred_5d'] = _display['pred_5d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
                                 if 'pred_30d' in _display.columns:
                                     _display['pred_30d'] = _display['pred_30d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+                                if 'actual_10d' in _display.columns:
+                                    _display['actual_10d'] = _display['actual_10d'].apply(
+                                        lambda x: f"+{x:.1f}%" if pd.notna(x) and x > 0 else (f"{x:.1f}%" if pd.notna(x) else "—"))
+                                if 'actual_30d' in _display.columns:
+                                    _display['actual_30d'] = _display['actual_30d'].apply(
+                                        lambda x: f"+{x:.1f}%" if pd.notna(x) and x > 0 else (f"{x:.1f}%" if pd.notna(x) else "—"))
                                 if 'market_cap' in _display.columns:
                                     if _ml_market == 'CN':
                                         _display['market_cap'] = _display['market_cap'].apply(
@@ -2513,6 +2544,7 @@ def render_todays_picks_page():
                                     _display['name'] = _display['name'].apply(lambda x: str(x)[:8] if x else '')
                                 
                                 _display.columns = [c.replace('primary_pred', '预测').replace('pred_10d', '10d预测').replace('pred_5d', '5d预测').replace('pred_30d', '30d预测')
+                                    .replace('actual_10d', '10d实际').replace('actual_30d', '30d实际')
                                     .replace('market_cap', '市值').replace('exchange', '板块').replace('sector', '行业')
                                     .replace('symbol', '代码').replace('price', '价格').replace('name', '名称') for c in _display.columns]
                                 
