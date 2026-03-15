@@ -2435,7 +2435,8 @@ def render_ml_daily_picks_page():
                         try:
                             from scripts.ml_portfolio_tracker import (
                                 build_portfolio_history, compute_metrics, 
-                                compare_all_strategies, STRATEGIES
+                                compare_all_strategies, STRATEGIES,
+                                get_benchmark_returns
                             )
                             import plotly.graph_objects as go
                             
@@ -2473,11 +2474,12 @@ def render_ml_daily_picks_page():
                                 # === Combined NAV Chart ===
                                 _colors = ['#00d4aa', '#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff8b94']
                                 _fig = go.Figure()
+                                # Get date range for benchmark
+                                _first_nav = next((r['nav_df'] for r in _all_results.values() if not r['nav_df'].empty), pd.DataFrame())
                                 for _i, (_sk, _sr) in enumerate(_all_results.items()):
                                     _ndf = _sr['nav_df']
                                     if _ndf.empty:
                                         continue
-                                    # Normalize to % return
                                     _base = _ndf.iloc[0]['nav']
                                     _fig.add_trace(go.Scatter(
                                         x=_ndf['date'], 
@@ -2485,6 +2487,20 @@ def render_ml_daily_picks_page():
                                         mode='lines', name=_sr['name'],
                                         line=dict(color=_colors[_i % len(_colors)], width=2),
                                     ))
+                                
+                                # Add benchmark line
+                                if not _first_nav.empty:
+                                    _bm_start = _first_nav.iloc[0]['date']
+                                    _bm_end = _first_nav.iloc[-1]['date']
+                                    _bm_data, _bm_name = get_benchmark_returns(_ml_market, _bm_start, _bm_end)
+                                    if _bm_data:
+                                        _bm_dates = sorted(_bm_data.keys())
+                                        _fig.add_trace(go.Scatter(
+                                            x=_bm_dates, y=[_bm_data[d] for d in _bm_dates],
+                                            mode='lines', name=f'📉 {_bm_name}',
+                                            line=dict(color='rgba(255,255,255,0.5)', width=2, dash='dash'),
+                                        ))
+                                
                                 _fig.add_hline(y=0, line_dash="dash", line_color="gray")
                                 _fig.update_layout(
                                     title=f"策略净值对比 ({_ml_market})",

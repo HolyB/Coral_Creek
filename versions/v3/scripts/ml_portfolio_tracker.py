@@ -131,6 +131,45 @@ def _get_trading_days(market, start_date, end_date):
     return [r[0] for r in rows]
 
 
+def get_benchmark_returns(market, start_date, end_date):
+    """
+    Get benchmark index returns as {date: cumulative_return_%}.
+    US: SPY, CN: HS300 (from cn_index_data.json)
+    """
+    import json
+    
+    if market == 'CN':
+        idx_path = os.path.join(DB_DIR, 'cn_index_data.json')
+        if os.path.exists(idx_path):
+            with open(idx_path) as f:
+                idx_data = json.load(f)
+            # Extract hs300_close for date range
+            prices = {}
+            for d, vals in idx_data.items():
+                if start_date <= d <= end_date and 'hs300_close' in vals:
+                    prices[d] = vals['hs300_close']
+            if prices:
+                dates_sorted = sorted(prices.keys())
+                base = prices[dates_sorted[0]]
+                return {d: (prices[d] / base - 1) * 100 for d in dates_sorted}, '沪深300'
+    else:
+        # US: try SPY from stock_history
+        conn = sqlite3.connect(HIST_DB)
+        rows = conn.execute(
+            '''SELECT trade_date, close FROM stock_history
+               WHERE symbol='SPY' AND market='US'
+               AND trade_date >= ? AND trade_date <= ?
+               ORDER BY trade_date''',
+            (start_date, end_date)
+        ).fetchall()
+        conn.close()
+        if rows:
+            base = rows[0][1]
+            return {r[0]: (r[1] / base - 1) * 100 for r in rows}, 'SPY'
+    
+    return {}, ''
+
+
 def compute_signal_streaks(picks_df):
     """Compute consecutive appearance days for each (symbol, date)."""
     streaks = {}
