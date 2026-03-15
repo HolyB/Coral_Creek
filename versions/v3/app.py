@@ -2464,6 +2464,44 @@ def render_ml_daily_picks_page():
                         except:
                             _picks_df['name'] = ''
                         
+                        # Lookup current/sell prices from stock_history.db
+                        try:
+                            import sqlite3 as _sql3b
+                            _hist_db = os.path.join(current_dir, 'db', 'stock_history.db')
+                            if os.path.exists(_hist_db):
+                                _hconn = _sql3b.connect(_hist_db)
+                                _today = pd.Timestamp.now().strftime('%Y-%m-%d')
+                                _cur_prices = {}
+                                for _, _row in _picks_df.iterrows():
+                                    _sym = _row['symbol']
+                                    _buy_date = _row['date']
+                                    _buy_price = _row['price']
+                                    _hp = _row.get('holding_period', '10d')
+                                    _hold_n = int(_hp.replace('d', '')) if isinstance(_hp, str) else 10
+                                    _days_since = (pd.Timestamp(_today) - pd.Timestamp(_buy_date)).days
+                                    _expired = _days_since >= _hold_n * 1.4  # ~10 trading days ≈ 14 calendar days
+                                    
+                                    if _expired:
+                                        # Get sell price at end of holding period
+                                        _target = (pd.Timestamp(_buy_date) + pd.Timedelta(days=int(_hold_n * 1.4))).strftime('%Y-%m-%d')
+                                        _pr = _hconn.execute(
+                                            'SELECT close FROM stock_history WHERE symbol=? AND trade_date<=? ORDER BY trade_date DESC LIMIT 1',
+                                            (_sym, _target)
+                                        ).fetchone()
+                                    else:
+                                        # Get latest price
+                                        _pr = _hconn.execute(
+                                            'SELECT close FROM stock_history WHERE symbol=? ORDER BY trade_date DESC LIMIT 1',
+                                            (_sym,)
+                                        ).fetchone()
+                                    _cur_prices[_sym] = float(_pr[0]) if _pr else None
+                                _hconn.close()
+                                _picks_df['current_price'] = _picks_df['symbol'].map(_cur_prices)
+                            else:
+                                _picks_df['current_price'] = None
+                        except:
+                            _picks_df['current_price'] = None
+                        
                         # Summary metrics (if we have actual returns)
                         _act_col = 'actual_10d' if _ml_market == 'US' else 'actual_30d'
                         if _act_col in _picks_df.columns and _picks_df[_act_col].notna().sum() > 0:
@@ -2492,7 +2530,7 @@ def render_ml_daily_picks_page():
                             _tier_label = _tier if _tier else 'All'
                             
                             with st.expander(f"🏷️ {_tier_label} ({len(_tier_df)} picks)", expanded=True):
-                                _show_cols = ['symbol', 'name', 'price']
+                                _show_cols = ['symbol', 'name', 'price', 'current_price']
                                 if 'primary_pred' in _tier_df.columns:
                                     _show_cols.append('primary_pred')
                                 if _ml_market == 'US' and 'pred_10d' in _tier_df.columns:
@@ -2501,15 +2539,15 @@ def render_ml_daily_picks_page():
                                     _show_cols.append('pred_5d')
                                 if 'pred_30d' in _tier_df.columns and _ml_market == 'CN':
                                     _show_cols.append('pred_30d')
-                                if 'market_cap' in _tier_df.columns:
-                                    _show_cols.append('market_cap')
-                                if 'exchange' in _tier_df.columns and _ml_market == 'CN':
-                                    _show_cols.append('exchange')
                                 # Actual returns
                                 if _ml_market == 'US' and 'actual_10d' in _tier_df.columns:
                                     _show_cols.append('actual_10d')
                                 if _ml_market == 'CN' and 'actual_30d' in _tier_df.columns:
                                     _show_cols.append('actual_30d')
+                                if 'market_cap' in _tier_df.columns:
+                                    _show_cols.append('market_cap')
+                                if 'exchange' in _tier_df.columns and _ml_market == 'CN':
+                                    _show_cols.append('exchange')
                                 if 'sector' in _tier_df.columns:
                                     _show_cols.append('sector')
                                 
@@ -2539,16 +2577,19 @@ def render_ml_daily_picks_page():
                                         _display['market_cap'] = _display['market_cap'].apply(
                                             lambda x: f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M" if x > 0 else "N/A"
                                         )
+                                _pfx = '¥' if _ml_market == 'CN' else '$'
                                 if 'price' in _display.columns:
-                                    _pfx = '¥' if _ml_market == 'CN' else '$'
                                     _display['price'] = _display['price'].apply(lambda x: f"{_pfx}{x:.2f}" if x else "")
+                                if 'current_price' in _display.columns:
+                                    _display['current_price'] = _display['current_price'].apply(
+                                        lambda x: f"{_pfx}{x:.2f}" if pd.notna(x) and x else "—")
                                 if 'name' in _display.columns:
                                     _display['name'] = _display['name'].apply(lambda x: str(x)[:8] if x else '')
                                 
                                 _display.columns = [c.replace('primary_pred', '预测').replace('pred_10d', '10d预测').replace('pred_5d', '5d预测').replace('pred_30d', '30d预测')
                                     .replace('actual_10d', '10d实际').replace('actual_30d', '30d实际')
-                                    .replace('market_cap', '市值').replace('exchange', '板块').replace('sector', '行业')
-                                    .replace('symbol', '代码').replace('price', '价格').replace('name', '名称') for c in _display.columns]
+                                    .replace('current_price', '当前价').replace('market_cap', '市值').replace('exchange', '板块').replace('sector', '行业')
+                                    .replace('symbol', '代码').replace('price', '买入价').replace('name', '名称') for c in _display.columns]
                                 
                                 st.dataframe(_display, hide_index=True, use_container_width=True)
                         
