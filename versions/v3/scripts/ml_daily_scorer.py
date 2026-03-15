@@ -267,9 +267,14 @@ def score_daily_signals(market='US', date=None, top_n=5):
     results = {}
     
     if market == 'CN':
-        # CN: Group by exchange first, then by market cap within each
-        for exchange in ['上证主板', '深证主板', '创业板', '科创板']:
-            ex_df = scored_df[scored_df['exchange'] == exchange]
+        # CN: Group by board type (2 groups) × market cap tier
+        # 主板 = 上证主板 + 深证主板, 中小创科 = 创业板 + 科创板
+        board_groups = {
+            '主板': ['上证主板', '深证主板'],
+            '中小创科': ['创业板', '科创板'],
+        }
+        for group_name, exchanges in board_groups.items():
+            ex_df = scored_df[scored_df['exchange'].isin(exchanges)]
             if len(ex_df) == 0:
                 continue
             
@@ -278,14 +283,9 @@ def score_daily_signals(market='US', date=None, top_n=5):
                 if len(tier_df) == 0:
                     continue
                 
-                key = f"{exchange} | {tier_name}"
+                key = f"{group_name} | {tier_name}"
                 top = tier_df.head(top_n)
                 results[key] = top.to_dict('records')
-            
-            # Also add exchange-level top picks (all market caps)
-            key = f"{exchange} | 全部"
-            top = ex_df.head(top_n)
-            results[key] = top.to_dict('records')
     else:
         # US: Group by market cap tier only
         for tier_name, lo, hi in tiers:
@@ -487,28 +487,45 @@ def backfill_actual_returns(market='US'):
     from db.stock_history import get_stock_history
     
     filled = 0
+    today = pd.Timestamp.now().normalize()
     for pick_date, symbol in unfilled:
         try:
-            hist = get_stock_history(symbol, days=90)
-            if hist is None or len(hist) < 10:
+            hist = get_stock_history(symbol, market=market, days=90)
+            if hist is None or len(hist) < 2:
                 continue
             
-            hist = hist.sort_index()
-            pick_idx = hist.index.get_indexer([pick_date], method='nearest')[0]
-            if pick_idx < 0:
+            hist = hist.sort_values('Date').reset_index(drop=True)
+            pick_ts = pd.Timestamp(pick_date)
+            
+            # Get pick day price
+            pick_row = hist[hist['Date'] == pick_ts]
+            if pick_row.empty:
+                pick_row = hist[hist['Date'] <= pick_ts].tail(1)
+            if pick_row.empty:
                 continue
             
-            pick_price = hist.iloc[pick_idx]['Close']
+            pick_price = pick_row.iloc[0]['Close']
+            if pick_price <= 0:
+                continue
+            
+            # Get trading days AFTER pick_date
+            future_rows = hist[hist['Date'] > pick_ts].sort_values('Date').reset_index(drop=True)
+            if future_rows.empty:
+                continue  # No data after buy date at all
             
             for days_ahead, col in [(10, 'actual_10d'), (30, 'actual_30d'), (60, 'actual_60d')]:
-                future_idx = pick_idx + days_ahead
-                if future_idx < len(hist):
-                    future_price = hist.iloc[future_idx]['Close']
-                    actual_ret = (future_price / pick_price - 1) * 100
-                    conn.execute(f'''UPDATE ml_picks_v2 SET {col}=?
-                        WHERE date=? AND symbol=? AND market=?''',
-                        (actual_ret, pick_date, symbol, market))
-                    filled += 1
+                if len(future_rows) >= days_ahead:
+                    # Holding period elapsed: use the N-th trading day price
+                    future_price = future_rows.iloc[days_ahead - 1]['Close']
+                else:
+                    # Not yet elapsed: use latest available price (floating return)
+                    future_price = future_rows.iloc[-1]['Close']
+                
+                actual_ret = (future_price / pick_price - 1) * 100
+                conn.execute(f'''UPDATE ml_picks_v2 SET {col}=?
+                    WHERE date=? AND symbol=? AND market=?''',
+                    (actual_ret, pick_date, symbol, market))
+                filled += 1
         except:
             continue
     

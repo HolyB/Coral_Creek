@@ -2428,194 +2428,278 @@ def render_ml_daily_picks_page():
                 if not _dates:
                     st.info(f"暂无 {_ml_market} ML 推荐数据")
                 else:
-                    _sel_date = st.selectbox("日期", _dates, key="ml_picks_date")
-                    _picks_df = pd.read_sql_query(
-                        f'SELECT * FROM {_tbl} WHERE market=? AND date=? ORDER BY primary_pred DESC',
-                        _pconn, params=(_ml_market, _sel_date)
-                    )
-                    _pconn.close()
+                    _tab_portfolio, _tab_signals = st.tabs(["📊 组合总览", "📋 每日信号"])
                     
-                    if _picks_df.empty:
-                        st.info("该日无推荐")
-                    else:
-                        # Lookup stock names from stock_info or scan_results
+                    # ============ Tab 1: Portfolio Overview ============
+                    with _tab_portfolio:
                         try:
-                            from db.database import get_connection as _get_conn
-                            _main_conn = _get_conn()
-                            _syms = _picks_df['symbol'].tolist()
-                            _placeholders = ','.join(['?' for _ in _syms])
-                            # Try stock_info first (has name for all stocks)
-                            _name_rows = _main_conn.execute(
-                                f'SELECT symbol, name FROM stock_info WHERE symbol IN ({_placeholders})',
-                                _syms
-                            ).fetchall()
-                            _name_map = {r[0]: r[1] for r in _name_rows if r[1]}
-                            # Fallback to scan_results.company_name
-                            if len(_name_map) < len(_syms):
-                                _name_rows2 = _main_conn.execute(
-                                    f'SELECT DISTINCT symbol, company_name FROM scan_results WHERE symbol IN ({_placeholders}) AND company_name IS NOT NULL',
+                            from scripts.ml_portfolio_tracker import build_portfolio_history, compute_metrics, compute_signal_streaks
+                            
+                            @st.cache_data(ttl=300)
+                            def _load_portfolio(mkt):
+                                nav_df, trades, holdings = build_portfolio_history(mkt)
+                                metrics = compute_metrics(nav_df, trades)
+                                return nav_df, trades, holdings, metrics
+                            
+                            _nav_df, _trades, _holdings, _metrics = _load_portfolio(_ml_market)
+                            
+                            if _nav_df.empty:
+                                st.info("暂无组合数据")
+                            else:
+                                # Metrics row
+                                _m1, _m2, _m3, _m4, _m5, _m6 = st.columns(6)
+                                _pfx = '¥' if _ml_market == 'CN' else '$'
+                                with _m1:
+                                    st.metric("累计收益", f"{_metrics['total_return']:+.1f}%")
+                                with _m2:
+                                    st.metric("年化收益", f"{_metrics['ann_return']:+.1f}%")
+                                with _m3:
+                                    st.metric("最大回撤", f"{_metrics['max_drawdown']:.1f}%")
+                                with _m4:
+                                    st.metric("Sharpe", f"{_metrics['sharpe']:.2f}")
+                                with _m5:
+                                    st.metric("胜率", f"{_metrics['win_rate']:.0f}%")
+                                with _m6:
+                                    st.metric("盈亏比", f"{_metrics['profit_factor']:.2f}")
+                                
+                                # NAV Chart
+                                import plotly.graph_objects as go
+                                _fig = go.Figure()
+                                _fig.add_trace(go.Scatter(
+                                    x=_nav_df['date'], y=_nav_df['nav'],
+                                    mode='lines', name='NAV',
+                                    line=dict(color='#00d4aa', width=2),
+                                    fill='tozeroy', fillcolor='rgba(0,212,170,0.1)'
+                                ))
+                                _initial = _nav_df.iloc[0]['nav']
+                                _fig.add_hline(y=_initial, line_dash="dash", line_color="gray",
+                                              annotation_text=f"起始 {_pfx}{_initial:,.0f}")
+                                _fig.update_layout(
+                                    title=f"ML 虚拟组合净值 ({_ml_market})",
+                                    xaxis_title="日期", yaxis_title=f"NAV ({_pfx})",
+                                    height=350, margin=dict(t=40, b=30),
+                                    template='plotly_dark' if True else 'plotly_white'
+                                )
+                                st.plotly_chart(_fig, use_container_width=True)
+                                
+                                # Holdings count over time
+                                _col_a, _col_b = st.columns(2)
+                                
+                                with _col_a:
+                                    # Current Holdings
+                                    if _holdings:
+                                        st.subheader(f"📋 当前持仓 ({len(_holdings)})")
+                                        _h_df = pd.DataFrame(_holdings).sort_values('pnl_pct', ascending=False)
+                                        _h_display = _h_df[['symbol', 'buy_date', 'buy_price', 'current_price', 'pnl_pct', 'streak']].copy()
+                                        _h_display['buy_price'] = _h_display['buy_price'].apply(lambda x: f"{_pfx}{x:.2f}")
+                                        _h_display['current_price'] = _h_display['current_price'].apply(lambda x: f"{_pfx}{x:.2f}")
+                                        _h_display['pnl_pct'] = _h_display['pnl_pct'].apply(lambda x: f"{x:+.1f}%")
+                                        _h_display['streak'] = _h_display['streak'].apply(lambda x: f"{x}d")
+                                        _h_display.columns = ['代码', '买入日', '买入价', '当前价', '浮盈', '连续信号']
+                                        st.dataframe(_h_display, hide_index=True, use_container_width=True, height=400)
+                                    else:
+                                        st.info("当前无持仓")
+                                
+                                with _col_b:
+                                    # Recent trades
+                                    if _trades:
+                                        st.subheader(f"📝 最近交易 ({len(_trades)} 笔)")
+                                        _t_df = pd.DataFrame(_trades[-20:]).sort_values('sell_date', ascending=False)
+                                        _t_display = _t_df[['symbol', 'buy_date', 'sell_date', 'buy_price', 'sell_price', 'pnl_pct']].copy()
+                                        _t_display['buy_price'] = _t_display['buy_price'].apply(lambda x: f"{_pfx}{x:.2f}")
+                                        _t_display['sell_price'] = _t_display['sell_price'].apply(lambda x: f"{_pfx}{x:.2f}")
+                                        _t_display['pnl_pct'] = _t_display['pnl_pct'].apply(lambda x: f"{x:+.1f}%")
+                                        _t_display.columns = ['代码', '买入', '卖出', '买入价', '卖出价', '收益']
+                                        st.dataframe(_t_display, hide_index=True, use_container_width=True, height=400)
+                                    else:
+                                        st.info("暂无已完成交易")
+                                
+                                st.caption(f"⚙️ 策略: 去重等权 | 持有 {'10' if _ml_market == 'US' else '30'} 交易日 | 最大单笔 5%")
+                        except Exception as _pe:
+                            st.warning(f"组合追踪加载失败: {_pe}")
+                    
+                    # ============ Tab 2: Daily Signals ============
+                    with _tab_signals:
+                        _sel_date = st.selectbox("日期", _dates, key="ml_picks_date")
+                        _picks_df = pd.read_sql_query(
+                            f'SELECT * FROM {_tbl} WHERE market=? AND date=? ORDER BY primary_pred DESC',
+                            _pconn, params=(_ml_market, _sel_date)
+                        )
+                        _pconn.close()
+                    
+                        if _picks_df.empty:
+                            st.info("该日无推荐")
+                        else:
+                            # Lookup stock names from stock_info or scan_results
+                            try:
+                                from db.database import get_connection as _get_conn
+                                _main_conn = _get_conn()
+                                _syms = _picks_df['symbol'].tolist()
+                                _placeholders = ','.join(['?' for _ in _syms])
+                                # Try stock_info first (has name for all stocks)
+                                _name_rows = _main_conn.execute(
+                                    f'SELECT symbol, name FROM stock_info WHERE symbol IN ({_placeholders})',
                                     _syms
                                 ).fetchall()
-                                for r in _name_rows2:
-                                    if r[0] not in _name_map and r[1]:
-                                        _name_map[r[0]] = r[1]
-                            _main_conn.close()
-                            _picks_df['name'] = _picks_df['symbol'].map(_name_map).fillna('')
-                        except:
-                            _picks_df['name'] = ''
+                                _name_map = {r[0]: r[1] for r in _name_rows if r[1]}
+                                # Fallback to scan_results.company_name
+                                if len(_name_map) < len(_syms):
+                                    _name_rows2 = _main_conn.execute(
+                                        f'SELECT DISTINCT symbol, company_name FROM scan_results WHERE symbol IN ({_placeholders}) AND company_name IS NOT NULL',
+                                        _syms
+                                    ).fetchall()
+                                    for r in _name_rows2:
+                                        if r[0] not in _name_map and r[1]:
+                                            _name_map[r[0]] = r[1]
+                                _main_conn.close()
+                                _picks_df['name'] = _picks_df['symbol'].map(_name_map).fillna('')
+                            except:
+                                _picks_df['name'] = ''
                         
-                        # Lookup current/sell prices from stock_history.db
-                        try:
-                            import sqlite3 as _sql3b
-                            _hist_db = os.path.join(current_dir, 'db', 'stock_history.db')
-                            if os.path.exists(_hist_db):
-                                _hconn = _sql3b.connect(_hist_db)
-                                _today = pd.Timestamp.now().strftime('%Y-%m-%d')
-                                _cur_prices = {}
-                                for _, _row in _picks_df.iterrows():
-                                    _sym = _row['symbol']
-                                    _buy_date = _row['date']
-                                    _buy_price = _row['price']
-                                    _hp = _row.get('holding_period', '10d')
-                                    _hold_n = int(_hp.replace('d', '')) if isinstance(_hp, str) else 10
-                                    _days_since = (pd.Timestamp(_today) - pd.Timestamp(_buy_date)).days
-                                    _expired = _days_since >= _hold_n * 1.4  # ~10 trading days ≈ 14 calendar days
+                            # Lookup current/sell prices from stock_history.db
+                            try:
+                                import sqlite3 as _sql3b
+                                _hist_db = os.path.join(current_dir, 'db', 'stock_history.db')
+                                if os.path.exists(_hist_db):
+                                    _hconn = _sql3b.connect(_hist_db)
+                                    _today = pd.Timestamp.now().strftime('%Y-%m-%d')
+                                    _cur_prices = {}
+                                    for _, _row in _picks_df.iterrows():
+                                        _sym = _row['symbol']
+                                        _buy_date = _row['date']
+                                        _buy_price = _row['price']
+                                        _hp = _row.get('holding_period', '10d')
+                                        _hold_n = int(_hp.replace('d', '')) if isinstance(_hp, str) else 10
+                                        _days_since = (pd.Timestamp(_today) - pd.Timestamp(_buy_date)).days
+                                        _expired = _days_since >= _hold_n * 1.4  # ~10 trading days ≈ 14 calendar days
                                     
-                                    _pr = None
-                                    if _expired:
-                                        # Get sell price at end of holding period
-                                        _target = (pd.Timestamp(_buy_date) + pd.Timedelta(days=int(_hold_n * 1.4))).strftime('%Y-%m-%d')
-                                        _pr = _hconn.execute(
-                                            'SELECT close, trade_date FROM stock_history WHERE symbol=? AND trade_date<=? ORDER BY trade_date DESC LIMIT 1',
-                                            (_sym, _target)
-                                        ).fetchone()
-                                        # Verify the data is recent enough (within holding period range)
-                                        if _pr and _pr[1] < _buy_date:
-                                            _pr = None  # Data is before buy date, not useful
-                                    else:
-                                        # Get latest price
-                                        _pr = _hconn.execute(
-                                            'SELECT close, trade_date FROM stock_history WHERE symbol=? ORDER BY trade_date DESC LIMIT 1',
-                                            (_sym,)
-                                        ).fetchone()
-                                        # Verify it's after buy date
-                                        if _pr and _pr[1] < _buy_date:
-                                            _pr = None
-                                    
-                                    if _pr:
-                                        _cur_prices[_sym] = float(_pr[0])
-                                    else:
-                                        # Fallback: derive from actual returns
-                                        _act = _row.get('actual_10d') if _ml_market == 'US' else _row.get('actual_30d')
-                                        if pd.notna(_act) and _buy_price and _buy_price > 0:
-                                            _cur_prices[_sym] = round(_buy_price * (1 + _act / 100), 2)
+                                        _pr = None
+                                        if _expired:
+                                            # Get sell price at end of holding period
+                                            _target = (pd.Timestamp(_buy_date) + pd.Timedelta(days=int(_hold_n * 1.4))).strftime('%Y-%m-%d')
+                                            _pr = _hconn.execute(
+                                                'SELECT close, trade_date FROM stock_history WHERE symbol=? AND trade_date<=? ORDER BY trade_date DESC LIMIT 1',
+                                                (_sym, _target)
+                                            ).fetchone()
+                                            # Verify the data is recent enough (within holding period range)
+                                            if _pr and _pr[1] < _buy_date:
+                                                _pr = None  # Data is before buy date, not useful
                                         else:
-                                            _cur_prices[_sym] = None
-                                _hconn.close()
-                                _picks_df['current_price'] = _picks_df['symbol'].map(_cur_prices)
-                            else:
+                                            # Get latest available price (after buy date preferred)
+                                            _pr = _hconn.execute(
+                                                'SELECT close, trade_date FROM stock_history WHERE symbol=? AND trade_date>? ORDER BY trade_date DESC LIMIT 1',
+                                                (_sym, _buy_date)
+                                            ).fetchone()
+                                            if not _pr:
+                                                # Fallback: same-day close (no newer data yet)
+                                                _pr = _hconn.execute(
+                                                    'SELECT close, trade_date FROM stock_history WHERE symbol=? AND trade_date=? LIMIT 1',
+                                                    (_sym, _buy_date)
+                                                ).fetchone()
+                                    
+                                        if _pr:
+                                            _cur_prices[_sym] = float(_pr[0])
+                                        else:
+                                            _cur_prices[_sym] = float(_buy_price) if _buy_price and _buy_price > 0 else None
+                                    _hconn.close()
+                                    _picks_df['current_price'] = _picks_df['symbol'].map(_cur_prices)
+                                else:
+                                    _picks_df['current_price'] = None
+                            except:
                                 _picks_df['current_price'] = None
-                        except:
-                            _picks_df['current_price'] = None
                         
-                        # Final fallback: derive current_price from actual returns for any remaining nulls
-                        _act_col_fb = 'actual_10d' if _ml_market == 'US' else 'actual_30d'
-                        if _act_col_fb in _picks_df.columns:
-                            _mask = _picks_df['current_price'].isna() & _picks_df[_act_col_fb].notna() & (_picks_df['price'] > 0)
-                            _picks_df.loc[_mask, 'current_price'] = (_picks_df.loc[_mask, 'price'] * (1 + _picks_df.loc[_mask, _act_col_fb] / 100)).round(2)
+                            # Summary metrics (if we have actual returns)
+                            _act_col = 'actual_10d' if _ml_market == 'US' else 'actual_30d'
+                            if _act_col in _picks_df.columns and _picks_df[_act_col].notna().sum() > 0:
+                                _valid = _picks_df[_picks_df[_act_col].notna()]
+                                _mc1, _mc2, _mc3, _mc4 = st.columns(4)
+                                with _mc1:
+                                    _wr = (_valid[_act_col] > 0).mean() * 100
+                                    st.metric("胜率", f"{_wr:.0f}%")
+                                with _mc2:
+                                    _avg_ret = _valid[_act_col].mean()
+                                    st.metric("平均收益", f"{_avg_ret:+.1f}%")
+                                with _mc3:
+                                    _pred_col = 'pred_10d' if _ml_market == 'US' else 'primary_pred'
+                                    if _pred_col in _valid.columns:
+                                        _dir_ok = ((_valid[_pred_col] > 0) & (_valid[_act_col] > 0)).sum() + ((_valid[_pred_col] <= 0) & (_valid[_act_col] <= 0)).sum()
+                                        _dir_acc = _dir_ok / len(_valid) * 100
+                                        st.metric("方向准确率", f"{_dir_acc:.0f}%")
+                                with _mc4:
+                                    st.metric("样本数", f"{len(_valid)}")
                         
-                        # Summary metrics (if we have actual returns)
-                        _act_col = 'actual_10d' if _ml_market == 'US' else 'actual_30d'
-                        if _act_col in _picks_df.columns and _picks_df[_act_col].notna().sum() > 0:
-                            _valid = _picks_df[_picks_df[_act_col].notna()]
-                            _mc1, _mc2, _mc3, _mc4 = st.columns(4)
-                            with _mc1:
-                                _wr = (_valid[_act_col] > 0).mean() * 100
-                                st.metric("胜率", f"{_wr:.0f}%")
-                            with _mc2:
-                                _avg_ret = _valid[_act_col].mean()
-                                st.metric("平均收益", f"{_avg_ret:+.1f}%")
-                            with _mc3:
-                                _pred_col = 'pred_10d' if _ml_market == 'US' else 'primary_pred'
-                                if _pred_col in _valid.columns:
-                                    _dir_ok = ((_valid[_pred_col] > 0) & (_valid[_act_col] > 0)).sum() + ((_valid[_pred_col] <= 0) & (_valid[_act_col] <= 0)).sum()
-                                    _dir_acc = _dir_ok / len(_valid) * 100
-                                    st.metric("方向准确率", f"{_dir_acc:.0f}%")
-                            with _mc4:
-                                st.metric("样本数", f"{len(_valid)}")
+                            # Group by tier
+                            _tiers = _picks_df['tier'].unique() if 'tier' in _picks_df.columns else ['all']
                         
-                        # Group by tier
-                        _tiers = _picks_df['tier'].unique() if 'tier' in _picks_df.columns else ['all']
-                        
-                        for _tier in _tiers:
-                            _tier_df = _picks_df[_picks_df['tier'] == _tier] if 'tier' in _picks_df.columns else _picks_df
-                            _tier_label = _tier if _tier else 'All'
+                            for _tier in _tiers:
+                                _tier_df = _picks_df[_picks_df['tier'] == _tier] if 'tier' in _picks_df.columns else _picks_df
+                                _tier_label = _tier if _tier else 'All'
                             
-                            with st.expander(f"🏷️ {_tier_label} ({len(_tier_df)} picks)", expanded=True):
-                                _show_cols = ['symbol', 'name', 'price', 'current_price']
-                                if 'primary_pred' in _tier_df.columns:
-                                    _show_cols.append('primary_pred')
-                                if _ml_market == 'US' and 'pred_10d' in _tier_df.columns:
-                                    _show_cols.append('pred_10d')
-                                if _ml_market == 'CN' and 'pred_5d' in _tier_df.columns:
-                                    _show_cols.append('pred_5d')
-                                if 'pred_30d' in _tier_df.columns and _ml_market == 'CN':
-                                    _show_cols.append('pred_30d')
-                                # Actual returns
-                                if _ml_market == 'US' and 'actual_10d' in _tier_df.columns:
-                                    _show_cols.append('actual_10d')
-                                if _ml_market == 'CN' and 'actual_30d' in _tier_df.columns:
-                                    _show_cols.append('actual_30d')
-                                if 'market_cap' in _tier_df.columns:
-                                    _show_cols.append('market_cap')
-                                if 'exchange' in _tier_df.columns and _ml_market == 'CN':
-                                    _show_cols.append('exchange')
-                                if 'sector' in _tier_df.columns:
-                                    _show_cols.append('sector')
+                                with st.expander(f"🏷️ {_tier_label} ({len(_tier_df)} picks)", expanded=True):
+                                    _show_cols = ['symbol', 'name', 'price', 'current_price']
+                                    if 'primary_pred' in _tier_df.columns:
+                                        _show_cols.append('primary_pred')
+                                    if _ml_market == 'US' and 'pred_10d' in _tier_df.columns:
+                                        _show_cols.append('pred_10d')
+                                    if _ml_market == 'CN' and 'pred_5d' in _tier_df.columns:
+                                        _show_cols.append('pred_5d')
+                                    if 'pred_30d' in _tier_df.columns and _ml_market == 'CN':
+                                        _show_cols.append('pred_30d')
+                                    # Actual returns
+                                    if _ml_market == 'US' and 'actual_10d' in _tier_df.columns:
+                                        _show_cols.append('actual_10d')
+                                    if _ml_market == 'CN' and 'actual_30d' in _tier_df.columns:
+                                        _show_cols.append('actual_30d')
+                                    if 'market_cap' in _tier_df.columns:
+                                        _show_cols.append('market_cap')
+                                    if 'exchange' in _tier_df.columns and _ml_market == 'CN':
+                                        _show_cols.append('exchange')
+                                    if 'sector' in _tier_df.columns:
+                                        _show_cols.append('sector')
                                 
-                                _display = _tier_df[[c for c in _show_cols if c in _tier_df.columns]].copy()
+                                    _display = _tier_df[[c for c in _show_cols if c in _tier_df.columns]].copy()
                                 
-                                # Format
-                                if 'primary_pred' in _display.columns:
-                                    _display['primary_pred'] = _display['primary_pred'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
-                                if 'pred_10d' in _display.columns:
-                                    _display['pred_10d'] = _display['pred_10d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
-                                if 'pred_5d' in _display.columns:
-                                    _display['pred_5d'] = _display['pred_5d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
-                                if 'pred_30d' in _display.columns:
-                                    _display['pred_30d'] = _display['pred_30d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
-                                if 'actual_10d' in _display.columns:
-                                    _display['actual_10d'] = _display['actual_10d'].apply(
-                                        lambda x: f"+{x:.1f}%" if pd.notna(x) and x > 0 else (f"{x:.1f}%" if pd.notna(x) else "—"))
-                                if 'actual_30d' in _display.columns:
-                                    _display['actual_30d'] = _display['actual_30d'].apply(
-                                        lambda x: f"+{x:.1f}%" if pd.notna(x) and x > 0 else (f"{x:.1f}%" if pd.notna(x) else "—"))
-                                if 'market_cap' in _display.columns:
-                                    if _ml_market == 'CN':
-                                        _display['market_cap'] = _display['market_cap'].apply(
-                                            lambda x: f"¥{x/1e8:.0f}亿" if x >= 1e8 else f"¥{x/1e4:.0f}万" if x > 0 else "N/A"
-                                        )
-                                    else:
-                                        _display['market_cap'] = _display['market_cap'].apply(
-                                            lambda x: f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M" if x > 0 else "N/A"
-                                        )
-                                _pfx = '¥' if _ml_market == 'CN' else '$'
-                                if 'price' in _display.columns:
-                                    _display['price'] = _display['price'].apply(lambda x: f"{_pfx}{x:.2f}" if x else "")
-                                if 'current_price' in _display.columns:
-                                    _display['current_price'] = _display['current_price'].apply(
-                                        lambda x: f"{_pfx}{x:.2f}" if pd.notna(x) and x else "—")
-                                if 'name' in _display.columns:
-                                    _display['name'] = _display['name'].apply(lambda x: str(x)[:8] if x else '')
+                                    # Format
+                                    if 'primary_pred' in _display.columns:
+                                        _display['primary_pred'] = _display['primary_pred'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+                                    if 'pred_10d' in _display.columns:
+                                        _display['pred_10d'] = _display['pred_10d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+                                    if 'pred_5d' in _display.columns:
+                                        _display['pred_5d'] = _display['pred_5d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+                                    if 'pred_30d' in _display.columns:
+                                        _display['pred_30d'] = _display['pred_30d'].apply(lambda x: f"+{x:.1f}%" if x > 0 else f"{x:.1f}%")
+                                    if 'actual_10d' in _display.columns:
+                                        _display['actual_10d'] = _display['actual_10d'].apply(
+                                            lambda x: f"+{x:.1f}%" if pd.notna(x) and x > 0 else (f"{x:.1f}%" if pd.notna(x) else "—"))
+                                    if 'actual_30d' in _display.columns:
+                                        _display['actual_30d'] = _display['actual_30d'].apply(
+                                            lambda x: f"+{x:.1f}%" if pd.notna(x) and x > 0 else (f"{x:.1f}%" if pd.notna(x) else "—"))
+                                    if 'market_cap' in _display.columns:
+                                        if _ml_market == 'CN':
+                                            _display['market_cap'] = _display['market_cap'].apply(
+                                                lambda x: f"¥{x/1e8:.0f}亿" if x >= 1e8 else f"¥{x/1e4:.0f}万" if x > 0 else "N/A"
+                                            )
+                                        else:
+                                            _display['market_cap'] = _display['market_cap'].apply(
+                                                lambda x: f"${x/1e9:.1f}B" if x >= 1e9 else f"${x/1e6:.0f}M" if x > 0 else "N/A"
+                                            )
+                                    _pfx = '¥' if _ml_market == 'CN' else '$'
+                                    if 'price' in _display.columns:
+                                        _display['price'] = _display['price'].apply(lambda x: f"{_pfx}{x:.2f}" if x else "")
+                                    if 'current_price' in _display.columns:
+                                        _display['current_price'] = _display['current_price'].apply(
+                                            lambda x: f"{_pfx}{x:.2f}" if pd.notna(x) and x else "—")
+                                    if 'name' in _display.columns:
+                                        _display['name'] = _display['name'].apply(lambda x: str(x)[:8] if x else '')
                                 
-                                _display.columns = [c.replace('primary_pred', '预测').replace('pred_10d', '10d预测').replace('pred_5d', '5d预测').replace('pred_30d', '30d预测')
-                                    .replace('actual_10d', '10d实际').replace('actual_30d', '30d实际')
-                                    .replace('current_price', '当前价').replace('market_cap', '市值').replace('exchange', '板块').replace('sector', '行业')
-                                    .replace('symbol', '代码').replace('price', '买入价').replace('name', '名称') for c in _display.columns]
+                                    _display.columns = [c.replace('primary_pred', '预测').replace('pred_10d', '10d预测').replace('pred_5d', '5d预测').replace('pred_30d', '30d预测')
+                                        .replace('actual_10d', '10d实际').replace('actual_30d', '30d实际')
+                                        .replace('current_price', '当前价').replace('market_cap', '市值').replace('exchange', '板块').replace('sector', '行业')
+                                        .replace('symbol', '代码').replace('price', '买入价').replace('name', '名称') for c in _display.columns]
                                 
-                                st.dataframe(_display, hide_index=True, use_container_width=True)
+                                    st.dataframe(_display, hide_index=True, use_container_width=True)
                         
-                        st.caption("⚠️ ML 模型预测，仅供参考，不构成投资建议")
+                            st.caption("⚠️ ML 模型预测，仅供参考，不构成投资建议")
     except Exception as _e:
         st.warning(f"ML 推荐加载失败: {_e}")
 
