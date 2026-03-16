@@ -1,8 +1,36 @@
 {
   "date": "2026-03-13",
   "market": "CN",
-  "total_signals": 181,
+  "total_signals": 326,
   "top_signals": [
+    {
+      "symbol": "920122.BJ",
+      "name": "中纺标",
+      "price": 29.95,
+      "day_blue": 200.0,
+      "week_blue": 165.9
+    },
+    {
+      "symbol": "920873.BJ",
+      "name": "中设咨询",
+      "price": 7.71,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300803.SZ",
+      "name": "指南针",
+      "price": 103.27,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002570.SZ",
+      "name": "贝因美",
+      "price": 5.72,
+      "day_blue": 200.0,
+      "week_blue": 125.7
+    },
     {
       "symbol": "920592.BJ",
       "name": "华信永道",
@@ -32,6 +60,13 @@
       "week_blue": 124.3
     },
     {
+      "symbol": "300947.SZ",
+      "name": "德必集团",
+      "price": 17.87,
+      "day_blue": 184.2,
+      "week_blue": 100.7
+    },
+    {
       "symbol": "920802.BJ",
       "name": "保丽洁",
       "price": 15.22,
@@ -46,66 +81,31 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "920978.BJ",
-      "name": "开特股份",
-      "price": 26.68,
-      "day_blue": 157.5,
+      "symbol": "920146.BJ",
+      "name": "华阳变速",
+      "price": 7.46,
+      "day_blue": 170.0,
+      "week_blue": 126.3
+    },
+    {
+      "symbol": "920475.BJ",
+      "name": "三友科技",
+      "price": 14.5,
+      "day_blue": 166.9,
+      "week_blue": 132.4
+    },
+    {
+      "symbol": "920964.BJ",
+      "name": "润农节水",
+      "price": 6.68,
+      "day_blue": 166.9,
       "week_blue": 0.0
     },
     {
-      "symbol": "300783.SZ",
-      "name": "三只松鼠",
-      "price": 19.11,
-      "day_blue": 156.2,
-      "week_blue": 91.2
-    },
-    {
-      "symbol": "920690.BJ",
-      "name": "捷众科技",
-      "price": 27.92,
-      "day_blue": 154.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920075.BJ",
-      "name": "柏星龙",
-      "price": 23.81,
-      "day_blue": 153.3,
-      "week_blue": 102.5
-    },
-    {
-      "symbol": "002094.SZ",
-      "name": "青岛金王",
-      "price": 7.1,
-      "day_blue": 147.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000759.SZ",
-      "name": "中百集团",
-      "price": 5.95,
-      "day_blue": 145.7,
-      "week_blue": 195.9
-    },
-    {
-      "symbol": "920022.BJ",
-      "name": "世昌股份",
-      "price": 28.42,
-      "day_blue": 144.9,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "002695.SZ",
-      "name": "煌上煌",
-      "price": 10.23,
-      "day_blue": 143.2,
-      "week_blue": 97.1
-    },
-    {
-      "symbol": "920679.BJ",
-      "name": "前进科技",
-      "price": 19.5,
-      "day_blue": 142.9,
+      "symbol": "301586.SZ",
+      "name": "佳力奇",
+      "price": 46.42,
+      "day_blue": 162.4,
       "week_blue": 0.0
     }
   ]
