@@ -141,11 +141,12 @@ def _get_price_map(symbols, market, dates):
             return dict(price_map)
 
     # Fallback: Supabase partial_stock_history
+    # Supabase free tier caps at 1000 rows/response, so batch 5 symbols
     sb = _supabase_client()
     if sb:
         try:
-            for i in range(0, len(symbols), 50):
-                batch = symbols[i:i+50]
+            for i in range(0, len(symbols), 5):
+                batch = symbols[i:i+5]
                 resp = sb.table('partial_stock_history') \
                     .select('symbol,trade_date,close') \
                     .in_('symbol', batch) \
@@ -176,23 +177,8 @@ def _get_trading_days(market, start_date, end_date):
         if rows:
             return [r[0] for r in rows]
 
-    # Fallback: Supabase
-    sb = _supabase_client()
-    if sb:
-        try:
-            resp = sb.table('partial_stock_history') \
-                .select('trade_date') \
-                .eq('market', market) \
-                .gte('trade_date', start_date) \
-                .lte('trade_date', end_date) \
-                .execute()
-            dates = sorted(set(r['trade_date'] for r in (resp.data or [])))
-            if dates:
-                return dates
-        except:
-            pass
-
-    # Last resort: generate business days
+    # Fallback: use business day calendar (Supabase 1000-row cap makes
+    # distinct-date queries unreliable for large date ranges)
     dates = pd.bdate_range(start_date, end_date).strftime('%Y-%m-%d').tolist()
     return dates
 
