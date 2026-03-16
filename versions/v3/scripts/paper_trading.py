@@ -131,6 +131,7 @@ def _get_price(symbol, market):
 
 def close_expired(conn, market, strategy_key, today):
     """结算到期仓位"""
+    strat = STRATEGIES[strategy_key]
     positions = conn.execute(
         'SELECT id, symbol, buy_date, buy_price, shares, amount FROM paper_positions_v2 WHERE market=? AND strategy_key=? AND status=?',
         (market, strategy_key, 'open')
@@ -141,7 +142,7 @@ def close_expired(conn, market, strategy_key, today):
 
     for pid, symbol, buy_date, buy_price, shares, amount in positions:
         age = (pd.Timestamp(today) - pd.Timestamp(buy_date)).days
-        hold_days = HOLD_DAYS.get(market, 10)
+        hold_days = strat.get('hold_days', HOLD_DAYS.get(market, 10))
         if age < hold_days:
             continue
 
@@ -204,7 +205,8 @@ def open_positions(conn, market, strategy_key, today):
             'pred_10d': row[3] or 0, 'pred_30d': row[4] or 0,
             'market_cap': row[5] or 0, '_tier': row[6] or '',
         })
-    sort_key = 'pred_30d' if market == 'CN' else 'pred_10d'
+    # Sort by strategy-specific key, or default by market
+    sort_key = strat.get('sort_key', 'pred_30d' if market == 'CN' else 'pred_10d')
     all_picks.sort(key=lambda x: x.get(sort_key, 0), reverse=True)
 
     # Apply strategy filters

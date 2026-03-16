@@ -86,6 +86,37 @@ STRATEGIES = {
         'daily_pick_limit': 3,
         'filter_fn': 'large_cap',
     },
+    # ---- 5d hold period variants (CN only) ----
+    'top10pct_5d': {
+        'name': '前10%·5日',
+        'desc': '前10%精选 + 5日持有 (A股短线)',
+        'max_per_pos': 0.10,
+        'daily_pick_limit': None,
+        'filter_fn': 'top10pct',
+        'hold_days': 5,
+        'sort_key': 'pred_5d',
+        'cn_only': True,
+    },
+    'top3_5d': {
+        'name': 'Top3·5日',
+        'desc': '每日 Top3 + 5日持有',
+        'max_per_pos': 0.10,
+        'daily_pick_limit': 3,
+        'filter_fn': None,
+        'hold_days': 5,
+        'sort_key': 'pred_5d',
+        'cn_only': True,
+    },
+    'large_cap_5d': {
+        'name': '大盘·5日',
+        'desc': '大盘精选 + 5日持有',
+        'max_per_pos': 0.10,
+        'daily_pick_limit': 3,
+        'filter_fn': 'large_cap',
+        'hold_days': 5,
+        'sort_key': 'pred_5d',
+        'cn_only': True,
+    },
 }
 
 
