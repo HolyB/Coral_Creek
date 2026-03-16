@@ -167,8 +167,6 @@ def close_expired(conn, market, strategy_key, today):
 
 def open_positions(conn, market, strategy_key, today):
     """按策略规则开仓"""
-    from scripts.ml_daily_scorer import score_daily_signals
-
     strat = STRATEGIES[strategy_key]
     capital = get_account(conn, market, strategy_key)
     max_per_pos = strat['max_per_pos']
@@ -181,33 +179,44 @@ def open_positions(conn, market, strategy_key, today):
         (market, strategy_key, 'open')
     ).fetchall())
 
-    # Score today's signals — returns {tier: [picks]}
-    all_results = score_daily_signals(market=market, date=today, top_n=10)
-    if not all_results:
+    # Read saved picks from ml_daily_picks.db (already scored during daily scan)
+    picks_db = os.path.join(parent_dir, 'db', 'ml_daily_picks.db')
+    if not os.path.exists(picks_db):
+        print(f"     ⚠️ ml_daily_picks.db not found")
         return 0
-
-    # Flatten all picks from all tiers, sorted by score
+    
+    pconn = sqlite3.connect(picks_db)
+    picks_rows = pconn.execute(
+        'SELECT symbol, price, pred_5d, pred_10d, pred_30d, market_cap, segment FROM ml_picks_v2 WHERE market=? AND date=? ORDER BY primary_pred DESC',
+        (market, today)
+    ).fetchall()
+    pconn.close()
+    
+    if not picks_rows:
+        print(f"     ⚠️ No saved picks for {today}")
+        return 0
+    
     all_picks = []
-    for tier, picks in all_results.items():
-        if isinstance(picks, list):
-            for p in picks:
-                p['_tier'] = tier
-                all_picks.append(p)
-    all_picks.sort(key=lambda x: x.get('pred_10d', x.get('score', 0)), reverse=True)
+    for row in picks_rows:
+        all_picks.append({
+            'symbol': row[0], 'price': row[1], 'pred_5d': row[2] or 0,
+            'pred_10d': row[3] or 0, 'pred_30d': row[4] or 0,
+            'market_cap': row[5] or 0, '_tier': row[6] or '',
+        })
+    all_picks.sort(key=lambda x: x.get('pred_10d', 0), reverse=True)
 
     # Apply strategy filters
     if filter_fn_name == 'top10pct':
         n = max(1, len(all_picks) // 10)
         all_picks = all_picks[:n]
     elif filter_fn_name == 'streak_ge2':
-        # Need streak info — check if pick appeared yesterday too
         from scripts.ml_portfolio_tracker import _get_all_picks, compute_signal_streaks
         try:
             picks_df = _get_all_picks(market)
             streaks = compute_signal_streaks(picks_df)
             all_picks = [p for p in all_picks if streaks.get((p['symbol'], today), 0) >= 2]
         except:
-            pass  # If streak computation fails, allow all
+            pass
     elif filter_fn_name == 'large_cap':
         from scripts.ml_daily_scorer import load_market_data
         mcap, _ = load_market_data(market)
