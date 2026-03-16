@@ -157,7 +157,20 @@ def score_daily_signals(market='US', date=None, top_n=5):
         from db.stock_history import get_history_db_path
         from ml.features.feature_calculator import FeatureCalculator
         hist_path = get_history_db_path()
+        # Check if DB actually has data (init_history_db creates empty DB on import)
+        has_data = False
         if os.path.exists(hist_path):
+            tmp = sqlite3.connect(hist_path)
+            cnt = tmp.execute('SELECT COUNT(*) FROM stock_history').fetchone()[0]
+            tmp.close()
+            has_data = cnt > 0
+        # Fallback: try partial_stock_history.db (committed to repo, ~2MB)
+        if not has_data:
+            partial_path = os.path.join(parent_dir, 'db', 'partial_stock_history.db')
+            if os.path.exists(partial_path):
+                hist_path = partial_path
+                has_data = True
+        if has_data:
             hist_db = sqlite3.connect(hist_path)
             fc = FeatureCalculator()
     except:
