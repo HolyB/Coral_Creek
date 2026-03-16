@@ -121,19 +121,36 @@ def send_daily_picks(markets: list = None, premarket: bool = False):
         
         # 2. ML 模型选股推送
         try:
-            from scripts.ml_daily_scorer import score_daily_signals, format_picks_message as fmt_ml
-            results = score_daily_signals(market=market, top_n=5)
-            if results:
-                from db.database import get_scanned_dates
-                dates = get_scanned_dates(market=market)
-                date = dates[0] if dates else 'latest'
-                ml_msg = fmt_ml(results, date, market)
-                if premarket:
+            if premarket:
+                # Pre-market: just send latest saved picks (don't re-score)
+                from scripts.ml_daily_scorer import get_historical_picks, format_picks_message as fmt_ml
+                picks_df = get_historical_picks(market=market, days=3)
+                if not picks_df.empty:
+                    latest_date = picks_df['date'].max()
+                    day_picks = picks_df[picks_df['date'] == latest_date]
+                    # Reconstruct results dict for format_picks_message
+                    results = {}
+                    for seg, grp in day_picks.groupby('segment'):
+                        results[seg] = grp.to_dict('records')
+                    ml_msg = fmt_ml({'picks': results, 'date': latest_date, 'market': market}, latest_date, market)
                     ml_msg = f"⏰ *盘前提醒*\n{ml_msg}"
-                send_telegram_message(ml_msg)
-                print(f"✅ ML picks {'reminder' if premarket else 'notification'} sent for {market}")
+                    send_telegram_message(ml_msg)
+                    print(f"✅ ML picks reminder sent for {market} (date={latest_date})")
+                else:
+                    print(f"⚠️ No saved ML picks for {market}")
             else:
-                print(f"⚠️ No ML picks for {market}")
+                # Post-market: score fresh signals
+                from scripts.ml_daily_scorer import score_daily_signals, format_picks_message as fmt_ml
+                results = score_daily_signals(market=market, top_n=5)
+                if results:
+                    from db.database import get_scanned_dates
+                    dates = get_scanned_dates(market=market)
+                    date = dates[0] if dates else 'latest'
+                    ml_msg = fmt_ml(results, date, market)
+                    send_telegram_message(ml_msg)
+                    print(f"✅ ML picks notification sent for {market}")
+                else:
+                    print(f"⚠️ No ML picks for {market}")
         except Exception as e:
             print(f"⚠️ ML picks error ({market}): {e}")
 
