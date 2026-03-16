@@ -29,7 +29,7 @@ sys.path.insert(0, parent_dir)
 
 DB_PATH = os.path.join(parent_dir, 'db', 'paper_trading.db')
 INITIAL_CAPITAL = 100_000
-HOLD_DAYS = 10
+HOLD_DAYS = {'US': 10, 'CN': 30}
 
 # Import strategies from portfolio tracker
 from scripts.ml_portfolio_tracker import STRATEGIES
@@ -141,7 +141,8 @@ def close_expired(conn, market, strategy_key, today):
 
     for pid, symbol, buy_date, buy_price, shares, amount in positions:
         age = (pd.Timestamp(today) - pd.Timestamp(buy_date)).days
-        if age < HOLD_DAYS:
+        hold_days = HOLD_DAYS.get(market, 10)
+        if age < hold_days:
             continue
 
         sell_price = _get_price(symbol, market) or buy_price
@@ -203,7 +204,8 @@ def open_positions(conn, market, strategy_key, today):
             'pred_10d': row[3] or 0, 'pred_30d': row[4] or 0,
             'market_cap': row[5] or 0, '_tier': row[6] or '',
         })
-    all_picks.sort(key=lambda x: x.get('pred_10d', 0), reverse=True)
+    sort_key = 'pred_30d' if market == 'CN' else 'pred_10d'
+    all_picks.sort(key=lambda x: x.get(sort_key, 0), reverse=True)
 
     # Apply strategy filters
     if filter_fn_name == 'top10pct':
