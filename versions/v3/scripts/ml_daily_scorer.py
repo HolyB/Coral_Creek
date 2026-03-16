@@ -474,20 +474,40 @@ def format_picks_message(results_dict, date=None, market='US'):
         "",
     ]
     
-    for segment, picks in results.items():
-        lines.append(f"🏷️ *{segment}*")
-        for i, p in enumerate(picks[:3]):
+    if market == 'CN':
+        # CN: flatten all picks, show global top 15 sorted by pred
+        all_flat = []
+        for seg, picks in results.items():
+            if isinstance(picks, list):
+                for p in picks:
+                    p['_segment'] = seg
+                    all_flat.append(p)
+        all_flat.sort(key=lambda x: x.get('primary_pred', x.get(f'pred_{period}', 0)), reverse=True)
+        
+        lines.append(f"📋 *全局 Top {min(15, len(all_flat))}*")
+        for i, p in enumerate(all_flat[:15]):
             mcap = p.get('market_cap', 0)
             pred = p.get(f'pred_{period}', p.get('primary_pred', 0))
             sym = p['symbol']
             tag_str = f" {markers[sym]}" if sym in markers else ""
-            if market == 'CN':
-                mcap_str = f"¥{mcap/1e8:.0f}亿" if mcap >= 1e8 else ""
-                lines.append(f"  {i+1}. `{sym}` ¥{p['price']:.2f} {pred:+.1f}% {mcap_str}{tag_str}")
-            else:
+            mcap_str = f"¥{mcap/1e8:.0f}亿" if mcap >= 1e8 else ""
+            seg_short = p.get('_segment', '')
+            # Extract tier only (e.g. "100-300亿" from "主板 | 100-300亿")
+            tier_part = seg_short.split('|')[-1].strip() if '|' in seg_short else seg_short
+            lines.append(f"  {i+1:>2}. `{sym}` ¥{p['price']:.2f} {pred:+.1f}% {mcap_str}{tag_str}")
+        lines.append("")
+    else:
+        # US: keep per-tier format (5 tiers × 3 = 15 picks)
+        for segment, picks in results.items():
+            lines.append(f"🏷️ *{segment}*")
+            for i, p in enumerate(picks[:3]):
+                mcap = p.get('market_cap', 0)
+                pred = p.get(f'pred_{period}', p.get('primary_pred', 0))
+                sym = p['symbol']
+                tag_str = f" {markers[sym]}" if sym in markers else ""
                 mcap_str = f"${mcap/1e9:.1f}B" if mcap >= 1e9 else f"${mcap/1e6:.0f}M"
                 lines.append(f"  {i+1}. `{sym}` ${p['price']:.2f} {pred:+.1f}% {mcap_str}{tag_str}")
-        lines.append("")
+            lines.append("")
     
     lines.append("⚠️ ML模型预测，仅供参考，不构成投资建议")
     lines.append("🌐 [查看详情](https://facaila.streamlit.app/)")
