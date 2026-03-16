@@ -421,9 +421,56 @@ def format_picks_message(results_dict, date=None, market='US'):
     market_name = "美股" if market == 'US' else "A股"
     period = "10d" if market == 'US' else "30d"
     
+    # Compute strategy markers for each symbol
+    markers = {}  # {symbol: [tags]}
+    try:
+        # Flatten all picks to compute top10% threshold
+        all_flat = []
+        for seg, picks in results.items():
+            if isinstance(picks, list):
+                all_flat.extend(picks)
+        
+        if all_flat:
+            preds = sorted([p.get('primary_pred', p.get(f'pred_{period}', 0)) for p in all_flat], reverse=True)
+            top10_threshold = preds[max(0, len(preds) // 10 - 1)] if preds else 999
+            
+            # Large cap threshold
+            min_large = 2e9 if market == 'US' else 1e10
+            
+            # Streak: check if symbol appeared in yesterday's picks
+            streak_syms = set()
+            try:
+                from scripts.ml_portfolio_tracker import _get_all_picks, compute_signal_streaks
+                picks_df = _get_all_picks(market)
+                streaks = compute_signal_streaks(picks_df)
+                for p in all_flat:
+                    if streaks.get((p['symbol'], date), 0) >= 2:
+                        streak_syms.add(p['symbol'])
+            except:
+                pass
+            
+            for p in all_flat:
+                sym = p['symbol']
+                tags = []
+                pred_val = p.get('primary_pred', p.get(f'pred_{period}', 0))
+                mcap = p.get('market_cap', 0)
+                
+                if pred_val >= top10_threshold:
+                    tags.append('🔥')  # top 10%
+                if sym in streak_syms:
+                    tags.append('🔄')  # streak ≥ 2d
+                if mcap >= min_large:
+                    tags.append('💎')  # large cap
+                
+                if tags:
+                    markers[sym] = ' '.join(tags)
+    except:
+        pass
+    
     lines = [
         f"🤖 *ML 每日选股 | {emoji} {market_name}*",
         f"📅 {date or 'latest'}",
+        f"🔥=Top10% 🔄=连续信号 💎=大盘",
         "",
     ]
     
@@ -432,12 +479,14 @@ def format_picks_message(results_dict, date=None, market='US'):
         for i, p in enumerate(picks[:3]):
             mcap = p.get('market_cap', 0)
             pred = p.get(f'pred_{period}', p.get('primary_pred', 0))
+            sym = p['symbol']
+            tag_str = f" {markers[sym]}" if sym in markers else ""
             if market == 'CN':
                 mcap_str = f"¥{mcap/1e8:.0f}亿" if mcap >= 1e8 else ""
-                lines.append(f"  {i+1}. `{p['symbol']}` ¥{p['price']:.2f} pred_{period}={pred:+.1f}% {mcap_str}")
+                lines.append(f"  {i+1}. `{sym}` ¥{p['price']:.2f} {pred:+.1f}% {mcap_str}{tag_str}")
             else:
                 mcap_str = f"${mcap/1e9:.1f}B" if mcap >= 1e9 else f"${mcap/1e6:.0f}M"
-                lines.append(f"  {i+1}. `{p['symbol']}` ${p['price']:.2f} pred_{period}={pred:+.1f}% {mcap_str}")
+                lines.append(f"  {i+1}. `{sym}` ${p['price']:.2f} {pred:+.1f}% {mcap_str}{tag_str}")
         lines.append("")
     
     lines.append("⚠️ ML模型预测，仅供参考，不构成投资建议")
