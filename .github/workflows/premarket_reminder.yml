@@ -1,0 +1,72 @@
+name: Pre-Market ML Picks Reminder
+
+on:
+  schedule:
+    # US: 美东 8:30 AM = UTC 13:30 (盘前提醒)
+    - cron: '30 13 * * 1-5'
+    # CN: 北京 8:30 AM = UTC 00:30 (盘前提醒)
+    - cron: '30 0 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      market:
+        description: 'Market'
+        required: true
+        default: 'US'
+        type: choice
+        options:
+          - US
+          - CN
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: versions/v3
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt 2>/dev/null || pip install pandas requests
+
+      - name: Determine market
+        id: market
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "market=${{ github.event.inputs.market }}" >> $GITHUB_OUTPUT
+          else
+            # UTC 13:30 = US pre-market, UTC 00:30 = CN pre-market
+            HOUR=$(date -u +%H)
+            if [ "$HOUR" -ge 12 ]; then
+              echo "market=US" >> $GITHUB_OUTPUT
+            else
+              echo "market=CN" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Send pre-market picks reminder
+        working-directory: versions/v3
+        env:
+          PYTHONPATH: ${{ github.workspace }}/versions/v3
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
+          WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
+          WXPUSHER_UIDS: ${{ secrets.WXPUSHER_UIDS }}
+          WXPUSHER_TOPIC_IDS: ${{ secrets.WXPUSHER_TOPIC_IDS }}
+          BARK_URL: ${{ secrets.BARK_URL }}
+          BARK_GROUP: ${{ secrets.BARK_GROUP }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
+        run: |
+          echo "📢 Sending pre-market reminder for ${{ steps.market.outputs.market }}"
+          python scripts/send_daily_picks.py --market ${{ steps.market.outputs.market }} --premarket || echo "Reminder failed"

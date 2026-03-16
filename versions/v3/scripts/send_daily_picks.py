@@ -101,14 +101,19 @@ def generate_picks_message(market: str = 'US') -> str:
     return "\n".join(lines)
 
 
-def send_daily_picks(markets: list = None):
+def send_daily_picks(markets: list = None, premarket: bool = False):
     """发送每日精选到 Telegram (策略共识 + ML 模型选股)"""
     if markets is None:
         markets = ['US', 'CN']
     
+    prefix = "⏰ 盘前提醒" if premarket else ""
+    
     for market in markets:
         # 1. 策略共识推送
         message = generate_picks_message(market)
+        if message and premarket:
+            # 替换标题为盘前提醒
+            message = message.replace("🎯 *今日精选", "⏰ *盘前提醒 | 今日精选", 1)
         if message:
             send_telegram_message(message)
         else:
@@ -123,23 +128,26 @@ def send_daily_picks(markets: list = None):
                 dates = get_scanned_dates(market=market)
                 date = dates[0] if dates else 'latest'
                 ml_msg = fmt_ml(results, date, market)
+                if premarket:
+                    ml_msg = f"⏰ *盘前提醒*\n{ml_msg}"
                 send_telegram_message(ml_msg)
-                print(f"✅ ML picks sent for {market}")
+                print(f"✅ ML picks {'reminder' if premarket else 'notification'} sent for {market}")
             else:
                 print(f"⚠️ No ML picks for {market}")
         except Exception as e:
             print(f"⚠️ ML picks error ({market}): {e}")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description='Send daily picks to Telegram')
     parser.add_argument('--market', type=str, default='US', choices=['US', 'CN', 'ALL'])
+    parser.add_argument('--premarket', action='store_true', help='Send as pre-market reminder')
     
     args = parser.parse_args()
     
     if args.market == 'ALL':
-        send_daily_picks(['US', 'CN'])
+        send_daily_picks(['US', 'CN'], premarket=args.premarket)
     else:
-        send_daily_picks([args.market])
+        send_daily_picks([args.market], premarket=args.premarket)
