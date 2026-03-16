@@ -269,12 +269,22 @@ class ReturnPredictor:
             metadata = json.load(f)
         
         self.feature_names = metadata['feature_names']
-        self.metrics = metadata['metrics']
+        self.metrics = metadata.get('metrics', {})
         
-        for horizon_name in metadata['horizons']:
+        # Load models listed in meta
+        for horizon_name in metadata.get('horizons', []):
             model_path = save_dir / f"return_{horizon_name}.joblib"
             if model_path.exists():
                 self.models[horizon_name] = joblib.load(model_path)
+        
+        # Auto-discover additional model files not in meta (e.g. from previous training runs)
+        for model_file in save_dir.glob("return_*.joblib"):
+            horizon = model_file.stem.replace("return_", "")
+            if horizon not in self.models:
+                try:
+                    self.models[horizon] = joblib.load(model_file)
+                except:
+                    pass
         
         self.is_trained = len(self.models) > 0
         print(f"✅ 收益预测模型已加载: {list(self.models.keys())}")
