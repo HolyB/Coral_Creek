@@ -32,10 +32,15 @@ sys.path.insert(0, parent_dir)
 
 DB_DIR = os.path.join(parent_dir, 'db')
 PICKS_DB = os.path.join(DB_DIR, 'ml_daily_picks.db')
-# Prefer full stock_history.db, fallback to partial
+# Prefer full stock_history.db, fallback to partial, then Supabase
 _full_hist = os.path.join(DB_DIR, 'stock_history.db')
 _partial_hist = os.path.join(DB_DIR, 'partial_stock_history.db')
-HIST_DB = _full_hist if os.path.exists(_full_hist) else _partial_hist
+if os.path.exists(_full_hist):
+    HIST_DB = _full_hist
+elif os.path.exists(_partial_hist):
+    HIST_DB = _partial_hist
+else:
+    HIST_DB = None  # Will use Supabase fallback
 
 # ===================== Strategy Definitions =====================
 STRATEGIES = {
@@ -97,41 +102,99 @@ def _get_all_picks(market='US'):
     return df
 
 
+def _supabase_client():
+    """Get Supabase client if available (for Streamlit Cloud fallback)"""
+    try:
+        from supabase import create_client
+        url = os.environ.get('SUPABASE_URL', '')
+        key = os.environ.get('SUPABASE_KEY', '')
+        if url and key:
+            return create_client(url, key)
+    except:
+        pass
+    return None
+
+
 def _get_price_map(symbols, market, dates):
     """Build a price lookup: {symbol: {date_str: close_price}}"""
-    conn = sqlite3.connect(HIST_DB)
     min_date = min(dates) if dates else '2020-01-01'
     max_date = max(dates) if dates else '2030-01-01'
-
-    placeholders = ','.join(['?' for _ in symbols])
-    query = f'''
-        SELECT symbol, trade_date, close 
-        FROM stock_history 
-        WHERE symbol IN ({placeholders}) AND market=?
-          AND trade_date >= ? AND trade_date <= ?
-        ORDER BY symbol, trade_date
-    '''
-    params = list(symbols) + [market, min_date, max_date]
-    df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
-
     price_map = defaultdict(dict)
-    for _, row in df.iterrows():
-        price_map[row['symbol']][row['trade_date']] = row['close']
+
+    # Try local DB first
+    if HIST_DB and os.path.exists(HIST_DB):
+        conn = sqlite3.connect(HIST_DB)
+        placeholders = ','.join(['?' for _ in symbols])
+        query = f'''
+            SELECT symbol, trade_date, close 
+            FROM stock_history 
+            WHERE symbol IN ({placeholders}) AND market=?
+              AND trade_date >= ? AND trade_date <= ?
+            ORDER BY symbol, trade_date
+        '''
+        params = list(symbols) + [market, min_date, max_date]
+        df = pd.read_sql_query(query, conn, params=params)
+        conn.close()
+        for _, row in df.iterrows():
+            price_map[row['symbol']][row['trade_date']] = row['close']
+        if price_map:
+            return dict(price_map)
+
+    # Fallback: Supabase partial_stock_history
+    sb = _supabase_client()
+    if sb:
+        try:
+            for i in range(0, len(symbols), 50):
+                batch = symbols[i:i+50]
+                resp = sb.table('partial_stock_history') \
+                    .select('symbol,trade_date,close') \
+                    .in_('symbol', batch) \
+                    .eq('market', market) \
+                    .gte('trade_date', min_date) \
+                    .lte('trade_date', max_date) \
+                    .execute()
+                for row in (resp.data or []):
+                    price_map[row['symbol']][row['trade_date']] = row['close']
+        except Exception as e:
+            print(f'⚠️ Supabase price fallback error: {e}')
+
     return dict(price_map)
 
 
 def _get_trading_days(market, start_date, end_date):
     """Get sorted list of trading dates from stock_history"""
-    conn = sqlite3.connect(HIST_DB)
-    rows = conn.execute(
-        '''SELECT DISTINCT trade_date FROM stock_history 
-           WHERE market=? AND trade_date >= ? AND trade_date <= ?
-           ORDER BY trade_date''',
-        (market, start_date, end_date)
-    ).fetchall()
-    conn.close()
-    return [r[0] for r in rows]
+    # Try local DB first
+    if HIST_DB and os.path.exists(HIST_DB):
+        conn = sqlite3.connect(HIST_DB)
+        rows = conn.execute(
+            '''SELECT DISTINCT trade_date FROM stock_history 
+               WHERE market=? AND trade_date >= ? AND trade_date <= ?
+               ORDER BY trade_date''',
+            (market, start_date, end_date)
+        ).fetchall()
+        conn.close()
+        if rows:
+            return [r[0] for r in rows]
+
+    # Fallback: Supabase
+    sb = _supabase_client()
+    if sb:
+        try:
+            resp = sb.table('partial_stock_history') \
+                .select('trade_date') \
+                .eq('market', market) \
+                .gte('trade_date', start_date) \
+                .lte('trade_date', end_date) \
+                .execute()
+            dates = sorted(set(r['trade_date'] for r in (resp.data or [])))
+            if dates:
+                return dates
+        except:
+            pass
+
+    # Last resort: generate business days
+    dates = pd.bdate_range(start_date, end_date).strftime('%Y-%m-%d').tolist()
+    return dates
 
 
 def get_benchmark_returns(market, start_date, end_date):
@@ -157,18 +220,13 @@ def get_benchmark_returns(market, start_date, end_date):
                 return {d: (prices[d] / base - 1) * 100 for d in dates_sorted}, '沪深300'
     else:
         # US: try SPY from stock_history
-        conn = sqlite3.connect(HIST_DB)
-        rows = conn.execute(
-            '''SELECT trade_date, close FROM stock_history
-               WHERE symbol='SPY' AND market='US'
-               AND trade_date >= ? AND trade_date <= ?
-               ORDER BY trade_date''',
-            (start_date, end_date)
-        ).fetchall()
-        conn.close()
-        if rows:
-            base = rows[0][1]
-            return {r[0]: (r[1] / base - 1) * 100 for r in rows}, 'SPY'
+        spy_prices = _get_price_map(['SPY'], 'US', [start_date, end_date])
+        if 'SPY' in spy_prices:
+            spy_data = spy_prices['SPY']
+            dates_sorted = sorted(spy_data.keys())
+            if dates_sorted:
+                base = spy_data[dates_sorted[0]]
+                return {d: (spy_data[d] / base - 1) * 100 for d in dates_sorted}, 'SPY'
     
     return {}, ''
 
