@@ -1,111 +1,111 @@
 {
-  "date": "2026-03-05",
+  "date": "2026-03-13",
   "market": "CN",
-  "total_signals": 303,
+  "total_signals": 181,
   "top_signals": [
     {
-      "symbol": "920651.BJ",
-      "name": "天罡股份",
-      "price": 34.55,
+      "symbol": "920592.BJ",
+      "name": "华信永道",
+      "price": 32.72,
       "day_blue": 200.0,
-      "week_blue": 0.0
+      "week_blue": 127.5
     },
     {
-      "symbol": "301631.SZ",
-      "name": "壹连科技",
-      "price": 93.1,
+      "symbol": "605179.SH",
+      "name": "一鸣食品",
+      "price": 18.05,
       "day_blue": 200.0,
+      "week_blue": 91.6
+    },
+    {
+      "symbol": "920132.BJ",
+      "name": "泰鹏智能",
+      "price": 16.37,
+      "day_blue": 186.9,
+      "week_blue": 135.5
+    },
+    {
+      "symbol": "920123.BJ",
+      "name": "芭薇股份",
+      "price": 13.69,
+      "day_blue": 184.9,
+      "week_blue": 124.3
+    },
+    {
+      "symbol": "920802.BJ",
+      "name": "保丽洁",
+      "price": 15.22,
+      "day_blue": 178.6,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "600882.SH",
-      "name": "妙可蓝多",
-      "price": 20.56,
-      "day_blue": 200.0,
-      "week_blue": 120.7
-    },
-    {
-      "symbol": "600197.SH",
-      "name": "伊力特",
-      "price": 12.77,
-      "day_blue": 200.0,
-      "week_blue": 156.4
-    },
-    {
-      "symbol": "000860.SZ",
-      "name": "顺鑫农业",
-      "price": 13.96,
-      "day_blue": 200.0,
-      "week_blue": 194.4
-    },
-    {
-      "symbol": "603589.SH",
-      "name": "口子窖",
-      "price": 26.34,
-      "day_blue": 193.7,
-      "week_blue": 120.9
-    },
-    {
-      "symbol": "600702.SH",
-      "name": "舍得酒业",
-      "price": 49.46,
-      "day_blue": 186.1,
-      "week_blue": 83.3
-    },
-    {
-      "symbol": "603983.SH",
-      "name": "丸美生物",
-      "price": 28.15,
-      "day_blue": 179.1,
-      "week_blue": 165.4
-    },
-    {
-      "symbol": "688698.SH",
-      "name": "伟创电气",
-      "price": 74.8,
-      "day_blue": 169.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002991.SZ",
-      "name": "甘源食品",
-      "price": 53.1,
-      "day_blue": 164.6,
-      "week_blue": 99.7
-    },
-    {
-      "symbol": "603119.SH",
-      "name": "浙江荣泰",
-      "price": 86.65,
-      "day_blue": 159.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688318.SH",
-      "name": "财富趋势",
-      "price": 114.7,
-      "day_blue": 158.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920174.BJ",
-      "name": "五新隧装",
-      "price": 43.87,
-      "day_blue": 156.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920273.BJ",
-      "name": "一致魔芋",
-      "price": 26.64,
-      "day_blue": 150.0,
-      "week_blue": 118.6
     },
     {
       "symbol": "920656.BJ",
       "name": "海昇药业",
-      "price": 17.0,
-      "day_blue": 146.0,
+      "price": 17.03,
+      "day_blue": 174.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920978.BJ",
+      "name": "开特股份",
+      "price": 26.68,
+      "day_blue": 157.5,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300783.SZ",
+      "name": "三只松鼠",
+      "price": 19.11,
+      "day_blue": 156.2,
+      "week_blue": 91.2
+    },
+    {
+      "symbol": "920690.BJ",
+      "name": "捷众科技",
+      "price": 27.92,
+      "day_blue": 154.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920075.BJ",
+      "name": "柏星龙",
+      "price": 23.81,
+      "day_blue": 153.3,
+      "week_blue": 102.5
+    },
+    {
+      "symbol": "002094.SZ",
+      "name": "青岛金王",
+      "price": 7.1,
+      "day_blue": 147.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000759.SZ",
+      "name": "中百集团",
+      "price": 5.95,
+      "day_blue": 145.7,
+      "week_blue": 195.9
+    },
+    {
+      "symbol": "920022.BJ",
+      "name": "世昌股份",
+      "price": 28.42,
+      "day_blue": 144.9,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "002695.SZ",
+      "name": "煌上煌",
+      "price": 10.23,
+      "day_blue": 143.2,
+      "week_blue": 97.1
+    },
+    {
+      "symbol": "920679.BJ",
+      "name": "前进科技",
+      "price": 19.5,
+      "day_blue": 142.9,
       "week_blue": 0.0
     }
   ]
