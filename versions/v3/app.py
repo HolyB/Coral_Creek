@@ -2534,12 +2534,25 @@ def render_ml_daily_picks_page():
                                     if _holdings:
                                         st.subheader(f"📋 当前持仓 ({len(_holdings)})")
                                         _h_df = pd.DataFrame(_holdings).sort_values('pnl_pct', ascending=False)
-                                        _h_display = _h_df[['symbol', 'buy_date', 'buy_price', 'current_price', 'pnl_pct', 'streak']].copy()
+                                        # Lookup stock names
+                                        try:
+                                            from db.database import get_connection as _gc
+                                            _nc = _gc()
+                                            _h_syms = _h_df['symbol'].tolist()
+                                            _h_ph = ','.join(['?' for _ in _h_syms])
+                                            _h_names = dict(_nc.execute(f'SELECT symbol, name FROM stock_info WHERE symbol IN ({_h_ph})', _h_syms).fetchall())
+                                            if not _h_names:
+                                                _h_names = dict(_nc.execute(f'SELECT DISTINCT symbol, company_name FROM scan_results WHERE symbol IN ({_h_ph}) AND company_name IS NOT NULL', _h_syms).fetchall())
+                                            _nc.close()
+                                            _h_df['name'] = _h_df['symbol'].map(_h_names).fillna('')
+                                        except:
+                                            _h_df['name'] = ''
+                                        _h_display = _h_df[['symbol', 'name', 'buy_date', 'buy_price', 'current_price', 'pnl_pct', 'streak']].copy()
                                         _h_display['buy_price'] = _h_display['buy_price'].apply(lambda x: f"{_pfx}{x:.2f}")
                                         _h_display['current_price'] = _h_display['current_price'].apply(lambda x: f"{_pfx}{x:.2f}")
                                         _h_display['pnl_pct'] = _h_display['pnl_pct'].apply(lambda x: f"{x:+.1f}%")
                                         _h_display['streak'] = _h_display['streak'].apply(lambda x: f"{x}d")
-                                        _h_display.columns = ['代码', '买入日', '买入价', '当前价', '浮盈', '连续信号']
+                                        _h_display.columns = ['代码', '名称', '买入日', '买入价', '当前价', '浮盈', '连续信号']
                                         st.dataframe(_h_display, hide_index=True, use_container_width=True, height=400)
                                     else:
                                         st.info("当前无持仓")
@@ -2549,11 +2562,24 @@ def render_ml_daily_picks_page():
                                     if _trades:
                                         st.subheader(f"📝 最近交易 ({len(_trades)} 笔)")
                                         _t_df = pd.DataFrame(_trades[-20:]).sort_values('sell_date', ascending=False)
-                                        _t_display = _t_df[['symbol', 'buy_date', 'sell_date', 'buy_price', 'sell_price', 'pnl_pct']].copy()
+                                        # Lookup stock names
+                                        try:
+                                            from db.database import get_connection as _gc2
+                                            _nc2 = _gc2()
+                                            _t_syms = _t_df['symbol'].tolist()
+                                            _t_ph = ','.join(['?' for _ in _t_syms])
+                                            _t_names = dict(_nc2.execute(f'SELECT symbol, name FROM stock_info WHERE symbol IN ({_t_ph})', _t_syms).fetchall())
+                                            if not _t_names:
+                                                _t_names = dict(_nc2.execute(f'SELECT DISTINCT symbol, company_name FROM scan_results WHERE symbol IN ({_t_ph}) AND company_name IS NOT NULL', _t_syms).fetchall())
+                                            _nc2.close()
+                                            _t_df['name'] = _t_df['symbol'].map(_t_names).fillna('')
+                                        except:
+                                            _t_df['name'] = ''
+                                        _t_display = _t_df[['symbol', 'name', 'buy_date', 'sell_date', 'buy_price', 'sell_price', 'pnl_pct']].copy()
                                         _t_display['buy_price'] = _t_display['buy_price'].apply(lambda x: f"{_pfx}{x:.2f}")
                                         _t_display['sell_price'] = _t_display['sell_price'].apply(lambda x: f"{_pfx}{x:.2f}")
                                         _t_display['pnl_pct'] = _t_display['pnl_pct'].apply(lambda x: f"{x:+.1f}%")
-                                        _t_display.columns = ['代码', '买入', '卖出', '买入价', '卖出价', '收益']
+                                        _t_display.columns = ['代码', '名称', '买入', '卖出', '买入价', '卖出价', '收益']
                                         st.dataframe(_t_display, hide_index=True, use_container_width=True, height=400)
                                     else:
                                         st.info("暂无已完成交易")
