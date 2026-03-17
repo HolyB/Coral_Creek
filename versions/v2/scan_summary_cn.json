@@ -1,83 +1,48 @@
 {
   "date": "2026-03-16",
   "market": "CN",
-  "total_signals": 158,
+  "total_signals": 153,
   "top_signals": [
     {
-      "symbol": "920160.BJ",
-      "name": "北矿检测",
-      "price": 23.89,
+      "symbol": "920873.BJ",
+      "name": "中设咨询",
+      "price": 7.54,
       "day_blue": 200.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "605179.SH",
-      "name": "一鸣食品",
-      "price": 18.27,
-      "day_blue": 200.0,
-      "week_blue": 96.1
+      "symbol": "920436.BJ",
+      "name": "大地电气",
+      "price": 15.68,
+      "day_blue": 197.6,
+      "week_blue": 168.4
     },
     {
-      "symbol": "920123.BJ",
-      "name": "芭薇股份",
-      "price": 13.68,
-      "day_blue": 196.5,
-      "week_blue": 131.2
+      "symbol": "920146.BJ",
+      "name": "华阳变速",
+      "price": 7.47,
+      "day_blue": 183.4,
+      "week_blue": 130.2
     },
     {
-      "symbol": "920942.BJ",
-      "name": "恒立钻具",
-      "price": 28.7,
-      "day_blue": 195.2,
-      "week_blue": 64.0
-    },
-    {
-      "symbol": "920802.BJ",
-      "name": "保丽洁",
-      "price": 15.15,
-      "day_blue": 187.9,
-      "week_blue": 91.6
-    },
-    {
-      "symbol": "920690.BJ",
-      "name": "捷众科技",
-      "price": 27.23,
-      "day_blue": 177.0,
+      "symbol": "920964.BJ",
+      "name": "润农节水",
+      "price": 6.72,
+      "day_blue": 178.4,
       "week_blue": 0.0
     },
     {
-      "symbol": "301209.SZ",
-      "name": "联合化学",
-      "price": 90.29,
-      "day_blue": 173.3,
-      "week_blue": 0.0
+      "symbol": "920475.BJ",
+      "name": "三友科技",
+      "price": 14.58,
+      "day_blue": 175.4,
+      "week_blue": 140.4
     },
     {
-      "symbol": "920075.BJ",
-      "name": "柏星龙",
-      "price": 23.81,
-      "day_blue": 163.5,
-      "week_blue": 113.7
-    },
-    {
-      "symbol": "300467.SZ",
-      "name": "迅游科技",
-      "price": 30.26,
-      "day_blue": 159.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301398.SZ",
-      "name": "星源卓镁",
-      "price": 52.1,
-      "day_blue": 156.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301088.SZ",
-      "name": "戎美股份",
-      "price": 14.85,
-      "day_blue": 154.6,
+      "symbol": "001225.SZ",
+      "name": "和泰机电",
+      "price": 53.38,
+      "day_blue": 157.8,
       "week_blue": 0.0
     },
     {
@@ -95,18 +60,53 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "920679.BJ",
-      "name": "前进科技",
-      "price": 19.42,
-      "day_blue": 151.5,
+      "symbol": "920768.BJ",
+      "name": "拾比佰",
+      "price": 11.99,
+      "day_blue": 145.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "920262.BJ",
-      "name": "太湖雪",
-      "price": 22.56,
-      "day_blue": 145.1,
-      "week_blue": 92.8
+      "symbol": "301515.SZ",
+      "name": "港通医疗",
+      "price": 23.49,
+      "day_blue": 144.3,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603277.SH",
+      "name": "银都股份",
+      "price": 15.23,
+      "day_blue": 143.7,
+      "week_blue": 84.8
+    },
+    {
+      "symbol": "600094.SH",
+      "name": "大名城",
+      "price": 4.38,
+      "day_blue": 143.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920174.BJ",
+      "name": "五新隧装",
+      "price": 41.45,
+      "day_blue": 142.7,
+      "week_blue": 77.1
+    },
+    {
+      "symbol": "300740.SZ",
+      "name": "水羊股份",
+      "price": 20.92,
+      "day_blue": 142.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920839.BJ",
+      "name": "万通液压",
+      "price": 35.41,
+      "day_blue": 139.5,
+      "week_blue": 0.0
     }
   ]
 }
