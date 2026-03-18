@@ -1,8 +1,29 @@
 {
   "date": "2026-03-17",
   "market": "CN",
-  "total_signals": 305,
+  "total_signals": 408,
   "top_signals": [
+    {
+      "symbol": "920002.BJ",
+      "name": "万达轴承",
+      "price": 87.82,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920123.BJ",
+      "name": "芭薇股份",
+      "price": 13.58,
+      "day_blue": 200.0,
+      "week_blue": 131.2
+    },
+    {
+      "symbol": "920942.BJ",
+      "name": "恒立钻具",
+      "price": 28.03,
+      "day_blue": 200.0,
+      "week_blue": 64.1
+    },
     {
       "symbol": "920122.BJ",
       "name": "中纺标",
@@ -25,11 +46,25 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "920802.BJ",
+      "name": "保丽洁",
+      "price": 14.88,
+      "day_blue": 195.9,
+      "week_blue": 91.6
+    },
+    {
       "symbol": "920146.BJ",
       "name": "华阳变速",
       "price": 7.37,
       "day_blue": 192.9,
       "week_blue": 130.2
+    },
+    {
+      "symbol": "920690.BJ",
+      "name": "捷众科技",
+      "price": 27.13,
+      "day_blue": 190.1,
+      "week_blue": 0.0
     },
     {
       "symbol": "920964.BJ",
@@ -60,53 +95,18 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "920656.BJ",
+      "name": "海昇药业",
+      "price": 16.73,
+      "day_blue": 177.9,
+      "week_blue": 96.0
+    },
+    {
       "symbol": "920753.BJ",
       "name": "天纺标",
       "price": 20.76,
       "day_blue": 177.8,
       "week_blue": 113.9
-    },
-    {
-      "symbol": "300756.SZ",
-      "name": "金马游乐",
-      "price": 40.07,
-      "day_blue": 172.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301515.SZ",
-      "name": "港通医疗",
-      "price": 23.12,
-      "day_blue": 167.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301088.SZ",
-      "name": "戎美股份",
-      "price": 14.65,
-      "day_blue": 166.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "001225.SZ",
-      "name": "和泰机电",
-      "price": 51.58,
-      "day_blue": 164.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301398.SZ",
-      "name": "星源卓镁",
-      "price": 50.28,
-      "day_blue": 162.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920267.BJ",
-      "name": "鑫汇科",
-      "price": 20.29,
-      "day_blue": 160.2,
-      "week_blue": 120.4
     }
   ]
 }
