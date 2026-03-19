@@ -1,112 +1,112 @@
 {
-  "date": "2026-03-18",
+  "date": "2026-03-19",
   "market": "CN",
-  "total_signals": 650,
+  "total_signals": 764,
   "top_signals": [
+    {
+      "symbol": "920124.BJ",
+      "name": "南特科技",
+      "price": 17.13,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920160.BJ",
+      "name": "北矿检测",
+      "price": 23.23,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920020.BJ",
+      "name": "泰凯英",
+      "price": 16.41,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "001280.SZ",
+      "name": "中国铀业",
+      "price": 80.91,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920009.BJ",
+      "name": "丹娜生物",
+      "price": 70.48,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920003.BJ",
+      "name": "中诚咨询",
+      "price": 29.56,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
     {
       "symbol": "920002.BJ",
       "name": "万达轴承",
-      "price": 87.7,
+      "price": 83.81,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
       "symbol": "920123.BJ",
       "name": "芭薇股份",
-      "price": 13.37,
+      "price": 12.88,
       "day_blue": 200.0,
-      "week_blue": 131.4
+      "week_blue": 131.6
     },
     {
       "symbol": "920690.BJ",
       "name": "捷众科技",
-      "price": 27.0,
+      "price": 25.7,
       "day_blue": 200.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "920699.BJ",
-      "name": "海达尔",
-      "price": 41.4,
+      "symbol": "920132.BJ",
+      "name": "泰鹏智能",
+      "price": 14.36,
       "day_blue": 200.0,
-      "week_blue": 92.2
-    },
-    {
-      "symbol": "920802.BJ",
-      "name": "保丽洁",
-      "price": 14.88,
-      "day_blue": 200.0,
-      "week_blue": 91.8
-    },
-    {
-      "symbol": "920942.BJ",
-      "name": "恒立钻具",
-      "price": 27.83,
-      "day_blue": 200.0,
-      "week_blue": 64.1
-    },
-    {
-      "symbol": "920122.BJ",
-      "name": "中纺标",
-      "price": 28.8,
-      "day_blue": 200.0,
-      "week_blue": 167.8
-    },
-    {
-      "symbol": "920436.BJ",
-      "name": "大地电气",
-      "price": 15.04,
-      "day_blue": 200.0,
-      "week_blue": 168.9
-    },
-    {
-      "symbol": "920873.BJ",
-      "name": "中设咨询",
-      "price": 7.53,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920726.BJ",
-      "name": "朱老六",
-      "price": 18.88,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920146.BJ",
-      "name": "华阳变速",
-      "price": 7.32,
-      "day_blue": 200.0,
-      "week_blue": 130.3
-    },
-    {
-      "symbol": "605179.SH",
-      "name": "一鸣食品",
-      "price": 18.05,
-      "day_blue": 200.0,
-      "week_blue": 96.2
+      "week_blue": 154.3
     },
     {
       "symbol": "920656.BJ",
       "name": "海昇药业",
-      "price": 16.43,
-      "day_blue": 196.8,
-      "week_blue": 96.2
+      "price": 15.79,
+      "day_blue": 200.0,
+      "week_blue": 96.7
     },
     {
-      "symbol": "600882.SH",
-      "name": "妙可蓝多",
-      "price": 20.36,
-      "day_blue": 196.1,
-      "week_blue": 118.8
+      "symbol": "920699.BJ",
+      "name": "海达尔",
+      "price": 39.36,
+      "day_blue": 200.0,
+      "week_blue": 92.4
     },
     {
-      "symbol": "920964.BJ",
-      "name": "润农节水",
-      "price": 6.51,
-      "day_blue": 195.0,
-      "week_blue": 91.1
+      "symbol": "920802.BJ",
+      "name": "保丽洁",
+      "price": 14.45,
+      "day_blue": 200.0,
+      "week_blue": 92.0
+    },
+    {
+      "symbol": "920942.BJ",
+      "name": "恒立钻具",
+      "price": 26.51,
+      "day_blue": 200.0,
+      "week_blue": 64.3
+    },
+    {
+      "symbol": "920753.BJ",
+      "name": "天纺标",
+      "price": 19.58,
+      "day_blue": 200.0,
+      "week_blue": 114.5
     }
   ]
 }
