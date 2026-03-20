@@ -17427,11 +17427,13 @@ def render_qlib_mining_hub():
 
 # --- V3 主导航 (精简版 4 入口) ---
 
-st.sidebar.title("Coral Creek V3 🦅")
-st.sidebar.caption("ML量化交易系统")
+st.sidebar.title("Coral Creek Way 🦅")
+st.sidebar.caption("Quantitative Trading System")
 
 page = st.sidebar.radio("功能导航", [
     "🎯 每日机会",      # 原 每日工作台 + 买卖点 (行动中心)
+    "📑 选股报告",      # NEW: ML picks report + strategy comparison
+    "💹 模拟盘",        # NEW: US Alpaca + CN virtual trading dashboard
     "📊 全量扫描",      # 原 每日扫描 (数据表)
     "🔬 个股研究",      # 原 个股分析 + 策略回测 (深度分析)
     "📰 新闻中心",      # 新闻 + 社交媒体 + AI 分类
@@ -17439,7 +17441,7 @@ page = st.sidebar.radio("功能导航", [
 ])
 
 # 交易执行页默认按 US 上下文展示 Alpaca；其他页面会在各自 market 选择器里覆盖
-if page == "💰 交易执行":
+if page in ("💰 交易执行", "💹 模拟盘"):
     _set_active_market("US")
 
 st.sidebar.markdown("---")
@@ -17454,6 +17456,12 @@ if page == "🎯 每日机会":
         render_todays_picks_page()
     with daily_tab2:
         render_ml_daily_picks_page()
+elif page == "📑 选股报告":
+    from pages.ml_report import render_ml_report_page
+    render_ml_report_page()
+elif page == "💹 模拟盘":
+    from pages.paper_dashboard import render_paper_trading_page
+    render_paper_trading_page()
 elif page == "📊 全量扫描":
     render_scan_page()
 elif page == "🔬 个股研究":
