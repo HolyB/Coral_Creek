@@ -79,3 +79,6 @@ versions/v4/.agent/ranking_logs/
 versions/v4/ml/models/
 versions/v4/ml/Kronos/
 versions/v4/ml/saved_models/
+versions/v3/db/coral_creek.db
+versions/v3/db/ml_daily_picks.db
+versions/v4/db/
