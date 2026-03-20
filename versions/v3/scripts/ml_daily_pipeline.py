@@ -1252,19 +1252,41 @@ def execute_auto_trade(market, picks, top3=None):
             plc = '#22c55e' if strat_pl > 0 else '#ef4444' if strat_pl < 0 else '#ffffff'
 
             pos_rows = ""
+            # Query days held for each position
+            try:
+                _pconn = sqlite3.connect(str(V3 / 'db' / 'ml_daily_picks.db'))
+                _hconn = sqlite3.connect(str(V3 / 'db' / 'stock_history.db'))
+            except Exception:
+                _pconn = _hconn = None
             for p in positions:
                 pc = '#22c55e' if p.unrealized_plpc > 0 else '#ef4444'
+                days_held = '—'
+                if _pconn and _hconn:
+                    try:
+                        bought = _pconn.execute(
+                            "SELECT date FROM mmoe_daily_picks WHERE market=? AND symbol=? ORDER BY date DESC LIMIT 1",
+                            (market, p.symbol)).fetchone()
+                        if bought:
+                            dh = _hconn.execute(
+                                "SELECT COUNT(DISTINCT trade_date) FROM stock_history WHERE symbol=? AND market=? AND trade_date>?",
+                                (p.symbol, market, bought[0])).fetchone()[0]
+                            days_held = f'{dh}d'
+                    except Exception:
+                        pass
                 pos_rows += f"""<tr>
                   <td>{p.symbol}<br><small style="color:#64748b">{names_map.get(p.symbol,'')}</small></td>
+                  <td style="text-align:center;color:#94a3b8">{days_held}</td>
                   <td style="text-align:right">{p.qty:,.0f}</td>
                   <td style="text-align:right">{csym}{p.avg_entry_price:.2f}</td>
                   <td style="text-align:right">{csym}{p.current_price:.2f}</td>
                   <td style="text-align:right;color:{pc};font-weight:700">{p.unrealized_plpc:+.1f}%</td>
                   <td style="text-align:right;color:{pc}">{csym}{p.unrealized_pl:+,.0f}</td>
                 </tr>"""
+            if _pconn: _pconn.close()
+            if _hconn: _hconn.close()
 
             if not positions:
-                pos_rows = '<tr><td colspan="6" style="color:#64748b;text-align:center">无持仓</td></tr>'
+                pos_rows = '<tr><td colspan="7" style="color:#64748b;text-align:center">无持仓</td></tr>'
 
             positions_html += f"""
             <div style="margin-bottom:16px">
@@ -1274,7 +1296,7 @@ def execute_auto_trade(market, picks, top3=None):
               </div>
               <table style="width:100%;border-collapse:collapse;font-size:12px">
                 <tr style="background:#334155">
-                  <th>股票</th><th>数量</th><th>成本</th><th>现价</th><th>涨跌</th><th>盈亏</th>
+                  <th>股票</th><th>天数</th><th>数量</th><th>成本</th><th>现价</th><th>涨跌</th><th>盈亏</th>
                 </tr>
                 {pos_rows}
               </table>

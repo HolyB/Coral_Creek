@@ -45,8 +45,8 @@ MIN_MCAP_US = 50e6;   MIN_MCAP_CN = 20e8
 MIN_PRICE_US = 5.0;   MIN_PRICE_CN = 3.0
 
 US_TIERS = [
-    ('Mega (>$200B)',    200e9),
-    ('Large ($10-200B)', 10e9),
+    ('Mega (>$100B)',    100e9),
+    ('Large ($10-100B)', 10e9),
     ('Mid ($2-10B)',     2e9),
     ('Small ($300M-2B)', 300e6),
     ('Micro ($50-300M)', 50e6),
@@ -129,13 +129,16 @@ def predict_today(market):
     force = os.environ.get('ML_FORCE_PREDICT', '').lower() == 'true'
     db_path = V3 / 'db' / 'ml_daily_picks.db'
     if not force and db_path.exists():
-        conn = sqlite3.connect(str(db_path))
-        today_picks_raw = conn.execute(
-            "SELECT date, tier, symbol, name, price, blend, pred_20d, pred_5d, pred_10d, mcap "
-            "FROM mmoe_daily_picks WHERE market=? ORDER BY date DESC LIMIT 10",
-            (market,)
-        ).fetchall()
-        conn.close()
+        try:
+            conn = sqlite3.connect(str(db_path))
+            today_picks_raw = conn.execute(
+                "SELECT date, tier, symbol, name, price, blend, pred_20d, pred_5d, pred_10d, mcap "
+                "FROM mmoe_daily_picks WHERE market=? ORDER BY date DESC LIMIT 10",
+                (market,)
+            ).fetchall()
+            conn.close()
+        except Exception:
+            today_picks_raw = []
         if today_picks_raw:
             latest_date = today_picks_raw[0][0]
             # Get the eval_date from npz to compare
@@ -235,9 +238,14 @@ def predict_today(market):
     mcap_dict = {}
     names_dict = {}
     if market == 'US':
-        for r in conn.execute('SELECT symbol, market_cap FROM stock_meta'):
-            mcap_dict[r[0]] = r[1] or 0
-            names_dict[r[0]] = r[0]  # will try stock_info below
+        try:
+            for r in conn.execute('SELECT symbol, market_cap FROM stock_meta'):
+                mcap_dict[r[0]] = r[1] or 0
+                names_dict[r[0]] = r[0]
+        except Exception:
+            # stock_meta may not exist — use stock_info fallback
+            for r in conn.execute("SELECT symbol, name FROM stock_info WHERE market='US'"):
+                names_dict[r[0]] = r[1] or r[0]
     else:
         for r in conn.execute("SELECT symbol, name FROM stock_info WHERE market='CN'"):
             names_dict[r[0]] = (r[1] or r[0])[:10]
@@ -265,7 +273,7 @@ def predict_today(market):
     for i in range(len(syms_ev)):
         sym = syms_ev[i]
         mc = mcap_dict.get(sym, 0)
-        if mc < min_mcap: continue
+        if mcap_dict and mc < min_mcap: continue  # skip filter if no mcap data at all
         # Get latest close + today's OHLCV to check limit-up
         pr = hconn.execute(
             "SELECT trade_date, open, close, high, low, volume FROM stock_history WHERE symbol=? AND market=? AND trade_date<=? ORDER BY trade_date DESC LIMIT 2",
@@ -672,20 +680,20 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
     market_name = "美股" if market == 'US' else "A股"
     market_emoji = "🇺🇸" if market == 'US' else "🇨🇳"
 
-    # Tier color map
+    # Tier color map (unified: 大=gold, 大中=blue, 中=purple, 小=pink, 微=cyan)
     if market == 'US':
         tier_colors = {
-            'Mega (>$200B)': '#f59e0b',      # amber/gold
-            'Large ($10-200B)': '#3b82f6',    # blue
+            'Mega (>$100B)': '#f59e0b',      # gold
+            'Large ($10-100B)': '#3b82f6',    # blue
             'Mid ($2-10B)': '#8b5cf6',        # purple
             'Small ($300M-2B)': '#ec4899',    # pink
             'Micro ($50-300M)': '#06b6d4',    # cyan
         }
     else:
         tier_colors = {
-            '大盘 (>500亿)': '#f59e0b',          # amber/gold
-            '中盘 (100-500亿)': '#8b5cf6',      # purple
-            '小盘 (20-100亿)': '#06b6d4',       # cyan
+            '大盘 (>500亿)': '#f59e0b',          # gold  (=Mega/Large)
+            '中盘 (100-500亿)': '#8b5cf6',      # purple (=Mid)
+            '小盘 (20-100亿)': '#ec4899',       # pink   (=Small)
         }
     def _tier_color(tier):
         return tier_colors.get(tier, '#6366f1')
@@ -995,7 +1003,7 @@ def execute_auto_trade(market, picks, top3=None):
 
     # Tier names per market
     if market == 'US':
-        MID, LARGE, SMALL = 'Mid ($2-10B)', 'Large ($10-200B)', 'Small ($300M-2B)'
+        MID, LARGE, SMALL = 'Mid ($2-10B)', 'Large ($10-100B)', 'Small ($300M-2B)'
     else:
         MID, LARGE, SMALL = '中盘 (100-500亿)', '大盘 (>500亿)', '小盘 (20-100亿)'
 
@@ -1087,14 +1095,14 @@ def execute_auto_trade(market, picks, top3=None):
                     # Find when we bought this
                     conn = sqlite3.connect(str(db_path))
                     bought = conn.execute(
-                        "SELECT date FROM mmoe_daily_picks WHERE market='US' AND symbol=? ORDER BY date DESC LIMIT 1",
-                        (pos.symbol,)
+                        "SELECT date FROM mmoe_daily_picks WHERE market=? AND symbol=? ORDER BY date DESC LIMIT 1",
+                        (market, pos.symbol)
                     ).fetchone()
                     conn.close()
                     if bought:
                         days_held = hconn.execute(
-                            "SELECT COUNT(DISTINCT trade_date) FROM stock_history WHERE symbol=? AND market='US' AND trade_date>?",
-                            (pos.symbol, bought[0])
+                            "SELECT COUNT(DISTINCT trade_date) FROM stock_history WHERE symbol=? AND market=? AND trade_date>?",
+                            (pos.symbol, market, bought[0])
                         ).fetchone()[0]
                         if days_held >= strat['hold']:
                             print(f"  📤 Sell {pos.symbol} (held {days_held}d >= {strat['hold']}d, {pos.unrealized_plpc:+.1f}%)", flush=True)
@@ -1244,19 +1252,41 @@ def execute_auto_trade(market, picks, top3=None):
             plc = '#22c55e' if strat_pl > 0 else '#ef4444' if strat_pl < 0 else '#ffffff'
 
             pos_rows = ""
+            # Query days held for each position
+            try:
+                _pconn = sqlite3.connect(str(V3 / 'db' / 'ml_daily_picks.db'))
+                _hconn = sqlite3.connect(str(V3 / 'db' / 'stock_history.db'))
+            except Exception:
+                _pconn = _hconn = None
             for p in positions:
                 pc = '#22c55e' if p.unrealized_plpc > 0 else '#ef4444'
+                days_held = '—'
+                if _pconn and _hconn:
+                    try:
+                        bought = _pconn.execute(
+                            "SELECT date FROM mmoe_daily_picks WHERE market=? AND symbol=? ORDER BY date DESC LIMIT 1",
+                            (market, p.symbol)).fetchone()
+                        if bought:
+                            dh = _hconn.execute(
+                                "SELECT COUNT(DISTINCT trade_date) FROM stock_history WHERE symbol=? AND market=? AND trade_date>?",
+                                (p.symbol, market, bought[0])).fetchone()[0]
+                            days_held = f'{dh}d'
+                    except Exception:
+                        pass
                 pos_rows += f"""<tr>
                   <td>{p.symbol}<br><small style="color:#64748b">{names_map.get(p.symbol,'')}</small></td>
+                  <td style="text-align:center;color:#94a3b8">{days_held}</td>
                   <td style="text-align:right">{p.qty:,.0f}</td>
                   <td style="text-align:right">{csym}{p.avg_entry_price:.2f}</td>
                   <td style="text-align:right">{csym}{p.current_price:.2f}</td>
                   <td style="text-align:right;color:{pc};font-weight:700">{p.unrealized_plpc:+.1f}%</td>
                   <td style="text-align:right;color:{pc}">{csym}{p.unrealized_pl:+,.0f}</td>
                 </tr>"""
+            if _pconn: _pconn.close()
+            if _hconn: _hconn.close()
 
             if not positions:
-                pos_rows = '<tr><td colspan="6" style="color:#64748b;text-align:center">无持仓</td></tr>'
+                pos_rows = '<tr><td colspan="7" style="color:#64748b;text-align:center">无持仓</td></tr>'
 
             positions_html += f"""
             <div style="margin-bottom:16px">
@@ -1266,7 +1296,7 @@ def execute_auto_trade(market, picks, top3=None):
               </div>
               <table style="width:100%;border-collapse:collapse;font-size:12px">
                 <tr style="background:#334155">
-                  <th>股票</th><th>数量</th><th>成本</th><th>现价</th><th>涨跌</th><th>盈亏</th>
+                  <th>股票</th><th>天数</th><th>数量</th><th>成本</th><th>现价</th><th>涨跌</th><th>盈亏</th>
                 </tr>
                 {pos_rows}
               </table>
