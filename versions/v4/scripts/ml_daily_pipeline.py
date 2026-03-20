@@ -547,7 +547,7 @@ def send_report(eval_date, market, picks):
 
     # ===== Section 1: Today's per-tier top-1 =====
     lines = [
-        f"🤖 *{market_emoji} {market_name} XGB+MMoE 每日选股*",
+        f"🤖 *{market_emoji} {market_name} Coral Creek Way 每日选股*",
         f"📅 {eval_date}",
         "",
         "━━━ 🎯 今日各市值 Top-1 ━━━",
@@ -657,7 +657,7 @@ def send_report(eval_date, market, picks):
     try:
         from services.notification import NotificationManager
         nm = NotificationManager()
-        results = nm.send_all(f"{market_name} XGB+MMoE 每日选股", msg)
+        results = nm.send_all(f"{market_name} Coral Creek Way 每日选股", msg)
         for ch, ok in results.items():
             print(f"  {'✅' if ok else '❌'} {ch}", flush=True)
     except Exception as e:
@@ -918,8 +918,8 @@ tr:hover {{background:rgba(99,102,241,0.08)}}
 </style></head><body>
 <div class="container">
 <div class="header">
-  <h1>{market_emoji} XGB+MMoE 每日选股</h1>
-  <p>📅 {eval_date} | 🤖 XGBoost Leaf + MMoE (5d/10d/20d) | Per-Tier Top-1</p>
+  <h1>{market_emoji} Coral Creek Way Quantitative</h1>
+  <p>📅 {eval_date} | {market_name} 每日选股 | Per-Tier Top-1</p>
 </div>
 <div class="section">
   <h2>🎯 今日各市值 Top-1</h2>
@@ -941,9 +941,9 @@ tr:hover {{background:rgba(99,102,241,0.08)}}
 </div>
 {chart_section}
 <div class="footer">
-  <p>📊 Coral Creek 量化平台 | XGB_leaf+MMoE Walk-Forward</p>
   <p>🔗 <a href="https://facaila.streamlit.app/" style="color:#818cf8">在线查看</a></p>
   <p>⚠️ 仅供参考，不构成投资建议</p>
+  <p style="font-size:9px;color:#475569">Model: XGBoost Leaf + MMoE (5d/10d/20d) Walk-Forward</p>
 </div>
 </div></body></html>"""
 
@@ -953,7 +953,7 @@ tr:hover {{background:rgba(99,102,241,0.08)}}
 # ===========================================================
 def run_pipeline(market):
     print(f"\n{'='*60}")
-    print(f"🚀 {market} XGB+MMoE Daily Pipeline")
+    print(f"🚀 {market} Coral Creek Way Daily Pipeline")
     print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}")
     t0 = time.time()
@@ -1455,7 +1455,7 @@ def execute_auto_trade(market, picks, top3=None):
 
     html = f"""
     <div style="font-family:system-ui;max-width:700px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:24px;border-radius:12px">
-      <h1 style="color:#a5b4fc;margin-bottom:4px">{mkt_label} 交易报告</h1>
+      <h1 style="color:#a5b4fc;margin-bottom:4px">Coral Creek Way | {mkt_label} 交易报告</h1>
       <p style="color:#64748b;margin-top:0">{today}</p>
 
       <div style="display:flex;gap:16px;margin-bottom:20px">
@@ -1504,7 +1504,7 @@ def execute_auto_trade(market, picks, top3=None):
         receivers = os.environ.get('EMAIL_RECEIVERS', sender).split(',')
         if sender and password:
             msg = MIMEMultipart('alternative')
-            msg['Subject'] = f"{'🇺🇸' if market=='US' else '🇨🇳'} 交易报告 {today} | {len(trade_log)} trades | PL {csym}{total_pl:+,.0f}"
+            msg['Subject'] = f"Coral Creek Way | {'US' if market=='US' else 'CN'} {today} | {len(trade_log)} trades | PL {csym}{total_pl:+,.0f}"
             msg['From'] = sender
             msg['To'] = ', '.join(receivers)
             msg.attach(MIMEText(html, 'html'))
