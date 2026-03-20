@@ -1,8 +1,22 @@
 {
   "date": "2026-03-19",
   "market": "CN",
-  "total_signals": 929,
+  "total_signals": 1140,
   "top_signals": [
+    {
+      "symbol": "605179.SH",
+      "name": "一鸣食品",
+      "price": 17.82,
+      "day_blue": 200.0,
+      "week_blue": 96.2
+    },
+    {
+      "symbol": "600559.SH",
+      "name": "老白干酒",
+      "price": 14.5,
+      "day_blue": 200.0,
+      "week_blue": 193.8
+    },
     {
       "symbol": "603711.SH",
       "name": "香飘飘",
@@ -93,20 +107,6 @@
       "price": 39.36,
       "day_blue": 200.0,
       "week_blue": 92.4
-    },
-    {
-      "symbol": "920802.BJ",
-      "name": "保丽洁",
-      "price": 14.45,
-      "day_blue": 200.0,
-      "week_blue": 92.0
-    },
-    {
-      "symbol": "920942.BJ",
-      "name": "恒立钻具",
-      "price": 26.51,
-      "day_blue": 200.0,
-      "week_blue": 64.3
     }
   ]
 }
