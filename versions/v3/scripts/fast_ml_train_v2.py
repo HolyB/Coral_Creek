@@ -196,6 +196,38 @@ def _compute_benchmark_features(market, start_date, end_date, hist_conn):
             'spy_ma20_dist': float(ma20_dist.iloc[i]) if not pd.isna(ma20_dist.iloc[i]) else 0,
         }
 
+    # Cross-market ETF features (US only)
+    cross_map = {
+        'nasdaq': 'QQQ', 'gold': 'GLD', 'oil': 'USO',
+        'bonds': 'TLT', 'smallcap': 'IWM',
+    }
+    for label, sym in cross_map.items():
+        try:
+            xdf = pd.read_sql_query(
+                f"SELECT trade_date as Date, close as Close FROM stock_history "
+                f"WHERE symbol='{sym}' AND market='US' ORDER BY trade_date",
+                hist_conn)
+            if len(xdf) < 60:
+                continue
+            xdf['Date'] = pd.to_datetime(xdf['Date'])
+            xdf = xdf.sort_values('Date').reset_index(drop=True)
+            xc = xdf['Close'].astype(float)
+            xma20 = xc.rolling(20).mean()
+            xret5 = xc.pct_change(5) * 100
+            xret20 = xc.pct_change(20) * 100
+            xma20_dist = ((xc - xma20) / xma20 * 100)
+            for j in range(len(xdf)):
+                ds = xdf.iloc[j]['Date'].strftime('%Y-%m-%d')
+                if ds not in result:
+                    continue
+                result[ds][f'{label}_close'] = float(xc.iloc[j]) if not pd.isna(xc.iloc[j]) else 0
+                result[ds][f'{label}_ret5'] = float(xret5.iloc[j]) if not pd.isna(xret5.iloc[j]) else 0
+                result[ds][f'{label}_ret20'] = float(xret20.iloc[j]) if not pd.isna(xret20.iloc[j]) else 0
+                result[ds][f'{label}_ma20_dist'] = float(xma20_dist.iloc[j]) if not pd.isna(xma20_dist.iloc[j]) else 0
+            print(f"   ✅ {label}({sym}): {len(xdf)} days", flush=True)
+        except Exception as e:
+            print(f"   ⚠️ {label}({sym}): {e}", flush=True)
+
     return result
 
 def prepare_dataset(market='US', days_back=365, price_tier='standard',

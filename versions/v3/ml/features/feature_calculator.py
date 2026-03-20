@@ -68,11 +68,22 @@ class FeatureCalculator:
         # 9. 价格形态
         result = self._add_pattern_features(result)
         
-        # 10. BLUE 信号特征 (如果提供)
+        # 10. BLUE 信号特征 — 自动计算
+        if not blue_signals:
+            blue_signals = self.calculate_blue_signal(result)
         if blue_signals:
             result = self._add_blue_features(result, blue_signals)
         
-        # 11. 新闻情绪特征 (如果 symbol 可用)
+        # 11. K线形态 (旧版兼容)
+        result = self._add_candle_features(result)
+        
+        # 12. 时间特征
+        result = self._add_time_features(result)
+        
+        # 13. 价格特征
+        result = self._add_price_features(result)
+        
+        # 14. 新闻情绪特征 (如果 symbol 可用)
         if blue_signals and blue_signals.get('symbol'):
             result = self._add_news_features(
                 result,
@@ -488,6 +499,62 @@ class FeatureCalculator:
         df['near_high_60'] = (close >= high.rolling(60).max() * 0.98).astype(int)
         df['near_low_60'] = (close <= low.rolling(60).min() * 1.02).astype(int)
         
+        return df
+    
+    def _add_candle_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """K线形态特征 (旧版兼容名)"""
+        open_p = df['Open']
+        high = df['High']
+        low = df['Low']
+        close = df['Close']
+        body = close - open_p
+        full_range = high - low + 1e-10
+        
+        # 实体占比
+        df['candle_body_pct'] = abs(body) / full_range
+        # 上影线占比
+        df['candle_upper_shadow'] = (high - pd.concat([close, open_p], axis=1).max(axis=1)) / full_range
+        # 下影线占比
+        df['candle_lower_shadow'] = (pd.concat([close, open_p], axis=1).min(axis=1) - low) / full_range
+        # 十字星
+        df['candle_is_doji'] = (df['candle_body_pct'] < 0.1).astype(int)
+        # 锤子线
+        df['candle_is_hammer'] = ((df['candle_lower_shadow'] > 0.6) & (df['candle_body_pct'] < 0.3)).astype(int)
+        # 射击之星
+        df['candle_is_shooting_star'] = ((df['candle_upper_shadow'] > 0.6) & (df['candle_body_pct'] < 0.3)).astype(int)
+        # 长实体
+        df['candle_is_long_body'] = (df['candle_body_pct'] > 0.7).astype(int)
+        # 光头光脚 (几乎无影线)
+        df['candle_is_marubozu'] = ((df['candle_upper_shadow'] < 0.05) & (df['candle_lower_shadow'] < 0.05)).astype(int)
+        
+        return df
+    
+    def _add_time_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """时间特征"""
+        if 'Date' not in df.columns:
+            return df
+        dt = pd.to_datetime(df['Date'])
+        df['day_of_week'] = dt.dt.dayofweek
+        df['month'] = dt.dt.month
+        df['is_jan'] = (dt.dt.month == 1).astype(int)
+        df['is_dec'] = (dt.dt.month == 12).astype(int)
+        df['is_month_start'] = dt.dt.is_month_start.astype(int)
+        df['is_month_end'] = dt.dt.is_month_end.astype(int)
+        df['is_quarter_end'] = dt.dt.is_quarter_end.astype(int)
+        return df
+    
+    def _add_price_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """价格特征"""
+        close = df['Close']
+        df['price_log'] = np.log(close.clip(lower=0.01))
+        # 价格分档: 0=<5, 1=5-20, 2=20-50, 3=50-100, 4=100+
+        df['price_bucket'] = pd.cut(close, bins=[0, 5, 20, 50, 100, 1e10],
+                                     labels=[0, 1, 2, 3, 4]).astype(float).fillna(0)
+        # 盈亏比 (近20d max收益 / max亏损)
+        ret1 = close.pct_change()
+        roll_max_gain = ret1.rolling(20).max()
+        roll_max_loss = ret1.rolling(20).min().abs()
+        df['profit_ratio'] = roll_max_gain / (roll_max_loss + 1e-10)
         return df
 
     def _add_news_features(self, df: pd.DataFrame, symbol: str, market: str = 'US') -> pd.DataFrame:
