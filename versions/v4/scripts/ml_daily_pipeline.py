@@ -747,7 +747,7 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
     if recent_picks:
         hconn_due = sqlite3.connect(str(V3 / 'db' / 'stock_history.db'))
         due_hold_configs = [('5天策略', 5), ('10天', 10), ('20天策略', 20)]
-        due_items = []
+        due_per_tier = {}  # tier -> list of row HTML
         seen_due = set()
         for r in recent_picks:
             dt, tier, sym, name, price, blend, pred, a5, a10, a20 = r
@@ -766,10 +766,8 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
                     if key not in seen_due:
                         seen_due.add(key)
                         rc = '#22c55e' if cur_ret > 0 else '#ef4444'
-                        due_items.append(f"""
-                        <tr>
+                        due_per_tier.setdefault(tier, []).append(f"""<tr>
                           <td style="font-weight:700">{sym}<br><small style="color:#64748b">{name or ''}</small></td>
-                          <td style="text-align:center;font-size:10px;color:{_tier_color(tier)}">{tier[:8]}</td>
                           <td style="text-align:center;color:#a5b4fc">{config_name}</td>
                           <td style="text-align:center">{days_held}d</td>
                           <td style="text-align:right">{price_sym}{price:.2f}</td>
@@ -778,16 +776,22 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
                         </tr>""")
                     break
         hconn_due.close()
-        if due_items:
-            due_html = f"""
-            <div style="background:#1e293b;border-radius:10px;padding:16px;margin-bottom:16px;border-left:4px solid #f97316">
+        if due_per_tier:
+            due_blocks = ""
+            for tier, items in due_per_tier.items():
+                tc = _tier_color(tier)
+                due_blocks += f"""<div style="margin-bottom:10px">
+                  <div style="font-size:11px;font-weight:700;color:{tc};margin-bottom:4px">● {tier} ({len(items)})</div>
+                  <table style="width:100%;border-collapse:collapse;font-size:12px">
+                    <tr style="background:#334155">
+                      <th>股票</th><th>策略</th><th>天数</th><th>买入</th><th>现价</th><th>涨跌</th>
+                    </tr>
+                    {''.join(items)}
+                  </table>
+                </div>"""
+            due_html = f"""<div style="background:#1e293b;border-radius:10px;padding:16px;margin-bottom:16px;border-left:4px solid #f97316">
               <h3 style="color:#f97316;margin-top:0">⏰ 到期可卖</h3>
-              <table style="width:100%;border-collapse:collapse;font-size:12px">
-                <tr style="background:#334155">
-                  <th>股票</th><th>Tier</th><th>策略</th><th>天数</th><th>买入</th><th>现价</th><th>涨跌</th>
-                </tr>
-                {''.join(due_items)}
-              </table>
+              {due_blocks}
             </div>"""
 
     # ==== Section 2: Last 60 days history — grouped by tier ====
@@ -829,15 +833,13 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
             if cur_ret > 0: counts[1] += 1
         hconn.close()
 
-    # Build per-tier HTML sections
+    # Build per-tier HTML sections — sorted by win rate (highest first)
     ytd_sections_html = ""
-    # Sort tiers by predefined order
-    if market == 'US':
-        tier_order = ['Mega (>$100B)', 'Large ($10-100B)', 'Mid ($2-10B)', 'Small ($300M-2B)', 'Micro ($50-300M)']
-    else:
-        tier_order = [t for t in ytd_per_tier.keys()]
-    sorted_tiers = [t for t in tier_order if t in ytd_per_tier] + \
-                   [t for t in ytd_per_tier if t not in tier_order]
+    sorted_tiers = sorted(
+        ytd_per_tier.keys(),
+        key=lambda t: ytd_per_tier_counts.get(t, [0, 0])[1] / max(ytd_per_tier_counts.get(t, [1, 0])[0], 1),
+        reverse=True
+    )
 
     n_recent = sum(len(v) for v in ytd_per_tier.values())
     for tier in sorted_tiers:
