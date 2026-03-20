@@ -53,35 +53,71 @@ def get_alpaca_accounts():
 
 @st.cache_data(ttl=120, show_spinner="加载 CN 虚拟盘...")
 def get_cn_accounts():
-    """Fetch CN paper trading accounts"""
+    """Fetch CN paper trading accounts from cn_paper_trading.db"""
     db_path = V4 / 'db' / 'cn_paper_trading.db'
     if not db_path.exists():
-        return {}
+        return {'_error': f'DB not found: {db_path}'}
     try:
         conn = sqlite3.connect(str(db_path))
-        accounts = pd.read_sql("SELECT * FROM accounts", conn)
+        accounts = pd.read_sql("SELECT account_id, cash, created_at FROM accounts", conn)
         results = {}
+        # Get latest stock prices for position valuation
+        hist_db = V4 / 'db' / 'stock_history.db'
+        hconn = sqlite3.connect(str(hist_db)) if hist_db.exists() else None
+
         for _, acc in accounts.iterrows():
-            name = acc['account_name']
+            acc_id = acc['account_id']
+            cash = float(acc['cash'])
+
+            # Positions
             positions = pd.read_sql(
-                "SELECT * FROM positions WHERE account_name=?",
-                conn, params=(name,)
+                "SELECT symbol, qty, avg_entry_price, opened_at FROM positions WHERE account_id=? AND qty>0",
+                conn, params=(acc_id,)
             )
+            pos_list = []
+            pos_value = 0
+            for _, p in positions.iterrows():
+                sym = p['symbol']
+                qty = float(p['qty'])
+                entry = float(p['avg_entry_price'])
+                cur_price = entry  # fallback
+                if hconn:
+                    row = hconn.execute(
+                        "SELECT close FROM stock_history WHERE symbol=? AND market='CN' ORDER BY trade_date DESC LIMIT 1",
+                        (sym,)
+                    ).fetchone()
+                    if row:
+                        cur_price = row[0]
+                pnl_pct = (cur_price / entry - 1) * 100 if entry > 0 else 0
+                mv = qty * cur_price
+                pos_value += mv
+                pos_list.append({
+                    'symbol': sym, 'qty': int(qty),
+                    'avg_entry_price': entry, 'current_price': cur_price,
+                    'pnl_pct': pnl_pct, 'market_value': mv,
+                })
+
+            equity = cash + pos_value
+
+            # Equity history
             equity_hist = pd.read_sql(
-                "SELECT * FROM equity_snapshots WHERE account_name=? ORDER BY date",
-                conn, params=(name,)
+                "SELECT date, equity, cash, positions_value FROM equity_history WHERE account_id=? ORDER BY date",
+                conn, params=(acc_id,)
             )
-            results[name] = {
-                'equity': float(acc.get('equity', 100000)),
-                'cash': float(acc.get('cash', 100000)),
-                'pl': float(acc.get('equity', 100000)) - float(acc.get('initial_capital', 100000)),
-                'positions': positions.to_dict('records') if not positions.empty else [],
+
+            results[acc_id] = {
+                'equity': equity,
+                'cash': cash,
+                'pl': equity - 100000,
+                'positions': pos_list,
                 'equity_history': equity_hist.to_dict('records') if not equity_hist.empty else [],
             }
+        if hconn:
+            hconn.close()
         conn.close()
         return results
     except Exception as e:
-        return {'error': str(e)}
+        return {'_error': str(e)}
 
 
 def render_paper_trading_page():
@@ -178,32 +214,46 @@ def render_paper_trading_page():
         st.subheader("🇨🇳 CN 虚拟盘")
         cn_data = get_cn_accounts()
 
-        if not cn_data or 'error' in cn_data:
-            st.warning("CN 虚拟盘数据库不可用")
+        if not cn_data or '_error' in cn_data:
+            err = cn_data.get('_error', '未知错误') if cn_data else '无数据'
+            st.warning(f"CN 虚拟盘: {err}")
             return
+
+        # CN summary KPIs
+        cn_equity = sum(d.get('equity', 0) for d in cn_data.values())
+        cn_pl = sum(d.get('pl', 0) for d in cn_data.values())
+        cn_pos = sum(len(d.get('positions', [])) for d in cn_data.values())
+        cc1, cc2, cc3 = st.columns(3)
+        cc1.metric("💰 总权益", f"¥{cn_equity:,.0f}")
+        cc2.metric("📈 总盈亏", f"¥{cn_pl:+,.0f}")
+        cc3.metric("📊 总持仓", f"{cn_pos}")
+        st.divider()
 
         for acc_name, data in cn_data.items():
             equity = data.get('equity', 0)
             pl = data.get('pl', 0)
             positions = data.get('positions', [])
             equity_hist = data.get('equity_history', [])
+            pl_color = "🟢" if pl >= 0 else "🔴"
 
             with st.expander(
-                f"**{acc_name}** | ¥{equity:,.0f} | P&L: ¥{pl:+,.0f} | {len(positions)} 持仓",
-                expanded=True
+                f"**{acc_name}** {pl_color} ¥{equity:,.0f} | P&L: ¥{pl:+,.0f} | {len(positions)} 持仓",
+                expanded=len(positions) > 0
             ):
                 if positions:
                     rows = []
                     for p in positions:
                         rows.append({
                             '股票': p.get('symbol', ''),
-                            '名称': p.get('name', ''),
                             '数量': p.get('qty', 0),
-                            '成本': f"¥{p.get('avg_price', 0):.2f}",
+                            '成本': f"¥{p.get('avg_entry_price', 0):.2f}",
                             '现价': f"¥{p.get('current_price', 0):.2f}",
-                            '盈亏%': f"{p.get('pnl_pct', 0):+.1f}%",
+                            '涨跌': f"{p.get('pnl_pct', 0):+.1f}%",
+                            '市值': f"¥{p.get('market_value', 0):,.0f}",
                         })
                     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                else:
+                    st.info("无持仓")
 
                 # Equity curve
                 if equity_hist:

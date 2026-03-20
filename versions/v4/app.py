@@ -1090,38 +1090,8 @@ def is_admin():
 
 check_password()
 
-# --- 侧边栏: Alpaca 持仓 + 系统工具 ---
+# --- 侧边栏: 系统工具 ---
 with st.sidebar:
-    # Alpaca 持仓小部件（仅 US 市场）
-    try:
-        from components.alpaca_widget import render_alpaca_sidebar_widget
-        sidebar_market = _get_active_market()
-        render_alpaca_sidebar_widget(
-            enabled=(sidebar_market == "US"),
-            current_market=sidebar_market,
-        )
-    except ImportError:
-        pass  # 组件未安装时静默跳过
-    
-    st.markdown("---")
-    st.caption("🎮 模拟盘")
-    try:
-        from services.portfolio_service import list_paper_accounts
-        sidebar_accounts = list_paper_accounts()
-        sidebar_names = [a['account_name'] for a in sidebar_accounts] if sidebar_accounts else ['default']
-        current_global_account = _get_global_paper_account_name()
-        sidebar_index = sidebar_names.index(current_global_account) if current_global_account in sidebar_names else 0
-        selected_global_account = st.selectbox(
-            "全局子账户",
-            sidebar_names,
-            index=sidebar_index,
-            key="sidebar_global_paper_account"
-        )
-        _set_global_paper_account_name(selected_global_account)
-    except Exception:
-        st.caption("⚠️ 模拟盘子账户加载失败")
-
-    st.markdown("---")
 
     st.caption("🔧 系统工具")
     if st.button("🔔 发送测试通知", help="点击此按钮测试 Telegram 连接"):
@@ -17445,7 +17415,7 @@ if page in ("💰 交易执行", "💹 模拟盘"):
     _set_active_market("US")
 
 st.sidebar.markdown("---")
-st.sidebar.caption("💡 Alpaca 持仓始终可见于左侧栏")
+st.sidebar.caption("💡 模拟盘详情请看 💹 模拟盘 页面")
 render_data_source_status_bar()
 render_action_health_panel()
 
