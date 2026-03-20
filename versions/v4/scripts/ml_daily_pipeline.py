@@ -790,8 +790,9 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
               </table>
             </div>"""
 
-    # ==== Section 2: Last 60 days history ====
-    ytd_rows = ""
+    # ==== Section 2: Last 60 days history — grouped by tier ====
+    ytd_per_tier = {}  # tier -> list of row HTML strings
+    ytd_per_tier_counts = {}  # tier -> (total, wins)
     if recent_picks:
         hconn = sqlite3.connect(str(V3 / 'db' / 'stock_history.db'))
         for r in recent_picks:
@@ -802,7 +803,6 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
             cur_p = cur[0] if cur else price
             cur_ret = (cur_p / price - 1) * 100 if price > 0 else 0
             cur_c = '#22c55e' if cur_ret > 0 else '#ef4444' if cur_ret < 0 else '#ffffff'
-            # Calculate trading days held
             days_held = hconn.execute(
                 "SELECT COUNT(DISTINCT trade_date) FROM stock_history WHERE symbol=? AND market=? AND trade_date>?",
                 (sym, market, dt)
@@ -813,9 +813,8 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
                 return f'<td style="color:{c};font-weight:600;text-align:center">{v:+.1f}%</td>'
             marker = '✅' if cur_ret > 0 else '❌'
             tc = _tier_color(tier)
-            ytd_rows += f"""<tr>
+            row_html = f"""<tr>
               <td style="color:#94a3b8;font-size:11px;white-space:nowrap">{dt}</td>
-              <td style="font-size:10px;color:{tc};font-weight:700">● {tier[:12]}</td>
               <td><strong>{sym}</strong><br><small style="color:#64748b">{name or ''}</small></td>
               <td style="text-align:center;color:#94a3b8;font-size:12px">{days_held}d</td>
               <td style="text-align:right">{price_sym}{price:.2f}</td>
@@ -824,7 +823,43 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
               {_fc(a5)} {_fc(a10)} {_fc(a20)}
               <td style="text-align:center">{marker}</td>
             </tr>"""
+            ytd_per_tier.setdefault(tier, []).append(row_html)
+            counts = ytd_per_tier_counts.setdefault(tier, [0, 0])
+            counts[0] += 1
+            if cur_ret > 0: counts[1] += 1
         hconn.close()
+
+    # Build per-tier HTML sections
+    ytd_sections_html = ""
+    # Sort tiers by predefined order
+    if market == 'US':
+        tier_order = [MEGA, LARGE, MID, SMALL, MICRO]
+    else:
+        tier_order = [t for t in ytd_per_tier.keys()]
+    sorted_tiers = [t for t in tier_order if t in ytd_per_tier] + \
+                   [t for t in ytd_per_tier if t not in tier_order]
+
+    n_recent = sum(len(v) for v in ytd_per_tier.values())
+    for tier in sorted_tiers:
+        rows = ytd_per_tier[tier]
+        cnt, wins = ytd_per_tier_counts.get(tier, [0, 0])
+        wr = wins / cnt * 100 if cnt > 0 else 0
+        tc = _tier_color(tier)
+        wr_c = '#22c55e' if wr >= 50 else '#ef4444'
+        ytd_sections_html += f"""
+<div class="section" style="border-left:3px solid {tc}">
+  <h2 style="border-color:{tc}">
+    <span style="color:{tc}">● {tier}</span>
+    <span style="float:right;font-size:12px;font-weight:400;color:#94a3b8">
+      {cnt} picks | <span style="color:{wr_c}">{wr:.0f}% WR</span>
+    </span>
+  </h2>
+  <table>
+  <tr><th>日期</th><th>股票</th><th>天数</th><th>买入</th><th>现价</th><th>涨跌</th>
+    <th>5D</th><th>10D</th><th>20D</th><th></th></tr>
+  {''.join(rows)}
+  </table>
+</div>"""
 
     # ==== Section 3: Per-tier stats ====
     tier_stats_html = ""
@@ -897,7 +932,7 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
   <img src="data:image/png;base64,{chart_b64}" style="width:100%;border-radius:8px" alt="Strategy Chart">
 </div>"""
 
-    n_recent = len(recent_picks) if recent_picks else 0
+    # n_recent is computed from ytd_per_tier above
     return f"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
@@ -926,14 +961,8 @@ tr:hover {{background:rgba(99,102,241,0.08)}}
   {pick_cards}
 </div>
 {due_html}
-<div class="section">
-  <h2>📋 2026 YTD 选股记录 ({n_recent} 笔)</h2>
-  <table>
-  <tr><th>日期</th><th>Tier</th><th>股票</th><th>天数</th><th>买入</th><th>现价</th><th>涨跌</th>
-    <th>5D</th><th>10D</th><th>20D</th><th></th></tr>
-  {ytd_rows}
-  </table>
-</div>
+<h2 style="color:#e2e8f0;margin:20px 0 8px;font-size:16px;padding-left:8px">📋 2026 YTD 选股记录 ({n_recent} 笔)</h2>
+{ytd_sections_html}
 <div class="section">
   <h2>📊 各 Tier 累计表现</h2>
   {tier_stats_html}
