@@ -315,6 +315,10 @@ def send_email_report(html: str, market: str, chart_path: str = None):
     smtp_pass = os.getenv('SMTP_PASSWORD')
     receivers = os.getenv('EMAIL_RECEIVERS', os.getenv('TO_EMAIL', ''))
     to_list = [e.strip() for e in receivers.split(',') if e.strip()]
+    # Market-specific extra receivers
+    if market == 'CN':
+        cn_extra = os.getenv('EMAIL_RECEIVERS_CN', '')
+        to_list.extend([e.strip() for e in cn_extra.split(',') if e.strip() and e.strip() not in to_list])
 
     if not all([smtp_user, smtp_pass, to_list]):
         print("  ⚠️ Email not configured (SMTP_SENDER/SMTP_PASSWORD/EMAIL_RECEIVERS)")

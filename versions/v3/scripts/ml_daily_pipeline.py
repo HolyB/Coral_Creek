@@ -1533,6 +1533,9 @@ def execute_auto_trade(market, picks, top3=None):
         sender = os.environ.get('SMTP_SENDER', '')
         password = os.environ.get('SMTP_PASSWORD', '')
         receivers = os.environ.get('EMAIL_RECEIVERS', sender).split(',')
+        if market == 'CN':
+            cn_extra = os.environ.get('EMAIL_RECEIVERS_CN', '')
+            receivers.extend([e.strip() for e in cn_extra.split(',') if e.strip() and e.strip() not in receivers])
         if sender and password:
             msg = MIMEMultipart('alternative')
             msg['Subject'] = f"Coral Creek Way | {'US' if market=='US' else 'CN'} {today} | {len(trade_log)} trades | PL {csym}{total_pl:+,.0f}"
