@@ -1,0 +1,112 @@
+{
+  "date": "2026-01-28",
+  "market": "CN",
+  "total_signals": 138,
+  "top_signals": [
+    {
+      "symbol": "600941.SH",
+      "name": "中国移动",
+      "price": 95.7,
+      "day_blue": 200.0,
+      "week_blue": 150.7
+    },
+    {
+      "symbol": "601825.SH",
+      "name": "沪农商行",
+      "price": 8.32,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601916.SH",
+      "name": "浙商银行",
+      "price": 2.91,
+      "day_blue": 200.0,
+      "week_blue": 83.9
+    },
+    {
+      "symbol": "002024.SZ",
+      "name": "ST易购",
+      "price": 1.6,
+      "day_blue": 200.0,
+      "week_blue": 127.5
+    },
+    {
+      "symbol": "920305.BJ",
+      "name": "*ST云创",
+      "price": 10.08,
+      "day_blue": 196.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920978.BJ",
+      "name": "开特股份",
+      "price": 31.7,
+      "day_blue": 194.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601328.SH",
+      "name": "交通银行",
+      "price": 6.55,
+      "day_blue": 192.8,
+      "week_blue": 168.4
+    },
+    {
+      "symbol": "002936.SZ",
+      "name": "郑州银行",
+      "price": 1.9,
+      "day_blue": 180.7,
+      "week_blue": 127.2
+    },
+    {
+      "symbol": "300750.SZ",
+      "name": "宁德时代",
+      "price": 339.99,
+      "day_blue": 175.6,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600900.SH",
+      "name": "长江电力",
+      "price": 25.65,
+      "day_blue": 171.4,
+      "week_blue": 172.7
+    },
+    {
+      "symbol": "600887.SH",
+      "name": "伊利股份",
+      "price": 26.14,
+      "day_blue": 169.8,
+      "week_blue": 101.8
+    },
+    {
+      "symbol": "000858.SZ",
+      "name": "五粮液",
+      "price": 100.7,
+      "day_blue": 160.4,
+      "week_blue": 173.1
+    },
+    {
+      "symbol": "601066.SH",
+      "name": "中信建投",
+      "price": 24.13,
+      "day_blue": 150.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300989.SZ",
+      "name": "蕾奥规划",
+      "price": 15.66,
+      "day_blue": 148.3,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002668.SZ",
+      "name": "TCL智家",
+      "price": 9.95,
+      "day_blue": 148.1,
+      "week_blue": 0.0
+    }
+  ]
+}

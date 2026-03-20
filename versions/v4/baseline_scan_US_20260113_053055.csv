@@ -1,0 +1,2 @@
+symbol,price,turnover,blue_daily,blue_days,latest_day_blue,blue_weekly,blue_weeks,latest_week_blue,has_day_week_blue,name
+ALIT,1.665,784.458423,0.0,5,200.0,200.0,3,200.0,True,"Alight, Inc."

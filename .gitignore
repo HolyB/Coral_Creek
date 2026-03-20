@@ -64,3 +64,18 @@ versions/v3/ml/saved_models/qlib_*/qlib_mining_summary_[0-9]*.json
 !versions/v3/db/coral_creek.db
 
 versions/v1/config.json
+
+# v4 large files
+versions/v4/db/
+versions/v4/data/
+versions/v4/logs/
+versions/v4/mlruns/
+versions/v4/reports/
+versions/v4/*.db
+*.db-shm
+*.db-wal
+*.db.corrupt.*
+versions/v4/.agent/ranking_logs/
+versions/v4/ml/models/
+versions/v4/ml/Kronos/
+versions/v4/ml/saved_models/

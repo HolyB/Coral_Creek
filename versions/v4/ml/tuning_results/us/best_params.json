@@ -1,0 +1,30 @@
+{
+  "regressor_1d": {
+    "subsample": 0.8,
+    "n_estimators": 100,
+    "max_depth": 5,
+    "learning_rate": 0.03,
+    "colsample_bytree": 0.8
+  },
+  "regressor_5d": {
+    "subsample": 0.8,
+    "n_estimators": 100,
+    "max_depth": 4,
+    "learning_rate": 0.03,
+    "colsample_bytree": 0.8
+  },
+  "regressor_10d": {
+    "subsample": 0.8,
+    "n_estimators": 100,
+    "max_depth": 4,
+    "learning_rate": 0.03,
+    "colsample_bytree": 0.8
+  },
+  "regressor_30d": {
+    "subsample": 0.8,
+    "n_estimators": 100,
+    "max_depth": 4,
+    "learning_rate": 0.1,
+    "colsample_bytree": 0.8
+  }
+}

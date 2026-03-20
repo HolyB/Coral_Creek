@@ -1,0 +1,32 @@
+﻿python : Impersonate 'chrome_123' does not exist, using
+ 'random'
+At line:1 char:32
++ ... NG='utf-8'; python scripts/run_social_kol_scan.py
+ --tag TEST_LIVE2 -- ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Impersona 
+   te 'ch... using 'random':String) [], RemoteExcepti  
+  on
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+*馃摗 绀句氦澶鍠婂崟鑷姩杩借釜*
+`2026-02-13 17:34`
+鏍囩: `TEST_LIVE2` | 璇勪及鍛ㄦ湡: 10澶?
+
+鎶撳彇缁撴灉: KOL 4 | 鏂板鍗氫富 0 | 鏂板鎺ㄨ崘 10 | 鍘婚噸璺宠繃 9
+
+*馃幆 浠婃棩鏂板鎺ㄨ崘:*
+鈥?*Roaring Kitty* (Twitter): NOV(B), ON(B), BY(B), GME(B), BY(B), ET(B), BY(B), GME(B), BY(B), BY(B)
+
+馃搳 KOL鎶撳彇缁熻:
+- Roaring Kitty(Twitter): 甯栧瓙 10 | 璇嗗埆 15 | 鏂板 10 | 鍘婚噸 5
+- WallStreetBets(Reddit): 甯栧瓙 8 | 璇嗗埆 4 | 鏂板 0 | 鍘婚噸 4
+- 闆悆鐑(闆悆): 甯栧瓙 10 | 璇嗗埆 0 | 鏂板 0
+- 璐㈢粡鍗氫富鏍锋湰(寰崥): 甯栧瓙 10 | 璇嗗埆 0 | 鏂板 0
+
+*馃搱 鍗氫富涓氱哗璇勪及:*
+- Roaring Kitty: 鏍锋湰 10 | 鍛戒腑鐜?0.0% | 鏂瑰悜鏀剁泭 +0.00% | 骞冲潎鏀剁泭 +0.00%
+
+_浠呬緵鐮旂┒锛屼笉鏋勬垚鎶曡祫寤鸿_
+NOTIFY_STATUS|overall=True|telegram=True|wecom=True|wxpusher=True|bark=True
