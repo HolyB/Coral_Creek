@@ -1,8 +1,15 @@
 {
   "date": "2026-03-19",
   "market": "CN",
-  "total_signals": 764,
+  "total_signals": 929,
   "top_signals": [
+    {
+      "symbol": "603711.SH",
+      "name": "香飘飘",
+      "price": 12.98,
+      "day_blue": 200.0,
+      "week_blue": 90.0
+    },
     {
       "symbol": "920124.BJ",
       "name": "南特科技",
@@ -100,13 +107,6 @@
       "price": 26.51,
       "day_blue": 200.0,
       "week_blue": 64.3
-    },
-    {
-      "symbol": "920753.BJ",
-      "name": "天纺标",
-      "price": 19.58,
-      "day_blue": 200.0,
-      "week_blue": 114.5
     }
   ]
 }
