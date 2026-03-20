@@ -998,6 +998,36 @@ def run_pipeline(market):
     print(f"\n✅ {market} pipeline done in {time.time()-t0:.0f}s")
 
 
+def _build_stats_html(strat_stats, strat_defs, colors):
+    """Build strategy stats HTML table."""
+    if not strat_stats:
+        return '<p style="color:#64748b">暂无策略数据</p>'
+    rows = ''
+    for i, (sname, _, _, _, _) in enumerate(strat_defs):
+        s = strat_stats.get(sname, {})
+        n = s.get('n', 0)
+        wr = s.get('wr', 0)
+        avg = s.get('avg', 0)
+        mdd = s.get('mdd', 0)
+        nav = s.get('nav', 100)
+        c = colors[i] if i < len(colors) else '#fff'
+        wr_c = '#22c55e' if wr >= 50 else '#ef4444'
+        avg_c = '#22c55e' if avg >= 0 else '#ef4444'
+        nav_c = '#22c55e' if nav >= 100 else '#ef4444'
+        rows += f"""<tr>
+          <td style="font-weight:700;color:{c};padding:5px">{sname}</td>
+          <td style="text-align:center">{n}</td>
+          <td style="text-align:center;color:{wr_c};font-weight:700">{wr:.0f}%</td>
+          <td style="text-align:center;color:{avg_c};font-weight:700">{avg:+.1f}%</td>
+          <td style="text-align:center;color:#ef4444">{mdd:.1f}%</td>
+          <td style="text-align:center;font-weight:700;color:{nav_c}">{nav:.1f}</td>
+        </tr>"""
+    return f"""<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px">
+        <tr style="background:#334155">
+          <th style="padding:6px">策略</th><th>选股数</th><th>胜率</th><th>平均收益</th><th>最大回撤</th><th>NAV</th>
+        </tr>{rows}</table>"""
+
+
 def execute_auto_trade(market, picks, top3=None):
     """Execute trades for US (Alpaca) or CN (CnPaperTrader) with 6 strategies."""
 
@@ -1151,61 +1181,178 @@ def execute_auto_trade(market, picks, top3=None):
             except Exception:
                 pass
 
-    # ============ Generate equity curve chart ============
+    # ============ Generate comprehensive strategy charts ============
     chart_b64 = ""
+    strat_stats = {}
+    STRAT_DEFS = [
+        ('MID_10',   [MID],             0.10, 20, 1),
+        ('LARGE_10', [LARGE],           0.10, 20, 1),
+        ('SMALL_10', [SMALL],           0.10, 20, 1),
+        ('ALL_3PCT', [LARGE, MID, SMALL], 0.03, 20, 1),
+        ('MID_TOP3', [MID],             0.03, 20, 3),
+        ('MS_5DAY',  [MID, SMALL],      0.10, 5,  1),
+    ]
+    colors = ['#60a5fa', '#22c55e', '#f97316', '#a78bfa', '#ec4899', '#facc15']
     try:
         import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
-        import matplotlib.dates as mdates
+        from matplotlib.gridspec import GridSpec
         from io import BytesIO
         import base64
 
-        fig, ax = plt.subplots(figsize=(10, 5))
-        fig.patch.set_facecolor('#0f172a')
-        ax.set_facecolor('#1e293b')
-        colors = ['#60a5fa', '#22c55e', '#f97316', '#a78bfa', '#ec4899', '#facc15']
+        # ---- Pull strategy picks from DB ----
+        pconn = sqlite3.connect(str(V3 / 'db' / 'ml_daily_picks.db'))
+        hconn = sqlite3.connect(str(V3 / 'db' / 'stock_history.db'))
 
-        has_data = False
-        for i, (sname, trader_inst) in enumerate(strategy_traders.items()):
-            if hasattr(trader_inst, 'get_equity_history'):
-                hist = trader_inst.get_equity_history()
-                if hist:
-                    dates = [h[0] for h in hist]
-                    equities = [h[1] for h in hist]
-                    # Normalize to % return
-                    base = equities[0] if equities[0] > 0 else 100000
-                    returns = [(e / base - 1) * 100 for e in equities]
-                    ax.plot(dates, returns, color=colors[i % len(colors)], linewidth=2, label=sname, marker='o', markersize=3)
-                    has_data = True
+        # Get all picks with actual returns
+        all_picks = pd.read_sql(
+            "SELECT date, tier, symbol, price, actual_5d, actual_10d, actual_20d FROM mmoe_daily_picks WHERE market=? ORDER BY date",
+            pconn, params=(market,)
+        )
+        pconn.close()
+
+        # Get trading dates for NAV curve
+        trade_dates = sorted(all_picks['date'].unique())
+
+        # Simulate each strategy's NAV curve
+        strat_navs = {}    # name -> [(date, nav)]
+        strat_returns = {} # name -> [per-pick returns]
+        strat_stats = {}   # name -> {wr, avg, maxdd, n}
+
+        for sname, tiers, pct, hold, top_n in STRAT_DEFS:
+            nav = 100.0
+            nav_curve = []
+            pick_rets = []
+
+            # Filter picks for this strategy's tiers
+            tier_picks = all_picks[all_picks['tier'].isin(tiers)].copy()
+
+            # Group by date, take top_n per date
+            for dt in trade_dates:
+                day_picks = tier_picks[tier_picks['date'] == dt].head(top_n)
+                if day_picks.empty:
+                    nav_curve.append((dt, nav))
+                    continue
+
+                # Use actual return matching hold period
+                ret_col = f'actual_{hold}d' if f'actual_{hold}d' in day_picks.columns else 'actual_20d'
+                day_rets = day_picks[ret_col].dropna()
+
+                if not day_rets.empty:
+                    avg_ret = day_rets.mean()
+                    # NAV change: pct * top_n positions * avg return
+                    position_pct = min(pct * top_n, 0.30)  # cap at 30%
+                    nav *= (1 + position_pct * avg_ret / 100)
+                    pick_rets.extend(day_rets.tolist())
+
+                nav_curve.append((dt, nav))
+
+            strat_navs[sname] = nav_curve
+            strat_returns[sname] = pick_rets
+
+            # Stats
+            if pick_rets:
+                wins = sum(1 for r in pick_rets if r > 0)
+                wr = wins / len(pick_rets) * 100
+                avg = np.mean(pick_rets)
+                # Max drawdown from NAV
+                navs = [n[1] for n in nav_curve]
+                peak = navs[0]
+                mdd = 0
+                for n in navs:
+                    if n > peak: peak = n
+                    dd = (peak - n) / peak * 100
+                    if dd > mdd: mdd = dd
+                strat_stats[sname] = {'wr': wr, 'avg': avg, 'mdd': mdd, 'n': len(pick_rets), 'nav': nav}
             else:
-                # US Alpaca — no local history, just show today's return
-                try:
-                    acct = trader_inst.get_account()
-                    ret = (acct.equity / 100000 - 1) * 100
-                    ax.axhline(y=ret, color=colors[i % len(colors)], linewidth=1.5, linestyle='--', label=f"{sname} ({ret:+.1f}%)")
-                    has_data = True
-                except Exception:
-                    pass
+                strat_stats[sname] = {'wr': 0, 'avg': 0, 'mdd': 0, 'n': 0, 'nav': 100}
 
-        if has_data:
-            ax.axhline(y=0, color='#64748b', linewidth=0.5, linestyle='-')
-            ax.set_title(f"{'US' if market == 'US' else 'CN'} Strategy Performance", color='white', fontsize=14, fontweight='bold')
-            ax.set_ylabel('Return %', color='#94a3b8')
-            ax.tick_params(colors='#94a3b8')
-            ax.legend(loc='upper left', fontsize=8, facecolor='#334155', edgecolor='#475569', labelcolor='white')
-            ax.grid(True, alpha=0.15)
-            plt.xticks(rotation=45)
-            plt.tight_layout()
+        hconn.close()
 
-            buf = BytesIO()
-            fig.savefig(buf, format='png', dpi=120, bbox_inches='tight')
-            buf.seek(0)
-            chart_b64 = base64.b64encode(buf.read()).decode()
-            buf.close()
+        # ---- Build 3-panel chart ----
+        fig = plt.figure(figsize=(14, 12))
+        fig.patch.set_facecolor('#0f172a')
+        gs = GridSpec(2, 2, figure=fig, hspace=0.35, wspace=0.25)
+
+        # Panel 1: NAV curves (top, full width)
+        ax1 = fig.add_subplot(gs[0, :])
+        ax1.set_facecolor('#1e293b')
+        for i, (sname, _, _, _, _) in enumerate(STRAT_DEFS):
+            if sname in strat_navs and len(strat_navs[sname]) > 1:
+                dates = [n[0] for n in strat_navs[sname]]
+                navs = [n[1] for n in strat_navs[sname]]
+                final_ret = navs[-1] - 100
+                ax1.plot(dates, navs, color=colors[i], linewidth=2,
+                        label=f'{sname} ({final_ret:+.1f}%)', alpha=0.9)
+        ax1.axhline(y=100, color='#64748b', linewidth=0.5, linestyle='--')
+        ax1.set_title(f'{"🇺🇸 US" if market == "US" else "🇨🇳 CN"} 策略净值曲线 (模拟)', color='white', fontsize=14, fontweight='bold')
+        ax1.set_ylabel('NAV (100=起始)', color='#94a3b8', fontsize=10)
+        ax1.tick_params(colors='#94a3b8', labelsize=8)
+        ax1.legend(loc='upper left', fontsize=8, facecolor='#334155', edgecolor='#475569', labelcolor='white', ncol=2)
+        ax1.grid(True, alpha=0.1)
+        plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right')
+        # Show only every Nth date label
+        if len(dates) > 20:
+            ax1.set_xticks(ax1.get_xticks()[::max(1, len(ax1.get_xticks())//10)])
+
+        # Panel 2: Return distribution (bottom left)
+        ax2 = fig.add_subplot(gs[1, 0])
+        ax2.set_facecolor('#1e293b')
+        all_rets_flat = []
+        for i, (sname, _, _, _, _) in enumerate(STRAT_DEFS):
+            rets = strat_returns.get(sname, [])
+            if rets:
+                ax2.hist(rets, bins=20, alpha=0.5, color=colors[i], label=sname, edgecolor='none')
+                all_rets_flat.extend(rets)
+        if all_rets_flat:
+            ax2.axvline(x=0, color='#ef4444', linewidth=1, linestyle='--')
+            ax2.axvline(x=np.mean(all_rets_flat), color='#22c55e', linewidth=1.5, linestyle='-',
+                       label=f'Avg {np.mean(all_rets_flat):+.1f}%')
+        ax2.set_title('收益分布', color='white', fontsize=12, fontweight='bold')
+        ax2.set_xlabel('Return %', color='#94a3b8', fontsize=9)
+        ax2.set_ylabel('频次', color='#94a3b8', fontsize=9)
+        ax2.tick_params(colors='#94a3b8', labelsize=8)
+        ax2.legend(fontsize=6, facecolor='#334155', edgecolor='#475569', labelcolor='white', ncol=2)
+        ax2.grid(True, alpha=0.1)
+
+        # Panel 3: Win rate + stats (bottom right)
+        ax3 = fig.add_subplot(gs[1, 1])
+        ax3.set_facecolor('#1e293b')
+        snames = [s[0] for s in STRAT_DEFS]
+        wrs = [strat_stats.get(s, {}).get('wr', 0) for s in snames]
+        avgs = [strat_stats.get(s, {}).get('avg', 0) for s in snames]
+        x = np.arange(len(snames))
+        w = 0.35
+        bars1 = ax3.bar(x - w/2, wrs, w, color='#60a5fa', alpha=0.8, label='Win Rate %')
+        bars2 = ax3.bar(x + w/2, avgs, w, color=['#22c55e' if a >= 0 else '#ef4444' for a in avgs], alpha=0.8, label='Avg Ret %')
+        ax3.axhline(y=50, color='#64748b', linewidth=0.5, linestyle='--')
+        ax3.axhline(y=0, color='#64748b', linewidth=0.5, linestyle='-')
+        # Add value labels
+        for bar in bars1:
+            h = bar.get_height()
+            ax3.text(bar.get_x() + bar.get_width()/2, h + 1, f'{h:.0f}%', ha='center', va='bottom', color='#94a3b8', fontsize=7)
+        for bar in bars2:
+            h = bar.get_height()
+            ax3.text(bar.get_x() + bar.get_width()/2, h + (1 if h >= 0 else -3), f'{h:+.1f}%', ha='center', va='bottom', color='#94a3b8', fontsize=7)
+        ax3.set_title('策略胜率 & 平均收益', color='white', fontsize=12, fontweight='bold')
+        ax3.set_xticks(x)
+        ax3.set_xticklabels([s.replace('_', '\n') for s in snames], fontsize=7, color='#94a3b8')
+        ax3.tick_params(colors='#94a3b8', labelsize=8)
+        ax3.legend(fontsize=8, facecolor='#334155', edgecolor='#475569', labelcolor='white')
+        ax3.grid(True, alpha=0.1, axis='y')
+
+        # Save
+        buf = BytesIO()
+        fig.savefig(buf, format='png', dpi=130, bbox_inches='tight')
+        buf.seek(0)
+        chart_b64 = base64.b64encode(buf.read()).decode()
+        buf.close()
         plt.close(fig)
+        print(f"  📈 Strategy charts generated ({len(trade_dates)} dates, {len(all_rets_flat)} picks)", flush=True)
     except Exception as e:
         print(f"  ⚠️ Chart generation failed: {e}", flush=True)
+        import traceback; traceback.print_exc()
 
     # ============ Send trade summary email ============
     if not trade_log and not strategy_traders:
@@ -1334,8 +1481,11 @@ def execute_auto_trade(market, picks, top3=None):
         {trade_rows}
       </table>
 
-      <h2 style="color:#60a5fa;border-bottom:1px solid #334155;padding-bottom:8px">📈 策略收益走势</h2>
+      <h2 style="color:#60a5fa;border-bottom:1px solid #334155;padding-bottom:8px">📈 策略收益对比 (YTD 模拟)</h2>
       {'<img src="data:image/png;base64,' + chart_b64 + '" style="width:100%;border-radius:8px;margin-bottom:20px">' if chart_b64 else '<p style="color:#64748b">数据积累中，需要更多交易日...</p>'}
+
+      <h2 style="color:#60a5fa;border-bottom:1px solid #334155;padding-bottom:8px">📊 策略统计</h2>
+      {_build_stats_html(strat_stats, STRAT_DEFS, colors)}
 
       <h2 style="color:#60a5fa;border-bottom:1px solid #334155;padding-bottom:8px">💼 持仓详情</h2>
       {positions_html}
