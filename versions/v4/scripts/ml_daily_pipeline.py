@@ -833,7 +833,7 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
     ytd_sections_html = ""
     # Sort tiers by predefined order
     if market == 'US':
-        tier_order = [MEGA, LARGE, MID, SMALL, MICRO]
+        tier_order = ['Mega (>$100B)', 'Large ($10-100B)', 'Mid ($2-10B)', 'Small ($300M-2B)', 'Micro ($50-300M)']
     else:
         tier_order = [t for t in ytd_per_tier.keys()]
     sorted_tiers = [t for t in tier_order if t in ytd_per_tier] + \
