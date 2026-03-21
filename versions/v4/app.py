@@ -1285,35 +1285,52 @@ def load_scan_results_from_db(scan_date=None, market=None):
                 else:
                     mkt_map = {}
                     
-                    # 方法1: 尝试 AkShare
-                    try:
-                        import akshare as ak
-                        spot_df = ak.stock_zh_a_spot_em()
-                        mkt_map = dict(zip(spot_df['代码'], spot_df['总市值']))
-                    except Exception as e1:
-                        print(f"AkShare failed: {e1}")
-                        
-                        # 方法2: 尝试 yfinance 批量获取 (只取前30个)
+                    # 方法0: 优先从 ui_cache.db 读取预计算数据
+                    _ui_cache_path = os.path.join(current_dir, 'db', 'ui_cache.db')
+                    if os.path.exists(_ui_cache_path):
                         try:
-                            import yfinance as yf
-                            tickers = df['Ticker'].head(30).tolist()
-                            yf_symbols = []
-                            for t in tickers:
-                                code = t.split('.')[0]
-                                suffix = '.SS' if t.endswith('.SH') else '.SZ'
-                                yf_symbols.append(code + suffix)
-                            
-                            objs = yf.Tickers(' '.join(yf_symbols))
-                            for t, yf_t in zip(tickers, yf_symbols):
-                                try:
+                            import json as _json
+                            _cc = sqlite3.connect(_ui_cache_path)
+                            _row = _cc.execute(
+                                "SELECT value, updated_at FROM cache WHERE key='market_caps_CN'"
+                            ).fetchone()
+                            _cc.close()
+                            if _row and _row[1][:10] == datetime.now().strftime("%Y-%m-%d"):
+                                mkt_map = _json.loads(_row[0])
+                                print(f"[CN caps] ⚡ Loaded {len(mkt_map)} from ui_cache.db")
+                        except Exception as _ce:
+                            print(f"[CN caps] Cache error: {_ce}")
+                    
+                    # 方法1: 尝试 AkShare (if cache miss)
+                    if not mkt_map:
+                        try:
+                            import akshare as ak
+                            spot_df = ak.stock_zh_a_spot_em()
+                            mkt_map = dict(zip(spot_df['代码'], spot_df['总市值']))
+                        except Exception as e1:
+                            print(f"AkShare failed: {e1}")
+                        
+                            # 方法2: 尝试 yfinance 批量获取 (只取前30个)
+                            try:
+                                import yfinance as yf
+                                tickers = df['Ticker'].head(30).tolist()
+                                yf_symbols = []
+                                for t in tickers:
                                     code = t.split('.')[0]
-                                    mc = objs.tickers[yf_t].fast_info.get('marketCap', 0)
-                                    if mc:
-                                        mkt_map[code] = mc
-                                except:
-                                    pass
-                        except Exception as e2:
-                            print(f"yfinance CN failed: {e2}")
+                                    suffix = '.SS' if t.endswith('.SH') else '.SZ'
+                                    yf_symbols.append(code + suffix)
+                                
+                                objs = yf.Tickers(' '.join(yf_symbols))
+                                for t, yf_t in zip(tickers, yf_symbols):
+                                    try:
+                                        code = t.split('.')[0]
+                                        mc = objs.tickers[yf_t].fast_info.get('marketCap', 0)
+                                        if mc:
+                                            mkt_map[code] = mc
+                                    except:
+                                        pass
+                            except Exception as e2:
+                                print(f"yfinance CN failed: {e2}")
                     
                     st.session_state[cache_key] = mkt_map
                 
@@ -1538,180 +1555,198 @@ def render_market_pulse(market='US'):
     Market Pulse Dashboard - 显示大盘指数状态
     US: SPY/QQQ/DIA/IWM + VIX
     CN: 上证/深证/创业板/沪深300
+    优先从 ui_cache.db 读取预计算数据，秒开。
     """
-    from data_fetcher import get_cn_index_data
+    from datetime import datetime
     
     # 缓存键 (每10分钟刷新, 按市场区分)
-    from datetime import datetime
     cache_time_key = datetime.now().strftime("%Y%m%d%H") + str(datetime.now().minute // 10)
     cache_key = f"market_pulse_{market}_{cache_time_key}"
     
-    # 检查缓存
+    # 检查 session state 缓存
     if cache_key not in st.session_state:
-        # 根据市场选择指数
-        if market == 'CN':
-            indices = {
-                '000001.SH': {'name': '上证指数', 'emoji': '🔴'},
-                '399001.SZ': {'name': '深证成指', 'emoji': '🟢'},
-                '399006.SZ': {'name': '创业板指', 'emoji': '💡'},
-                '000300.SH': {'name': '沪深300', 'emoji': '📊'},
-            }
-            data_fetcher = get_cn_index_data
-            currency = '¥'
-        else:
-            indices = {
-                'SPY': {'name': 'S&P 500', 'emoji': '📊'},
-                'QQQ': {'name': 'Nasdaq 100', 'emoji': '💻'},
-                'DIA': {'name': 'Dow 30', 'emoji': '🏭'},
-                'IWM': {'name': 'Russell 2000', 'emoji': '🏢'},
-            }
-            data_fetcher = fetch_data_from_polygon
-            currency = '$'
+        index_data = None
         
-        index_data = {}
-        index_data['_currency'] = currency
-        index_data['_market'] = market
-        
-        for symbol, info in indices.items():
+        # ── 优先从 ui_cache.db 读取预计算数据 ──
+        _ui_cache_path = os.path.join(current_dir, 'db', 'ui_cache.db')
+        if os.path.exists(_ui_cache_path):
             try:
-                # 获取日线数据
-                df_daily = data_fetcher(symbol, days=100)
-                
-                if df_daily is not None and len(df_daily) >= 30:
-                    # 计算日线 BLUE
-                    blue_daily = calculate_blue_signal_series(
-                        df_daily['Open'].values,
-                        df_daily['High'].values,
-                        df_daily['Low'].values,
-                        df_daily['Close'].values
-                    )
-                    
-                    # 计算周线 BLUE
-                    df_weekly = df_daily.resample('W-MON').agg({
-                        'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'
-                    }).dropna()
-                    
-                    blue_weekly = [0]
-                    if len(df_weekly) >= 10:
-                        blue_weekly = calculate_blue_signal_series(
-                            df_weekly['Open'].values,
-                            df_weekly['High'].values,
-                            df_weekly['Low'].values,
-                            df_weekly['Close'].values
-                        )
-                    
-                    # 计算筹码形态
-                    chip_result = quick_chip_analysis(df_daily)
-                    chip_pattern = chip_result.get('label', '') if chip_result else ''
-                    
-                    # 最新价格和变化
-                    latest_price = df_daily['Close'].iloc[-1]
-                    prev_price = df_daily['Close'].iloc[-2] if len(df_daily) > 1 else latest_price
-                    price_change = (latest_price - prev_price) / prev_price * 100
-                    
-                    index_data[symbol] = {
-                        'name': info['name'],
-                        'emoji': info['emoji'],
-                        'price': latest_price,
-                        'change': price_change,
-                        'day_blue': blue_daily[-1] if len(blue_daily) > 0 else 0,
-                        'week_blue': blue_weekly[-1] if len(blue_weekly) > 0 else 0,
-                        'chip': chip_pattern
-                    }
-            except Exception as e:
-                index_data[symbol] = {
-                    'name': info['name'],
-                    'emoji': info['emoji'],
-                    'price': 0,
-                    'change': 0,
-                    'day_blue': 0,
-                    'week_blue': 0,
-                    'chip': '',
-                    'error': str(e)
-                }
+                import json as _json
+                _cc = sqlite3.connect(_ui_cache_path)
+                _row = _cc.execute(
+                    "SELECT value, updated_at FROM cache WHERE key=?",
+                    (f"market_pulse_{market}",)
+                ).fetchone()
+                _cc.close()
+                if _row:
+                    _cached_data = _json.loads(_row[0])
+                    _updated = _row[1]
+                    # 缓存有效期: 当天的数据都可用
+                    if _updated[:10] == datetime.now().strftime("%Y-%m-%d"):
+                        index_data = _cached_data
+                        print(f"[market_pulse] ⚡ Loaded from ui_cache.db ({_updated})")
+            except Exception as _ce:
+                print(f"[market_pulse] Cache read error: {_ce}")
         
-        # VIX 数据 (仅美股, 使用 VIXY ETF 因为 VIX 直接指数无法获取)
-        if market == 'US':
-            try:
-                vix_df = fetch_data_from_polygon('VIXY', days=30)
-                if vix_df is not None and len(vix_df) > 0:
-                    vix_price = vix_df['Close'].iloc[-1]
-                    vix_prev = vix_df['Close'].iloc[-2] if len(vix_df) > 1 else vix_price
-                    vix_change = vix_price - vix_prev
-                    
-                    # VIXY 的阈值需要调整 (ETF 价格不同于 VIX 指数)
-                    if vix_price < 20:
-                        vix_mood = "😌 极度贪婪"
-                    elif vix_price < 25:
-                        vix_mood = "🙂 平静"
-                    elif vix_price < 30:
-                        vix_mood = "😐 中性"
-                    elif vix_price < 40:
-                        vix_mood = "😟 焦虑"
-                    else:
-                        vix_mood = "😱 恐惧"
-                        
-                    index_data['VIX'] = {
-                        'price': vix_price,
-                        'change': vix_change,
-                        'mood': vix_mood
-                    }
-                else:
-                    index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '数据不可用'}
-            except:
-                index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '未知'}
-        
-        # 商品/加密资产数据 (仅美股: Gold, Silver, BTC)
-        if market == 'US':
-            alt_assets = {
-                'GLD': {'name': '黄金', 'emoji': '🥇', 'format': '${:.2f}'},
-                'SLV': {'name': '白银', 'emoji': '🥈', 'format': '${:.2f}'},
-                'X:BTCUSD': {'name': 'BTC', 'emoji': '₿', 'format': '${:,.0f}'}
-            }
+        # ── 回退: 实时 API 获取 (无缓存时) ──
+        if index_data is None:
+            from data_fetcher import get_cn_index_data
             
-            for symbol, info in alt_assets.items():
+            if market == 'CN':
+                indices = {
+                    '000001.SH': {'name': '上证指数', 'emoji': '🔴'},
+                    '399001.SZ': {'name': '深证成指', 'emoji': '🟢'},
+                    '399006.SZ': {'name': '创业板指', 'emoji': '💡'},
+                    '000300.SH': {'name': '沪深300', 'emoji': '📊'},
+                }
+                data_fetcher = get_cn_index_data
+                currency = '¥'
+            else:
+                indices = {
+                    'SPY': {'name': 'S&P 500', 'emoji': '📊'},
+                    'QQQ': {'name': 'Nasdaq 100', 'emoji': '💻'},
+                    'DIA': {'name': 'Dow 30', 'emoji': '🏭'},
+                    'IWM': {'name': 'Russell 2000', 'emoji': '🏢'},
+                }
+                data_fetcher = fetch_data_from_polygon
+                currency = '$'
+            
+            index_data = {}
+            index_data['_currency'] = currency
+            index_data['_market'] = market
+            
+            for symbol, info in indices.items():
                 try:
-                    df = fetch_data_from_polygon(symbol, days=30)
-                    if df is not None and len(df) > 0:
-                        price = df['Close'].iloc[-1]
-                        prev_price = df['Close'].iloc[-2] if len(df) > 1 else price
-                        change = (price - prev_price) / prev_price * 100
+                    df_daily = data_fetcher(symbol, days=100)
+                    
+                    if df_daily is not None and len(df_daily) >= 30:
+                        blue_daily = calculate_blue_signal_series(
+                            df_daily['Open'].values,
+                            df_daily['High'].values,
+                            df_daily['Low'].values,
+                            df_daily['Close'].values
+                        )
+                        
+                        df_weekly = df_daily.resample('W-MON').agg({
+                            'Open': 'first', 'High': 'max', 'Low': 'min', 'Close': 'last', 'Volume': 'sum'
+                        }).dropna()
+                        
+                        blue_weekly = [0]
+                        if len(df_weekly) >= 10:
+                            blue_weekly = calculate_blue_signal_series(
+                                df_weekly['Open'].values,
+                                df_weekly['High'].values,
+                                df_weekly['Low'].values,
+                                df_weekly['Close'].values
+                            )
+                        
+                        chip_result = quick_chip_analysis(df_daily)
+                        chip_pattern = chip_result.get('label', '') if chip_result else ''
+                        
+                        latest_price = df_daily['Close'].iloc[-1]
+                        prev_price = df_daily['Close'].iloc[-2] if len(df_daily) > 1 else latest_price
+                        price_change = (latest_price - prev_price) / prev_price * 100
                         
                         index_data[symbol] = {
                             'name': info['name'],
                             'emoji': info['emoji'],
-                            'price': price,
-                            'change': change,
-                            'format': info['format']
+                            'price': latest_price,
+                            'change': price_change,
+                            'day_blue': blue_daily[-1] if len(blue_daily) > 0 else 0,
+                            'week_blue': blue_weekly[-1] if len(blue_weekly) > 0 else 0,
+                            'chip': chip_pattern
                         }
-                except:
+                except Exception as e:
                     index_data[symbol] = {
                         'name': info['name'],
                         'emoji': info['emoji'],
                         'price': 0,
                         'change': 0,
-                        'format': info['format']
+                        'day_blue': 0,
+                        'week_blue': 0,
+                        'chip': '',
+                        'error': str(e)
                     }
-        
-        # 计算市场情绪综合评分
-        # 过滤掉私有键和VIX，只看主要指数
-        main_indices = [k for k in index_data.keys() if not k.startswith('_') and k not in ['VIX', 'GLD', 'SLV', 'X:BTCUSD']]
-        bullish_count = sum(1 for k in main_indices if index_data.get(k, {}).get('day_blue', 0) > 100)
-        total_indices = len(main_indices)
-        
-        vix_ok = index_data.get('VIX', {}).get('price', 20) < 25 if market == 'US' else True
-        
-        if bullish_count >= 3 and vix_ok:
-            market_sentiment = ("🟢 强势做多", "进攻型 60-80%", "#3fb950")
-        elif bullish_count >= 2:
-            market_sentiment = ("🟡 震荡偏多", "平衡型 40-60%", "#d29922")
-        elif bullish_count >= 1:
-            market_sentiment = ("🟠 分化观望", "防守型 20-40%", "#f85149")
-        else:
-            market_sentiment = ("🔴 弱势防守", "空仓或对冲", "#f85149")
-        
-        index_data['_sentiment'] = market_sentiment
-        index_data['_bullish_count'] = bullish_count
+            
+            # VIX 数据 (仅美股)
+            if market == 'US':
+                try:
+                    vix_df = fetch_data_from_polygon('VIXY', days=30)
+                    if vix_df is not None and len(vix_df) > 0:
+                        vix_price = vix_df['Close'].iloc[-1]
+                        vix_prev = vix_df['Close'].iloc[-2] if len(vix_df) > 1 else vix_price
+                        vix_change = vix_price - vix_prev
+                        
+                        if vix_price < 20:
+                            vix_mood = "😌 极度贪婪"
+                        elif vix_price < 25:
+                            vix_mood = "🙂 平静"
+                        elif vix_price < 30:
+                            vix_mood = "😐 中性"
+                        elif vix_price < 40:
+                            vix_mood = "😟 焦虑"
+                        else:
+                            vix_mood = "😱 恐惧"
+                            
+                        index_data['VIX'] = {
+                            'price': vix_price,
+                            'change': vix_change,
+                            'mood': vix_mood
+                        }
+                    else:
+                        index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '数据不可用'}
+                except:
+                    index_data['VIX'] = {'price': 0, 'change': 0, 'mood': '未知'}
+            
+            # 商品/加密资产数据 (仅美股)
+            if market == 'US':
+                alt_assets = {
+                    'GLD': {'name': '黄金', 'emoji': '🥇', 'format': '${:.2f}'},
+                    'SLV': {'name': '白银', 'emoji': '🥈', 'format': '${:.2f}'},
+                    'X:BTCUSD': {'name': 'BTC', 'emoji': '₿', 'format': '${:,.0f}'}
+                }
+                
+                for symbol, info in alt_assets.items():
+                    try:
+                        df = fetch_data_from_polygon(symbol, days=30)
+                        if df is not None and len(df) > 0:
+                            price = df['Close'].iloc[-1]
+                            prev_price = df['Close'].iloc[-2] if len(df) > 1 else price
+                            change = (price - prev_price) / prev_price * 100
+                            
+                            index_data[symbol] = {
+                                'name': info['name'],
+                                'emoji': info['emoji'],
+                                'price': price,
+                                'change': change,
+                                'format': info['format']
+                            }
+                    except:
+                        index_data[symbol] = {
+                            'name': info['name'],
+                            'emoji': info['emoji'],
+                            'price': 0,
+                            'change': 0,
+                            'format': info['format']
+                        }
+            
+            # 计算市场情绪综合评分
+            main_indices = [k for k in index_data.keys() if not k.startswith('_') and k not in ['VIX', 'GLD', 'SLV', 'X:BTCUSD']]
+            bullish_count = sum(1 for k in main_indices if index_data.get(k, {}).get('day_blue', 0) > 100)
+            
+            vix_ok = index_data.get('VIX', {}).get('price', 20) < 25 if market == 'US' else True
+            
+            if bullish_count >= 3 and vix_ok:
+                market_sentiment = ("🟢 强势做多", "进攻型 60-80%", "#3fb950")
+            elif bullish_count >= 2:
+                market_sentiment = ("🟡 震荡偏多", "平衡型 40-60%", "#d29922")
+            elif bullish_count >= 1:
+                market_sentiment = ("🟠 分化观望", "防守型 20-40%", "#f85149")
+            else:
+                market_sentiment = ("🔴 弱势防守", "空仓或对冲", "#f85149")
+            
+            index_data['_sentiment'] = market_sentiment
+            index_data['_bullish_count'] = bullish_count
         
         st.session_state[cache_key] = index_data
     else:
