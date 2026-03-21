@@ -115,51 +115,69 @@ def render_ml_report_page():
 
         strat_navs = {}
         strat_stats = {}
+        _loaded_from_cache = False
 
-        trade_dates = sorted(df['date'].unique())
-        for sname, tiers, pct, hold, top_n in STRAT_DEFS:
-            # Simulate realistic position management:
-            # - Each day open position(s) using pct of INITIAL capital (not compounding)
-            # - Position closes after `hold` trading days with actual return
-            # - Track cumulative P&L as additive, not multiplicative
-            initial_cap = 100.0
-            cumulative_pl = 0.0
-            curve = []
-            rets = []
-            tier_df = df[df['tier'].isin(tiers)]
+        # ── 优先从 ui_cache.db 加载预计算数据 ──
+        _cache_db = V4 / 'db' / 'ui_cache.db'
+        if _cache_db.exists():
+            try:
+                import json as _json
+                _cc = sqlite3.connect(str(_cache_db))
+                _row = _cc.execute(
+                    "SELECT value, updated_at FROM cache WHERE key=?",
+                    (f"strategy_navs_{market}",)
+                ).fetchone()
+                _cc.close()
+                if _row and _row[1][:10] == datetime.now().strftime("%Y-%m-%d"):
+                    _cached = _json.loads(_row[0])
+                    for sname, data in _cached.items():
+                        strat_navs[sname] = [(c['date'], c['nav']) for c in data['curve']]
+                        strat_stats[sname] = data['stats']
+                    _loaded_from_cache = True
+            except Exception:
+                pass
 
-            for dt in trade_dates:
-                day = tier_df[tier_df['date'] == dt].head(top_n)
-                if not day.empty:
-                    ret_col = f'actual_{hold}d' if f'actual_{hold}d' in day.columns else 'actual_20d'
-                    day_rets = day[ret_col].dropna()
-                    if not day_rets.empty:
-                        # Each pick gets pct allocation of initial capital
-                        for r in day_rets.tolist():
-                            r_capped = max(-100, min(100, r))  # Cap at ±100%
-                            position_size = initial_cap * pct
-                            cumulative_pl += position_size * r_capped / 100
-                            rets.append(r_capped)
+        # ── Fallback: 实时计算 ──
+        if not _loaded_from_cache:
+            trade_dates = sorted(df['date'].unique())
+            for sname, tiers, pct, hold, top_n in STRAT_DEFS:
+                initial_cap = 100.0
+                cumulative_pl = 0.0
+                curve = []
+                rets = []
+                tier_df = df[df['tier'].isin(tiers)]
 
-                nav = initial_cap + cumulative_pl
-                curve.append((dt, nav))
+                for dt in trade_dates:
+                    day = tier_df[tier_df['date'] == dt].head(top_n)
+                    if not day.empty:
+                        ret_col = f'actual_{hold}d' if f'actual_{hold}d' in day.columns else 'actual_20d'
+                        day_rets = day[ret_col].dropna()
+                        if not day_rets.empty:
+                            for r in day_rets.tolist():
+                                r_capped = max(-100, min(100, r))
+                                position_size = initial_cap * pct
+                                cumulative_pl += position_size * r_capped / 100
+                                rets.append(r_capped)
 
-            strat_navs[sname] = curve
-            if rets:
-                wins = sum(1 for r in rets if r > 0)
-                navs = [n[1] for n in curve]
-                peak = navs[0]
-                mdd = 0
-                for n in navs:
-                    if n > peak: peak = n
-                    dd = (peak - n) / peak * 100
-                    if dd > mdd: mdd = dd
-                strat_stats[sname] = {
-                    'wr': wins / len(rets) * 100, 'avg': np.mean(rets),
-                    'mdd': mdd, 'n': len(rets), 'nav': nav
-                }
-            else:
-                strat_stats[sname] = {'wr': 0, 'avg': 0, 'mdd': 0, 'n': 0, 'nav': 100}
+                    nav = initial_cap + cumulative_pl
+                    curve.append((dt, nav))
+
+                strat_navs[sname] = curve
+                if rets:
+                    wins = sum(1 for r in rets if r > 0)
+                    navs = [n[1] for n in curve]
+                    peak = navs[0]
+                    mdd = 0
+                    for n in navs:
+                        if n > peak: peak = n
+                        dd = (peak - n) / peak * 100
+                        if dd > mdd: mdd = dd
+                    strat_stats[sname] = {
+                        'wr': wins / len(rets) * 100, 'avg': np.mean(rets),
+                        'mdd': mdd, 'n': len(rets), 'nav': nav
+                    }
+                else:
+                    strat_stats[sname] = {'wr': 0, 'avg': 0, 'mdd': 0, 'n': 0, 'nav': 100}
 
         # NAV Chart
         fig = go.Figure()
