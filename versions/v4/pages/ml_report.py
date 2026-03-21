@@ -99,7 +99,9 @@ def render_ml_report_page():
 
             with st.container():
                 cols = st.columns([2, 1, 1, 1, 1])
-                cols[0].markdown(f"**<span style='color:{tc}'>{row['symbol']}</span>** — {tier}", unsafe_allow_html=True)
+                name = row.get('name', '') or ''
+                sym_display = f"{row['symbol']} {name}" if name else row['symbol']
+                cols[0].markdown(f"**<span style='color:{tc}'>{sym_display}</span>** — {tier}", unsafe_allow_html=True)
                 cols[1].metric("买入价", f"{csym}{row.get('price', 0):.2f}")
                 cols[2].metric("5d", f"{r5:+.1f}%" if pd.notna(r5) else "⏳", delta_color="normal")
                 cols[3].metric("10d", f"{r10:+.1f}%" if pd.notna(r10) else "⏳", delta_color="normal")
@@ -109,29 +111,37 @@ def render_ml_report_page():
     # --- Tab 2: Strategy comparison ---
     with tab2:
         st.subheader("📈 策略净值模拟 (YTD)")
+        st.caption("💡 收益上限 ±100% 截断，防止低价股异常值扭曲")
 
         strat_navs = {}
         strat_stats = {}
 
         trade_dates = sorted(df['date'].unique())
         for sname, tiers, pct, hold, top_n in STRAT_DEFS:
-            nav = 100.0
+            # Simulate realistic position management:
+            # - Each day open position(s) using pct of INITIAL capital (not compounding)
+            # - Position closes after `hold` trading days with actual return
+            # - Track cumulative P&L as additive, not multiplicative
+            initial_cap = 100.0
+            cumulative_pl = 0.0
             curve = []
             rets = []
             tier_df = df[df['tier'].isin(tiers)]
 
             for dt in trade_dates:
                 day = tier_df[tier_df['date'] == dt].head(top_n)
-                if day.empty:
-                    curve.append((dt, nav))
-                    continue
-                ret_col = f'actual_{hold}d' if f'actual_{hold}d' in day.columns else 'actual_20d'
-                day_rets = day[ret_col].dropna()
-                if not day_rets.empty:
-                    avg_r = day_rets.mean()
-                    pos_pct = min(pct * top_n, 0.30)
-                    nav *= (1 + pos_pct * avg_r / 100)
-                    rets.extend(day_rets.tolist())
+                if not day.empty:
+                    ret_col = f'actual_{hold}d' if f'actual_{hold}d' in day.columns else 'actual_20d'
+                    day_rets = day[ret_col].dropna()
+                    if not day_rets.empty:
+                        # Each pick gets pct allocation of initial capital
+                        for r in day_rets.tolist():
+                            r_capped = max(-100, min(100, r))  # Cap at ±100%
+                            position_size = initial_cap * pct
+                            cumulative_pl += position_size * r_capped / 100
+                            rets.append(r_capped)
+
+                nav = initial_cap + cumulative_pl
                 curve.append((dt, nav))
 
             strat_navs[sname] = curve
@@ -223,13 +233,17 @@ def render_ml_report_page():
             avg = r20.mean() if len(r20) > 0 else 0
 
             with st.expander(f"**{tier}** — {len(tier_df)} picks | WR {wr:.0f}% | Avg {avg:+.1f}%", expanded=False):
-                display = tier_df[['date', 'symbol', 'price', 'actual_5d', 'actual_10d', 'actual_20d']].copy()
+                tier_view = tier_df.copy()
+                tier_view['sym_name'] = tier_view.apply(lambda r: f"{r['symbol']} {r.get('name','') or ''}" if r.get('name') else r['symbol'], axis=1)
+                display = tier_view[['date', 'sym_name', 'price', 'actual_5d', 'actual_10d', 'actual_20d']].copy()
                 display.columns = ['日期', '股票', '买入价', '5d%', '10d%', '20d%']
                 st.dataframe(display, use_container_width=True, hide_index=True)
 
     # --- Tab 4: Full history ---
     with tab4:
         st.subheader("📋 全部选股记录")
-        display_df = df[['date', 'tier', 'symbol', 'price', 'blend_score', 'actual_5d', 'actual_10d', 'actual_20d']].copy()
-        display_df.columns = ['日期', 'Tier', '股票', '买入价', 'Score', '5d%', '10d%', '20d%']
+        hist_view = df.copy()
+        hist_view['sym_name'] = hist_view.apply(lambda r: f"{r['symbol']} {r.get('name','') or ''}" if r.get('name') else r['symbol'], axis=1)
+        display_df = hist_view[['date', 'tier', 'sym_name', 'price', 'blend', 'actual_5d', 'actual_10d', 'actual_20d']].copy()
+        display_df.columns = ['日期', 'Tier', '股票', '买入价', '综合评分', '5d%', '10d%', '20d%']
         st.dataframe(display_df, use_container_width=True, hide_index=True, height=600)
