@@ -564,6 +564,16 @@ def send_report(eval_date, market, picks):
         ).fetchall()
         conn.close()
 
+    # Compute per-day global rank from blend scores
+    # {(date, symbol): (rank, total_on_that_day)}
+    _day_ranks = {}
+    if recent_picks:
+        from itertools import groupby
+        for dt, grp in groupby(sorted(recent_picks, key=lambda x: x[0]), key=lambda x: x[0]):
+            day_picks = sorted(grp, key=lambda x: -(x[5] or 0))  # sort by blend desc
+            for rank_i, rp in enumerate(day_picks):
+                _day_ranks[(dt, rp[2])] = (rank_i + 1, len(day_picks))
+
     # Get current prices for recent picks
     hconn = sqlite3.connect(str(V3 / 'db' / 'stock_history.db'))
 
@@ -599,9 +609,11 @@ def send_report(eval_date, market, picks):
             def _f(v): return f"{v:+.1f}%" if v is not None else "—"
             marker = "🟢" if cur_ret > 0 else "🔴"
             tier_short = tier[:8]
+            rank_info = _day_ranks.get((dt, sym), (None, None))
+            rank_str = f" #{rank_info[0]}/{rank_info[1]}" if rank_info[0] else ""
             lines.append(
                 f"  {marker} {dt} `{sym}` {name or ''} {price_sym}{price:.2f}→{price_sym}{cur_p:.2f} "
-                f"({cur_ret:+.1f}%) 5d:{_f(a5)} 10d:{_f(a10)} 20d:{_f(a20)} [{tier_short}]"
+                f"({cur_ret:+.1f}%){rank_str} 5d:{_f(a5)} 10d:{_f(a10)} 20d:{_f(a20)} [{tier_short}]"
             )
         if len(recent_picks) > 30:
             lines.append(f"  ... 还有 {len(recent_picks)-30} 笔")
@@ -693,13 +705,13 @@ def send_report(eval_date, market, picks):
         from scripts.ml_backtest_report import send_email_report
         from scripts.ml_strategy_chart import generate_strategy_chart
         chart_b64 = generate_strategy_chart(market, 365)
-        html = _build_daily_html(eval_date, market, picks, recent_picks, chart_b64)
+        html = _build_daily_html(eval_date, market, picks, recent_picks, chart_b64, _day_ranks)
         send_email_report(html, market)
     except Exception as e:
         print(f"  ⚠️ Email skipped: {e}", flush=True)
 
 
-def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=None):
+def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=None, day_ranks=None):
     """Build premium dark-themed HTML with 4 sections: today + 60d history + tier stats + strategy chart"""
     price_sym = "$" if market == 'US' else "¥"
     market_name = "美股" if market == 'US' else "A股"
@@ -853,9 +865,13 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
                 return f'<td style="color:{c};font-weight:600;text-align:center">{v:+.1f}%</td>'
             marker = '✅' if cur_ret > 0 else '❌'
             tc = _tier_color(tier)
+            # Per-day rank
+            _ri = (day_ranks or {}).get((dt, sym), (None, None))
+            rank_html = f'<td style="text-align:center;font-weight:700;color:#a5b4fc">#{_ri[0]}/{_ri[1]}</td>' if _ri[0] else '<td style="text-align:center;color:#64748b">—</td>'
             row_html = f"""<tr>
               <td style="color:#94a3b8;font-size:11px;white-space:nowrap">{dt}</td>
               <td><strong>{sym}</strong><br><small style="color:#64748b">{name or ''}</small></td>
+              {rank_html}
               <td style="text-align:center;color:#94a3b8;font-size:12px">{days_held}d</td>
               <td style="text-align:right">{price_sym}{price:.2f}</td>
               <td style="text-align:right;color:{cur_c};font-weight:700">{price_sym}{cur_p:.2f}</td>
@@ -893,7 +909,7 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
     </span>
   </h2>
   <table>
-  <tr><th>日期</th><th>股票</th><th>天数</th><th>买入</th><th>现价</th><th>涨跌</th>
+  <tr><th>日期</th><th>股票</th><th>Rank</th><th>天数</th><th>买入</th><th>现价</th><th>涨跌</th>
     <th>5D</th><th>10D</th><th>20D</th><th></th></tr>
   {''.join(rows)}
   </table>
