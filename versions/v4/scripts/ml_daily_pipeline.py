@@ -164,6 +164,15 @@ def predict_today(market):
                         picks[tier] = pick
                         top3[tier] = [pick]  # Only top-1 from cache
                     if picks:
+                        # Compute relative global rank among cached picks
+                        all_cached = sorted(picks.values(), key=lambda x: -x['blend'])
+                        for rank_i, cp in enumerate(all_cached):
+                            picks[cp['tier']]['global_rank'] = rank_i + 1
+                            picks[cp['tier']]['total_candidates'] = len(all_cached)
+                        for tier in top3:
+                            for c in top3[tier]:
+                                c['global_rank'] = picks.get(tier, {}).get('global_rank', 0)
+                                c['total_candidates'] = len(all_cached)
                         print(f"  ✅ {len(picks)} cached picks loaded", flush=True)
                         return eval_date, picks, top3
 
@@ -328,16 +337,29 @@ def predict_today(market):
             'tier': tier,
         })
 
+    # Compute global rank across ALL tiers by blend score
+    all_candidates = []
+    for tier, cands in tier_candidates.items():
+        all_candidates.extend(cands)
+    all_candidates.sort(key=lambda x: -x['blend'])
+    global_rank = {c['symbol']: rank + 1 for rank, c in enumerate(all_candidates)}
+    total_candidates = len(all_candidates)
+
     # Sort each tier and pick top-1 (also keep top-3 for multi-strategy)
     picks = {}
     top3 = {}
     for tier, cands in tier_candidates.items():
         cands.sort(key=lambda x: -x['blend'])
         picks[tier] = cands[0]  # Top-1
+        picks[tier]['global_rank'] = global_rank.get(cands[0]['symbol'], 0)
+        picks[tier]['total_candidates'] = total_candidates
         top3[tier] = cands[:3]  # Top-3
+        for c in top3[tier]:
+            c['global_rank'] = global_rank.get(c['symbol'], 0)
+            c['total_candidates'] = total_candidates
 
     hconn.close()
-    print(f"  ✅ {len(picks)} tier picks generated", flush=True)
+    print(f"  ✅ {len(picks)} tier picks generated (out of {total_candidates} candidates)", flush=True)
     return eval_date, picks, top3
 
 
@@ -546,17 +568,20 @@ def send_report(eval_date, market, picks):
     hconn = sqlite3.connect(str(V3 / 'db' / 'stock_history.db'))
 
     # ===== Section 1: Today's per-tier top-1 =====
+    total_cands = next((p.get('total_candidates', 0) for p in picks.values()), 0)
     lines = [
         f"🤖 *{market_emoji} {market_name} Coral Creek Way 每日选股*",
         f"📅 {eval_date}",
+        f"🎲 全局候选池: {total_cands} 只" if total_cands else "",
         "",
         "━━━ 🎯 今日各市值 Top-1 ━━━",
     ]
     for tier in sorted(picks.keys()):
         p = picks[tier]
+        grank = p.get('global_rank', '?')
         lines.append(
             f"  📊 *{tier}*\n"
-            f"     `{p['symbol']}` {p.get('name','')} {price_sym}{p['price']:.2f}\n"
+            f"     `{p['symbol']}` {p.get('name','')} {price_sym}{p['price']:.2f}  🏅 Rank #{grank}/{total_cands}\n"
             f"     5d={p['pred_5d']:+.1f}% 10d={p['pred_10d']:+.1f}% 20d={p['pred_20d']:+.1f}%"
         )
 
@@ -700,6 +725,7 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
 
     # ==== Section 1: Today's pick cards ====
     pick_cards = ""
+    total_cands = next((p.get('total_candidates', 0) for p in picks.values()), 0)
     for tier in sorted(picks.keys()):
         p = picks[tier]
         mc = p['mcap']
@@ -709,6 +735,15 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
         p10c = _vc(p['pred_10d'])
         p20c = _vc(p['pred_20d'])
         tc = _tier_color(tier)
+        grank = p.get('global_rank', '?')
+        # Rank badge color: gold for top-10, green for top-30, default for rest
+        if isinstance(grank, int) and grank <= 10:
+            rank_color = '#f59e0b'  # gold
+        elif isinstance(grank, int) and grank <= 30:
+            rank_color = '#22c55e'  # green
+        else:
+            rank_color = '#94a3b8'  # gray
+        rank_badge = f'<span style="background:{rank_color};color:#0f172a;font-size:11px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:8px">#{grank}/{total_cands}</span>' if total_cands else ''
         pick_cards += f"""
         <div style="background:#1e293b;border-radius:10px;padding:16px;margin-bottom:10px;border-left:4px solid {tc}">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -716,6 +751,7 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
               <span style="font-size:11px;color:{tc};letter-spacing:1px;font-weight:700">● {tier}</span><br>
               <span style="font-size:20px;font-weight:800;color:#ffffff">{p['symbol']}</span>
               <span style="color:#cbd5e1;font-size:12px;margin-left:8px">{p['name']}</span>
+              {rank_badge}
             </div>
             <div style="text-align:right">
               <div style="font-size:18px;font-weight:700;color:#ffffff">{price_sym}{p['price']:.2f}</div>
@@ -1003,7 +1039,9 @@ def run_pipeline(market):
     price_sym = "$" if market == 'US' else "¥"
     for tier in sorted(picks.keys()):
         p = picks[tier]
-        print(f"  {tier}: {p['symbol']} {price_sym}{p['price']:.2f} (blend={p['blend']:+.1f}, 20d={p['pred_20d']:+.1f}%)")
+        grank = p.get('global_rank', '?')
+        total = p.get('total_candidates', '?')
+        print(f"  {tier}: {p['symbol']} {price_sym}{p['price']:.2f} (blend={p['blend']:+.1f}, 20d={p['pred_20d']:+.1f}%) 🏅 #{grank}/{total}")
 
     # Step 3: Save to DB
     print("\n💾 Step 3: Save picks...", flush=True)
