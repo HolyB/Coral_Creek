@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Pointwise vs Pairwise Model Comparison (Walk-Forward YTD → 2026-03-20)
-======================================================================
-Trains 4 model variants on a rolling 120-day window and evaluates
-top-1 per-tier picks from 2026-01-02 to 2026-03-19, with actual
-returns measured through 2026-03-20 (latest data).
+Pointwise vs Pairwise vs Transformer Model Comparison (Walk-Forward)
+====================================================================
+Trains 6 model variants on a rolling 120-day window and evaluates
+top-1 per-tier picks from 2026-01-02 onward, with actual
+returns measured through the latest available data.
 
 Models:
   1. XGB Pointwise (regression on y20)
   2. XGB+MMoE Pointwise (current pipeline)
   3. XGB Pairwise (rank:pairwise on y20 ranks within each day)
   4. XGB Pairwise + MMoE re-rank
+  5. Transformer (FT-Transformer style, multi-task heads)
+  6. XGB + Transformer (XGB leaf features → Transformer)
 
 Each model is saved to /tmp/model_comparison/
 
@@ -99,6 +101,105 @@ def train_mmoe(model, X, ys, epochs=8):
     model.eval()
     return model
 
+
+# ===== FT-Transformer for Tabular Data =====
+class TabTransformer(nn.Module):
+    """Feature-Tokenizer Transformer for tabular data.
+    Groups raw features into patches (tokens), applies self-attention,
+    then multi-task prediction heads for 5d/10d/20d returns.
+    """
+    def __init__(self, n_features, d_model=64, n_heads=4, n_layers=2,
+                 d_ff=128, dropout=0.15, n_tasks=3, patch_size=16):
+        super().__init__()
+        self.patch_size = patch_size
+        self.n_patches = (n_features + patch_size - 1) // patch_size
+        self.padded_dim = self.n_patches * patch_size
+
+        # Feature tokenizer: project each patch to d_model
+        self.input_bn = nn.BatchNorm1d(n_features)
+        self.patch_proj = nn.Linear(patch_size, d_model)
+
+        # Learnable [CLS] token
+        self.cls_token = nn.Parameter(torch.randn(1, 1, d_model) * 0.02)
+
+        # Positional encoding (learnable)
+        self.pos_embed = nn.Parameter(torch.randn(1, self.n_patches + 1, d_model) * 0.02)
+
+        # Transformer encoder
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=n_heads, dim_feedforward=d_ff,
+            dropout=dropout, batch_first=True, activation='gelu'
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
+        self.norm = nn.LayerNorm(d_model)
+
+        # Multi-task prediction heads
+        self.heads = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(d_model, d_model),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(d_model, 1)
+            ) for _ in range(n_tasks)
+        ])
+
+    def forward(self, x):
+        B = x.shape[0]
+        x = self.input_bn(x)
+
+        # Pad to multiple of patch_size
+        if x.shape[1] < self.padded_dim:
+            x = torch.nn.functional.pad(x, (0, self.padded_dim - x.shape[1]))
+
+        # Reshape into patches: (B, n_patches, patch_size)
+        x = x.view(B, self.n_patches, self.patch_size)
+
+        # Project patches to d_model
+        x = self.patch_proj(x)  # (B, n_patches, d_model)
+
+        # Prepend [CLS] token
+        cls = self.cls_token.expand(B, -1, -1)
+        x = torch.cat([cls, x], dim=1)  # (B, n_patches+1, d_model)
+
+        # Add positional encoding
+        x = x + self.pos_embed
+
+        # Transformer encoder
+        x = self.transformer(x)
+        x = self.norm(x)
+
+        # Use [CLS] token output for prediction
+        cls_out = x[:, 0]  # (B, d_model)
+
+        # Multi-task heads
+        return [head(cls_out).squeeze(-1) for head in self.heads]
+
+
+def train_transformer(model, X, ys, epochs=15, lr=5e-4, batch_size=2048):
+    """Train transformer with cosine annealing and warmup."""
+    model.to(DEVICE).train()
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-3)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs, eta_min=1e-5)
+
+    ds = TensorDataset(torch.FloatTensor(X), *[torch.FloatTensor(y) for y in ys])
+    dl = DataLoader(ds, batch_size=batch_size, shuffle=True, drop_last=True)
+
+    for epoch in range(epochs):
+        total_loss = 0
+        for batch in dl:
+            x = batch[0].to(DEVICE)
+            yy = [b.to(DEVICE) for b in batch[1:]]
+            preds = model(x)
+            loss = sum(nn.HuberLoss(delta=10.0)(p, y) for p, y in zip(preds, yy)) / len(yy)
+            opt.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            opt.step()
+            total_loss += loss.item()
+        scheduler.step()
+    model.eval()
+    return model
+
 # ===== Load data =====
 def load_npz(market):
     npz_path = f'/tmp/{market.lower()}_daily_full.npz'
@@ -175,7 +276,7 @@ def walk_forward(market, model_type, X_all, dates_all, symbols_all, y5, y10, y20
         Xs = sc.fit_transform(X_tr).astype(np.float32)
         np.nan_to_num(Xs, copy=False, nan=0, posinf=0, neginf=0)
 
-        if model_type in ('xgb_pointwise', 'xgb_mmoe'):
+        if model_type in ('xgb_pointwise', 'xgb_mmoe', 'xgb_transformer'):
             # XGB Pointwise (regression on y20)
             xgb = XGBRegressor(n_estimators=300, max_depth=6, learning_rate=0.05,
                 subsample=0.8, colsample_bytree=0.8, min_child_weight=10,
@@ -187,6 +288,19 @@ def walk_forward(market, model_type, X_all, dates_all, symbols_all, y5, y10, y20
                 Xa = np.hstack([Xs, leaf_tr])
                 mmoe = MMoE(Xa.shape[1], 4, 128, 3)
                 mmoe = train_mmoe(mmoe, Xa, ys_tr)
+
+            elif model_type == 'xgb_transformer':
+                # XGB leaves → Transformer (full data, same as MMoE)
+                Xa = np.hstack([Xs, leaf_tr])
+                tfm = TabTransformer(Xa.shape[1], d_model=64, n_heads=4,
+                                     n_layers=2, d_ff=128, dropout=0.15)
+                tfm = train_transformer(tfm, Xa, ys_tr, epochs=8, batch_size=8192)
+
+        elif model_type == 'transformer':
+            # Pure Transformer (no XGB) — full data, same as MMoE
+            tfm = TabTransformer(Xs.shape[1], d_model=64, n_heads=4,
+                                 n_layers=2, d_ff=128, dropout=0.15)
+            tfm = train_transformer(tfm, Xs, ys_tr, epochs=8, batch_size=8192)
 
         elif model_type in ('xgb_pairwise', 'xgb_pairwise_mmoe'):
             # XGB Pairwise: rank:pairwise with y20 as relevance
@@ -263,6 +377,24 @@ def walk_forward(market, model_type, X_all, dates_all, symbols_all, y5, y10, y20
                 p20 = np.clip(preds[2].cpu().numpy(), -200, 200)
             blend = BLEND_W[0] * p5 + BLEND_W[1] * p10 + BLEND_W[2] * p20
 
+        elif model_type == 'transformer':
+            with torch.no_grad():
+                preds = tfm(torch.FloatTensor(Xe).to(DEVICE))
+                p5 = np.clip(preds[0].cpu().numpy(), -200, 200)
+                p10 = np.clip(preds[1].cpu().numpy(), -200, 200)
+                p20 = np.clip(preds[2].cpu().numpy(), -200, 200)
+            blend = BLEND_W[0] * p5 + BLEND_W[1] * p10 + BLEND_W[2] * p20
+
+        elif model_type == 'xgb_transformer':
+            leaf_ev = xgb.apply(X_ev).astype(np.float32)
+            Xae = np.hstack([Xe, leaf_ev])
+            with torch.no_grad():
+                preds = tfm(torch.FloatTensor(Xae).to(DEVICE))
+                p5 = np.clip(preds[0].cpu().numpy(), -200, 200)
+                p10 = np.clip(preds[1].cpu().numpy(), -200, 200)
+                p20 = np.clip(preds[2].cpu().numpy(), -200, 200)
+            blend = BLEND_W[0] * p5 + BLEND_W[1] * p10 + BLEND_W[2] * p20
+
         elif model_type == 'xgb_pairwise':
             blend = xgb_ranker.predict(X_ev)  # ranking score (not % return)
 
@@ -325,13 +457,6 @@ def walk_forward(market, model_type, X_all, dates_all, symbols_all, y5, y10, y20
                 'actual_20d': actual_20d,
             })
 
-        # Save model periodically
-        if eval_i % 10 == 0:
-            if model_type.startswith('xgb_pointwise') or model_type == 'xgb_mmoe':
-                xgb.save_model(str(model_save_dir / f'{eval_date}.json'))
-            elif model_type.startswith('xgb_pairwise'):
-                xgb_ranker.save_model(str(model_save_dir / f'{eval_date}.json'))
-
         elapsed = time.time() - t0
         n_picks = len([r for r in results if r['date'] == eval_date])
         if eval_i % 5 == 0:
@@ -339,14 +464,8 @@ def walk_forward(market, model_type, X_all, dates_all, symbols_all, y5, y10, y20
 
         del X_tr, Xs
         gc.collect()
-
-    # Save final model
-    if model_type.startswith('xgb_pointwise') or model_type == 'xgb_mmoe':
-        try: xgb.save_model(str(model_save_dir / 'final.json'))
-        except: pass
-    elif model_type.startswith('xgb_pairwise'):
-        try: xgb_ranker.save_model(str(model_save_dir / 'final.json'))
-        except: pass
+        if DEVICE == 'mps':
+            torch.mps.empty_cache()
 
     return results
 
@@ -424,6 +543,8 @@ def build_html_report(summary, all_results, market):
         'xgb_mmoe': '#8b5cf6',
         'xgb_pairwise': '#f59e0b',
         'xgb_pairwise_mmoe': '#22c55e',
+        'transformer': '#ef4444',
+        'xgb_transformer': '#06b6d4',
     }
     for model_name, s in sorted(summary.items()):
         c = model_colors.get(model_name, '#fff')
@@ -542,6 +663,8 @@ tr:hover {{background:rgba(99,102,241,0.08)}}
     <div class="legend-item"><span class="dot" style="background:#8b5cf6"></span>XGB+MMoE</div>
     <div class="legend-item"><span class="dot" style="background:#f59e0b"></span>XGB Pairwise</div>
     <div class="legend-item"><span class="dot" style="background:#22c55e"></span>Pairwise+MMoE</div>
+    <div class="legend-item"><span class="dot" style="background:#ef4444"></span>Transformer</div>
+    <div class="legend-item"><span class="dot" style="background:#06b6d4"></span>XGB+Transformer</div>
   </div>
   <table>
     <tr style="background:#334155"><th>Model</th><th>Picks</th>
@@ -642,7 +765,7 @@ def main():
     print(f"  Eval dates: {len(eval_dates)} ({eval_dates[0]}..{eval_dates[-1]})", flush=True)
 
     # Run all 4 models
-    MODEL_TYPES = ['xgb_pointwise', 'xgb_mmoe', 'xgb_pairwise', 'xgb_pairwise_mmoe']
+    MODEL_TYPES = ['xgb_pointwise', 'xgb_mmoe', 'xgb_pairwise', 'xgb_pairwise_mmoe', 'transformer', 'xgb_transformer']
     all_results = []
 
     for model_type in MODEL_TYPES:

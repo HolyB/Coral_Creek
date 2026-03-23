@@ -981,7 +981,7 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
                         seen_due.add(key)
                         rc = '#22c55e' if cur_ret > 0 else '#ef4444'
                         due_per_tier.setdefault(tier, []).append(f"""<tr>
-                          <td style="font-weight:700">{sym}<br><small style="color:#64748b">{name or ''}</small></td>
+                          <td><strong style="color:#f8fafc;font-size:13px">{sym}</strong><br><small style="color:#94a3b8">{name or ''}</small></td>
                           <td style="text-align:center;color:#a5b4fc">{config_name}</td>
                           <td style="text-align:center">{days_held}d</td>
                           <td style="text-align:right">{price_sym}{price:.2f}</td>
@@ -1036,7 +1036,7 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
             rank_html = f'<td style="text-align:center;font-weight:700;color:#a5b4fc">#{_ri[0]}/{_ri[1]}</td>' if _ri[0] else '<td style="text-align:center;color:#64748b">—</td>'
             row_html = f"""<tr>
               <td style="color:#94a3b8;font-size:11px;white-space:nowrap">{dt}</td>
-              <td><strong>{sym}</strong><br><small style="color:#64748b">{name or ''}</small></td>
+              <td><strong style="color:#f8fafc;font-size:13px">{sym}</strong><br><small style="color:#94a3b8">{name or ''}</small></td>
               {rank_html}
               <td style="text-align:center;color:#94a3b8;font-size:12px">{days_held}d</td>
               <td style="text-align:right">{price_sym}{price:.2f}</td>
