@@ -743,25 +743,23 @@ def send_report(eval_date, market, picks, pw_picks=None):
         for r in recent_picks:
             tier_data[r[1]].append(r)
 
-        overall_rets = []
+        def _txt_wr(vals):
+            vals = [v for v in vals if v is not None]
+            if not vals: return "—"
+            avg = np.mean(vals)
+            wr = sum(1 for v in vals if v > 0) / len(vals) * 100
+            return f"{avg:+.1f}%/{wr:.0f}%"
+
+        lines.append("  Tier              | 5D avg/WR | 10D avg/WR | 20D avg/WR")
+        all_5, all_10, all_20 = [], [], []
         for tier in sorted(tier_data.keys()):
             tpicks = tier_data[tier]
-            rets = [r[9] for r in tpicks if r[9] is not None]
-            if not rets:
-                rets = [r[8] for r in tpicks if r[8] is not None]
-            if rets:
-                avg = np.mean(rets)
-                wr = sum(1 for r in rets if r > 0) / len(rets) * 100
-                overall_rets.extend(rets)
-                emoji = "🟢" if avg > 0 else "🔴"
-                lines.append(f"  {emoji} *{tier}*: {len(tpicks)}笔 avg={avg:+.1f}% WR={wr:.0f}%")
-            else:
-                lines.append(f"  ⏳ *{tier}*: {len(tpicks)}笔 (未结算)")
+            r5 = [r[7] for r in tpicks]; r10 = [r[8] for r in tpicks]; r20 = [r[9] for r in tpicks]
+            all_5.extend(r5); all_10.extend(r10); all_20.extend(r20)
+            emoji = "🟢" if any(v is not None and v > 0 for v in r10) else "🔴"
+            lines.append(f"  {emoji} {tier[:16]:16} | {_txt_wr(r5):9} | {_txt_wr(r10):10} | {_txt_wr(r20)}")
 
-        if overall_rets:
-            o_avg = np.mean(overall_rets)
-            o_wr = sum(1 for r in overall_rets if r > 0) / len(overall_rets) * 100
-            lines.append(f"\n  🏆 *总计*: {len(recent_picks)}笔 avg={o_avg:+.1f}% WR={o_wr:.0f}%")
+        lines.append(f"\n  🏆 *总计* ({len(recent_picks)}笔): 5D={_txt_wr(all_5)} 10D={_txt_wr(all_10)} 20D={_txt_wr(all_20)}")
 
     # ===== Section 4: Due for sale (策略到期提醒) =====
     if recent_picks:
@@ -1083,65 +1081,90 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
   </table>
 </div>"""
 
-    # ==== Section 3: Per-tier stats ====
+    # ==== Section 3: Per-tier stats (5d/10d/20d) ====
     tier_stats_html = ""
     overall_stats_html = ""
     if recent_picks:
         tier_data = defaultdict(list)
         for r in recent_picks:
             tier_data[r[1]].append(r)
-        all_rets = []
+
+        # Helper: compute avg & wr for a list of values
+        def _horizon_stats(vals):
+            vals = [v for v in vals if v is not None]
+            if not vals:
+                return None, None, 0
+            avg = np.mean(vals)
+            wr = sum(1 for v in vals if v > 0) / len(vals) * 100
+            return avg, wr, len(vals)
+
+        all_5d, all_10d, all_20d = [], [], []
         for tier in sorted(tier_data.keys()):
             color = _tier_color(tier)
             tpicks = tier_data[tier]
-            rets = [r[9] for r in tpicks if r[9] is not None]
-            if not rets: rets = [r[8] for r in tpicks if r[8] is not None]
-            if not rets: rets = [r[7] for r in tpicks if r[7] is not None]
-            if rets:
-                avg = np.mean(rets); wr = sum(1 for r in rets if r > 0) / len(rets) * 100
-                all_rets.extend(rets)
-                avg_c = '#22c55e' if avg >= 0 else '#ef4444'
-                wr_c = '#22c55e' if wr >= 60 else '#ef4444'
-            else:
-                avg = 0; wr = 0; avg_c = '#475569'; wr_c = '#475569'
+            r5 = [r[7] for r in tpicks]
+            r10 = [r[8] for r in tpicks]
+            r20 = [r[9] for r in tpicks]
+            all_5d.extend(r5); all_10d.extend(r10); all_20d.extend(r20)
+
+            horizon_cells = ""
+            for label, vals in [('5D', r5), ('10D', r10), ('20D', r20)]:
+                avg, wr, n = _horizon_stats(vals)
+                if avg is not None:
+                    ac = '#22c55e' if avg >= 0 else '#ef4444'
+                    wc = '#22c55e' if wr >= 60 else '#f59e0b' if wr >= 45 else '#ef4444'
+                    horizon_cells += f"""
+                <div style="flex:1;text-align:center;background:#1e293b;border-radius:6px;padding:6px 4px">
+                  <div style="font-size:9px;color:#94a3b8;margin-bottom:2px">{label}</div>
+                  <div style="font-size:14px;font-weight:800;color:{ac}">{avg:+.1f}%</div>
+                  <div style="font-size:11px;font-weight:700;color:{wc}">WR {wr:.0f}%</div>
+                  <div style="font-size:9px;color:#475569">{n}笔</div>
+                </div>"""
+                else:
+                    horizon_cells += f"""
+                <div style="flex:1;text-align:center;background:#1e293b;border-radius:6px;padding:6px 4px">
+                  <div style="font-size:9px;color:#94a3b8;margin-bottom:2px">{label}</div>
+                  <div style="font-size:14px;font-weight:800;color:#475569">—</div>
+                  <div style="font-size:11px;color:#475569">未结算</div>
+                </div>"""
+
             tier_stats_html += f"""
             <div style="background:#0f172a;border-radius:8px;padding:14px;margin-bottom:8px;border-left:3px solid {color}">
               <div style="font-size:12px;color:{color};font-weight:700;margin-bottom:6px">{tier} ({len(tpicks)}笔)</div>
-              <div style="display:flex;gap:10px">
-                <div style="flex:1;text-align:center">
-                  <div style="font-size:18px;font-weight:800;color:{avg_c}">{avg:+.1f}%</div>
-                  <div style="font-size:9px;color:#64748b">AVG RET</div>
-                </div>
-                <div style="flex:1;text-align:center">
-                  <div style="font-size:18px;font-weight:800;color:{wr_c}">{wr:.0f}%</div>
-                  <div style="font-size:9px;color:#64748b">WIN RATE</div>
-                </div>
-                <div style="flex:1;text-align:center">
-                  <div style="font-size:18px;font-weight:800;color:#818cf8">{len(rets)}/{len(tpicks)}</div>
-                  <div style="font-size:9px;color:#64748b">SETTLED</div>
-                </div>
+              <div style="display:flex;gap:6px">
+                {horizon_cells}
               </div>
             </div>"""
-        if all_rets:
-            o_avg = np.mean(all_rets); o_wr = sum(1 for r in all_rets if r > 0) / len(all_rets) * 100
-            o_avg_c = '#22c55e' if o_avg >= 0 else '#ef4444'
-            o_wr_c = '#22c55e' if o_wr >= 60 else '#ef4444'
-            overall_stats_html = f"""
+
+        # Overall stats with all horizons
+        o5_avg, o5_wr, o5_n = _horizon_stats(all_5d)
+        o10_avg, o10_wr, o10_n = _horizon_stats(all_10d)
+        o20_avg, o20_wr, o20_n = _horizon_stats(all_20d)
+
+        overall_cells = ""
+        for label, avg, wr, n in [('5D', o5_avg, o5_wr, o5_n), ('10D', o10_avg, o10_wr, o10_n), ('20D', o20_avg, o20_wr, o20_n)]:
+            if avg is not None:
+                ac = '#22c55e' if avg >= 0 else '#ef4444'
+                wc = '#22c55e' if wr >= 60 else '#f59e0b' if wr >= 45 else '#ef4444'
+                overall_cells += f"""
+                <div style="flex:1;text-align:center">
+                  <div style="font-size:10px;color:#94a3b8">{label}</div>
+                  <div style="font-size:22px;font-weight:900;color:{ac}">{avg:+.1f}%</div>
+                  <div style="font-size:13px;font-weight:700;color:{wc}">WR {wr:.0f}%</div>
+                  <div style="font-size:9px;color:#475569">{n}笔结算</div>
+                </div>"""
+            else:
+                overall_cells += f"""
+                <div style="flex:1;text-align:center">
+                  <div style="font-size:10px;color:#94a3b8">{label}</div>
+                  <div style="font-size:22px;font-weight:900;color:#475569">—</div>
+                </div>"""
+
+        overall_stats_html = f"""
             <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:10px;padding:16px;margin-top:12px;border:1px solid #6366f1">
               <div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:10px">🏆 2026 YTD 总计 ({len(recent_picks)} 笔)</div>
               <div style="display:flex;gap:12px">
-                <div style="flex:1;text-align:center">
-                  <div style="font-size:28px;font-weight:900;color:{o_avg_c}">{o_avg:+.1f}%</div>
-                  <div style="font-size:10px;color:#64748b">AVG RETURN</div>
-                </div>
-                <div style="flex:1;text-align:center">
-                  <div style="font-size:28px;font-weight:900;color:{o_wr_c}">{o_wr:.0f}%</div>
-                  <div style="font-size:10px;color:#64748b">WIN RATE</div>
-                </div>
-                <div style="flex:1;text-align:center">
-                  <div style="font-size:28px;font-weight:900;color:#818cf8">{len(all_rets)}</div>
-                  <div style="font-size:10px;color:#64748b">SETTLED</div>
-                </div>
+                {overall_cells}
               </div>
             </div>"""
 
