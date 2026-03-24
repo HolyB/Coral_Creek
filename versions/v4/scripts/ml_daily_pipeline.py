@@ -113,7 +113,7 @@ Blend Score: {blend:+.1f}
 
 注意: 简洁精炼，每项不超过2句话。如果不确定，可以基于行业特性和市值推断。"""
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         for attempt in range(3):
             try:
                 resp = req.post(url, json={
