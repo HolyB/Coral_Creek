@@ -106,12 +106,16 @@ ML Model Predictions: 5D={pred5:+.1f}%, 10D={pred10:+.1f}%, 20D={pred20:+.1f}%
 Blend Score: {blend:+.1f}
 
 请用以下格式简要分析(每项1-2句话):
-📊 基本面: (公司主营业务、估值水平、盈利能力)
-📰 市场情绪: (近期市场关注度、资金流向、新闻面)
-📈 技术面: (趋势、支撑阻力、量价关系)
-🏭 板块: (所属行业/板块，板块近期走势)
+📊 基本面: 公司主营业务、估值水平、盈利能力
+📰 市场情绪: 近期市场关注度、资金流向、新闻面
+📈 技术面: 趋势、支撑阻力、量价关系
+🏭 板块: 所属行业/板块，板块近期走势
 
-注意: 简洁精炼，每项不超过2句话。如果不确定，可以基于行业特性和市值推断。"""
+重要规则:
+- 不要使用任何markdown格式，不要用**加粗**，不要用#标题
+- 直接输出纯文本，每项一行
+- 简洁精炼，每项不超过2句话
+- 不要输出开头的寒暄语，直接从📊开始"""
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         for attempt in range(3):
@@ -1007,8 +1011,15 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
         # Add Gemini AI analysis if available
         ai_text = (ai_analysis or {}).get(p['symbol'], '')
         if ai_text:
-            # Convert newlines to <br> and preserve emoji formatting
-            ai_html = ai_text.replace('\n', '<br>')
+            # Strip markdown formatting and convert to HTML
+            import re
+            ai_clean = ai_text
+            ai_clean = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', ai_clean)  # **bold** → <b>
+            ai_clean = re.sub(r'\*(.+?)\*', r'<i>\1</i>', ai_clean)      # *italic* → <i>
+            ai_clean = re.sub(r'^#+\s*', '', ai_clean, flags=re.MULTILINE)  # remove # headers
+            ai_clean = re.sub(r'^好的.*?[：:]\s*', '', ai_clean, count=1)  # remove greeting prefix
+            ai_clean = ai_clean.strip()
+            ai_html = ai_clean.replace('\n', '<br>')
             pick_cards += f"""
         <div style="background:#1a2332;border-radius:0 0 10px 10px;padding:12px 16px;margin-top:-10px;margin-bottom:10px;border-left:4px solid {tc};border-top:1px solid #334155">
           <div style="font-size:10px;color:#64748b;margin-bottom:6px;font-weight:700">🤖 AI ANALYSIS</div>
