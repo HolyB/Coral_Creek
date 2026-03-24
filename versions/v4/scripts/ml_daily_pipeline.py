@@ -66,11 +66,12 @@ def get_tier(mc, market):
 
 
 # ===========================================================
-# MMoE Model (same as backtest)
+# MMoE+WR Model (6-task: 3 regression + 3 win-rate classification)
 # ===========================================================
 class MMoE(nn.Module):
-    def __init__(self, dim, n_experts=4, hdim=128, n_tasks=3):
+    def __init__(self, dim, n_experts=6, hdim=128, n_tasks=6):
         super().__init__()
+        self.n_tasks = n_tasks
         self.bn = nn.BatchNorm1d(dim)
         self.experts = nn.ModuleList([nn.Sequential(
             nn.Linear(dim, hdim), nn.BatchNorm1d(hdim), nn.ReLU(), nn.Dropout(0.15),
@@ -85,18 +86,26 @@ class MMoE(nn.Module):
     def forward(self, x):
         x = self.bn(x)
         eo = torch.stack([e(x) for e in self.experts], 1)
-        return [self.towers[i]((eo * self.gates[i](x).unsqueeze(-1)).sum(1)).squeeze(-1) for i in range(3)]
+        return [self.towers[i]((eo * self.gates[i](x).unsqueeze(-1)).sum(1)).squeeze(-1) for i in range(self.n_tasks)]
 
 
-def train_model(model, X, ys, epochs=8):
+def train_model(model, X, ys_reg, epochs=10):
+    """Train 6-task MMoE: 3 regression (y5/y10/y20) + 3 classification (y>0)."""
     model.to(DEVICE).train()
+    ys_cls = [(y > 0).astype(np.float32) for y in ys_reg]
+    all_ys = ys_reg + ys_cls  # 6 targets
     opt = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    ds = TensorDataset(torch.FloatTensor(X), *[torch.FloatTensor(y) for y in ys])
+    ds = TensorDataset(torch.FloatTensor(X), *[torch.FloatTensor(y) for y in all_ys])
     dl = DataLoader(ds, batch_size=4096, shuffle=True, drop_last=True)
+    huber = nn.HuberLoss(delta=10.0)
+    bce = nn.BCEWithLogitsLoss()
     for _ in range(epochs):
         for batch in dl:
             x = batch[0].to(DEVICE); yy = [b.to(DEVICE) for b in batch[1:]]
-            loss = sum(nn.HuberLoss(delta=10.0)(p, y) for p, y in zip(model(x), yy)) / len(yy)
+            preds = model(x)
+            reg_loss = sum(huber(preds[i], yy[i]) for i in range(3)) / 3
+            cls_loss = sum(bce(preds[i+3], yy[i+3]) for i in range(3)) / 3
+            loss = reg_loss + 0.5 * cls_loss
             opt.zero_grad(); loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
@@ -219,8 +228,8 @@ def predict_today(market):
     leaf_tr = xgb.apply(X_tr).astype(np.float32)
     Xa = np.hstack([Xs, leaf_tr])
 
-    # MMoE
-    mmoe = MMoE(Xa.shape[1], 4, 128, 3)
+    # MMoE+WR (6-task: 3 regression + 3 win-rate classification)
+    mmoe = MMoE(Xa.shape[1], n_experts=6, hdim=128, n_tasks=6)
     mmoe = train_model(mmoe, Xa, ys_tr)
     del X_tr, Xs, leaf_tr, Xa; gc.collect()
 
@@ -235,12 +244,22 @@ def predict_today(market):
     leaf_ev = xgb.apply(X_ev).astype(np.float32)
     Xae = np.hstack([Xe, leaf_ev])
 
+    # Inference on CPU (MPS BatchNorm has issues in eval mode)
+    mmoe_cpu = mmoe.cpu()
     with torch.no_grad():
-        preds = mmoe(torch.FloatTensor(Xae).to(DEVICE))
-        p5 = np.clip(preds[0].cpu().numpy(), -200, 200)
-        p10 = np.clip(preds[1].cpu().numpy(), -200, 200)
-        p20 = np.clip(preds[2].cpu().numpy(), -200, 200)
-    blend = BLEND_W[0] * p5 + BLEND_W[1] * p10 + BLEND_W[2] * p20
+        preds = mmoe_cpu(torch.FloatTensor(Xae))
+        # Regression outputs (tasks 0-2)
+        p5 = np.clip(preds[0].numpy(), -200, 200)
+        p10 = np.clip(preds[1].numpy(), -200, 200)
+        p20 = np.clip(preds[2].numpy(), -200, 200)
+        # Win-rate confidence (tasks 3-5) → sigmoid
+        wr5 = torch.sigmoid(preds[3]).numpy()
+        wr10 = torch.sigmoid(preds[4]).numpy()
+        wr20 = torch.sigmoid(preds[5]).numpy()
+    # Blend: regression × classification confidence
+    reg_blend = BLEND_W[0] * p5 + BLEND_W[1] * p10 + BLEND_W[2] * p20
+    wr_blend = BLEND_W[0] * wr5 + BLEND_W[1] * wr10 + BLEND_W[2] * wr20
+    blend = reg_blend * wr_blend  # high return + high confidence = top rank
 
     # ===== Pairwise Model (XGBRanker + MMoE re-rank) =====
     print(f"  🔀 Training pairwise ranker...", flush=True)

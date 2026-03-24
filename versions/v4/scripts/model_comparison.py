@@ -70,6 +70,7 @@ def get_tier(mc, market):
 class MMoE(nn.Module):
     def __init__(self, dim, n_experts=4, hdim=128, n_tasks=3):
         super().__init__()
+        self.n_tasks = n_tasks
         self.bn = nn.BatchNorm1d(dim)
         self.experts = nn.ModuleList([nn.Sequential(
             nn.Linear(dim, hdim), nn.BatchNorm1d(hdim), nn.ReLU(), nn.Dropout(0.15),
@@ -84,7 +85,7 @@ class MMoE(nn.Module):
     def forward(self, x):
         x = self.bn(x)
         eo = torch.stack([e(x) for e in self.experts], 1)
-        return [self.towers[i]((eo * self.gates[i](x).unsqueeze(-1)).sum(1)).squeeze(-1) for i in range(3)]
+        return [self.towers[i]((eo * self.gates[i](x).unsqueeze(-1)).sum(1)).squeeze(-1) for i in range(self.n_tasks)]
 
 def train_mmoe(model, X, ys, epochs=8):
     model.to(DEVICE).train()
@@ -95,6 +96,36 @@ def train_mmoe(model, X, ys, epochs=8):
         for batch in dl:
             x = batch[0].to(DEVICE); yy = [b.to(DEVICE) for b in batch[1:]]
             loss = sum(nn.HuberLoss(delta=10.0)(p, y) for p, y in zip(model(x), yy)) / len(yy)
+            opt.zero_grad(); loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            opt.step()
+    model.eval()
+    return model
+
+
+# ===== MMoE + Win-Rate (6-task: 3 regression + 3 binary classification) =====
+def train_mmoe_wr(model, X, ys_reg, ys_cls, epochs=10):
+    """Train MMoE with mixed regression + classification loss.
+    ys_reg: [y5, y10, y20] continuous targets
+    ys_cls: [y5>0, y10>0, y20>0] binary targets (0/1)
+    Model outputs: [reg5, reg10, reg20, cls5, cls10, cls20]
+    """
+    model.to(DEVICE).train()
+    opt = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    all_ys = ys_reg + ys_cls  # 6 targets total
+    ds = TensorDataset(torch.FloatTensor(X), *[torch.FloatTensor(y) for y in all_ys])
+    dl = DataLoader(ds, batch_size=4096, shuffle=True, drop_last=True)
+    huber = nn.HuberLoss(delta=10.0)
+    bce = nn.BCEWithLogitsLoss()
+    for _ in range(epochs):
+        for batch in dl:
+            x = batch[0].to(DEVICE)
+            yy = [b.to(DEVICE) for b in batch[1:]]
+            preds = model(x)  # 6 outputs
+            # Loss: regression (tasks 0-2) + classification (tasks 3-5)
+            reg_loss = sum(huber(preds[i], yy[i]) for i in range(3)) / 3
+            cls_loss = sum(bce(preds[i+3], yy[i+3]) for i in range(3)) / 3
+            loss = reg_loss + 0.5 * cls_loss  # weighted: regression is primary
             opt.zero_grad(); loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
@@ -276,7 +307,7 @@ def walk_forward(market, model_type, X_all, dates_all, symbols_all, y5, y10, y20
         Xs = sc.fit_transform(X_tr).astype(np.float32)
         np.nan_to_num(Xs, copy=False, nan=0, posinf=0, neginf=0)
 
-        if model_type in ('xgb_pointwise', 'xgb_mmoe', 'xgb_transformer'):
+        if model_type in ('xgb_pointwise', 'xgb_mmoe', 'xgb_mmoe_wr', 'xgb_transformer'):
             # XGB Pointwise (regression on y20)
             xgb = XGBRegressor(n_estimators=300, max_depth=6, learning_rate=0.05,
                 subsample=0.8, colsample_bytree=0.8, min_child_weight=10,
@@ -288,6 +319,13 @@ def walk_forward(market, model_type, X_all, dates_all, symbols_all, y5, y10, y20
                 Xa = np.hstack([Xs, leaf_tr])
                 mmoe = MMoE(Xa.shape[1], 4, 128, 3)
                 mmoe = train_mmoe(mmoe, Xa, ys_tr)
+
+            elif model_type == 'xgb_mmoe_wr':
+                # 6-task MMoE: 3 regression + 3 win-rate classification
+                Xa = np.hstack([Xs, leaf_tr])
+                mmoe_wr = MMoE(Xa.shape[1], n_experts=6, hdim=128, n_tasks=6)
+                ys_cls = [(y > 0).astype(np.float32) for y in ys_tr]  # binary labels
+                mmoe_wr = train_mmoe_wr(mmoe_wr, Xa, ys_tr, ys_cls, epochs=10)
 
             elif model_type == 'xgb_transformer':
                 # XGB leaves → Transformer (full data, same as MMoE)
@@ -376,6 +414,25 @@ def walk_forward(market, model_type, X_all, dates_all, symbols_all, y5, y10, y20
                 p10 = np.clip(preds[1].cpu().numpy(), -200, 200)
                 p20 = np.clip(preds[2].cpu().numpy(), -200, 200)
             blend = BLEND_W[0] * p5 + BLEND_W[1] * p10 + BLEND_W[2] * p20
+
+        elif model_type == 'xgb_mmoe_wr':
+            leaf_ev = xgb.apply(X_ev).astype(np.float32)
+            Xae = np.hstack([Xe, leaf_ev])
+            mmoe_wr_cpu = mmoe_wr.cpu()
+            with torch.no_grad():
+                preds = mmoe_wr_cpu(torch.FloatTensor(Xae))
+                # Regression outputs (0-2)
+                p5 = np.clip(preds[0].numpy(), -200, 200)
+                p10 = np.clip(preds[1].numpy(), -200, 200)
+                p20 = np.clip(preds[2].numpy(), -200, 200)
+                # Classification confidence (3-5) → sigmoid
+                wr5 = torch.sigmoid(preds[3]).numpy()
+                wr10 = torch.sigmoid(preds[4]).numpy()
+                wr20 = torch.sigmoid(preds[5]).numpy()
+            # Blend: regression weighted by classification confidence
+            reg_blend = BLEND_W[0] * p5 + BLEND_W[1] * p10 + BLEND_W[2] * p20
+            wr_blend = BLEND_W[0] * wr5 + BLEND_W[1] * wr10 + BLEND_W[2] * wr20
+            blend = reg_blend * wr_blend  # multiply: high return + high confidence = top rank
 
         elif model_type == 'transformer':
             with torch.no_grad():
@@ -541,6 +598,7 @@ def build_html_report(summary, all_results, market):
     model_colors = {
         'xgb_pointwise': '#3b82f6',
         'xgb_mmoe': '#8b5cf6',
+        'xgb_mmoe_wr': '#e879f9',
         'xgb_pairwise': '#f59e0b',
         'xgb_pairwise_mmoe': '#22c55e',
         'transformer': '#ef4444',
@@ -661,6 +719,7 @@ tr:hover {{background:rgba(99,102,241,0.08)}}
   <div class="legend">
     <div class="legend-item"><span class="dot" style="background:#3b82f6"></span>XGB Pointwise</div>
     <div class="legend-item"><span class="dot" style="background:#8b5cf6"></span>XGB+MMoE</div>
+    <div class="legend-item"><span class="dot" style="background:#e879f9"></span>XGB+MMoE+WR</div>
     <div class="legend-item"><span class="dot" style="background:#f59e0b"></span>XGB Pairwise</div>
     <div class="legend-item"><span class="dot" style="background:#22c55e"></span>Pairwise+MMoE</div>
     <div class="legend-item"><span class="dot" style="background:#ef4444"></span>Transformer</div>
