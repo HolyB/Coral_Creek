@@ -82,3 +82,5 @@ versions/v4/ml/saved_models/
 versions/v3/db/coral_creek.db
 versions/v3/db/ml_daily_picks.db
 versions/v4/db/
+versions/v4/
+versions/v4_fe/
