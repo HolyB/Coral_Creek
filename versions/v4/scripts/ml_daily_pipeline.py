@@ -122,8 +122,12 @@ Blend Score: {blend:+.1f}
             try:
                 resp = req.post(url, json={
                     "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"temperature": 0.3, "maxOutputTokens": 500}
-                }, timeout=15)
+                    "generationConfig": {
+                        "temperature": 0.3,
+                        "maxOutputTokens": 2048,
+                        "thinkingConfig": {"thinkingBudget": 0}
+                    }
+                }, timeout=30)
 
                 if resp.status_code == 200:
                     data = resp.json()
