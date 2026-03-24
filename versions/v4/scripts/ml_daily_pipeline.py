@@ -66,6 +66,83 @@ def get_tier(mc, market):
 
 
 # ===========================================================
+# Gemini AI Analysis for each pick
+# ===========================================================
+def gemini_analyze_picks(picks, market):
+    """Call Gemini API to generate brief analysis for each pick.
+    Returns dict: {symbol: {fundamentals, sentiment, technicals, sector}}
+    """
+    api_key = os.environ.get('GEMINI_API_KEY', '')
+    if not api_key:
+        print("  ⚠️ GEMINI_API_KEY not set, skipping AI analysis", flush=True)
+        return {}
+
+    import requests as req
+    results = {}
+    market_label = "US stock" if market == 'US' else "Chinese A-share stock"
+
+    for tier, p in picks.items():
+        sym = p['symbol']
+        name = p.get('name', sym)
+        price = p.get('price', 0)
+        pred5 = p.get('pred_5d', 0)
+        pred10 = p.get('pred_10d', 0)
+        pred20 = p.get('pred_20d', 0)
+        blend = p.get('blend', 0)
+        mcap = p.get('mcap', 0)
+
+        if market == 'US':
+            mcap_str = f"${mcap/1e9:.1f}B" if mcap >= 1e9 else f"${mcap/1e6:.0f}M"
+        else:
+            mcap_str = f"{mcap/1e8:.0f}亿" if mcap > 0 else "未知"
+
+        prompt = f"""You are a financial analyst. Analyze this {market_label} briefly in Chinese (用中文回答):
+
+Stock: {sym} ({name})
+Price: {price:.2f}
+Market Cap: {mcap_str}
+Tier: {tier}
+ML Model Predictions: 5D={pred5:+.1f}%, 10D={pred10:+.1f}%, 20D={pred20:+.1f}%
+Blend Score: {blend:+.1f}
+
+请用以下格式简要分析(每项1-2句话):
+📊 基本面: (公司主营业务、估值水平、盈利能力)
+📰 市场情绪: (近期市场关注度、资金流向、新闻面)
+📈 技术面: (趋势、支撑阻力、量价关系)
+🏭 板块: (所属行业/板块，板块近期走势)
+
+注意: 简洁精炼，每项不超过2句话。如果不确定，可以基于行业特性和市值推断。"""
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        for attempt in range(3):
+            try:
+                resp = req.post(url, json={
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {"temperature": 0.3, "maxOutputTokens": 500}
+                }, timeout=15)
+
+                if resp.status_code == 200:
+                    data = resp.json()
+                    text = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
+                    results[sym] = text.strip()
+                    print(f"  🤖 Gemini: {sym} ✅", flush=True)
+                    break
+                elif resp.status_code == 429:
+                    wait = 2 ** (attempt + 1)
+                    print(f"  ⏳ Gemini {sym}: rate limited, retry in {wait}s ({attempt+1}/3)", flush=True)
+                    time.sleep(wait)
+                else:
+                    print(f"  ⚠️ Gemini {sym}: HTTP {resp.status_code}", flush=True)
+                    break
+            except Exception as e:
+                print(f"  ⚠️ Gemini {sym}: {e}", flush=True)
+                break
+        time.sleep(2)  # Inter-request delay to avoid rate limits
+
+    return results
+
+
+# ===========================================================
 # MMoE+WR Model (6-task: 3 regression + 3 win-rate classification)
 # ===========================================================
 class MMoE(nn.Module):
@@ -834,18 +911,21 @@ def send_report(eval_date, market, picks, pw_picks=None):
     except Exception as e:
         print(f"  ⚠️ Push failed: {e}", flush=True)
 
-    # Email (HTML) with strategy chart
+    # Email (HTML) with strategy chart + Gemini AI analysis
     try:
         from scripts.ml_backtest_report import send_email_report
         from scripts.ml_strategy_chart import generate_strategy_chart
         chart_b64 = generate_strategy_chart(market, 365)
-        html = _build_daily_html(eval_date, market, picks, recent_picks, chart_b64, _day_ranks, pw_picks)
+        # Gemini AI analysis for today's picks
+        print(f"  🤖 Running Gemini AI analysis...", flush=True)
+        ai_analysis = gemini_analyze_picks(picks, market)
+        html = _build_daily_html(eval_date, market, picks, recent_picks, chart_b64, _day_ranks, pw_picks, ai_analysis)
         send_email_report(html, market)
     except Exception as e:
         print(f"  ⚠️ Email skipped: {e}", flush=True)
 
 
-def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=None, day_ranks=None, pw_picks=None):
+def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=None, day_ranks=None, pw_picks=None, ai_analysis=None):
     """Build premium dark-themed HTML with 4 sections: today + 60d history + tier stats + strategy chart"""
     price_sym = "$" if market == 'US' else "¥"
     market_name = "美股" if market == 'US' else "A股"
@@ -922,6 +1002,17 @@ def _build_daily_html(eval_date, market, picks, recent_picks=None, chart_b64=Non
               <div style="font-size:9px;color:#94a3b8">BLEND</div>
             </div>
           </div>
+        </div>"""
+
+        # Add Gemini AI analysis if available
+        ai_text = (ai_analysis or {}).get(p['symbol'], '')
+        if ai_text:
+            # Convert newlines to <br> and preserve emoji formatting
+            ai_html = ai_text.replace('\n', '<br>')
+            pick_cards += f"""
+        <div style="background:#1a2332;border-radius:0 0 10px 10px;padding:12px 16px;margin-top:-10px;margin-bottom:10px;border-left:4px solid {tc};border-top:1px solid #334155">
+          <div style="font-size:10px;color:#64748b;margin-bottom:6px;font-weight:700">🤖 AI ANALYSIS</div>
+          <div style="font-size:12px;color:#cbd5e1;line-height:1.6">{ai_html}</div>
         </div>"""
 
     # ==== Section 1a: Pairwise vs Pointwise Comparison ====
