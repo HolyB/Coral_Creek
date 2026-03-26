@@ -1,7 +1,7 @@
 {
   "date": "2026-03-25",
   "market": "CN",
-  "total_signals": 577,
+  "total_signals": 761,
   "top_signals": [
     {
       "symbol": "002932.SZ",
@@ -30,6 +30,13 @@
       "price": 32.64,
       "day_blue": 98.8,
       "week_blue": 65.5
+    },
+    {
+      "symbol": "300181.SZ",
+      "name": "佐力药业",
+      "price": 15.28,
+      "day_blue": 89.3,
+      "week_blue": 104.8
     },
     {
       "symbol": "300955.SZ",
@@ -67,46 +74,39 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "920122.BJ",
-      "name": "中纺标",
-      "price": 26.01,
+      "symbol": "920855.BJ",
+      "name": "浙江大农",
+      "price": 15.49,
       "day_blue": 0.0,
-      "week_blue": 168.0
+      "week_blue": 114.9
     },
     {
-      "symbol": "920575.BJ",
-      "name": "康乐卫士",
-      "price": 7.73,
+      "symbol": "920422.BJ",
+      "name": "润普食品",
+      "price": 11.01,
       "day_blue": 0.0,
-      "week_blue": 111.1
+      "week_blue": 195.0
     },
     {
-      "symbol": "001306.SZ",
-      "name": "夏厦精密",
-      "price": 67.39,
+      "symbol": "301678.SZ",
+      "name": "新恒汇",
+      "price": 61.53,
       "day_blue": 0.0,
-      "week_blue": 100.0
+      "week_blue": 200.0
     },
     {
-      "symbol": "920267.BJ",
-      "name": "鑫汇科",
-      "price": 18.98,
+      "symbol": "920374.BJ",
+      "name": "云里物里",
+      "price": 20.0,
       "day_blue": 0.0,
-      "week_blue": 127.1
+      "week_blue": 102.7
     },
     {
-      "symbol": "301533.SZ",
-      "name": "威马农机",
-      "price": 32.0,
+      "symbol": "301502.SZ",
+      "name": "华阳智能",
+      "price": 43.02,
       "day_blue": 0.0,
-      "week_blue": 164.8
-    },
-    {
-      "symbol": "301578.SZ",
-      "name": "辰奕智能",
-      "price": 33.41,
-      "day_blue": 0.0,
-      "week_blue": 162.9
+      "week_blue": 161.6
     }
   ]
 }
