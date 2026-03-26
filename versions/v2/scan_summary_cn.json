@@ -1,7 +1,7 @@
 {
   "date": "2026-03-25",
   "market": "CN",
-  "total_signals": 332,
+  "total_signals": 577,
   "top_signals": [
     {
       "symbol": "002932.SZ",
@@ -9,6 +9,13 @@
       "price": 16.34,
       "day_blue": 103.0,
       "week_blue": 118.5
+    },
+    {
+      "symbol": "600113.SH",
+      "name": "浙江东日",
+      "price": 51.3,
+      "day_blue": 102.4,
+      "week_blue": 0.0
     },
     {
       "symbol": "603668.SH",
@@ -25,6 +32,20 @@
       "week_blue": 65.5
     },
     {
+      "symbol": "300955.SZ",
+      "name": "嘉亨家化",
+      "price": 31.85,
+      "day_blue": 89.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002430.SZ",
+      "name": "杭氧股份",
+      "price": 27.72,
+      "day_blue": 87.1,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "688757.SH",
       "name": "胜科纳米",
       "price": 24.51,
@@ -39,74 +60,53 @@
       "week_blue": 77.0
     },
     {
-      "symbol": "688795.SH",
-      "name": "摩尔线程-U",
-      "price": 563.68,
-      "day_blue": 0.0,
-      "week_blue": 200.0
+      "symbol": "600028.SH",
+      "name": "中国石化",
+      "price": 5.92,
+      "day_blue": 71.1,
+      "week_blue": 0.0
     },
     {
-      "symbol": "301656.SZ",
-      "name": "联合动力",
-      "price": 24.2,
+      "symbol": "920122.BJ",
+      "name": "中纺标",
+      "price": 26.01,
       "day_blue": 0.0,
-      "week_blue": 200.0
+      "week_blue": 168.0
     },
     {
-      "symbol": "920160.BJ",
-      "name": "北矿检测",
-      "price": 22.04,
+      "symbol": "920575.BJ",
+      "name": "康乐卫士",
+      "price": 7.73,
       "day_blue": 0.0,
-      "week_blue": 200.0
+      "week_blue": 111.1
     },
     {
-      "symbol": "688114.SH",
-      "name": "华大智造",
-      "price": 50.24,
+      "symbol": "001306.SZ",
+      "name": "夏厦精密",
+      "price": 67.39,
       "day_blue": 0.0,
-      "week_blue": 145.8
+      "week_blue": 100.0
     },
     {
-      "symbol": "920020.BJ",
-      "name": "泰凯英",
-      "price": 15.52,
+      "symbol": "920267.BJ",
+      "name": "鑫汇科",
+      "price": 18.98,
       "day_blue": 0.0,
-      "week_blue": 200.0
+      "week_blue": 127.1
     },
     {
-      "symbol": "688783.SH",
-      "name": "西安奕材-U",
-      "price": 22.05,
+      "symbol": "301533.SZ",
+      "name": "威马农机",
+      "price": 32.0,
       "day_blue": 0.0,
-      "week_blue": 200.0
+      "week_blue": 164.8
     },
     {
-      "symbol": "920056.BJ",
-      "name": "能之光",
-      "price": 22.38,
+      "symbol": "301578.SZ",
+      "name": "辰奕智能",
+      "price": 33.41,
       "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920007.BJ",
-      "name": "酉立智能",
-      "price": 60.57,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "603014.SH",
-      "name": "威高血净",
-      "price": 37.24,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "688755.SH",
-      "name": "汉邦科技",
-      "price": 37.45,
-      "day_blue": 0.0,
-      "week_blue": 200.0
+      "week_blue": 162.9
     }
   ]
 }
