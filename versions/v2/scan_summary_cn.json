@@ -1,112 +1,112 @@
 {
-  "date": "2026-03-25",
+  "date": "2026-03-26",
   "market": "CN",
-  "total_signals": 761,
+  "total_signals": 376,
   "top_signals": [
     {
-      "symbol": "002932.SZ",
-      "name": "明德生物",
-      "price": 16.34,
-      "day_blue": 103.0,
+      "symbol": "920035.BJ",
+      "name": "精创电气",
+      "price": 32.32,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000860.SZ",
+      "name": "顺鑫农业",
+      "price": 12.78,
+      "day_blue": 172.6,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "000776.SZ",
+      "name": "广发证券",
+      "price": 18.12,
+      "day_blue": 168.6,
+      "week_blue": 112.0
+    },
+    {
+      "symbol": "002991.SZ",
+      "name": "甘源食品",
+      "price": 49.25,
+      "day_blue": 168.3,
+      "week_blue": 114.3
+    },
+    {
+      "symbol": "920007.BJ",
+      "name": "酉立智能",
+      "price": 57.98,
+      "day_blue": 160.7,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "600702.SH",
+      "name": "舍得酒业",
+      "price": 44.06,
+      "day_blue": 157.6,
+      "week_blue": 109.2
+    },
+    {
+      "symbol": "601211.SH",
+      "name": "国泰海通",
+      "price": 16.76,
+      "day_blue": 146.8,
+      "week_blue": 87.2
+    },
+    {
+      "symbol": "603369.SH",
+      "name": "今世缘",
+      "price": 26.64,
+      "day_blue": 135.5,
+      "week_blue": 172.7
+    },
+    {
+      "symbol": "920807.BJ",
+      "name": "奔朗新材",
+      "price": 11.46,
+      "day_blue": 133.9,
       "week_blue": 118.5
     },
     {
-      "symbol": "600113.SH",
-      "name": "浙江东日",
-      "price": 51.3,
-      "day_blue": 102.4,
+      "symbol": "603955.SH",
+      "name": "大千生态",
+      "price": 24.93,
+      "day_blue": 133.5,
+      "week_blue": 126.6
+    },
+    {
+      "symbol": "300339.SZ",
+      "name": "润和软件",
+      "price": 39.06,
+      "day_blue": 127.6,
+      "week_blue": 78.4
+    },
+    {
+      "symbol": "920651.BJ",
+      "name": "天罡股份",
+      "price": 30.56,
+      "day_blue": 124.8,
       "week_blue": 0.0
     },
     {
-      "symbol": "603668.SH",
-      "name": "天马科技",
-      "price": 10.78,
-      "day_blue": 99.1,
-      "week_blue": 86.3
+      "symbol": "600809.SH",
+      "name": "山西汾酒",
+      "price": 147.8,
+      "day_blue": 120.0,
+      "week_blue": 95.9
     },
     {
-      "symbol": "603358.SH",
-      "name": "华达科技",
-      "price": 32.64,
-      "day_blue": 98.8,
-      "week_blue": 65.5
-    },
-    {
-      "symbol": "300181.SZ",
-      "name": "佐力药业",
-      "price": 15.28,
-      "day_blue": 89.3,
-      "week_blue": 104.8
-    },
-    {
-      "symbol": "300955.SZ",
-      "name": "嘉亨家化",
-      "price": 31.85,
-      "day_blue": 89.2,
+      "symbol": "000959.SZ",
+      "name": "首钢股份",
+      "price": 4.67,
+      "day_blue": 119.7,
       "week_blue": 0.0
     },
     {
-      "symbol": "002430.SZ",
-      "name": "杭氧股份",
-      "price": 27.72,
-      "day_blue": 87.1,
+      "symbol": "300377.SZ",
+      "name": "赢时胜",
+      "price": 18.08,
+      "day_blue": 116.4,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "688757.SH",
-      "name": "胜科纳米",
-      "price": 24.51,
-      "day_blue": 83.8,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "605081.SH",
-      "name": "*ST太和",
-      "price": 7.8,
-      "day_blue": 82.5,
-      "week_blue": 77.0
-    },
-    {
-      "symbol": "600028.SH",
-      "name": "中国石化",
-      "price": 5.92,
-      "day_blue": 71.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920855.BJ",
-      "name": "浙江大农",
-      "price": 15.49,
-      "day_blue": 0.0,
-      "week_blue": 114.9
-    },
-    {
-      "symbol": "920422.BJ",
-      "name": "润普食品",
-      "price": 11.01,
-      "day_blue": 0.0,
-      "week_blue": 195.0
-    },
-    {
-      "symbol": "301678.SZ",
-      "name": "新恒汇",
-      "price": 61.53,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920374.BJ",
-      "name": "云里物里",
-      "price": 20.0,
-      "day_blue": 0.0,
-      "week_blue": 102.7
-    },
-    {
-      "symbol": "301502.SZ",
-      "name": "华阳智能",
-      "price": 43.02,
-      "day_blue": 0.0,
-      "week_blue": 161.6
     }
   ]
 }
