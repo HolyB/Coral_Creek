@@ -1,14 +1,28 @@
 {
   "date": "2026-03-26",
   "market": "CN",
-  "total_signals": 376,
+  "total_signals": 587,
   "top_signals": [
+    {
+      "symbol": "301061.SZ",
+      "name": "匠心家居",
+      "price": 74.19,
+      "day_blue": 200.0,
+      "week_blue": 107.9
+    },
     {
       "symbol": "920035.BJ",
       "name": "精创电气",
       "price": 32.32,
       "day_blue": 200.0,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "002570.SZ",
+      "name": "贝因美",
+      "price": 5.17,
+      "day_blue": 185.2,
+      "week_blue": 144.1
     },
     {
       "symbol": "000860.SZ",
@@ -74,6 +88,13 @@
       "week_blue": 126.6
     },
     {
+      "symbol": "301055.SZ",
+      "name": "张小泉",
+      "price": 18.2,
+      "day_blue": 131.5,
+      "week_blue": 66.1
+    },
+    {
       "symbol": "300339.SZ",
       "name": "润和软件",
       "price": 39.06,
@@ -81,32 +102,11 @@
       "week_blue": 78.4
     },
     {
-      "symbol": "920651.BJ",
-      "name": "天罡股份",
-      "price": 30.56,
-      "day_blue": 124.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600809.SH",
-      "name": "山西汾酒",
-      "price": 147.8,
-      "day_blue": 120.0,
-      "week_blue": 95.9
-    },
-    {
-      "symbol": "000959.SZ",
-      "name": "首钢股份",
-      "price": 4.67,
-      "day_blue": 119.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300377.SZ",
-      "name": "赢时胜",
-      "price": 18.08,
-      "day_blue": 116.4,
-      "week_blue": 0.0
+      "symbol": "688117.SH",
+      "name": "圣诺生物",
+      "price": 32.14,
+      "day_blue": 125.6,
+      "week_blue": 77.7
     }
   ]
 }
