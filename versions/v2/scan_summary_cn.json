@@ -1,112 +1,112 @@
 {
-  "date": "2026-03-26",
+  "date": "2026-03-27",
   "market": "CN",
-  "total_signals": 851,
+  "total_signals": 667,
   "top_signals": [
     {
-      "symbol": "688076.SH",
-      "name": "ST诺泰",
-      "price": 28.42,
+      "symbol": "920035.BJ",
+      "name": "精创电气",
+      "price": 32.15,
       "day_blue": 200.0,
-      "week_blue": 115.0
+      "week_blue": 0.0
     },
     {
-      "symbol": "603198.SH",
-      "name": "迎驾贡酒",
-      "price": 31.73,
+      "symbol": "001280.SZ",
+      "name": "中国铀业",
+      "price": 79.11,
       "day_blue": 200.0,
-      "week_blue": 105.2
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920002.BJ",
+      "name": "万达轴承",
+      "price": 81.75,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601026.SH",
+      "name": "道生天合",
+      "price": 19.68,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603376.SH",
+      "name": "大明电子",
+      "price": 33.84,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "603418.SH",
+      "name": "友升股份",
+      "price": 50.27,
+      "day_blue": 200.0,
+      "week_blue": 200.0
     },
     {
       "symbol": "301061.SZ",
       "name": "匠心家居",
-      "price": 74.19,
+      "price": 74.51,
       "day_blue": 200.0,
       "week_blue": 107.9
     },
     {
-      "symbol": "920035.BJ",
-      "name": "精创电气",
-      "price": 32.32,
+      "symbol": "688076.SH",
+      "name": "ST诺泰",
+      "price": 29.18,
       "day_blue": 200.0,
-      "week_blue": 0.0
+      "week_blue": 115.1
     },
     {
-      "symbol": "002570.SZ",
-      "name": "贝因美",
-      "price": 5.17,
-      "day_blue": 185.2,
-      "week_blue": 144.1
+      "symbol": "603198.SH",
+      "name": "迎驾贡酒",
+      "price": 31.97,
+      "day_blue": 200.0,
+      "week_blue": 105.3
     },
     {
-      "symbol": "000860.SZ",
-      "name": "顺鑫农业",
-      "price": 12.78,
-      "day_blue": 172.6,
-      "week_blue": 200.0
+      "symbol": "920075.BJ",
+      "name": "柏星龙",
+      "price": 20.59,
+      "day_blue": 193.4,
+      "week_blue": 117.6
     },
     {
       "symbol": "000776.SZ",
       "name": "广发证券",
-      "price": 18.12,
-      "day_blue": 168.6,
+      "price": 18.29,
+      "day_blue": 191.6,
       "week_blue": 112.0
+    },
+    {
+      "symbol": "920690.BJ",
+      "name": "捷众科技",
+      "price": 24.32,
+      "day_blue": 186.9,
+      "week_blue": 91.1
+    },
+    {
+      "symbol": "000860.SZ",
+      "name": "顺鑫农业",
+      "price": 12.89,
+      "day_blue": 182.6,
+      "week_blue": 200.0
     },
     {
       "symbol": "002991.SZ",
       "name": "甘源食品",
-      "price": 49.25,
-      "day_blue": 168.3,
-      "week_blue": 114.3
+      "price": 50.22,
+      "day_blue": 179.6,
+      "week_blue": 114.4
     },
     {
       "symbol": "920007.BJ",
       "name": "酉立智能",
-      "price": 57.98,
-      "day_blue": 160.7,
+      "price": 58.22,
+      "day_blue": 177.6,
       "week_blue": 200.0
-    },
-    {
-      "symbol": "600702.SH",
-      "name": "舍得酒业",
-      "price": 44.06,
-      "day_blue": 157.6,
-      "week_blue": 109.2
-    },
-    {
-      "symbol": "601319.SH",
-      "name": "中国人保",
-      "price": 7.76,
-      "day_blue": 156.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603130.SH",
-      "name": "云中马",
-      "price": 40.08,
-      "day_blue": 154.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300803.SZ",
-      "name": "指南针",
-      "price": 97.03,
-      "day_blue": 154.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920245.BJ",
-      "name": "威博液压",
-      "price": 23.25,
-      "day_blue": 147.8,
-      "week_blue": 91.4
-    },
-    {
-      "symbol": "601211.SH",
-      "name": "国泰海通",
-      "price": 16.76,
-      "day_blue": 146.8,
-      "week_blue": 87.2
     }
   ]
 }
