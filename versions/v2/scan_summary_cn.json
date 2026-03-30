@@ -1,7 +1,7 @@
 {
   "date": "2026-03-27",
   "market": "CN",
-  "total_signals": 821,
+  "total_signals": 928,
   "top_signals": [
     {
       "symbol": "600559.SH",
@@ -74,6 +74,13 @@
       "week_blue": 105.3
     },
     {
+      "symbol": "603997.SH",
+      "name": "继峰股份",
+      "price": 11.94,
+      "day_blue": 195.5,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "920075.BJ",
       "name": "柏星龙",
       "price": 20.59,
@@ -100,13 +107,6 @@
       "price": 12.89,
       "day_blue": 182.6,
       "week_blue": 200.0
-    },
-    {
-      "symbol": "002991.SZ",
-      "name": "甘源食品",
-      "price": 50.22,
-      "day_blue": 179.6,
-      "week_blue": 114.4
     }
   ]
 }
