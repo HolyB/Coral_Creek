@@ -1,8 +1,15 @@
 {
   "date": "2026-03-27",
   "market": "CN",
-  "total_signals": 667,
+  "total_signals": 821,
   "top_signals": [
+    {
+      "symbol": "600559.SH",
+      "name": "老白干酒",
+      "price": 13.5,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
     {
       "symbol": "920035.BJ",
       "name": "精创电气",
@@ -100,13 +107,6 @@
       "price": 50.22,
       "day_blue": 179.6,
       "week_blue": 114.4
-    },
-    {
-      "symbol": "920007.BJ",
-      "name": "酉立智能",
-      "price": 58.22,
-      "day_blue": 177.6,
-      "week_blue": 200.0
     }
   ]
 }
