@@ -1,9 +1,9 @@
 {
   "date": "2026-03-30",
   "market": "US",
-  "computed_at": "2026-03-30T14:51:48.437947",
+  "computed_at": "2026-03-30T20:52:59.395326",
   "model": "mmoe",
-  "total_signals": 443,
+  "total_signals": 500,
   "computed": 0,
   "scores": {}
 }
