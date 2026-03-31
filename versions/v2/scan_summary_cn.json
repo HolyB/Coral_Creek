@@ -1,8 +1,15 @@
 {
   "date": "2026-03-30",
   "market": "CN",
-  "total_signals": 91,
+  "total_signals": 124,
   "top_signals": [
+    {
+      "symbol": "603997.SH",
+      "name": "继峰股份",
+      "price": 11.84,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
     {
       "symbol": "920873.BJ",
       "name": "中设咨询",
@@ -25,11 +32,25 @@
       "week_blue": 151.7
     },
     {
+      "symbol": "601211.SH",
+      "name": "国泰海通",
+      "price": 16.69,
+      "day_blue": 177.8,
+      "week_blue": 90.9
+    },
+    {
       "symbol": "920171.BJ",
       "name": "志晟信息",
       "price": 17.07,
       "day_blue": 170.4,
       "week_blue": 135.2
+    },
+    {
+      "symbol": "601377.SH",
+      "name": "兴业证券",
+      "price": 5.93,
+      "day_blue": 169.9,
+      "week_blue": 99.2
     },
     {
       "symbol": "000564.SZ",
@@ -60,6 +81,13 @@
       "week_blue": 97.3
     },
     {
+      "symbol": "603369.SH",
+      "name": "今世缘",
+      "price": 26.8,
+      "day_blue": 154.7,
+      "week_blue": 183.4
+    },
+    {
       "symbol": "920985.BJ",
       "name": "海泰新能",
       "price": 7.33,
@@ -79,34 +107,6 @@
       "price": 26.35,
       "day_blue": 140.0,
       "week_blue": 95.8
-    },
-    {
-      "symbol": "920299.BJ",
-      "name": "灿能电力",
-      "price": 24.32,
-      "day_blue": 126.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920765.BJ",
-      "name": "美之高",
-      "price": 14.31,
-      "day_blue": 124.4,
-      "week_blue": 138.9
-    },
-    {
-      "symbol": "920932.BJ",
-      "name": "科达自控",
-      "price": 14.99,
-      "day_blue": 123.6,
-      "week_blue": 121.5
-    },
-    {
-      "symbol": "920799.BJ",
-      "name": "艾融软件",
-      "price": 33.39,
-      "day_blue": 122.5,
-      "week_blue": 189.1
     }
   ]
 }
