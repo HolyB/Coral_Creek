@@ -1,112 +1,112 @@
 {
-  "date": "2026-03-30",
+  "date": "2026-03-31",
   "market": "CN",
-  "total_signals": 232,
+  "total_signals": 157,
   "top_signals": [
     {
-      "symbol": "920121.BJ",
-      "name": "江天科技",
-      "price": 36.22,
+      "symbol": "920003.BJ",
+      "name": "中诚咨询",
+      "price": 27.1,
       "day_blue": 200.0,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "920160.BJ",
-      "name": "北矿检测",
-      "price": 21.45,
-      "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920112.BJ",
-      "name": "巴兰仕",
-      "price": 32.89,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920002.BJ",
-      "name": "万达轴承",
-      "price": 80.42,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920690.BJ",
-      "name": "捷众科技",
-      "price": 23.56,
-      "day_blue": 200.0,
-      "week_blue": 105.8
     },
     {
       "symbol": "601026.SH",
       "name": "道生天合",
-      "price": 19.27,
+      "price": 19.05,
       "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920132.BJ",
-      "name": "泰鹏智能",
-      "price": 13.11,
-      "day_blue": 200.0,
-      "week_blue": 171.2
-    },
-    {
-      "symbol": "603376.SH",
-      "name": "大明电子",
-      "price": 33.46,
-      "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "603997.SH",
-      "name": "继峰股份",
-      "price": 11.84,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920873.BJ",
-      "name": "中设咨询",
-      "price": 6.61,
-      "day_blue": 200.0,
-      "week_blue": 97.1
-    },
-    {
-      "symbol": "603130.SH",
-      "name": "云中马",
-      "price": 39.36,
-      "day_blue": 189.5,
       "week_blue": 0.0
     },
     {
       "symbol": "920007.BJ",
       "name": "酉立智能",
-      "price": 56.39,
-      "day_blue": 189.0,
+      "price": 54.7,
+      "day_blue": 198.6,
       "week_blue": 0.0
     },
     {
-      "symbol": "920475.BJ",
-      "name": "三友科技",
-      "price": 12.44,
-      "day_blue": 183.5,
-      "week_blue": 151.7
+      "symbol": "603130.SH",
+      "name": "云中马",
+      "price": 38.56,
+      "day_blue": 198.4,
+      "week_blue": 0.0
     },
     {
-      "symbol": "001285.SZ",
-      "name": "瑞立科密",
-      "price": 49.35,
-      "day_blue": 183.0,
-      "week_blue": 0.0
+      "symbol": "000776.SZ",
+      "name": "广发证券",
+      "price": 17.96,
+      "day_blue": 195.4,
+      "week_blue": 120.8
     },
     {
       "symbol": "601211.SH",
       "name": "国泰海通",
-      "price": 16.69,
-      "day_blue": 177.8,
+      "price": 16.59,
+      "day_blue": 185.8,
       "week_blue": 90.9
+    },
+    {
+      "symbol": "920985.BJ",
+      "name": "海泰新能",
+      "price": 7.01,
+      "day_blue": 173.5,
+      "week_blue": 90.9
+    },
+    {
+      "symbol": "000564.SZ",
+      "name": "供销大集",
+      "price": 1.85,
+      "day_blue": 171.3,
+      "week_blue": 165.1
+    },
+    {
+      "symbol": "920208.BJ",
+      "name": "青矩技术",
+      "price": 22.07,
+      "day_blue": 162.3,
+      "week_blue": 120.1
+    },
+    {
+      "symbol": "920651.BJ",
+      "name": "天罡股份",
+      "price": 27.55,
+      "day_blue": 154.8,
+      "week_blue": 120.5
+    },
+    {
+      "symbol": "920471.BJ",
+      "name": "美邦科技",
+      "price": 12.38,
+      "day_blue": 147.9,
+      "week_blue": 100.9
+    },
+    {
+      "symbol": "920932.BJ",
+      "name": "科达自控",
+      "price": 14.84,
+      "day_blue": 141.4,
+      "week_blue": 121.6
+    },
+    {
+      "symbol": "920061.BJ",
+      "name": "西磁科技",
+      "price": 22.1,
+      "day_blue": 141.2,
+      "week_blue": 105.5
+    },
+    {
+      "symbol": "300536.SZ",
+      "name": "农尚环境",
+      "price": 7.8,
+      "day_blue": 138.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688429.SH",
+      "name": "时创能源",
+      "price": 14.19,
+      "day_blue": 137.7,
+      "week_blue": 0.0
     }
   ]
 }
