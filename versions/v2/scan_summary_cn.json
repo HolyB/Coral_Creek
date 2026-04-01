@@ -1,112 +1,112 @@
 {
-  "date": "2026-03-31",
+  "date": "2026-04-01",
   "market": "CN",
-  "total_signals": 229,
+  "total_signals": 102,
   "top_signals": [
-    {
-      "symbol": "301061.SZ",
-      "name": "匠心家居",
-      "price": 73.1,
-      "day_blue": 200.0,
-      "week_blue": 112.0
-    },
-    {
-      "symbol": "920003.BJ",
-      "name": "中诚咨询",
-      "price": 27.1,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "601026.SH",
-      "name": "道生天合",
-      "price": 19.05,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920007.BJ",
-      "name": "酉立智能",
-      "price": 54.7,
-      "day_blue": 198.6,
-      "week_blue": 0.0
-    },
     {
       "symbol": "603130.SH",
       "name": "云中马",
-      "price": 38.56,
-      "day_blue": 198.4,
+      "price": 38.6,
+      "day_blue": 200.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "000776.SZ",
-      "name": "广发证券",
-      "price": 17.96,
-      "day_blue": 195.4,
-      "week_blue": 120.8
+      "symbol": "603955.SH",
+      "name": "大千生态",
+      "price": 24.76,
+      "day_blue": 145.1,
+      "week_blue": 132.4
     },
     {
-      "symbol": "601319.SH",
-      "name": "中国人保",
-      "price": 7.27,
-      "day_blue": 187.5,
-      "week_blue": 84.1
+      "symbol": "920299.BJ",
+      "name": "灿能电力",
+      "price": 23.76,
+      "day_blue": 142.3,
+      "week_blue": 0.0
     },
     {
-      "symbol": "601211.SH",
-      "name": "国泰海通",
-      "price": 16.59,
-      "day_blue": 185.8,
-      "week_blue": 90.9
+      "symbol": "603983.SH",
+      "name": "丸美生物",
+      "price": 26.11,
+      "day_blue": 109.2,
+      "week_blue": 200.0
     },
     {
-      "symbol": "601377.SH",
-      "name": "兴业证券",
-      "price": 5.87,
-      "day_blue": 182.4,
-      "week_blue": 99.2
+      "symbol": "688303.SH",
+      "name": "大全能源",
+      "price": 21.02,
+      "day_blue": 108.8,
+      "week_blue": 116.2
     },
     {
-      "symbol": "920985.BJ",
-      "name": "海泰新能",
-      "price": 7.01,
-      "day_blue": 173.5,
-      "week_blue": 90.9
+      "symbol": "600403.SH",
+      "name": "大有能源",
+      "price": 5.79,
+      "day_blue": 104.9,
+      "week_blue": 0.0
     },
     {
-      "symbol": "600882.SH",
-      "name": "妙可蓝多",
-      "price": 18.35,
-      "day_blue": 173.1,
-      "week_blue": 136.6
+      "symbol": "300370.SZ",
+      "name": "安控科技",
+      "price": 2.58,
+      "day_blue": 101.0,
+      "week_blue": 0.0
     },
     {
-      "symbol": "000564.SZ",
-      "name": "供销大集",
-      "price": 1.85,
-      "day_blue": 171.3,
-      "week_blue": 165.1
+      "symbol": "920496.BJ",
+      "name": "许昌智能",
+      "price": 9.24,
+      "day_blue": 99.3,
+      "week_blue": 117.9
     },
     {
-      "symbol": "300391.SZ",
-      "name": "*ST长药",
-      "price": 0.32,
-      "day_blue": 170.0,
-      "week_blue": 163.0
+      "symbol": "600408.SH",
+      "name": "安泰集团",
+      "price": 3.41,
+      "day_blue": 98.6,
+      "week_blue": 0.0
     },
     {
-      "symbol": "920208.BJ",
-      "name": "青矩技术",
-      "price": 22.07,
-      "day_blue": 162.3,
-      "week_blue": 120.1
+      "symbol": "920857.BJ",
+      "name": "泓禧科技",
+      "price": 23.5,
+      "day_blue": 98.5,
+      "week_blue": 0.0
     },
     {
-      "symbol": "920651.BJ",
-      "name": "天罡股份",
-      "price": 27.55,
-      "day_blue": 154.8,
-      "week_blue": 120.5
+      "symbol": "688287.SH",
+      "name": "*ST观典",
+      "price": 2.72,
+      "day_blue": 96.2,
+      "week_blue": 94.4
+    },
+    {
+      "symbol": "600421.SH",
+      "name": "*ST华嵘",
+      "price": 6.55,
+      "day_blue": 94.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301162.SZ",
+      "name": "国能日新",
+      "price": 64.37,
+      "day_blue": 93.3,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600925.SH",
+      "name": "苏能股份",
+      "price": 4.65,
+      "day_blue": 90.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603477.SH",
+      "name": "巨星农牧",
+      "price": 15.48,
+      "day_blue": 90.0,
+      "week_blue": 113.6
     }
   ]
 }
