@@ -1,7 +1,7 @@
 {
   "date": "2026-03-31",
   "market": "CN",
-  "total_signals": 157,
+  "total_signals": 173,
   "top_signals": [
     {
       "symbol": "920003.BJ",
@@ -60,6 +60,13 @@
       "week_blue": 165.1
     },
     {
+      "symbol": "300391.SZ",
+      "name": "*ST长药",
+      "price": 0.32,
+      "day_blue": 170.0,
+      "week_blue": 163.0
+    },
+    {
       "symbol": "920208.BJ",
       "name": "青矩技术",
       "price": 22.07,
@@ -99,13 +106,6 @@
       "name": "农尚环境",
       "price": 7.8,
       "day_blue": 138.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688429.SH",
-      "name": "时创能源",
-      "price": 14.19,
-      "day_blue": 137.7,
       "week_blue": 0.0
     }
   ]
