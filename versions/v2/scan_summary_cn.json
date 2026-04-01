@@ -1,8 +1,15 @@
 {
   "date": "2026-03-31",
   "market": "CN",
-  "total_signals": 173,
+  "total_signals": 229,
   "top_signals": [
+    {
+      "symbol": "301061.SZ",
+      "name": "匠心家居",
+      "price": 73.1,
+      "day_blue": 200.0,
+      "week_blue": 112.0
+    },
     {
       "symbol": "920003.BJ",
       "name": "中诚咨询",
@@ -39,6 +46,13 @@
       "week_blue": 120.8
     },
     {
+      "symbol": "601319.SH",
+      "name": "中国人保",
+      "price": 7.27,
+      "day_blue": 187.5,
+      "week_blue": 84.1
+    },
+    {
       "symbol": "601211.SH",
       "name": "国泰海通",
       "price": 16.59,
@@ -46,11 +60,25 @@
       "week_blue": 90.9
     },
     {
+      "symbol": "601377.SH",
+      "name": "兴业证券",
+      "price": 5.87,
+      "day_blue": 182.4,
+      "week_blue": 99.2
+    },
+    {
       "symbol": "920985.BJ",
       "name": "海泰新能",
       "price": 7.01,
       "day_blue": 173.5,
       "week_blue": 90.9
+    },
+    {
+      "symbol": "600882.SH",
+      "name": "妙可蓝多",
+      "price": 18.35,
+      "day_blue": 173.1,
+      "week_blue": 136.6
     },
     {
       "symbol": "000564.SZ",
@@ -79,34 +107,6 @@
       "price": 27.55,
       "day_blue": 154.8,
       "week_blue": 120.5
-    },
-    {
-      "symbol": "920471.BJ",
-      "name": "美邦科技",
-      "price": 12.38,
-      "day_blue": 147.9,
-      "week_blue": 100.9
-    },
-    {
-      "symbol": "920932.BJ",
-      "name": "科达自控",
-      "price": 14.84,
-      "day_blue": 141.4,
-      "week_blue": 121.6
-    },
-    {
-      "symbol": "920061.BJ",
-      "name": "西磁科技",
-      "price": 22.1,
-      "day_blue": 141.2,
-      "week_blue": 105.5
-    },
-    {
-      "symbol": "300536.SZ",
-      "name": "农尚环境",
-      "price": 7.8,
-      "day_blue": 138.7,
-      "week_blue": 0.0
     }
   ]
 }
