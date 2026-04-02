@@ -1,111 +1,111 @@
 {
-  "date": "2026-04-01",
+  "date": "2026-04-02",
   "market": "CN",
-  "total_signals": 181,
+  "total_signals": 145,
   "top_signals": [
     {
-      "symbol": "603130.SH",
-      "name": "云中马",
-      "price": 38.6,
+      "symbol": "688727.SH",
+      "name": "恒坤新材",
+      "price": 45.68,
       "day_blue": 200.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "300391.SZ",
-      "name": "*ST长药",
-      "price": 0.3,
-      "day_blue": 181.1,
-      "week_blue": 163.0
+      "symbol": "601026.SH",
+      "name": "道生天合",
+      "price": 19.0,
+      "day_blue": 200.0,
+      "week_blue": 200.0
     },
     {
-      "symbol": "600809.SH",
-      "name": "山西汾酒",
-      "price": 144.38,
-      "day_blue": 147.1,
-      "week_blue": 98.8
+      "symbol": "000776.SZ",
+      "name": "广发证券",
+      "price": 17.99,
+      "day_blue": 184.3,
+      "week_blue": 120.9
     },
     {
-      "symbol": "603955.SH",
-      "name": "大千生态",
-      "price": 24.76,
-      "day_blue": 145.1,
-      "week_blue": 132.4
-    },
-    {
-      "symbol": "603766.SH",
-      "name": "隆鑫通用",
-      "price": 13.79,
-      "day_blue": 145.0,
+      "symbol": "603733.SH",
+      "name": "仙鹤股份",
+      "price": 21.89,
+      "day_blue": 179.9,
       "week_blue": 0.0
     },
     {
-      "symbol": "920299.BJ",
-      "name": "灿能电力",
-      "price": 23.76,
-      "day_blue": 142.3,
-      "week_blue": 0.0
+      "symbol": "688522.SH",
+      "name": "纳睿雷达",
+      "price": 30.73,
+      "day_blue": 149.6,
+      "week_blue": 98.0
+    },
+    {
+      "symbol": "920471.BJ",
+      "name": "美邦科技",
+      "price": 12.69,
+      "day_blue": 148.5,
+      "week_blue": 100.9
     },
     {
       "symbol": "001979.SZ",
       "name": "招商蛇口",
-      "price": 8.41,
-      "day_blue": 140.6,
-      "week_blue": 82.9
+      "price": 8.14,
+      "day_blue": 145.7,
+      "week_blue": 83.1
     },
     {
-      "symbol": "002768.SZ",
-      "name": "国恩股份",
-      "price": 46.92,
-      "day_blue": 130.0,
+      "symbol": "689009.SH",
+      "name": "九号公司-WD",
+      "price": 43.48,
+      "day_blue": 130.3,
+      "week_blue": 106.3
+    },
+    {
+      "symbol": "600927.SH",
+      "name": "永安期货",
+      "price": 13.48,
+      "day_blue": 128.7,
+      "week_blue": 83.2
+    },
+    {
+      "symbol": "002319.SZ",
+      "name": "乐通股份",
+      "price": 10.71,
+      "day_blue": 128.2,
       "week_blue": 0.0
     },
     {
-      "symbol": "603008.SH",
-      "name": "喜临门",
-      "price": 15.2,
-      "day_blue": 121.8,
-      "week_blue": 79.1
+      "symbol": "002570.SZ",
+      "name": "贝因美",
+      "price": 5.05,
+      "day_blue": 128.1,
+      "week_blue": 152.8
     },
     {
-      "symbol": "300138.SZ",
-      "name": "晨光生物",
-      "price": 12.13,
-      "day_blue": 117.4,
-      "week_blue": 69.4
+      "symbol": "600606.SH",
+      "name": "绿地控股",
+      "price": 1.5,
+      "day_blue": 127.5,
+      "week_blue": 153.5
     },
     {
-      "symbol": "603983.SH",
-      "name": "丸美生物",
-      "price": 26.11,
-      "day_blue": 109.2,
-      "week_blue": 200.0
+      "symbol": "601901.SH",
+      "name": "方正证券",
+      "price": 6.79,
+      "day_blue": 121.7,
+      "week_blue": 153.7
     },
     {
-      "symbol": "688303.SH",
-      "name": "大全能源",
-      "price": 21.02,
-      "day_blue": 108.8,
-      "week_blue": 116.2
+      "symbol": "002320.SZ",
+      "name": "海峡股份",
+      "price": 8.58,
+      "day_blue": 120.1,
+      "week_blue": 0.0
     },
     {
       "symbol": "688196.SH",
       "name": "卓越新能",
-      "price": 65.38,
-      "day_blue": 107.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603863.SH",
-      "name": "松炀资源",
-      "price": 15.68,
-      "day_blue": 107.8,
-      "week_blue": 89.2
-    },
-    {
-      "symbol": "688070.SH",
-      "name": "纵横股份",
-      "price": 46.92,
-      "day_blue": 105.3,
+      "price": 65.16,
+      "day_blue": 117.0,
       "week_blue": 0.0
     }
   ]
