@@ -1,7 +1,7 @@
 {
   "date": "2026-04-01",
   "market": "CN",
-  "total_signals": 137,
+  "total_signals": 181,
   "top_signals": [
     {
       "symbol": "603130.SH",
@@ -9,6 +9,20 @@
       "price": 38.6,
       "day_blue": 200.0,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "300391.SZ",
+      "name": "*ST长药",
+      "price": 0.3,
+      "day_blue": 181.1,
+      "week_blue": 163.0
+    },
+    {
+      "symbol": "600809.SH",
+      "name": "山西汾酒",
+      "price": 144.38,
+      "day_blue": 147.1,
+      "week_blue": 98.8
     },
     {
       "symbol": "603955.SH",
@@ -39,11 +53,25 @@
       "week_blue": 82.9
     },
     {
+      "symbol": "002768.SZ",
+      "name": "国恩股份",
+      "price": 46.92,
+      "day_blue": 130.0,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "603008.SH",
       "name": "喜临门",
       "price": 15.2,
       "day_blue": 121.8,
       "week_blue": 79.1
+    },
+    {
+      "symbol": "300138.SZ",
+      "name": "晨光生物",
+      "price": 12.13,
+      "day_blue": 117.4,
+      "week_blue": 69.4
     },
     {
       "symbol": "603983.SH",
@@ -60,6 +88,13 @@
       "week_blue": 116.2
     },
     {
+      "symbol": "688196.SH",
+      "name": "卓越新能",
+      "price": 65.38,
+      "day_blue": 107.9,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "603863.SH",
       "name": "松炀资源",
       "price": 15.68,
@@ -67,45 +102,10 @@
       "week_blue": 89.2
     },
     {
-      "symbol": "600403.SH",
-      "name": "大有能源",
-      "price": 5.79,
-      "day_blue": 104.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300370.SZ",
-      "name": "安控科技",
-      "price": 2.58,
-      "day_blue": 101.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920496.BJ",
-      "name": "许昌智能",
-      "price": 9.24,
-      "day_blue": 99.3,
-      "week_blue": 117.9
-    },
-    {
-      "symbol": "600408.SH",
-      "name": "安泰集团",
-      "price": 3.41,
-      "day_blue": 98.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920857.BJ",
-      "name": "泓禧科技",
-      "price": 23.5,
-      "day_blue": 98.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000723.SZ",
-      "name": "美锦能源",
-      "price": 4.76,
-      "day_blue": 96.7,
+      "symbol": "688070.SH",
+      "name": "纵横股份",
+      "price": 46.92,
+      "day_blue": 105.3,
       "week_blue": 0.0
     }
   ]
