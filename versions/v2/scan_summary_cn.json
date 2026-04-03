@@ -1,7 +1,7 @@
 {
   "date": "2026-04-02",
   "market": "CN",
-  "total_signals": 145,
+  "total_signals": 206,
   "top_signals": [
     {
       "symbol": "688727.SH",
@@ -25,10 +25,24 @@
       "week_blue": 120.9
     },
     {
+      "symbol": "601211.SH",
+      "name": "国泰海通",
+      "price": 16.55,
+      "day_blue": 181.7,
+      "week_blue": 90.9
+    },
+    {
       "symbol": "603733.SH",
       "name": "仙鹤股份",
       "price": 21.89,
       "day_blue": 179.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688429.SH",
+      "name": "时创能源",
+      "price": 14.16,
+      "day_blue": 157.5,
       "week_blue": 0.0
     },
     {
@@ -44,6 +58,13 @@
       "price": 12.69,
       "day_blue": 148.5,
       "week_blue": 100.9
+    },
+    {
+      "symbol": "601881.SH",
+      "name": "中国银河",
+      "price": 12.63,
+      "day_blue": 145.9,
+      "week_blue": 150.6
     },
     {
       "symbol": "001979.SZ",
@@ -86,27 +107,6 @@
       "price": 1.5,
       "day_blue": 127.5,
       "week_blue": 153.5
-    },
-    {
-      "symbol": "601901.SH",
-      "name": "方正证券",
-      "price": 6.79,
-      "day_blue": 121.7,
-      "week_blue": 153.7
-    },
-    {
-      "symbol": "002320.SZ",
-      "name": "海峡股份",
-      "price": 8.58,
-      "day_blue": 120.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688196.SH",
-      "name": "卓越新能",
-      "price": 65.16,
-      "day_blue": 117.0,
-      "week_blue": 0.0
     }
   ]
 }
