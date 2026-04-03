@@ -1,8 +1,22 @@
 {
   "date": "2026-04-02",
   "market": "CN",
-  "total_signals": 206,
+  "total_signals": 328,
   "top_signals": [
+    {
+      "symbol": "603130.SH",
+      "name": "云中马",
+      "price": 36.97,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301061.SZ",
+      "name": "匠心家居",
+      "price": 73.86,
+      "day_blue": 200.0,
+      "week_blue": 112.1
+    },
     {
       "symbol": "688727.SH",
       "name": "恒坤新材",
@@ -25,6 +39,13 @@
       "week_blue": 120.9
     },
     {
+      "symbol": "601377.SH",
+      "name": "兴业证券",
+      "price": 5.81,
+      "day_blue": 182.3,
+      "week_blue": 99.3
+    },
+    {
       "symbol": "601211.SH",
       "name": "国泰海通",
       "price": 16.55,
@@ -32,11 +53,39 @@
       "week_blue": 90.9
     },
     {
+      "symbol": "920985.BJ",
+      "name": "海泰新能",
+      "price": 6.92,
+      "day_blue": 181.4,
+      "week_blue": 91.0
+    },
+    {
       "symbol": "603733.SH",
       "name": "仙鹤股份",
       "price": 21.89,
       "day_blue": 179.9,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "001236.SZ",
+      "name": "弘业期货",
+      "price": 9.11,
+      "day_blue": 178.7,
+      "week_blue": 124.6
+    },
+    {
+      "symbol": "600882.SH",
+      "name": "妙可蓝多",
+      "price": 17.96,
+      "day_blue": 165.1,
+      "week_blue": 136.8
+    },
+    {
+      "symbol": "603955.SH",
+      "name": "大千生态",
+      "price": 24.53,
+      "day_blue": 165.0,
+      "week_blue": 132.4
     },
     {
       "symbol": "688429.SH",
@@ -58,55 +107,6 @@
       "price": 12.69,
       "day_blue": 148.5,
       "week_blue": 100.9
-    },
-    {
-      "symbol": "601881.SH",
-      "name": "中国银河",
-      "price": 12.63,
-      "day_blue": 145.9,
-      "week_blue": 150.6
-    },
-    {
-      "symbol": "001979.SZ",
-      "name": "招商蛇口",
-      "price": 8.14,
-      "day_blue": 145.7,
-      "week_blue": 83.1
-    },
-    {
-      "symbol": "689009.SH",
-      "name": "九号公司-WD",
-      "price": 43.48,
-      "day_blue": 130.3,
-      "week_blue": 106.3
-    },
-    {
-      "symbol": "600927.SH",
-      "name": "永安期货",
-      "price": 13.48,
-      "day_blue": 128.7,
-      "week_blue": 83.2
-    },
-    {
-      "symbol": "002319.SZ",
-      "name": "乐通股份",
-      "price": 10.71,
-      "day_blue": 128.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002570.SZ",
-      "name": "贝因美",
-      "price": 5.05,
-      "day_blue": 128.1,
-      "week_blue": 152.8
-    },
-    {
-      "symbol": "600606.SH",
-      "name": "绿地控股",
-      "price": 1.5,
-      "day_blue": 127.5,
-      "week_blue": 153.5
     }
   ]
 }
