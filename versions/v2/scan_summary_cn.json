@@ -1,8 +1,22 @@
 {
   "date": "2026-04-03",
   "market": "CN",
-  "total_signals": 581,
+  "total_signals": 760,
   "top_signals": [
+    {
+      "symbol": "301061.SZ",
+      "name": "匠心家居",
+      "price": 71.61,
+      "day_blue": 200.0,
+      "week_blue": 112.1
+    },
+    {
+      "symbol": "001236.SZ",
+      "name": "弘业期货",
+      "price": 8.81,
+      "day_blue": 200.0,
+      "week_blue": 124.9
+    },
     {
       "symbol": "603092.SH",
       "name": "德力佳",
@@ -93,20 +107,6 @@
       "price": 5.71,
       "day_blue": 199.5,
       "week_blue": 99.5
-    },
-    {
-      "symbol": "920007.BJ",
-      "name": "酉立智能",
-      "price": 53.34,
-      "day_blue": 193.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920834.BJ",
-      "name": "三维装备",
-      "price": 11.52,
-      "day_blue": 182.5,
-      "week_blue": 184.2
     }
   ]
 }
