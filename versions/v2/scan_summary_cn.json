@@ -1,8 +1,71 @@
 {
   "date": "2026-04-07",
   "market": "CN",
-  "total_signals": 444,
+  "total_signals": 662,
   "top_signals": [
+    {
+      "symbol": "920124.BJ",
+      "name": "南特科技",
+      "price": 15.22,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920121.BJ",
+      "name": "江天科技",
+      "price": 35.33,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920020.BJ",
+      "name": "泰凯英",
+      "price": 15.17,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920112.BJ",
+      "name": "巴兰仕",
+      "price": 31.85,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920035.BJ",
+      "name": "精创电气",
+      "price": 30.78,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603130.SH",
+      "name": "云中马",
+      "price": 36.46,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603418.SH",
+      "name": "友升股份",
+      "price": 49.06,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "601211.SH",
+      "name": "国泰海通",
+      "price": 16.29,
+      "day_blue": 200.0,
+      "week_blue": 94.4
+    },
+    {
+      "symbol": "601377.SH",
+      "name": "兴业证券",
+      "price": 5.66,
+      "day_blue": 200.0,
+      "week_blue": 107.5
+    },
     {
       "symbol": "920003.BJ",
       "name": "中诚咨询",
@@ -44,69 +107,6 @@
       "price": 20.0,
       "day_blue": 200.0,
       "week_blue": 118.7
-    },
-    {
-      "symbol": "920834.BJ",
-      "name": "三维装备",
-      "price": 11.53,
-      "day_blue": 200.0,
-      "week_blue": 193.2
-    },
-    {
-      "symbol": "001236.SZ",
-      "name": "弘业期货",
-      "price": 9.06,
-      "day_blue": 200.0,
-      "week_blue": 134.1
-    },
-    {
-      "symbol": "920204.BJ",
-      "name": "沪江材料",
-      "price": 14.9,
-      "day_blue": 198.0,
-      "week_blue": 117.7
-    },
-    {
-      "symbol": "688429.SH",
-      "name": "时创能源",
-      "price": 13.67,
-      "day_blue": 188.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603955.SH",
-      "name": "大千生态",
-      "price": 24.44,
-      "day_blue": 184.7,
-      "week_blue": 137.6
-    },
-    {
-      "symbol": "920943.BJ",
-      "name": "优机股份",
-      "price": 19.18,
-      "day_blue": 183.9,
-      "week_blue": 193.2
-    },
-    {
-      "symbol": "603733.SH",
-      "name": "仙鹤股份",
-      "price": 22.04,
-      "day_blue": 180.4,
-      "week_blue": 89.8
-    },
-    {
-      "symbol": "000776.SZ",
-      "name": "广发证券",
-      "price": 17.75,
-      "day_blue": 173.0,
-      "week_blue": 127.2
-    },
-    {
-      "symbol": "601881.SH",
-      "name": "中国银河",
-      "price": 12.42,
-      "day_blue": 172.5,
-      "week_blue": 158.3
     }
   ]
 }
