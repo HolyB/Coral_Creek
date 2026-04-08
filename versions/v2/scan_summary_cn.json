@@ -1,112 +1,112 @@
 {
-  "date": "2026-04-07",
+  "date": "2026-04-08",
   "market": "CN",
-  "total_signals": 662,
+  "total_signals": 204,
   "top_signals": [
     {
-      "symbol": "920124.BJ",
-      "name": "南特科技",
-      "price": 15.22,
-      "day_blue": 200.0,
+      "symbol": "688287.SH",
+      "name": "*ST观典",
+      "price": 1.75,
+      "day_blue": 113.1,
+      "week_blue": 102.0
+    },
+    {
+      "symbol": "301227.SZ",
+      "name": "森鹰窗业",
+      "price": 33.2,
+      "day_blue": 96.1,
+      "week_blue": 72.8
+    },
+    {
+      "symbol": "920158.BJ",
+      "name": "长江能科",
+      "price": 16.28,
+      "day_blue": 89.3,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "600603.SH",
+      "name": "广汇物流",
+      "price": 6.79,
+      "day_blue": 85.9,
       "week_blue": 0.0
     },
     {
-      "symbol": "920121.BJ",
-      "name": "江天科技",
-      "price": 35.33,
-      "day_blue": 200.0,
+      "symbol": "001965.SZ",
+      "name": "招商公路",
+      "price": 8.9,
+      "day_blue": 82.0,
+      "week_blue": 179.0
+    },
+    {
+      "symbol": "002592.SZ",
+      "name": "ST八菱",
+      "price": 8.13,
+      "day_blue": 79.7,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "600696.SH",
+      "name": "*ST岩石",
+      "price": 1.39,
+      "day_blue": 75.2,
+      "week_blue": 198.0
+    },
+    {
+      "symbol": "000752.SZ",
+      "name": "ST西发",
+      "price": 9.09,
+      "day_blue": 68.5,
+      "week_blue": 97.8
+    },
+    {
+      "symbol": "601808.SH",
+      "name": "中海油服",
+      "price": 15.62,
+      "day_blue": 68.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920689.BJ",
+      "name": "克莱特",
+      "price": 28.08,
+      "day_blue": 0.0,
+      "week_blue": 104.9
     },
     {
       "symbol": "920020.BJ",
       "name": "泰凯英",
-      "price": 15.17,
-      "day_blue": 200.0,
+      "price": 15.66,
+      "day_blue": 0.0,
       "week_blue": 200.0
     },
     {
-      "symbol": "920112.BJ",
-      "name": "巴兰仕",
-      "price": 31.85,
-      "day_blue": 200.0,
-      "week_blue": 0.0
+      "symbol": "920100.BJ",
+      "name": "三协电机",
+      "price": 48.8,
+      "day_blue": 0.0,
+      "week_blue": 133.0
     },
     {
-      "symbol": "920035.BJ",
-      "name": "精创电气",
-      "price": 30.78,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603130.SH",
-      "name": "云中马",
-      "price": 36.46,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603418.SH",
-      "name": "友升股份",
-      "price": 49.06,
-      "day_blue": 200.0,
+      "symbol": "920066.BJ",
+      "name": "科拜尔",
+      "price": 21.77,
+      "day_blue": 0.0,
       "week_blue": 200.0
     },
     {
-      "symbol": "601211.SH",
-      "name": "国泰海通",
-      "price": 16.29,
-      "day_blue": 200.0,
-      "week_blue": 94.4
+      "symbol": "920098.BJ",
+      "name": "科隆新材",
+      "price": 25.35,
+      "day_blue": 0.0,
+      "week_blue": 200.0
     },
     {
-      "symbol": "601377.SH",
-      "name": "兴业证券",
-      "price": 5.66,
-      "day_blue": 200.0,
-      "week_blue": 107.5
-    },
-    {
-      "symbol": "920003.BJ",
-      "name": "中诚咨询",
-      "price": 27.0,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920091.BJ",
-      "name": "大鹏工业",
-      "price": 56.4,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920132.BJ",
-      "name": "泰鹏智能",
-      "price": 13.04,
-      "day_blue": 200.0,
-      "week_blue": 176.4
-    },
-    {
-      "symbol": "603376.SH",
-      "name": "大明电子",
-      "price": 32.2,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "301061.SZ",
-      "name": "匠心家居",
-      "price": 70.8,
-      "day_blue": 200.0,
-      "week_blue": 116.1
-    },
-    {
-      "symbol": "920075.BJ",
-      "name": "柏星龙",
-      "price": 20.0,
-      "day_blue": 200.0,
-      "week_blue": 118.7
+      "symbol": "301633.SZ",
+      "name": "港迪技术",
+      "price": 61.73,
+      "day_blue": 0.0,
+      "week_blue": 200.0
     }
   ]
 }
