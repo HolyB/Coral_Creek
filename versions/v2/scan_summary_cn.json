@@ -1,8 +1,15 @@
 {
   "date": "2026-04-08",
   "market": "CN",
-  "total_signals": 239,
+  "total_signals": 296,
   "top_signals": [
+    {
+      "symbol": "600238.SH",
+      "name": "*ST椰岛",
+      "price": 3.93,
+      "day_blue": 119.4,
+      "week_blue": 115.2
+    },
     {
       "symbol": "600850.SH",
       "name": "电科数字",
@@ -16,6 +23,20 @@
       "price": 1.75,
       "day_blue": 113.1,
       "week_blue": 102.0
+    },
+    {
+      "symbol": "600193.SH",
+      "name": "*ST创兴",
+      "price": 3.53,
+      "day_blue": 106.5,
+      "week_blue": 64.7
+    },
+    {
+      "symbol": "600377.SH",
+      "name": "宁沪高速",
+      "price": 11.62,
+      "day_blue": 106.2,
+      "week_blue": 0.0
     },
     {
       "symbol": "301227.SZ",
@@ -74,39 +95,18 @@
       "week_blue": 198.0
     },
     {
+      "symbol": "603682.SH",
+      "name": "锦和商管",
+      "price": 6.22,
+      "day_blue": 70.9,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "000752.SZ",
       "name": "ST西发",
       "price": 9.09,
       "day_blue": 68.5,
       "week_blue": 97.8
-    },
-    {
-      "symbol": "601808.SH",
-      "name": "中海油服",
-      "price": 15.62,
-      "day_blue": 68.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603706.SH",
-      "name": "东方环宇",
-      "price": 19.44,
-      "day_blue": 0.0,
-      "week_blue": 108.5
-    },
-    {
-      "symbol": "300760.SZ",
-      "name": "迈瑞医疗",
-      "price": 162.92,
-      "day_blue": 0.0,
-      "week_blue": 108.7
-    },
-    {
-      "symbol": "601127.SH",
-      "name": "赛力斯",
-      "price": 90.0,
-      "day_blue": 0.0,
-      "week_blue": 105.8
     }
   ]
 }
