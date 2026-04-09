@@ -1,8 +1,15 @@
 {
   "date": "2026-04-08",
   "market": "CN",
-  "total_signals": 204,
+  "total_signals": 239,
   "top_signals": [
+    {
+      "symbol": "600850.SH",
+      "name": "电科数字",
+      "price": 20.73,
+      "day_blue": 116.5,
+      "week_blue": 128.0
+    },
     {
       "symbol": "688287.SH",
       "name": "*ST观典",
@@ -39,11 +46,25 @@
       "week_blue": 179.0
     },
     {
+      "symbol": "000004.SZ",
+      "name": "*ST国华",
+      "price": 3.53,
+      "day_blue": 80.1,
+      "week_blue": 107.8
+    },
+    {
       "symbol": "002592.SZ",
       "name": "ST八菱",
       "price": 8.13,
       "day_blue": 79.7,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "300081.SZ",
+      "name": "恒信东方",
+      "price": 3.59,
+      "day_blue": 76.1,
+      "week_blue": 98.7
     },
     {
       "symbol": "600696.SH",
@@ -67,46 +88,25 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "920689.BJ",
-      "name": "克莱特",
-      "price": 28.08,
+      "symbol": "603706.SH",
+      "name": "东方环宇",
+      "price": 19.44,
       "day_blue": 0.0,
-      "week_blue": 104.9
+      "week_blue": 108.5
     },
     {
-      "symbol": "920020.BJ",
-      "name": "泰凯英",
-      "price": 15.66,
+      "symbol": "300760.SZ",
+      "name": "迈瑞医疗",
+      "price": 162.92,
       "day_blue": 0.0,
-      "week_blue": 200.0
+      "week_blue": 108.7
     },
     {
-      "symbol": "920100.BJ",
-      "name": "三协电机",
-      "price": 48.8,
+      "symbol": "601127.SH",
+      "name": "赛力斯",
+      "price": 90.0,
       "day_blue": 0.0,
-      "week_blue": 133.0
-    },
-    {
-      "symbol": "920066.BJ",
-      "name": "科拜尔",
-      "price": 21.77,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920098.BJ",
-      "name": "科隆新材",
-      "price": 25.35,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "301633.SZ",
-      "name": "港迪技术",
-      "price": 61.73,
-      "day_blue": 0.0,
-      "week_blue": 200.0
+      "week_blue": 105.8
     }
   ]
 }
