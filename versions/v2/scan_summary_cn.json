@@ -1,112 +1,112 @@
 {
-  "date": "2026-04-08",
+  "date": "2026-04-09",
   "market": "CN",
-  "total_signals": 296,
+  "total_signals": 184,
   "top_signals": [
     {
-      "symbol": "600238.SH",
-      "name": "*ST椰岛",
-      "price": 3.93,
-      "day_blue": 119.4,
-      "week_blue": 115.2
+      "symbol": "688429.SH",
+      "name": "时创能源",
+      "price": 13.57,
+      "day_blue": 167.6,
+      "week_blue": 0.0
     },
     {
-      "symbol": "600850.SH",
-      "name": "电科数字",
-      "price": 20.73,
-      "day_blue": 116.5,
-      "week_blue": 128.0
+      "symbol": "600809.SH",
+      "name": "山西汾酒",
+      "price": 139.31,
+      "day_blue": 141.1,
+      "week_blue": 100.7
     },
     {
-      "symbol": "688287.SH",
-      "name": "*ST观典",
-      "price": 1.75,
-      "day_blue": 113.1,
-      "week_blue": 102.0
-    },
-    {
-      "symbol": "600193.SH",
-      "name": "*ST创兴",
-      "price": 3.53,
-      "day_blue": 106.5,
-      "week_blue": 64.7
-    },
-    {
-      "symbol": "600377.SH",
-      "name": "宁沪高速",
-      "price": 11.62,
-      "day_blue": 106.2,
+      "symbol": "603199.SH",
+      "name": "九华旅游",
+      "price": 37.57,
+      "day_blue": 124.6,
       "week_blue": 0.0
     },
     {
       "symbol": "301227.SZ",
       "name": "森鹰窗业",
-      "price": 33.2,
-      "day_blue": 96.1,
-      "week_blue": 72.8
+      "price": 32.67,
+      "day_blue": 105.4,
+      "week_blue": 72.9
     },
     {
-      "symbol": "920158.BJ",
-      "name": "长江能科",
-      "price": 16.28,
-      "day_blue": 89.3,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "600603.SH",
-      "name": "广汇物流",
-      "price": 6.79,
-      "day_blue": 85.9,
+      "symbol": "301595.SZ",
+      "name": "太力科技",
+      "price": 50.48,
+      "day_blue": 100.6,
       "week_blue": 0.0
     },
     {
-      "symbol": "001965.SZ",
-      "name": "招商公路",
-      "price": 8.9,
-      "day_blue": 82.0,
-      "week_blue": 179.0
+      "symbol": "688212.SH",
+      "name": "澳华内镜",
+      "price": 35.65,
+      "day_blue": 100.0,
+      "week_blue": 113.4
     },
     {
-      "symbol": "000004.SZ",
-      "name": "*ST国华",
-      "price": 3.53,
-      "day_blue": 80.1,
-      "week_blue": 107.8
-    },
-    {
-      "symbol": "002592.SZ",
-      "name": "ST八菱",
-      "price": 8.13,
-      "day_blue": 79.7,
+      "symbol": "605288.SH",
+      "name": "凯迪股份",
+      "price": 84.12,
+      "day_blue": 99.9,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "603355.SH",
+      "name": "莱克电气",
+      "price": 27.14,
+      "day_blue": 99.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301281.SZ",
+      "name": "科源制药",
+      "price": 34.12,
+      "day_blue": 95.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000818.SZ",
+      "name": "航锦科技",
+      "price": 15.36,
+      "day_blue": 94.1,
+      "week_blue": 65.9
+    },
+    {
+      "symbol": "688196.SH",
+      "name": "卓越新能",
+      "price": 60.37,
+      "day_blue": 92.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002311.SZ",
+      "name": "海大集团",
+      "price": 50.0,
+      "day_blue": 90.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002027.SZ",
+      "name": "分众传媒",
+      "price": 6.3,
+      "day_blue": 85.1,
+      "week_blue": 121.5
     },
     {
       "symbol": "300081.SZ",
       "name": "恒信东方",
-      "price": 3.59,
-      "day_blue": 76.1,
+      "price": 3.5,
+      "day_blue": 82.5,
       "week_blue": 98.7
     },
     {
-      "symbol": "600696.SH",
-      "name": "*ST岩石",
-      "price": 1.39,
-      "day_blue": 75.2,
-      "week_blue": 198.0
-    },
-    {
-      "symbol": "603682.SH",
-      "name": "锦和商管",
-      "price": 6.22,
-      "day_blue": 70.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000752.SZ",
-      "name": "ST西发",
-      "price": 9.09,
-      "day_blue": 68.5,
-      "week_blue": 97.8
+      "symbol": "000004.SZ",
+      "name": "*ST国华",
+      "price": 3.35,
+      "day_blue": 82.0,
+      "week_blue": 107.8
     }
   ]
 }
