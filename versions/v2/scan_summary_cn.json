@@ -1,112 +1,112 @@
 {
-  "date": "2026-04-09",
+  "date": "2026-04-10",
   "market": "CN",
-  "total_signals": 317,
+  "total_signals": 121,
   "top_signals": [
-    {
-      "symbol": "688429.SH",
-      "name": "时创能源",
-      "price": 13.57,
-      "day_blue": 167.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603868.SH",
-      "name": "飞科电器",
-      "price": 31.35,
-      "day_blue": 146.1,
-      "week_blue": 79.7
-    },
     {
       "symbol": "600809.SH",
       "name": "山西汾酒",
-      "price": 139.31,
-      "day_blue": 141.1,
+      "price": 138.88,
+      "day_blue": 143.7,
       "week_blue": 100.7
     },
     {
-      "symbol": "600238.SH",
-      "name": "*ST椰岛",
-      "price": 3.73,
-      "day_blue": 124.7,
-      "week_blue": 115.4
-    },
-    {
-      "symbol": "603199.SH",
-      "name": "九华旅游",
-      "price": 37.57,
-      "day_blue": 124.6,
+      "symbol": "301281.SZ",
+      "name": "科源制药",
+      "price": 34.79,
+      "day_blue": 106.1,
       "week_blue": 0.0
     },
     {
-      "symbol": "688287.SH",
-      "name": "*ST观典",
-      "price": 1.53,
-      "day_blue": 117.8,
-      "week_blue": 102.2
+      "symbol": "000818.SZ",
+      "name": "航锦科技",
+      "price": 14.74,
+      "day_blue": 98.0,
+      "week_blue": 66.0
     },
     {
-      "symbol": "600193.SH",
-      "name": "*ST创兴",
-      "price": 3.35,
-      "day_blue": 113.2,
-      "week_blue": 64.9
-    },
-    {
-      "symbol": "600421.SH",
-      "name": "*ST华嵘",
-      "price": 5.87,
-      "day_blue": 108.3,
-      "week_blue": 71.7
-    },
-    {
-      "symbol": "300760.SZ",
-      "name": "迈瑞医疗",
-      "price": 156.3,
-      "day_blue": 106.8,
-      "week_blue": 108.8
-    },
-    {
-      "symbol": "301227.SZ",
-      "name": "森鹰窗业",
-      "price": 32.67,
-      "day_blue": 105.4,
-      "week_blue": 72.9
-    },
-    {
-      "symbol": "301595.SZ",
-      "name": "太力科技",
-      "price": 50.48,
-      "day_blue": 100.6,
+      "symbol": "601018.SH",
+      "name": "宁波港",
+      "price": 3.9,
+      "day_blue": 89.0,
       "week_blue": 0.0
     },
     {
-      "symbol": "688212.SH",
-      "name": "澳华内镜",
-      "price": 35.65,
-      "day_blue": 100.0,
-      "week_blue": 113.4
+      "symbol": "300081.SZ",
+      "name": "恒信东方",
+      "price": 3.47,
+      "day_blue": 87.1,
+      "week_blue": 98.7
     },
     {
-      "symbol": "605288.SH",
-      "name": "凯迪股份",
-      "price": 84.12,
-      "day_blue": 99.9,
-      "week_blue": 0.0
+      "symbol": "000004.SZ",
+      "name": "*ST国华",
+      "price": 3.18,
+      "day_blue": 84.0,
+      "week_blue": 107.9
     },
     {
-      "symbol": "603939.SH",
-      "name": "益丰药房",
-      "price": 22.61,
-      "day_blue": 99.5,
-      "week_blue": 0.0
+      "symbol": "600696.SH",
+      "name": "*ST岩石",
+      "price": 1.26,
+      "day_blue": 79.5,
+      "week_blue": 198.2
     },
     {
-      "symbol": "603355.SH",
-      "name": "莱克电气",
-      "price": 27.14,
-      "day_blue": 99.2,
-      "week_blue": 0.0
+      "symbol": "920689.BJ",
+      "name": "克莱特",
+      "price": 27.62,
+      "day_blue": 0.0,
+      "week_blue": 104.9
+    },
+    {
+      "symbol": "920158.BJ",
+      "name": "长江能科",
+      "price": 15.96,
+      "day_blue": 0.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920020.BJ",
+      "name": "泰凯英",
+      "price": 15.6,
+      "day_blue": 0.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920100.BJ",
+      "name": "三协电机",
+      "price": 49.14,
+      "day_blue": 0.0,
+      "week_blue": 133.0
+    },
+    {
+      "symbol": "920066.BJ",
+      "name": "科拜尔",
+      "price": 21.81,
+      "day_blue": 0.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920098.BJ",
+      "name": "科隆新材",
+      "price": 26.22,
+      "day_blue": 0.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "301633.SZ",
+      "name": "港迪技术",
+      "price": 61.11,
+      "day_blue": 0.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "601026.SH",
+      "name": "道生天合",
+      "price": 18.53,
+      "day_blue": 0.0,
+      "week_blue": 200.0
     }
   ]
 }
