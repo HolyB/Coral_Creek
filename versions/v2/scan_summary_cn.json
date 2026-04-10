@@ -1,7 +1,7 @@
 {
   "date": "2026-04-09",
   "market": "CN",
-  "total_signals": 184,
+  "total_signals": 213,
   "top_signals": [
     {
       "symbol": "688429.SH",
@@ -67,6 +67,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "002043.SZ",
+      "name": "兔宝宝",
+      "price": 13.79,
+      "day_blue": 94.9,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "000818.SZ",
       "name": "航锦科技",
       "price": 15.36,
@@ -95,18 +102,11 @@
       "week_blue": 121.5
     },
     {
-      "symbol": "300081.SZ",
-      "name": "恒信东方",
-      "price": 3.5,
-      "day_blue": 82.5,
-      "week_blue": 98.7
-    },
-    {
-      "symbol": "000004.SZ",
-      "name": "*ST国华",
-      "price": 3.35,
-      "day_blue": 82.0,
-      "week_blue": 107.8
+      "symbol": "600053.SH",
+      "name": "九鼎投资",
+      "price": 14.55,
+      "day_blue": 82.9,
+      "week_blue": 126.9
     }
   ]
 }
