@@ -1,7 +1,7 @@
 {
   "date": "2026-04-09",
   "market": "CN",
-  "total_signals": 213,
+  "total_signals": 317,
   "top_signals": [
     {
       "symbol": "688429.SH",
@@ -11,6 +11,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "603868.SH",
+      "name": "飞科电器",
+      "price": 31.35,
+      "day_blue": 146.1,
+      "week_blue": 79.7
+    },
+    {
       "symbol": "600809.SH",
       "name": "山西汾酒",
       "price": 139.31,
@@ -18,11 +25,46 @@
       "week_blue": 100.7
     },
     {
+      "symbol": "600238.SH",
+      "name": "*ST椰岛",
+      "price": 3.73,
+      "day_blue": 124.7,
+      "week_blue": 115.4
+    },
+    {
       "symbol": "603199.SH",
       "name": "九华旅游",
       "price": 37.57,
       "day_blue": 124.6,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "688287.SH",
+      "name": "*ST观典",
+      "price": 1.53,
+      "day_blue": 117.8,
+      "week_blue": 102.2
+    },
+    {
+      "symbol": "600193.SH",
+      "name": "*ST创兴",
+      "price": 3.35,
+      "day_blue": 113.2,
+      "week_blue": 64.9
+    },
+    {
+      "symbol": "600421.SH",
+      "name": "*ST华嵘",
+      "price": 5.87,
+      "day_blue": 108.3,
+      "week_blue": 71.7
+    },
+    {
+      "symbol": "300760.SZ",
+      "name": "迈瑞医疗",
+      "price": 156.3,
+      "day_blue": 106.8,
+      "week_blue": 108.8
     },
     {
       "symbol": "301227.SZ",
@@ -53,60 +95,18 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "603939.SH",
+      "name": "益丰药房",
+      "price": 22.61,
+      "day_blue": 99.5,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "603355.SH",
       "name": "莱克电气",
       "price": 27.14,
       "day_blue": 99.2,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "301281.SZ",
-      "name": "科源制药",
-      "price": 34.12,
-      "day_blue": 95.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002043.SZ",
-      "name": "兔宝宝",
-      "price": 13.79,
-      "day_blue": 94.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000818.SZ",
-      "name": "航锦科技",
-      "price": 15.36,
-      "day_blue": 94.1,
-      "week_blue": 65.9
-    },
-    {
-      "symbol": "688196.SH",
-      "name": "卓越新能",
-      "price": 60.37,
-      "day_blue": 92.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002311.SZ",
-      "name": "海大集团",
-      "price": 50.0,
-      "day_blue": 90.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002027.SZ",
-      "name": "分众传媒",
-      "price": 6.3,
-      "day_blue": 85.1,
-      "week_blue": 121.5
-    },
-    {
-      "symbol": "600053.SH",
-      "name": "九鼎投资",
-      "price": 14.55,
-      "day_blue": 82.9,
-      "week_blue": 126.9
     }
   ]
 }
