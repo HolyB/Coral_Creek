@@ -1,7 +1,7 @@
 {
   "date": "2026-04-10",
   "market": "CN",
-  "total_signals": 263,
+  "total_signals": 305,
   "top_signals": [
     {
       "symbol": "600809.SH",
@@ -29,6 +29,13 @@
       "name": "益丰药房",
       "price": 22.8,
       "day_blue": 111.3,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "301595.SZ",
+      "name": "太力科技",
+      "price": 49.03,
+      "day_blue": 110.5,
       "week_blue": 0.0
     },
     {
@@ -100,13 +107,6 @@
       "price": 27.8,
       "day_blue": 86.9,
       "week_blue": 98.7
-    },
-    {
-      "symbol": "600436.SH",
-      "name": "片仔癀",
-      "price": 150.7,
-      "day_blue": 86.3,
-      "week_blue": 200.0
     }
   ]
 }
