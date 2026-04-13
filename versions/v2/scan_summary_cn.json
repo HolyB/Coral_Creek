@@ -1,7 +1,7 @@
 {
   "date": "2026-04-10",
   "market": "CN",
-  "total_signals": 121,
+  "total_signals": 263,
   "top_signals": [
     {
       "symbol": "600809.SH",
@@ -11,10 +11,45 @@
       "week_blue": 100.7
     },
     {
+      "symbol": "600238.SH",
+      "name": "*ST椰岛",
+      "price": 3.92,
+      "day_blue": 129.8,
+      "week_blue": 115.7
+    },
+    {
+      "symbol": "600193.SH",
+      "name": "*ST创兴",
+      "price": 3.52,
+      "day_blue": 118.9,
+      "week_blue": 65.1
+    },
+    {
+      "symbol": "603939.SH",
+      "name": "益丰药房",
+      "price": 22.8,
+      "day_blue": 111.3,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "301281.SZ",
       "name": "科源制药",
       "price": 34.79,
       "day_blue": 106.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002311.SZ",
+      "name": "海大集团",
+      "price": 48.7,
+      "day_blue": 104.8,
+      "week_blue": 86.0
+    },
+    {
+      "symbol": "300772.SZ",
+      "name": "运达股份",
+      "price": 16.9,
+      "day_blue": 100.9,
       "week_blue": 0.0
     },
     {
@@ -25,10 +60,31 @@
       "week_blue": 66.0
     },
     {
+      "symbol": "001289.SZ",
+      "name": "龙源电力",
+      "price": 15.24,
+      "day_blue": 89.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "001965.SZ",
+      "name": "招商公路",
+      "price": 8.72,
+      "day_blue": 89.6,
+      "week_blue": 179.0
+    },
+    {
       "symbol": "601018.SH",
       "name": "宁波港",
       "price": 3.9,
       "day_blue": 89.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000966.SZ",
+      "name": "长源电力",
+      "price": 4.35,
+      "day_blue": 87.8,
       "week_blue": 0.0
     },
     {
@@ -39,73 +95,17 @@
       "week_blue": 98.7
     },
     {
-      "symbol": "000004.SZ",
-      "name": "*ST国华",
-      "price": 3.18,
-      "day_blue": 84.0,
-      "week_blue": 107.9
+      "symbol": "000999.SZ",
+      "name": "华润三九",
+      "price": 27.8,
+      "day_blue": 86.9,
+      "week_blue": 98.7
     },
     {
-      "symbol": "600696.SH",
-      "name": "*ST岩石",
-      "price": 1.26,
-      "day_blue": 79.5,
-      "week_blue": 198.2
-    },
-    {
-      "symbol": "920689.BJ",
-      "name": "克莱特",
-      "price": 27.62,
-      "day_blue": 0.0,
-      "week_blue": 104.9
-    },
-    {
-      "symbol": "920158.BJ",
-      "name": "长江能科",
-      "price": 15.96,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920020.BJ",
-      "name": "泰凯英",
-      "price": 15.6,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920100.BJ",
-      "name": "三协电机",
-      "price": 49.14,
-      "day_blue": 0.0,
-      "week_blue": 133.0
-    },
-    {
-      "symbol": "920066.BJ",
-      "name": "科拜尔",
-      "price": 21.81,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920098.BJ",
-      "name": "科隆新材",
-      "price": 26.22,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "301633.SZ",
-      "name": "港迪技术",
-      "price": 61.11,
-      "day_blue": 0.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "601026.SH",
-      "name": "道生天合",
-      "price": 18.53,
-      "day_blue": 0.0,
+      "symbol": "600436.SH",
+      "name": "片仔癀",
+      "price": 150.7,
+      "day_blue": 86.3,
       "week_blue": 200.0
     }
   ]
