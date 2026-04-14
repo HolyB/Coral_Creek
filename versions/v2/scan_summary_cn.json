@@ -1,7 +1,7 @@
 {
   "date": "2026-04-13",
   "market": "CN",
-  "total_signals": 70,
+  "total_signals": 71,
   "top_signals": [
     {
       "symbol": "920834.BJ",
@@ -88,6 +88,13 @@
       "week_blue": 98.6
     },
     {
+      "symbol": "920351.BJ",
+      "name": "华光源海",
+      "price": 17.19,
+      "day_blue": 111.8,
+      "week_blue": 132.9
+    },
+    {
       "symbol": "603968.SH",
       "name": "醋化股份",
       "price": 12.59,
@@ -99,13 +106,6 @@
       "name": "顾家家居",
       "price": 30.76,
       "day_blue": 107.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300772.SZ",
-      "name": "运达股份",
-      "price": 17.17,
-      "day_blue": 106.7,
       "week_blue": 0.0
     }
   ]
