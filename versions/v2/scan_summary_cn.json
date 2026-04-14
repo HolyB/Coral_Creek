@@ -1,14 +1,56 @@
 {
   "date": "2026-04-13",
   "market": "CN",
-  "total_signals": 25,
+  "total_signals": 70,
   "top_signals": [
+    {
+      "symbol": "920834.BJ",
+      "name": "三维装备",
+      "price": 11.68,
+      "day_blue": 158.9,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "301498.SZ",
+      "name": "乖宝宠物",
+      "price": 49.88,
+      "day_blue": 138.2,
+      "week_blue": 120.4
+    },
+    {
+      "symbol": "002847.SZ",
+      "name": "盐津铺子",
+      "price": 55.6,
+      "day_blue": 135.5,
+      "week_blue": 103.9
+    },
+    {
+      "symbol": "603199.SH",
+      "name": "九华旅游",
+      "price": 36.97,
+      "day_blue": 134.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000959.SZ",
+      "name": "首钢股份",
+      "price": 4.79,
+      "day_blue": 130.0,
+      "week_blue": 0.0
+    },
     {
       "symbol": "300832.SZ",
       "name": "新产业",
       "price": 45.29,
       "day_blue": 124.2,
       "week_blue": 124.2
+    },
+    {
+      "symbol": "688109.SH",
+      "name": "品茗科技",
+      "price": 114.88,
+      "day_blue": 118.9,
+      "week_blue": 0.0
     },
     {
       "symbol": "603939.SH",
@@ -32,81 +74,39 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "688287.SH",
+      "name": "*ST观典",
+      "price": 1.36,
+      "day_blue": 116.1,
+      "week_blue": 108.4
+    },
+    {
+      "symbol": "002311.SZ",
+      "name": "海大集团",
+      "price": 48.08,
+      "day_blue": 113.2,
+      "week_blue": 98.6
+    },
+    {
+      "symbol": "603968.SH",
+      "name": "醋化股份",
+      "price": 12.59,
+      "day_blue": 107.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603816.SH",
+      "name": "顾家家居",
+      "price": 30.76,
+      "day_blue": 107.0,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "300772.SZ",
       "name": "运达股份",
       "price": 17.17,
       "day_blue": 106.7,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "000818.SZ",
-      "name": "航锦科技",
-      "price": 15.09,
-      "day_blue": 101.4,
-      "week_blue": 75.7
-    },
-    {
-      "symbol": "605288.SH",
-      "name": "凯迪股份",
-      "price": 82.33,
-      "day_blue": 99.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920693.BJ",
-      "name": "阿为特",
-      "price": 26.13,
-      "day_blue": 97.8,
-      "week_blue": 123.9
-    },
-    {
-      "symbol": "000403.SZ",
-      "name": "派林生物",
-      "price": 12.67,
-      "day_blue": 97.3,
-      "week_blue": 114.1
-    },
-    {
-      "symbol": "603210.SH",
-      "name": "泰鸿万立",
-      "price": 16.75,
-      "day_blue": 93.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "001965.SZ",
-      "name": "招商公路",
-      "price": 8.76,
-      "day_blue": 92.4,
-      "week_blue": 179.7
-    },
-    {
-      "symbol": "688169.SH",
-      "name": "石头科技",
-      "price": 112.89,
-      "day_blue": 84.2,
-      "week_blue": 117.7
-    },
-    {
-      "symbol": "300212.SZ",
-      "name": "易华录",
-      "price": 8.02,
-      "day_blue": 84.1,
-      "week_blue": 145.8
-    },
-    {
-      "symbol": "000803.SZ",
-      "name": "山高环能",
-      "price": 8.26,
-      "day_blue": 83.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600696.SH",
-      "name": "*ST岩石",
-      "price": 1.2,
-      "day_blue": 81.7,
-      "week_blue": 200.0
     }
   ]
 }
