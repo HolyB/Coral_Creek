@@ -1,7 +1,7 @@
 {
   "date": "2026-04-14",
   "market": "CN",
-  "total_signals": 30,
+  "total_signals": 52,
   "top_signals": [
     {
       "symbol": "002847.SZ",
@@ -16,6 +16,34 @@
       "price": 49.75,
       "day_blue": 151.1,
       "week_blue": 120.6
+    },
+    {
+      "symbol": "603199.SH",
+      "name": "九华旅游",
+      "price": 36.98,
+      "day_blue": 148.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000959.SZ",
+      "name": "首钢股份",
+      "price": 4.66,
+      "day_blue": 137.3,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920651.BJ",
+      "name": "天罡股份",
+      "price": 26.65,
+      "day_blue": 134.0,
+      "week_blue": 118.9
+    },
+    {
+      "symbol": "603816.SH",
+      "name": "顾家家居",
+      "price": 30.67,
+      "day_blue": 125.5,
+      "week_blue": 0.0
     },
     {
       "symbol": "603939.SH",
@@ -39,6 +67,13 @@
       "week_blue": 115.6
     },
     {
+      "symbol": "002252.SZ",
+      "name": "上海莱士",
+      "price": 5.66,
+      "day_blue": 109.9,
+      "week_blue": 137.5
+    },
+    {
       "symbol": "605288.SH",
       "name": "凯迪股份",
       "price": 83.67,
@@ -53,60 +88,25 @@
       "week_blue": 114.1
     },
     {
+      "symbol": "000999.SZ",
+      "name": "华润三九",
+      "price": 27.42,
+      "day_blue": 98.8,
+      "week_blue": 102.9
+    },
+    {
+      "symbol": "600436.SH",
+      "name": "片仔癀",
+      "price": 148.56,
+      "day_blue": 98.1,
+      "week_blue": 200.0
+    },
+    {
       "symbol": "603833.SH",
       "name": "欧派家居",
       "price": 50.57,
       "day_blue": 97.8,
       "week_blue": 87.0
-    },
-    {
-      "symbol": "688169.SH",
-      "name": "石头科技",
-      "price": 113.42,
-      "day_blue": 91.1,
-      "week_blue": 117.7
-    },
-    {
-      "symbol": "001238.SZ",
-      "name": "浙江正特",
-      "price": 46.48,
-      "day_blue": 85.6,
-      "week_blue": 129.0
-    },
-    {
-      "symbol": "000421.SZ",
-      "name": "南京公用",
-      "price": 6.08,
-      "day_blue": 85.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000520.SZ",
-      "name": "凤凰航运",
-      "price": 3.93,
-      "day_blue": 85.2,
-      "week_blue": 74.1
-    },
-    {
-      "symbol": "600696.SH",
-      "name": "*ST岩石",
-      "price": 1.14,
-      "day_blue": 84.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "600863.SH",
-      "name": "内蒙华电",
-      "price": 4.67,
-      "day_blue": 81.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002453.SZ",
-      "name": "华软科技",
-      "price": 4.9,
-      "day_blue": 74.5,
-      "week_blue": 77.2
     }
   ]
 }
