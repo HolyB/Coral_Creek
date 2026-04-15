@@ -1,7 +1,7 @@
 {
   "date": "2026-04-14",
   "market": "CN",
-  "total_signals": 52,
+  "total_signals": 73,
   "top_signals": [
     {
       "symbol": "002847.SZ",
@@ -30,6 +30,13 @@
       "price": 4.66,
       "day_blue": 137.3,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "300832.SZ",
+      "name": "新产业",
+      "price": 46.59,
+      "day_blue": 136.0,
+      "week_blue": 124.5
     },
     {
       "symbol": "920651.BJ",
@@ -67,6 +74,13 @@
       "week_blue": 115.6
     },
     {
+      "symbol": "600295.SH",
+      "name": "鄂尔多斯",
+      "price": 13.95,
+      "day_blue": 111.1,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "002252.SZ",
       "name": "上海莱士",
       "price": 5.66,
@@ -93,20 +107,6 @@
       "price": 27.42,
       "day_blue": 98.8,
       "week_blue": 102.9
-    },
-    {
-      "symbol": "600436.SH",
-      "name": "片仔癀",
-      "price": 148.56,
-      "day_blue": 98.1,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "603833.SH",
-      "name": "欧派家居",
-      "price": 50.57,
-      "day_blue": 97.8,
-      "week_blue": 87.0
     }
   ]
 }
