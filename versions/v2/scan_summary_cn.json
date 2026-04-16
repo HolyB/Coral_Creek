@@ -1,7 +1,7 @@
 {
   "date": "2026-04-15",
   "market": "CN",
-  "total_signals": 63,
+  "total_signals": 72,
   "top_signals": [
     {
       "symbol": "603968.SH",
@@ -88,25 +88,25 @@
       "week_blue": 200.0
     },
     {
+      "symbol": "600997.SH",
+      "name": "开滦股份",
+      "price": 5.71,
+      "day_blue": 86.1,
+      "week_blue": 90.9
+    },
+    {
+      "symbol": "600863.SH",
+      "name": "内蒙华电",
+      "price": 4.73,
+      "day_blue": 85.5,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "000571.SZ",
       "name": "新大洲A",
       "price": 5.17,
       "day_blue": 85.5,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "000893.SZ",
-      "name": "亚钾国际",
-      "price": 54.5,
-      "day_blue": 83.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002453.SZ",
-      "name": "华软科技",
-      "price": 4.82,
-      "day_blue": 82.2,
-      "week_blue": 77.2
     }
   ]
 }
