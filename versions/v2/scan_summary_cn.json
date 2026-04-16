@@ -1,14 +1,35 @@
 {
   "date": "2026-04-15",
   "market": "CN",
-  "total_signals": 37,
+  "total_signals": 63,
   "top_signals": [
+    {
+      "symbol": "603968.SH",
+      "name": "醋化股份",
+      "price": 11.74,
+      "day_blue": 133.8,
+      "week_blue": 0.0
+    },
     {
       "symbol": "600421.SH",
       "name": "*ST华嵘",
       "price": 5.88,
       "day_blue": 118.4,
       "week_blue": 76.5
+    },
+    {
+      "symbol": "600193.SH",
+      "name": "*ST创兴",
+      "price": 3.09,
+      "day_blue": 116.7,
+      "week_blue": 75.2
+    },
+    {
+      "symbol": "300772.SZ",
+      "name": "运达股份",
+      "price": 15.97,
+      "day_blue": 105.5,
+      "week_blue": 0.0
     },
     {
       "symbol": "600681.SH",
@@ -32,6 +53,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "688212.SH",
+      "name": "澳华内镜",
+      "price": 34.65,
+      "day_blue": 95.2,
+      "week_blue": 116.7
+    },
+    {
       "symbol": "002267.SZ",
       "name": "陕天然气",
       "price": 7.64,
@@ -43,6 +71,13 @@
       "name": "南京公用",
       "price": 6.05,
       "day_blue": 91.5,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600207.SH",
+      "name": "安彩高科",
+      "price": 5.33,
+      "day_blue": 90.0,
       "week_blue": 0.0
     },
     {
@@ -60,53 +95,18 @@
       "week_blue": 0.0
     },
     {
-      "symbol": "601918.SH",
-      "name": "新集能源",
-      "price": 7.38,
+      "symbol": "000893.SZ",
+      "name": "亚钾国际",
+      "price": 54.5,
+      "day_blue": 83.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002453.SZ",
+      "name": "华软科技",
+      "price": 4.82,
       "day_blue": 82.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603053.SH",
-      "name": "成都燃气",
-      "price": 9.64,
-      "day_blue": 76.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600725.SH",
-      "name": "云维股份",
-      "price": 4.14,
-      "day_blue": 74.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600636.SH",
-      "name": "*ST国化",
-      "price": 6.75,
-      "day_blue": 74.0,
-      "week_blue": 102.3
-    },
-    {
-      "symbol": "002175.SZ",
-      "name": "东方智造",
-      "price": 2.58,
-      "day_blue": 69.4,
-      "week_blue": 102.7
-    },
-    {
-      "symbol": "600491.SH",
-      "name": "龙元建设",
-      "price": 2.42,
-      "day_blue": 65.8,
-      "week_blue": 128.2
-    },
-    {
-      "symbol": "601808.SH",
-      "name": "中海油服",
-      "price": 15.31,
-      "day_blue": 64.7,
-      "week_blue": 0.0
+      "week_blue": 77.2
     }
   ]
 }
