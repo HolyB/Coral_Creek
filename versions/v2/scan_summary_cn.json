@@ -1,14 +1,35 @@
 {
   "date": "2026-04-16",
   "market": "CN",
-  "total_signals": 52,
+  "total_signals": 73,
   "top_signals": [
+    {
+      "symbol": "603968.SH",
+      "name": "醋化股份",
+      "price": 11.84,
+      "day_blue": 140.6,
+      "week_blue": 0.0
+    },
     {
       "symbol": "300808.SZ",
       "name": "久量股份",
       "price": 25.03,
       "day_blue": 136.6,
       "week_blue": 115.7
+    },
+    {
+      "symbol": "600421.SH",
+      "name": "*ST华嵘",
+      "price": 5.72,
+      "day_blue": 135.9,
+      "week_blue": 76.7
+    },
+    {
+      "symbol": "600193.SH",
+      "name": "*ST创兴",
+      "price": 3.1,
+      "day_blue": 131.1,
+      "week_blue": 75.2
     },
     {
       "symbol": "600681.SH",
@@ -53,6 +74,20 @@
       "week_blue": 108.1
     },
     {
+      "symbol": "600207.SH",
+      "name": "安彩高科",
+      "price": 5.41,
+      "day_blue": 103.9,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600113.SH",
+      "name": "浙江东日",
+      "price": 46.5,
+      "day_blue": 97.8,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "002547.SZ",
       "name": "春兴精工",
       "price": 3.13,
@@ -71,41 +106,6 @@
       "name": "成都燃气",
       "price": 9.66,
       "day_blue": 87.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688169.SH",
-      "name": "石头科技",
-      "price": 111.95,
-      "day_blue": 85.6,
-      "week_blue": 117.8
-    },
-    {
-      "symbol": "600028.SH",
-      "name": "中国石化",
-      "price": 5.66,
-      "day_blue": 84.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000966.SZ",
-      "name": "长源电力",
-      "price": 4.34,
-      "day_blue": 83.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300177.SZ",
-      "name": "中海达",
-      "price": 8.04,
-      "day_blue": 81.5,
-      "week_blue": 109.0
-    },
-    {
-      "symbol": "600725.SH",
-      "name": "云维股份",
-      "price": 4.17,
-      "day_blue": 79.1,
       "week_blue": 0.0
     }
   ]
