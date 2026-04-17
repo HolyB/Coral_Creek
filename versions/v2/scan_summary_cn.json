@@ -1,7 +1,7 @@
 {
   "date": "2026-04-16",
   "market": "CN",
-  "total_signals": 73,
+  "total_signals": 79,
   "top_signals": [
     {
       "symbol": "603968.SH",
@@ -36,6 +36,13 @@
       "name": "百川能源",
       "price": 4.04,
       "day_blue": 115.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300772.SZ",
+      "name": "运达股份",
+      "price": 16.04,
+      "day_blue": 114.8,
       "week_blue": 0.0
     },
     {
@@ -100,13 +107,6 @@
       "price": 1.03,
       "day_blue": 89.1,
       "week_blue": 200.0
-    },
-    {
-      "symbol": "603053.SH",
-      "name": "成都燃气",
-      "price": 9.66,
-      "day_blue": 87.5,
-      "week_blue": 0.0
     }
   ]
 }
