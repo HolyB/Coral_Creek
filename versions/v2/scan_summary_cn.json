@@ -1,112 +1,112 @@
 {
-  "date": "2026-04-16",
+  "date": "2026-04-17",
   "market": "CN",
-  "total_signals": 79,
+  "total_signals": 35,
   "top_signals": [
+    {
+      "symbol": "002847.SZ",
+      "name": "盐津铺子",
+      "price": 54.05,
+      "day_blue": 160.0,
+      "week_blue": 104.2
+    },
     {
       "symbol": "603968.SH",
       "name": "醋化股份",
-      "price": 11.84,
-      "day_blue": 140.6,
+      "price": 11.62,
+      "day_blue": 146.0,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "300808.SZ",
-      "name": "久量股份",
-      "price": 25.03,
-      "day_blue": 136.6,
-      "week_blue": 115.7
-    },
-    {
-      "symbol": "600421.SH",
-      "name": "*ST华嵘",
-      "price": 5.72,
-      "day_blue": 135.9,
-      "week_blue": 76.7
-    },
-    {
-      "symbol": "600193.SH",
-      "name": "*ST创兴",
-      "price": 3.1,
-      "day_blue": 131.1,
-      "week_blue": 75.2
-    },
-    {
-      "symbol": "600681.SH",
-      "name": "百川能源",
-      "price": 4.04,
-      "day_blue": 115.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300772.SZ",
-      "name": "运达股份",
-      "price": 16.04,
-      "day_blue": 114.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603605.SH",
-      "name": "珀莱雅",
-      "price": 59.98,
-      "day_blue": 109.6,
-      "week_blue": 140.6
     },
     {
       "symbol": "600575.SH",
       "name": "淮河能源",
-      "price": 3.66,
-      "day_blue": 106.9,
+      "price": 3.62,
+      "day_blue": 123.3,
       "week_blue": 0.0
     },
     {
-      "symbol": "000818.SZ",
-      "name": "航锦科技",
-      "price": 15.0,
-      "day_blue": 106.1,
-      "week_blue": 75.7
+      "symbol": "603369.SH",
+      "name": "今世缘",
+      "price": 25.71,
+      "day_blue": 104.0,
+      "week_blue": 199.4
     },
     {
-      "symbol": "002911.SZ",
-      "name": "佛燃能源",
-      "price": 13.68,
-      "day_blue": 105.3,
+      "symbol": "600708.SH",
+      "name": "光明地产",
+      "price": 3.29,
+      "day_blue": 96.6,
       "week_blue": 0.0
     },
     {
-      "symbol": "920023.BJ",
-      "name": "田野股份",
-      "price": 3.1,
-      "day_blue": 104.6,
-      "week_blue": 108.1
-    },
-    {
-      "symbol": "600207.SH",
-      "name": "安彩高科",
-      "price": 5.41,
-      "day_blue": 103.9,
+      "symbol": "300072.SZ",
+      "name": "海新能科",
+      "price": 4.67,
+      "day_blue": 94.5,
       "week_blue": 0.0
     },
     {
-      "symbol": "600113.SH",
-      "name": "浙江东日",
-      "price": 46.5,
-      "day_blue": 97.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002547.SZ",
-      "name": "春兴精工",
-      "price": 3.13,
-      "day_blue": 97.7,
-      "week_blue": 156.6
+      "symbol": "603053.SH",
+      "name": "成都燃气",
+      "price": 9.57,
+      "day_blue": 93.3,
+      "week_blue": 89.2
     },
     {
       "symbol": "600696.SH",
       "name": "*ST岩石",
-      "price": 1.03,
-      "day_blue": 89.1,
+      "price": 1.08,
+      "day_blue": 91.8,
       "week_blue": 200.0
+    },
+    {
+      "symbol": "000421.SZ",
+      "name": "南京公用",
+      "price": 6.01,
+      "day_blue": 90.2,
+      "week_blue": 85.5
+    },
+    {
+      "symbol": "600997.SH",
+      "name": "开滦股份",
+      "price": 5.66,
+      "day_blue": 87.0,
+      "week_blue": 91.0
+    },
+    {
+      "symbol": "601888.SH",
+      "name": "中国中免",
+      "price": 66.79,
+      "day_blue": 86.1,
+      "week_blue": 60.3
+    },
+    {
+      "symbol": "300957.SZ",
+      "name": "贝泰妮",
+      "price": 36.78,
+      "day_blue": 85.1,
+      "week_blue": 72.1
+    },
+    {
+      "symbol": "600585.SH",
+      "name": "海螺水泥",
+      "price": 22.22,
+      "day_blue": 84.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600871.SH",
+      "name": "石化油服",
+      "price": 2.65,
+      "day_blue": 84.6,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000568.SZ",
+      "name": "泸州老窖",
+      "price": 101.2,
+      "day_blue": 82.3,
+      "week_blue": 83.0
     }
   ]
 }
