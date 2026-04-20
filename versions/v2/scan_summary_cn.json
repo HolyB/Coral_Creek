@@ -1,7 +1,7 @@
 {
   "date": "2026-04-17",
   "market": "CN",
-  "total_signals": 72,
+  "total_signals": 95,
   "top_signals": [
     {
       "symbol": "002847.SZ",
@@ -36,6 +36,20 @@
       "name": "淮河能源",
       "price": 3.62,
       "day_blue": 123.3,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603605.SH",
+      "name": "珀莱雅",
+      "price": 59.24,
+      "day_blue": 121.2,
+      "week_blue": 140.6
+    },
+    {
+      "symbol": "002911.SZ",
+      "name": "佛燃能源",
+      "price": 13.59,
+      "day_blue": 110.7,
       "week_blue": 0.0
     },
     {
@@ -81,32 +95,18 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "601011.SH",
+      "name": "宝泰隆",
+      "price": 3.15,
+      "day_blue": 94.2,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "603053.SH",
       "name": "成都燃气",
       "price": 9.57,
       "day_blue": 93.3,
       "week_blue": 89.2
-    },
-    {
-      "symbol": "601919.SH",
-      "name": "中远海控",
-      "price": 14.72,
-      "day_blue": 92.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600696.SH",
-      "name": "*ST岩石",
-      "price": 1.08,
-      "day_blue": 91.8,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "000966.SZ",
-      "name": "长源电力",
-      "price": 4.26,
-      "day_blue": 91.4,
-      "week_blue": 0.0
     }
   ]
 }
