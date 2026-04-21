@@ -1,7 +1,7 @@
 {
   "date": "2026-04-20",
   "market": "CN",
-  "total_signals": 62,
+  "total_signals": 74,
   "top_signals": [
     {
       "symbol": "600421.SH",
@@ -32,6 +32,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "603605.SH",
+      "name": "珀莱雅",
+      "price": 60.15,
+      "day_blue": 124.9,
+      "week_blue": 145.2
+    },
+    {
       "symbol": "603369.SH",
       "name": "今世缘",
       "price": 25.88,
@@ -50,6 +57,13 @@
       "name": "石化机械",
       "price": 6.87,
       "day_blue": 109.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601011.SH",
+      "name": "宝泰隆",
+      "price": 3.18,
+      "day_blue": 108.2,
       "week_blue": 0.0
     },
     {
@@ -88,25 +102,11 @@
       "week_blue": 102.3
     },
     {
-      "symbol": "000966.SZ",
-      "name": "长源电力",
-      "price": 4.33,
-      "day_blue": 95.6,
+      "symbol": "002267.SZ",
+      "name": "陕天然气",
+      "price": 7.72,
+      "day_blue": 97.1,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "600997.SH",
-      "name": "开滦股份",
-      "price": 5.69,
-      "day_blue": 94.6,
-      "week_blue": 102.8
-    },
-    {
-      "symbol": "000568.SZ",
-      "name": "泸州老窖",
-      "price": 100.65,
-      "day_blue": 94.3,
-      "week_blue": 92.0
     }
   ]
 }
