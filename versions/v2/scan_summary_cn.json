@@ -1,111 +1,111 @@
 {
-  "date": "2026-04-21",
+  "date": "2026-04-22",
   "market": "CN",
-  "total_signals": 83,
+  "total_signals": 48,
   "top_signals": [
     {
-      "symbol": "600193.SH",
-      "name": "*ST创兴",
-      "price": 2.66,
-      "day_blue": 153.4,
-      "week_blue": 81.2
-    },
-    {
-      "symbol": "600575.SH",
-      "name": "淮河能源",
-      "price": 3.67,
-      "day_blue": 138.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "601919.SH",
-      "name": "中远海控",
-      "price": 14.62,
-      "day_blue": 114.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600681.SH",
-      "name": "百川能源",
-      "price": 4.05,
-      "day_blue": 114.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600436.SH",
-      "name": "片仔癀",
-      "price": 144.11,
-      "day_blue": 102.6,
+      "symbol": "603369.SH",
+      "name": "今世缘",
+      "price": 25.64,
+      "day_blue": 117.4,
       "week_blue": 200.0
     },
     {
-      "symbol": "603053.SH",
-      "name": "成都燃气",
-      "price": 9.54,
-      "day_blue": 100.4,
-      "week_blue": 102.4
+      "symbol": "002311.SZ",
+      "name": "海大集团",
+      "price": 47.05,
+      "day_blue": 108.1,
+      "week_blue": 105.1
     },
     {
-      "symbol": "600930.SH",
-      "name": "华电新能",
-      "price": 6.12,
-      "day_blue": 97.8,
+      "symbol": "300875.SZ",
+      "name": "捷强装备",
+      "price": 39.88,
+      "day_blue": 106.6,
       "week_blue": 0.0
     },
     {
-      "symbol": "002670.SZ",
-      "name": "国盛证券",
-      "price": 13.21,
-      "day_blue": 95.5,
-      "week_blue": 120.4
-    },
-    {
-      "symbol": "603568.SH",
-      "name": "伟明环保",
-      "price": 20.8,
-      "day_blue": 94.1,
+      "symbol": "001331.SZ",
+      "name": "胜通能源",
+      "price": 49.37,
+      "day_blue": 104.1,
       "week_blue": 0.0
     },
     {
-      "symbol": "002672.SZ",
-      "name": "东江环保",
-      "price": 4.17,
-      "day_blue": 94.0,
-      "week_blue": 94.5
-    },
-    {
-      "symbol": "601568.SH",
-      "name": "北元集团",
-      "price": 4.04,
-      "day_blue": 93.6,
+      "symbol": "000803.SZ",
+      "name": "山高环能",
+      "price": 7.76,
+      "day_blue": 101.8,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "600028.SH",
-      "name": "中国石化",
-      "price": 5.5,
-      "day_blue": 93.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000096.SZ",
-      "name": "广聚能源",
-      "price": 9.62,
-      "day_blue": 92.8,
-      "week_blue": 103.3
     },
     {
       "symbol": "000421.SZ",
       "name": "南京公用",
-      "price": 6.02,
-      "day_blue": 92.7,
-      "week_blue": 98.7
+      "price": 5.98,
+      "day_blue": 100.9,
+      "week_blue": 98.8
     },
     {
-      "symbol": "600716.SH",
-      "name": "凤凰股份",
-      "price": 4.27,
-      "day_blue": 91.9,
+      "symbol": "688196.SH",
+      "name": "卓越新能",
+      "price": 58.38,
+      "day_blue": 100.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600608.SH",
+      "name": "*ST沪科",
+      "price": 2.18,
+      "day_blue": 95.4,
+      "week_blue": 114.0
+    },
+    {
+      "symbol": "000568.SZ",
+      "name": "泸州老窖",
+      "price": 100.24,
+      "day_blue": 95.4,
+      "week_blue": 92.1
+    },
+    {
+      "symbol": "605338.SH",
+      "name": "巴比食品",
+      "price": 24.32,
+      "day_blue": 94.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600917.SH",
+      "name": "重庆燃气",
+      "price": 5.24,
+      "day_blue": 89.8,
+      "week_blue": 115.8
+    },
+    {
+      "symbol": "600606.SH",
+      "name": "绿地控股",
+      "price": 1.39,
+      "day_blue": 89.1,
+      "week_blue": 159.7
+    },
+    {
+      "symbol": "600688.SH",
+      "name": "上海石化",
+      "price": 2.79,
+      "day_blue": 87.6,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600585.SH",
+      "name": "海螺水泥",
+      "price": 21.8,
+      "day_blue": 87.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601369.SH",
+      "name": "陕鼓动力",
+      "price": 9.09,
+      "day_blue": 84.3,
       "week_blue": 0.0
     }
   ]
