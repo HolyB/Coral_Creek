@@ -1,7 +1,7 @@
 {
   "date": "2026-04-22",
   "market": "CN",
-  "total_signals": 100,
+  "total_signals": 125,
   "top_signals": [
     {
       "symbol": "600193.SH",
@@ -23,6 +23,13 @@
       "price": 24.17,
       "day_blue": 144.7,
       "week_blue": 127.4
+    },
+    {
+      "symbol": "601919.SH",
+      "name": "中远海控",
+      "price": 14.46,
+      "day_blue": 120.4,
+      "week_blue": 0.0
     },
     {
       "symbol": "301595.SZ",
@@ -100,13 +107,6 @@
       "price": 5.98,
       "day_blue": 100.9,
       "week_blue": 98.8
-    },
-    {
-      "symbol": "688196.SH",
-      "name": "卓越新能",
-      "price": 58.38,
-      "day_blue": 100.1,
-      "week_blue": 0.0
     }
   ]
 }
