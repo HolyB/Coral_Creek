@@ -1,112 +1,112 @@
 {
-  "date": "2026-04-23",
+  "date": "2026-04-24",
   "market": "CN",
-  "total_signals": 206,
+  "total_signals": 122,
   "top_signals": [
     {
-      "symbol": "300808.SZ",
-      "name": "久量股份",
-      "price": 22.99,
-      "day_blue": 165.7,
-      "week_blue": 127.9
+      "symbol": "300967.SZ",
+      "name": "晓鸣股份",
+      "price": 16.1,
+      "day_blue": 191.5,
+      "week_blue": 135.0
     },
     {
       "symbol": "600193.SH",
       "name": "*ST创兴",
-      "price": 2.4,
-      "day_blue": 165.1,
-      "week_blue": 81.5
-    },
-    {
-      "symbol": "300967.SZ",
-      "name": "晓鸣股份",
-      "price": 16.55,
-      "day_blue": 164.4,
-      "week_blue": 134.7
-    },
-    {
-      "symbol": "600421.SH",
-      "name": "*ST华嵘",
-      "price": 5.01,
-      "day_blue": 150.1,
-      "week_blue": 80.4
+      "price": 2.28,
+      "day_blue": 170.8,
+      "week_blue": 81.6
     },
     {
       "symbol": "000959.SZ",
       "name": "首钢股份",
       "price": 4.45,
-      "day_blue": 149.7,
+      "day_blue": 169.4,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "600421.SH",
+      "name": "*ST华嵘",
+      "price": 4.76,
+      "day_blue": 168.2,
+      "week_blue": 80.6
     },
     {
       "symbol": "301595.SZ",
       "name": "太力科技",
-      "price": 45.4,
-      "day_blue": 136.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "920575.BJ",
-      "name": "康乐卫士",
-      "price": 7.21,
-      "day_blue": 135.3,
-      "week_blue": 102.9
-    },
-    {
-      "symbol": "601919.SH",
-      "name": "中远海控",
-      "price": 14.45,
-      "day_blue": 125.1,
+      "price": 44.79,
+      "day_blue": 146.6,
       "week_blue": 0.0
     },
     {
       "symbol": "002311.SZ",
       "name": "海大集团",
-      "price": 46.84,
-      "day_blue": 123.7,
-      "week_blue": 105.1
-    },
-    {
-      "symbol": "300875.SZ",
-      "name": "捷强装备",
-      "price": 39.61,
-      "day_blue": 121.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603737.SH",
-      "name": "三棵树",
-      "price": 43.66,
-      "day_blue": 120.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603833.SH",
-      "name": "欧派家居",
       "price": 47.13,
-      "day_blue": 120.1,
-      "week_blue": 101.1
+      "day_blue": 131.6,
+      "week_blue": 105.2
     },
     {
-      "symbol": "001331.SZ",
-      "name": "胜通能源",
-      "price": 49.15,
-      "day_blue": 119.8,
+      "symbol": "601919.SH",
+      "name": "中远海控",
+      "price": 14.4,
+      "day_blue": 129.3,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603816.SH",
+      "name": "顾家家居",
+      "price": 29.11,
+      "day_blue": 116.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002869.SZ",
+      "name": "金溢科技",
+      "price": 21.22,
+      "day_blue": 115.0,
       "week_blue": 0.0
     },
     {
       "symbol": "600436.SH",
       "name": "片仔癀",
-      "price": 142.43,
-      "day_blue": 110.5,
+      "price": 141.86,
+      "day_blue": 114.1,
       "week_blue": 200.0
     },
     {
-      "symbol": "000803.SZ",
-      "name": "山高环能",
-      "price": 7.83,
-      "day_blue": 109.2,
+      "symbol": "300498.SZ",
+      "name": "温氏股份",
+      "price": 15.75,
+      "day_blue": 112.5,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "600053.SH",
+      "name": "九鼎投资",
+      "price": 14.11,
+      "day_blue": 111.5,
+      "week_blue": 125.8
+    },
+    {
+      "symbol": "301033.SZ",
+      "name": "迈普医学",
+      "price": 56.47,
+      "day_blue": 110.6,
+      "week_blue": 86.0
+    },
+    {
+      "symbol": "002165.SZ",
+      "name": "红宝丽",
+      "price": 9.09,
+      "day_blue": 109.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601888.SH",
+      "name": "中国中免",
+      "price": 65.42,
+      "day_blue": 107.5,
+      "week_blue": 69.1
     }
   ]
 }
