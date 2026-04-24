@@ -1,7 +1,7 @@
 {
   "date": "2026-04-23",
   "market": "CN",
-  "total_signals": 155,
+  "total_signals": 206,
   "top_signals": [
     {
       "symbol": "300808.SZ",
@@ -16,6 +16,13 @@
       "price": 2.4,
       "day_blue": 165.1,
       "week_blue": 81.5
+    },
+    {
+      "symbol": "300967.SZ",
+      "name": "晓鸣股份",
+      "price": 16.55,
+      "day_blue": 164.4,
+      "week_blue": 134.7
     },
     {
       "symbol": "600421.SH",
@@ -53,11 +60,32 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "002311.SZ",
+      "name": "海大集团",
+      "price": 46.84,
+      "day_blue": 123.7,
+      "week_blue": 105.1
+    },
+    {
       "symbol": "300875.SZ",
       "name": "捷强装备",
       "price": 39.61,
       "day_blue": 121.4,
       "week_blue": 0.0
+    },
+    {
+      "symbol": "603737.SH",
+      "name": "三棵树",
+      "price": 43.66,
+      "day_blue": 120.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603833.SH",
+      "name": "欧派家居",
+      "price": 47.13,
+      "day_blue": 120.1,
+      "week_blue": 101.1
     },
     {
       "symbol": "001331.SZ",
@@ -78,34 +106,6 @@
       "name": "山高环能",
       "price": 7.83,
       "day_blue": 109.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "601011.SH",
-      "name": "宝泰隆",
-      "price": 3.11,
-      "day_blue": 107.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000421.SZ",
-      "name": "南京公用",
-      "price": 5.99,
-      "day_blue": 105.7,
-      "week_blue": 98.9
-    },
-    {
-      "symbol": "600053.SH",
-      "name": "九鼎投资",
-      "price": 14.33,
-      "day_blue": 104.0,
-      "week_blue": 125.7
-    },
-    {
-      "symbol": "601018.SH",
-      "name": "宁波港",
-      "price": 3.83,
-      "day_blue": 102.5,
       "week_blue": 0.0
     }
   ]
