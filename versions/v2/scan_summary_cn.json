@@ -1,7 +1,7 @@
 {
   "date": "2026-04-24",
   "market": "CN",
-  "total_signals": 271,
+  "total_signals": 311,
   "top_signals": [
     {
       "symbol": "300967.SZ",
@@ -88,6 +88,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "601011.SH",
+      "name": "宝泰隆",
+      "price": 3.03,
+      "day_blue": 120.7,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "603816.SH",
       "name": "顾家家居",
       "price": 29.11,
@@ -100,13 +107,6 @@
       "price": 4.4,
       "day_blue": 115.5,
       "week_blue": 86.9
-    },
-    {
-      "symbol": "002869.SZ",
-      "name": "金溢科技",
-      "price": 21.22,
-      "day_blue": 115.0,
-      "week_blue": 0.0
     }
   ]
 }
