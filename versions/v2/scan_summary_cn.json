@@ -1,112 +1,112 @@
 {
-  "date": "2026-04-24",
+  "date": "2026-04-27",
   "market": "CN",
-  "total_signals": 311,
+  "total_signals": 194,
   "top_signals": [
     {
-      "symbol": "300967.SZ",
-      "name": "晓鸣股份",
-      "price": 16.1,
-      "day_blue": 191.5,
-      "week_blue": 135.0
+      "symbol": "600421.SH",
+      "name": "*ST华嵘",
+      "price": 4.52,
+      "day_blue": 179.1,
+      "week_blue": 83.9
     },
     {
       "symbol": "600193.SH",
       "name": "*ST创兴",
-      "price": 2.28,
-      "day_blue": 170.8,
-      "week_blue": 81.6
-    },
-    {
-      "symbol": "000959.SZ",
-      "name": "首钢股份",
-      "price": 4.45,
-      "day_blue": 169.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600421.SH",
-      "name": "*ST华嵘",
-      "price": 4.76,
-      "day_blue": 168.2,
-      "week_blue": 80.6
-    },
-    {
-      "symbol": "920575.BJ",
-      "name": "康乐卫士",
-      "price": 6.96,
-      "day_blue": 157.5,
-      "week_blue": 103.0
+      "price": 2.17,
+      "day_blue": 176.3,
+      "week_blue": 86.4
     },
     {
       "symbol": "301595.SZ",
       "name": "太力科技",
-      "price": 44.79,
-      "day_blue": 146.6,
+      "price": 45.27,
+      "day_blue": 153.7,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "603737.SH",
-      "name": "三棵树",
-      "price": 43.6,
-      "day_blue": 139.9,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603968.SH",
-      "name": "醋化股份",
-      "price": 11.76,
-      "day_blue": 134.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002311.SZ",
-      "name": "海大集团",
-      "price": 47.13,
-      "day_blue": 131.6,
-      "week_blue": 105.2
     },
     {
       "symbol": "300875.SZ",
       "name": "捷强装备",
-      "price": 38.3,
-      "day_blue": 129.7,
-      "week_blue": 0.0
+      "price": 38.75,
+      "day_blue": 136.0,
+      "week_blue": 69.3
     },
     {
-      "symbol": "603833.SH",
-      "name": "欧派家居",
-      "price": 46.84,
-      "day_blue": 129.6,
-      "week_blue": 101.1
+      "symbol": "600408.SH",
+      "name": "安泰集团",
+      "price": 3.22,
+      "day_blue": 135.7,
+      "week_blue": 0.0
     },
     {
       "symbol": "601919.SH",
       "name": "中远海控",
-      "price": 14.4,
-      "day_blue": 129.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "601011.SH",
-      "name": "宝泰隆",
-      "price": 3.03,
-      "day_blue": 120.7,
+      "price": 14.2,
+      "day_blue": 133.4,
       "week_blue": 0.0
     },
     {
       "symbol": "603816.SH",
       "name": "顾家家居",
-      "price": 29.11,
-      "day_blue": 116.2,
-      "week_blue": 0.0
+      "price": 28.86,
+      "day_blue": 131.8,
+      "week_blue": 92.0
     },
     {
       "symbol": "000723.SZ",
       "name": "美锦能源",
-      "price": 4.4,
-      "day_blue": 115.5,
-      "week_blue": 86.9
+      "price": 4.36,
+      "day_blue": 128.8,
+      "week_blue": 97.2
+    },
+    {
+      "symbol": "300749.SZ",
+      "name": "顶固集创",
+      "price": 23.72,
+      "day_blue": 128.4,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601011.SH",
+      "name": "宝泰隆",
+      "price": 3.1,
+      "day_blue": 128.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "001331.SZ",
+      "name": "胜通能源",
+      "price": 44.58,
+      "day_blue": 123.3,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002554.SZ",
+      "name": "惠博普",
+      "price": 3.44,
+      "day_blue": 119.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600436.SH",
+      "name": "片仔癀",
+      "price": 140.31,
+      "day_blue": 117.8,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "002165.SZ",
+      "name": "红宝丽",
+      "price": 8.77,
+      "day_blue": 116.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002911.SZ",
+      "name": "佛燃能源",
+      "price": 12.25,
+      "day_blue": 115.7,
+      "week_blue": 0.0
     }
   ]
 }
