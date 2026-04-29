@@ -1,7 +1,7 @@
 {
   "date": "2026-04-28",
   "market": "CN",
-  "total_signals": 285,
+  "total_signals": 394,
   "top_signals": [
     {
       "symbol": "603352.SH",
@@ -74,6 +74,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "600298.SH",
+      "name": "安琪酵母",
+      "price": 38.28,
+      "day_blue": 144.5,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "920023.BJ",
       "name": "田野股份",
       "price": 2.59,
@@ -99,13 +106,6 @@
       "name": "顶固集创",
       "price": 22.89,
       "day_blue": 137.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "001331.SZ",
-      "name": "胜通能源",
-      "price": 45.04,
-      "day_blue": 136.7,
       "week_blue": 0.0
     }
   ]
