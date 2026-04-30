@@ -1,7 +1,7 @@
 {
   "date": "2026-04-29",
   "market": "CN",
-  "total_signals": 260,
+  "total_signals": 318,
   "top_signals": [
     {
       "symbol": "603352.SH",
@@ -74,11 +74,25 @@
       "week_blue": 111.5
     },
     {
+      "symbol": "300749.SZ",
+      "name": "顶固集创",
+      "price": 24.26,
+      "day_blue": 143.4,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "920405.BJ",
       "name": "海希通讯",
       "price": 17.18,
       "day_blue": 141.9,
       "week_blue": 135.7
+    },
+    {
+      "symbol": "600603.SH",
+      "name": "广汇物流",
+      "price": 5.84,
+      "day_blue": 138.1,
+      "week_blue": 91.1
     },
     {
       "symbol": "920857.BJ",
@@ -93,20 +107,6 @@
       "price": 80.2,
       "day_blue": 132.4,
       "week_blue": 69.3
-    },
-    {
-      "symbol": "002911.SZ",
-      "name": "佛燃能源",
-      "price": 12.21,
-      "day_blue": 131.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300468.SZ",
-      "name": "四方精创",
-      "price": 28.4,
-      "day_blue": 129.6,
-      "week_blue": 84.3
     }
   ]
 }
