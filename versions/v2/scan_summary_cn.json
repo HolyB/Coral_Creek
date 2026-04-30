@@ -1,7 +1,7 @@
 {
   "date": "2026-04-29",
   "market": "CN",
-  "total_signals": 318,
+  "total_signals": 404,
   "top_signals": [
     {
       "symbol": "603352.SH",
@@ -32,6 +32,13 @@
       "week_blue": 200.0
     },
     {
+      "symbol": "600421.SH",
+      "name": "*ST华嵘",
+      "price": 4.08,
+      "day_blue": 194.7,
+      "week_blue": 84.1
+    },
+    {
       "symbol": "920091.BJ",
       "name": "大鹏工业",
       "price": 50.17,
@@ -60,6 +67,13 @@
       "week_blue": 200.0
     },
     {
+      "symbol": "600298.SH",
+      "name": "安琪酵母",
+      "price": 38.43,
+      "day_blue": 167.6,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "301595.SZ",
       "name": "太力科技",
       "price": 44.09,
@@ -74,6 +88,13 @@
       "week_blue": 111.5
     },
     {
+      "symbol": "603008.SH",
+      "name": "喜临门",
+      "price": 10.86,
+      "day_blue": 143.4,
+      "week_blue": 98.8
+    },
+    {
       "symbol": "300749.SZ",
       "name": "顶固集创",
       "price": 24.26,
@@ -86,27 +107,6 @@
       "price": 17.18,
       "day_blue": 141.9,
       "week_blue": 135.7
-    },
-    {
-      "symbol": "600603.SH",
-      "name": "广汇物流",
-      "price": 5.84,
-      "day_blue": 138.1,
-      "week_blue": 91.1
-    },
-    {
-      "symbol": "920857.BJ",
-      "name": "泓禧科技",
-      "price": 18.57,
-      "day_blue": 135.5,
-      "week_blue": 103.2
-    },
-    {
-      "symbol": "605288.SH",
-      "name": "凯迪股份",
-      "price": 80.2,
-      "day_blue": 132.4,
-      "week_blue": 69.3
     }
   ]
 }
