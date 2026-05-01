@@ -1,7 +1,7 @@
 {
   "date": "2026-04-30",
   "market": "CN",
-  "total_signals": 325,
+  "total_signals": 375,
   "top_signals": [
     {
       "symbol": "301449.SZ",
@@ -46,6 +46,13 @@
       "week_blue": 99.0
     },
     {
+      "symbol": "601018.SH",
+      "name": "宁波港",
+      "price": 3.7,
+      "day_blue": 134.6,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "920304.BJ",
       "name": "迪尔化工",
       "price": 11.3,
@@ -81,6 +88,13 @@
       "week_blue": 135.4
     },
     {
+      "symbol": "688606.SH",
+      "name": "奥泰生物",
+      "price": 54.01,
+      "day_blue": 113.3,
+      "week_blue": 134.9
+    },
+    {
       "symbol": "600793.SH",
       "name": "宜宾纸业",
       "price": 16.31,
@@ -93,20 +107,6 @@
       "price": 60.59,
       "day_blue": 110.3,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "605338.SH",
-      "name": "巴比食品",
-      "price": 23.2,
-      "day_blue": 105.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300068.SZ",
-      "name": "南都电源",
-      "price": 8.85,
-      "day_blue": 105.5,
-      "week_blue": 83.6
     }
   ]
 }
