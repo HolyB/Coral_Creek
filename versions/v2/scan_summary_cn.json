@@ -1,7 +1,7 @@
 {
   "date": "2026-04-30",
   "market": "CN",
-  "total_signals": 246,
+  "total_signals": 325,
   "top_signals": [
     {
       "symbol": "301449.SZ",
@@ -53,6 +53,20 @@
       "week_blue": 87.1
     },
     {
+      "symbol": "600053.SH",
+      "name": "九鼎投资",
+      "price": 10.86,
+      "day_blue": 132.9,
+      "week_blue": 137.9
+    },
+    {
+      "symbol": "002165.SZ",
+      "name": "红宝丽",
+      "price": 8.58,
+      "day_blue": 125.1,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "603199.SH",
       "name": "九华旅游",
       "price": 36.48,
@@ -93,20 +107,6 @@
       "price": 8.85,
       "day_blue": 105.5,
       "week_blue": 83.6
-    },
-    {
-      "symbol": "688776.SH",
-      "name": "国光电气",
-      "price": 80.96,
-      "day_blue": 105.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600084.SH",
-      "name": "中信尼雅",
-      "price": 5.35,
-      "day_blue": 104.0,
-      "week_blue": 0.0
     }
   ]
 }
