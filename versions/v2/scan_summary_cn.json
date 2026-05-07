@@ -1,14 +1,42 @@
 {
   "date": "2026-05-06",
   "market": "CN",
-  "total_signals": 76,
+  "total_signals": 128,
   "top_signals": [
+    {
+      "symbol": "001325.SZ",
+      "name": "元创股份",
+      "price": 52.56,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603334.SH",
+      "name": "丰倍生物",
+      "price": 47.55,
+      "day_blue": 199.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600298.SH",
+      "name": "安琪酵母",
+      "price": 37.99,
+      "day_blue": 191.3,
+      "week_blue": 0.0
+    },
     {
       "symbol": "920575.BJ",
       "name": "康乐卫士",
       "price": 4.83,
       "day_blue": 178.0,
       "week_blue": 118.7
+    },
+    {
+      "symbol": "603376.SH",
+      "name": "大明电子",
+      "price": 30.34,
+      "day_blue": 168.2,
+      "week_blue": 200.0
     },
     {
       "symbol": "603008.SH",
@@ -23,6 +51,13 @@
       "price": 62.48,
       "day_blue": 157.9,
       "week_blue": 125.0
+    },
+    {
+      "symbol": "920304.BJ",
+      "name": "迪尔化工",
+      "price": 11.43,
+      "day_blue": 150.8,
+      "week_blue": 97.3
     },
     {
       "symbol": "603737.SH",
@@ -46,6 +81,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "600053.SH",
+      "name": "九鼎投资",
+      "price": 10.32,
+      "day_blue": 139.8,
+      "week_blue": 146.4
+    },
+    {
       "symbol": "600793.SH",
       "name": "宜宾纸业",
       "price": 15.7,
@@ -65,48 +107,6 @@
       "price": 48.68,
       "day_blue": 119.0,
       "week_blue": 108.0
-    },
-    {
-      "symbol": "601888.SH",
-      "name": "中国中免",
-      "price": 63.03,
-      "day_blue": 119.0,
-      "week_blue": 76.9
-    },
-    {
-      "symbol": "688606.SH",
-      "name": "奥泰生物",
-      "price": 55.18,
-      "day_blue": 116.7,
-      "week_blue": 141.8
-    },
-    {
-      "symbol": "000403.SZ",
-      "name": "派林生物",
-      "price": 11.71,
-      "day_blue": 113.2,
-      "week_blue": 129.7
-    },
-    {
-      "symbol": "300068.SZ",
-      "name": "南都电源",
-      "price": 7.08,
-      "day_blue": 111.4,
-      "week_blue": 94.3
-    },
-    {
-      "symbol": "000708.SZ",
-      "name": "中信特钢",
-      "price": 15.49,
-      "day_blue": 108.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600866.SH",
-      "name": "星湖科技",
-      "price": 5.8,
-      "day_blue": 108.0,
-      "week_blue": 93.1
     }
   ]
 }
