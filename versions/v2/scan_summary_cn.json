@@ -1,7 +1,7 @@
 {
   "date": "2026-05-07",
   "market": "CN",
-  "total_signals": 157,
+  "total_signals": 166,
   "top_signals": [
     {
       "symbol": "920575.BJ",
@@ -53,6 +53,20 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "002790.SZ",
+      "name": "瑞尔特",
+      "price": 7.32,
+      "day_blue": 123.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688196.SH",
+      "name": "卓越新能",
+      "price": 52.0,
+      "day_blue": 122.0,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "601568.SH",
       "name": "北元集团",
       "price": 3.8,
@@ -93,20 +107,6 @@
       "price": 4.85,
       "day_blue": 113.7,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "300068.SZ",
-      "name": "南都电源",
-      "price": 5.71,
-      "day_blue": 113.4,
-      "week_blue": 94.8
-    },
-    {
-      "symbol": "300294.SZ",
-      "name": "博雅生物",
-      "price": 17.38,
-      "day_blue": 112.3,
-      "week_blue": 151.4
     }
   ]
 }
