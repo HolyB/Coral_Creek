@@ -1,7 +1,7 @@
 {
   "date": "2026-05-07",
   "market": "CN",
-  "total_signals": 96,
+  "total_signals": 157,
   "top_signals": [
     {
       "symbol": "920575.BJ",
@@ -9,6 +9,13 @@
       "price": 4.49,
       "day_blue": 200.0,
       "week_blue": 118.9
+    },
+    {
+      "symbol": "603008.SH",
+      "name": "喜临门",
+      "price": 9.31,
+      "day_blue": 167.2,
+      "week_blue": 112.1
     },
     {
       "symbol": "600603.SH",
@@ -25,6 +32,34 @@
       "week_blue": 146.7
     },
     {
+      "symbol": "002918.SZ",
+      "name": "蒙娜丽莎",
+      "price": 10.52,
+      "day_blue": 138.9,
+      "week_blue": 69.8
+    },
+    {
+      "symbol": "000403.SZ",
+      "name": "派林生物",
+      "price": 11.68,
+      "day_blue": 125.6,
+      "week_blue": 129.8
+    },
+    {
+      "symbol": "605338.SH",
+      "name": "巴比食品",
+      "price": 22.92,
+      "day_blue": 124.1,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601568.SH",
+      "name": "北元集团",
+      "price": 3.8,
+      "day_blue": 120.0,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "300138.SZ",
       "name": "晨光生物",
       "price": 11.25,
@@ -39,6 +74,13 @@
       "week_blue": 72.6
     },
     {
+      "symbol": "601818.SH",
+      "name": "光大银行",
+      "price": 3.12,
+      "day_blue": 115.4,
+      "week_blue": 132.4
+    },
+    {
       "symbol": "603113.SH",
       "name": "金能科技",
       "price": 5.82,
@@ -46,67 +88,25 @@
       "week_blue": 85.3
     },
     {
+      "symbol": "601816.SH",
+      "name": "京沪高铁",
+      "price": 4.85,
+      "day_blue": 113.7,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "300068.SZ",
+      "name": "南都电源",
+      "price": 5.71,
+      "day_blue": 113.4,
+      "week_blue": 94.8
+    },
+    {
       "symbol": "300294.SZ",
       "name": "博雅生物",
       "price": 17.38,
       "day_blue": 112.3,
       "week_blue": 151.4
-    },
-    {
-      "symbol": "600645.SH",
-      "name": "中源协和",
-      "price": 24.98,
-      "day_blue": 111.6,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "001333.SZ",
-      "name": "光华股份",
-      "price": 23.43,
-      "day_blue": 107.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002514.SZ",
-      "name": "宝馨科技",
-      "price": 3.07,
-      "day_blue": 107.0,
-      "week_blue": 96.3
-    },
-    {
-      "symbol": "600754.SH",
-      "name": "锦江酒店",
-      "price": 24.0,
-      "day_blue": 105.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002294.SZ",
-      "name": "信立泰",
-      "price": 50.75,
-      "day_blue": 103.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002258.SZ",
-      "name": "利尔化学",
-      "price": 12.48,
-      "day_blue": 103.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600518.SH",
-      "name": "康美药业",
-      "price": 1.69,
-      "day_blue": 102.8,
-      "week_blue": 141.3
-    },
-    {
-      "symbol": "605507.SH",
-      "name": "国邦医药",
-      "price": 23.56,
-      "day_blue": 101.0,
-      "week_blue": 0.0
     }
   ]
 }
