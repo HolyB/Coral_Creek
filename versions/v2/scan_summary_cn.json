@@ -1,7 +1,7 @@
 {
   "date": "2026-05-08",
   "market": "CN",
-  "total_signals": 84,
+  "total_signals": 125,
   "top_signals": [
     {
       "symbol": "603008.SH",
@@ -18,11 +18,32 @@
       "week_blue": 146.9
     },
     {
+      "symbol": "002304.SZ",
+      "name": "洋河股份",
+      "price": 48.3,
+      "day_blue": 133.0,
+      "week_blue": 108.1
+    },
+    {
+      "symbol": "601919.SH",
+      "name": "中远海控",
+      "price": 14.03,
+      "day_blue": 129.1,
+      "week_blue": 76.4
+    },
+    {
       "symbol": "603113.SH",
       "name": "金能科技",
       "price": 5.79,
       "day_blue": 123.8,
       "week_blue": 85.4
+    },
+    {
+      "symbol": "600340.SH",
+      "name": "华夏幸福",
+      "price": 1.1,
+      "day_blue": 121.7,
+      "week_blue": 97.5
     },
     {
       "symbol": "600084.SH",
@@ -39,6 +60,20 @@
       "week_blue": 94.4
     },
     {
+      "symbol": "600518.SH",
+      "name": "康美药业",
+      "price": 1.7,
+      "day_blue": 118.1,
+      "week_blue": 141.5
+    },
+    {
+      "symbol": "000625.SZ",
+      "name": "长安汽车",
+      "price": 9.29,
+      "day_blue": 116.8,
+      "week_blue": 136.8
+    },
+    {
       "symbol": "300068.SZ",
       "name": "南都电源",
       "price": 5.48,
@@ -50,6 +85,13 @@
       "name": "亚钾国际",
       "price": 52.99,
       "day_blue": 111.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "600302.SH",
+      "name": "标准股份",
+      "price": 8.18,
+      "day_blue": 110.2,
       "week_blue": 0.0
     },
     {
@@ -65,48 +107,6 @@
       "price": 4.27,
       "day_blue": 108.5,
       "week_blue": 105.7
-    },
-    {
-      "symbol": "605507.SH",
-      "name": "国邦医药",
-      "price": 23.16,
-      "day_blue": 108.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600740.SH",
-      "name": "山西焦化",
-      "price": 4.01,
-      "day_blue": 106.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600080.SH",
-      "name": "金花股份",
-      "price": 6.54,
-      "day_blue": 105.9,
-      "week_blue": 76.9
-    },
-    {
-      "symbol": "600828.SH",
-      "name": "茂业商业",
-      "price": 5.05,
-      "day_blue": 105.5,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600015.SH",
-      "name": "华夏银行",
-      "price": 6.66,
-      "day_blue": 105.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "605599.SH",
-      "name": "菜百股份",
-      "price": 18.66,
-      "day_blue": 105.0,
-      "week_blue": 0.0
     }
   ]
 }
