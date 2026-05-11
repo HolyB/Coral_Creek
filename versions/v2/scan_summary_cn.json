@@ -1,112 +1,112 @@
 {
-  "date": "2026-05-08",
+  "date": "2026-05-11",
   "market": "CN",
-  "total_signals": 125,
+  "total_signals": 109,
   "top_signals": [
+    {
+      "symbol": "920575.BJ",
+      "name": "康乐卫士",
+      "price": 4.37,
+      "day_blue": 200.0,
+      "week_blue": 123.5
+    },
     {
       "symbol": "603008.SH",
       "name": "喜临门",
-      "price": 8.84,
-      "day_blue": 172.9,
-      "week_blue": 112.3
+      "price": 8.4,
+      "day_blue": 178.5,
+      "week_blue": 120.2
     },
     {
-      "symbol": "600053.SH",
-      "name": "九鼎投资",
-      "price": 9.33,
-      "day_blue": 152.8,
-      "week_blue": 146.9
+      "symbol": "920023.BJ",
+      "name": "田野股份",
+      "price": 2.33,
+      "day_blue": 160.5,
+      "week_blue": 117.0
     },
     {
       "symbol": "002304.SZ",
       "name": "洋河股份",
-      "price": 48.3,
-      "day_blue": 133.0,
-      "week_blue": 108.1
+      "price": 48.29,
+      "day_blue": 147.7,
+      "week_blue": 121.8
     },
     {
       "symbol": "601919.SH",
       "name": "中远海控",
-      "price": 14.03,
-      "day_blue": 129.1,
-      "week_blue": 76.4
+      "price": 14.05,
+      "day_blue": 140.6,
+      "week_blue": 87.2
+    },
+    {
+      "symbol": "603199.SH",
+      "name": "九华旅游",
+      "price": 35.5,
+      "day_blue": 140.1,
+      "week_blue": 0.0
     },
     {
       "symbol": "603113.SH",
       "name": "金能科技",
-      "price": 5.79,
-      "day_blue": 123.8,
-      "week_blue": 85.4
+      "price": 5.73,
+      "day_blue": 130.7,
+      "week_blue": 98.8
     },
     {
       "symbol": "600340.SH",
       "name": "华夏幸福",
-      "price": 1.1,
-      "day_blue": 121.7,
-      "week_blue": 97.5
+      "price": 1.11,
+      "day_blue": 129.6,
+      "week_blue": 101.2
     },
     {
-      "symbol": "600084.SH",
-      "name": "中信尼雅",
-      "price": 4.86,
-      "day_blue": 121.6,
-      "week_blue": 72.9
+      "symbol": "601816.SH",
+      "name": "京沪高铁",
+      "price": 4.88,
+      "day_blue": 127.1,
+      "week_blue": 0.0
     },
     {
       "symbol": "600873.SH",
       "name": "梅花生物",
-      "price": 9.38,
-      "day_blue": 119.5,
-      "week_blue": 94.4
+      "price": 9.36,
+      "day_blue": 125.6,
+      "week_blue": 106.1
     },
     {
-      "symbol": "600518.SH",
-      "name": "康美药业",
-      "price": 1.7,
-      "day_blue": 118.1,
-      "week_blue": 141.5
+      "symbol": "002911.SZ",
+      "name": "佛燃能源",
+      "price": 11.89,
+      "day_blue": 122.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601888.SH",
+      "name": "中国中免",
+      "price": 62.69,
+      "day_blue": 122.8,
+      "week_blue": 79.3
     },
     {
       "symbol": "000625.SZ",
       "name": "长安汽车",
-      "price": 9.29,
-      "day_blue": 116.8,
-      "week_blue": 136.8
+      "price": 9.3,
+      "day_blue": 121.6,
+      "week_blue": 146.5
     },
     {
-      "symbol": "300068.SZ",
-      "name": "南都电源",
-      "price": 5.48,
-      "day_blue": 114.0,
-      "week_blue": 94.9
-    },
-    {
-      "symbol": "000893.SZ",
-      "name": "亚钾国际",
-      "price": 52.99,
-      "day_blue": 111.2,
+      "symbol": "688196.SH",
+      "name": "卓越新能",
+      "price": 52.32,
+      "day_blue": 120.3,
       "week_blue": 0.0
     },
     {
-      "symbol": "600302.SH",
-      "name": "标准股份",
-      "price": 8.18,
-      "day_blue": 110.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600754.SH",
-      "name": "锦江酒店",
-      "price": 24.04,
-      "day_blue": 109.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "000401.SZ",
-      "name": "金隅冀东",
-      "price": 4.27,
-      "day_blue": 108.5,
-      "week_blue": 105.7
+      "symbol": "603589.SH",
+      "name": "口子窖",
+      "price": 23.46,
+      "day_blue": 118.3,
+      "week_blue": 171.0
     }
   ]
 }
