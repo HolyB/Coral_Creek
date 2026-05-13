@@ -1,8 +1,15 @@
 {
   "date": "2026-05-12",
   "market": "CN",
-  "total_signals": 122,
+  "total_signals": 171,
   "top_signals": [
+    {
+      "symbol": "920575.BJ",
+      "name": "康乐卫士",
+      "price": 4.4,
+      "day_blue": 200.0,
+      "week_blue": 123.6
+    },
     {
       "symbol": "600298.SH",
       "name": "安琪酵母",
@@ -18,6 +25,20 @@
       "week_blue": 120.3
     },
     {
+      "symbol": "920023.BJ",
+      "name": "田野股份",
+      "price": 2.33,
+      "day_blue": 183.3,
+      "week_blue": 117.0
+    },
+    {
+      "symbol": "002304.SZ",
+      "name": "洋河股份",
+      "price": 47.62,
+      "day_blue": 156.9,
+      "week_blue": 121.8
+    },
+    {
       "symbol": "603199.SH",
       "name": "九华旅游",
       "price": 35.35,
@@ -25,11 +46,32 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "002790.SZ",
+      "name": "瑞尔特",
+      "price": 7.3,
+      "day_blue": 138.6,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "601888.SH",
+      "name": "中国中免",
+      "price": 61.55,
+      "day_blue": 138.2,
+      "week_blue": 79.3
+    },
+    {
       "symbol": "603113.SH",
       "name": "金能科技",
       "price": 5.56,
       "day_blue": 136.5,
       "week_blue": 99.0
+    },
+    {
+      "symbol": "002911.SZ",
+      "name": "佛燃能源",
+      "price": 11.91,
+      "day_blue": 136.3,
+      "week_blue": 0.0
     },
     {
       "symbol": "600340.SH",
@@ -65,48 +107,6 @@
       "price": 4.1,
       "day_blue": 121.1,
       "week_blue": 106.5
-    },
-    {
-      "symbol": "600645.SH",
-      "name": "中源协和",
-      "price": 24.32,
-      "day_blue": 120.7,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "600740.SH",
-      "name": "山西焦化",
-      "price": 3.91,
-      "day_blue": 120.2,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300072.SZ",
-      "name": "海新能科",
-      "price": 4.44,
-      "day_blue": 118.3,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "300138.SZ",
-      "name": "晨光生物",
-      "price": 11.1,
-      "day_blue": 117.6,
-      "week_blue": 101.3
-    },
-    {
-      "symbol": "603227.SH",
-      "name": "雪峰科技",
-      "price": 8.56,
-      "day_blue": 115.8,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002469.SZ",
-      "name": "三维化学",
-      "price": 6.89,
-      "day_blue": 115.7,
-      "week_blue": 140.9
     }
   ]
 }
