@@ -1,7 +1,7 @@
 {
   "date": "2026-05-12",
   "market": "CN",
-  "total_signals": 171,
+  "total_signals": 191,
   "top_signals": [
     {
       "symbol": "920575.BJ",
@@ -88,6 +88,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "603043.SH",
+      "name": "广州酒家",
+      "price": 14.95,
+      "day_blue": 126.4,
+      "week_blue": 88.9
+    },
+    {
       "symbol": "000625.SZ",
       "name": "长安汽车",
       "price": 9.17,
@@ -100,13 +107,6 @@
       "price": 17.77,
       "day_blue": 124.1,
       "week_blue": 0.0
-    },
-    {
-      "symbol": "000723.SZ",
-      "name": "美锦能源",
-      "price": 4.1,
-      "day_blue": 121.1,
-      "week_blue": 106.5
     }
   ]
 }
