@@ -1,7 +1,7 @@
 {
   "date": "2026-05-13",
   "market": "CN",
-  "total_signals": 241,
+  "total_signals": 259,
   "top_signals": [
     {
       "symbol": "603402.SH",
@@ -53,6 +53,13 @@
       "week_blue": 79.4
     },
     {
+      "symbol": "603113.SH",
+      "name": "金能科技",
+      "price": 5.55,
+      "day_blue": 141.6,
+      "week_blue": 99.0
+    },
+    {
       "symbol": "603043.SH",
       "name": "广州酒家",
       "price": 14.78,
@@ -64,6 +71,13 @@
       "name": "卓越新能",
       "price": 50.68,
       "day_blue": 136.2,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "603227.SH",
+      "name": "雪峰科技",
+      "price": 8.55,
+      "day_blue": 132.9,
       "week_blue": 0.0
     },
     {
@@ -93,20 +107,6 @@
       "price": 9.09,
       "day_blue": 131.1,
       "week_blue": 146.7
-    },
-    {
-      "symbol": "605599.SH",
-      "name": "菜百股份",
-      "price": 17.67,
-      "day_blue": 130.1,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "002753.SZ",
-      "name": "永东股份",
-      "price": 7.08,
-      "day_blue": 128.2,
-      "week_blue": 0.0
     }
   ]
 }
