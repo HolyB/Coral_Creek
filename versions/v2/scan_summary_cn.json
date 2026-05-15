@@ -1,7 +1,7 @@
 {
   "date": "2026-05-14",
   "market": "CN",
-  "total_signals": 423,
+  "total_signals": 471,
   "top_signals": [
     {
       "symbol": "001220.SZ",
@@ -88,6 +88,13 @@
       "week_blue": 89.4
     },
     {
+      "symbol": "002165.SZ",
+      "name": "红宝丽",
+      "price": 9.39,
+      "day_blue": 141.7,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "688196.SH",
       "name": "卓越新能",
       "price": 46.9,
@@ -100,13 +107,6 @@
       "price": 8.9,
       "day_blue": 136.4,
       "week_blue": 147.0
-    },
-    {
-      "symbol": "000096.SZ",
-      "name": "广聚能源",
-      "price": 9.07,
-      "day_blue": 136.4,
-      "week_blue": 96.3
     }
   ]
 }
