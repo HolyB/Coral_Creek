@@ -1,112 +1,112 @@
 {
-  "date": "2026-05-25",
+  "date": "2026-05-26",
   "market": "CN",
-  "total_signals": 992,
+  "total_signals": 1523,
   "top_signals": [
     {
-      "symbol": "603284.SH",
+      "symbol": "920168.BJ",
       "name": "",
-      "price": 43.47,
+      "price": 19.6,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
       "symbol": "920180.BJ",
       "name": "",
-      "price": 14.09,
+      "price": 13.81,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
-      "symbol": "920159.BJ",
-      "name": "",
-      "price": 35.71,
+      "symbol": "920050.BJ",
+      "name": "N爱舍伦",
+      "price": 30.06,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
       "symbol": "920121.BJ",
       "name": "江天科技",
-      "price": 34.66,
+      "price": 34.26,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
       "symbol": "301449.SZ",
       "name": "天溯计量",
-      "price": 65.65,
+      "price": 65.1,
       "day_blue": 200.0,
       "week_blue": 200.0
+    },
+    {
+      "symbol": "001325.SZ",
+      "name": "元创股份",
+      "price": 43.9,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "001369.SZ",
+      "name": "双欣环保",
+      "price": 14.6,
+      "day_blue": 200.0,
+      "week_blue": 0.0
     },
     {
       "symbol": "920023.BJ",
       "name": "田野股份",
-      "price": 2.3,
+      "price": 2.34,
       "day_blue": 200.0,
       "week_blue": 124.9
     },
     {
+      "symbol": "920367.BJ",
+      "name": "新赣江",
+      "price": 17.24,
+      "day_blue": 200.0,
+      "week_blue": 105.3
+    },
+    {
       "symbol": "920575.BJ",
       "name": "康乐卫士",
-      "price": 3.5,
+      "price": 4.2,
       "day_blue": 200.0,
       "week_blue": 131.5
     },
     {
-      "symbol": "603402.SH",
-      "name": "陕西旅游",
-      "price": 96.65,
+      "symbol": "688513.SH",
+      "name": "苑东生物",
+      "price": 47.62,
       "day_blue": 200.0,
-      "week_blue": 200.0
+      "week_blue": 69.8
     },
     {
-      "symbol": "603199.SH",
-      "name": "九华旅游",
-      "price": 32.88,
+      "symbol": "002790.SZ",
+      "name": "瑞尔特",
+      "price": 6.62,
       "day_blue": 200.0,
-      "week_blue": 102.8
-    },
-    {
-      "symbol": "002304.SZ",
-      "name": "洋河股份",
-      "price": 44.47,
-      "day_blue": 200.0,
-      "week_blue": 134.3
+      "week_blue": 125.1
     },
     {
       "symbol": "600793.SH",
       "name": "宜宾纸业",
-      "price": 14.86,
+      "price": 14.87,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
       "symbol": "600681.SH",
       "name": "百川能源",
-      "price": 3.78,
+      "price": 3.75,
       "day_blue": 200.0,
-      "week_blue": 83.5
-    },
-    {
-      "symbol": "920367.BJ",
-      "name": "新赣江",
-      "price": 16.97,
-      "day_blue": 192.5,
-      "week_blue": 105.2
+      "week_blue": 83.6
     },
     {
       "symbol": "603833.SH",
       "name": "欧派家居",
-      "price": 38.8,
-      "day_blue": 192.0,
+      "price": 39.3,
+      "day_blue": 198.9,
       "week_blue": 126.3
-    },
-    {
-      "symbol": "688513.SH",
-      "name": "苑东生物",
-      "price": 49.51,
-      "day_blue": 190.7,
-      "week_blue": 69.7
     }
   ]
 }
