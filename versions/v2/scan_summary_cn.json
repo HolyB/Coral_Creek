@@ -1,8 +1,15 @@
 {
   "date": "2026-05-29",
   "market": "CN",
-  "total_signals": 823,
+  "total_signals": 1327,
   "top_signals": [
+    {
+      "symbol": "600793.SH",
+      "name": "宜宾纸业",
+      "price": 14.15,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
     {
       "symbol": "603284.SH",
       "name": "",
@@ -46,6 +53,20 @@
       "week_blue": 164.8
     },
     {
+      "symbol": "603043.SH",
+      "name": "广州酒家",
+      "price": 14.03,
+      "day_blue": 198.6,
+      "week_blue": 110.6
+    },
+    {
+      "symbol": "603216.SH",
+      "name": "梦天家居",
+      "price": 24.5,
+      "day_blue": 191.9,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "688196.SH",
       "name": "卓越新能",
       "price": 41.93,
@@ -60,6 +81,13 @@
       "week_blue": 0.0
     },
     {
+      "symbol": "600059.SH",
+      "name": "古越龙山",
+      "price": 8.27,
+      "day_blue": 182.6,
+      "week_blue": 86.9
+    },
+    {
       "symbol": "688098.SH",
       "name": "申联生物",
       "price": 7.78,
@@ -67,46 +95,18 @@
       "week_blue": 77.9
     },
     {
+      "symbol": "001216.SZ",
+      "name": "华瓷股份",
+      "price": 16.12,
+      "day_blue": 178.5,
+      "week_blue": 0.0
+    },
+    {
       "symbol": "688543.SH",
       "name": "国科军工",
       "price": 43.25,
       "day_blue": 178.1,
       "week_blue": 59.8
-    },
-    {
-      "symbol": "300804.SZ",
-      "name": "广康生化",
-      "price": 37.31,
-      "day_blue": 172.4,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "001296.SZ",
-      "name": "长江材料",
-      "price": 19.82,
-      "day_blue": 169.8,
-      "week_blue": 100.4
-    },
-    {
-      "symbol": "003020.SZ",
-      "name": "立方制药",
-      "price": 16.5,
-      "day_blue": 165.4,
-      "week_blue": 100.7
-    },
-    {
-      "symbol": "603983.SH",
-      "name": "丸美生物",
-      "price": 23.68,
-      "day_blue": 163.4,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "600523.SH",
-      "name": "贵航股份",
-      "price": 11.91,
-      "day_blue": 162.1,
-      "week_blue": 94.9
     }
   ]
 }
