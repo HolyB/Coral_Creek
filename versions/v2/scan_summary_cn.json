@@ -1,112 +1,112 @@
 {
-  "date": "2026-06-08",
+  "date": "2026-06-09",
   "market": "CN",
-  "total_signals": 2325,
+  "total_signals": 1641,
   "top_signals": [
     {
-      "symbol": "688712.SH",
-      "name": "",
-      "price": 37.5,
+      "symbol": "688621.SH",
+      "name": "阳光诺和",
+      "price": 51.14,
       "day_blue": 200.0,
-      "week_blue": 0.0
+      "week_blue": 78.3
     },
     {
-      "symbol": "688790.SH",
-      "name": "昂瑞微-UW",
-      "price": 116.2,
+      "symbol": "688370.SH",
+      "name": "丛麟科技",
+      "price": 20.81,
       "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "688543.SH",
-      "name": "国科军工",
-      "price": 39.71,
-      "day_blue": 200.0,
-      "week_blue": 74.7
-    },
-    {
-      "symbol": "688353.SH",
-      "name": "华盛锂电",
-      "price": 79.75,
-      "day_blue": 200.0,
-      "week_blue": 0.0
+      "week_blue": 85.9
     },
     {
       "symbol": "688196.SH",
       "name": "卓越新能",
-      "price": 39.65,
+      "price": 39.44,
       "day_blue": 200.0,
       "week_blue": 113.2
     },
     {
-      "symbol": "688098.SH",
-      "name": "申联生物",
-      "price": 7.39,
+      "symbol": "688177.SH",
+      "name": "百奥泰",
+      "price": 16.65,
       "day_blue": 200.0,
-      "week_blue": 96.3
-    },
-    {
-      "symbol": "688013.SH",
-      "name": "天臣医疗",
-      "price": 27.25,
-      "day_blue": 200.0,
-      "week_blue": 136.3
+      "week_blue": 113.0
     },
     {
       "symbol": "605500.SH",
       "name": "森林包装",
-      "price": 7.1,
+      "price": 7.04,
       "day_blue": 200.0,
-      "week_blue": 89.8
+      "week_blue": 89.9
     },
     {
-      "symbol": "605378.SH",
-      "name": "野马电池",
-      "price": 15.68,
+      "symbol": "605188.SH",
+      "name": "国光连锁",
+      "price": 13.17,
       "day_blue": 200.0,
-      "week_blue": 99.1
+      "week_blue": 138.8
+    },
+    {
+      "symbol": "605179.SH",
+      "name": "一鸣食品",
+      "price": 14.03,
+      "day_blue": 200.0,
+      "week_blue": 114.1
     },
     {
       "symbol": "603833.SH",
       "name": "欧派家居",
-      "price": 35.3,
+      "price": 34.75,
       "day_blue": 200.0,
-      "week_blue": 143.6
+      "week_blue": 143.8
     },
     {
-      "symbol": "603192.SH",
-      "name": "汇得科技",
-      "price": 19.04,
+      "symbol": "603277.SH",
+      "name": "银都股份",
+      "price": 11.32,
       "day_blue": 200.0,
-      "week_blue": 115.8
+      "week_blue": 123.3
+    },
+    {
+      "symbol": "603216.SH",
+      "name": "梦天家居",
+      "price": 23.0,
+      "day_blue": 200.0,
+      "week_blue": 0.0
     },
     {
       "symbol": "603113.SH",
       "name": "金能科技",
-      "price": 4.93,
+      "price": 4.89,
       "day_blue": 200.0,
-      "week_blue": 121.4
+      "week_blue": 121.5
     },
     {
-      "symbol": "603059.SH",
-      "name": "倍加洁",
-      "price": 26.07,
+      "symbol": "601718.SH",
+      "name": "际华集团",
+      "price": 1.89,
       "day_blue": 200.0,
-      "week_blue": 89.4
+      "week_blue": 156.1
     },
     {
-      "symbol": "601633.SH",
-      "name": "长城汽车",
-      "price": 16.41,
+      "symbol": "601018.SH",
+      "name": "宁波港",
+      "price": 3.3,
       "day_blue": 200.0,
-      "week_blue": 117.1
+      "week_blue": 90.7
     },
     {
-      "symbol": "600421.SH",
-      "name": "*ST华嵘",
-      "price": 0.33,
+      "symbol": "600935.SH",
+      "name": "华塑股份",
+      "price": 2.31,
       "day_blue": 200.0,
-      "week_blue": 94.8
+      "week_blue": 113.7
+    },
+    {
+      "symbol": "600864.SH",
+      "name": "哈投股份",
+      "price": 5.12,
+      "day_blue": 200.0,
+      "week_blue": 111.7
     }
   ]
 }
