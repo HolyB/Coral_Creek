@@ -1,8 +1,29 @@
 {
   "date": "2026-06-10",
   "market": "CN",
-  "total_signals": 2003,
+  "total_signals": 2078,
   "top_signals": [
+    {
+      "symbol": "920168.BJ",
+      "name": "",
+      "price": 18.45,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920159.BJ",
+      "name": "",
+      "price": 32.4,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "688370.SH",
+      "name": "丛麟科技",
+      "price": 20.42,
+      "day_blue": 200.0,
+      "week_blue": 86.0
+    },
     {
       "symbol": "688712.SH",
       "name": "",
@@ -86,27 +107,6 @@
       "price": 10.84,
       "day_blue": 200.0,
       "week_blue": 123.5
-    },
-    {
-      "symbol": "603216.SH",
-      "name": "梦天家居",
-      "price": 22.91,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603113.SH",
-      "name": "金能科技",
-      "price": 4.79,
-      "day_blue": 200.0,
-      "week_blue": 121.6
-    },
-    {
-      "symbol": "601718.SH",
-      "name": "际华集团",
-      "price": 1.8,
-      "day_blue": 200.0,
-      "week_blue": 156.3
     }
   ]
 }
