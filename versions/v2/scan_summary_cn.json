@@ -1,112 +1,112 @@
 {
-  "date": "2026-06-10",
+  "date": "2026-06-11",
   "market": "CN",
-  "total_signals": 2119,
+  "total_signals": 2477,
   "top_signals": [
     {
-      "symbol": "920168.BJ",
-      "name": "",
-      "price": 18.45,
+      "symbol": "920651.BJ",
+      "name": "天罡股份",
+      "price": 21.02,
       "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920159.BJ",
-      "name": "",
-      "price": 32.4,
-      "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "688370.SH",
-      "name": "丛麟科技",
-      "price": 20.42,
-      "day_blue": 200.0,
-      "week_blue": 86.0
-    },
-    {
-      "symbol": "688712.SH",
-      "name": "",
-      "price": 37.34,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603284.SH",
-      "name": "",
-      "price": 38.64,
-      "day_blue": 200.0,
-      "week_blue": 0.0
+      "week_blue": 153.4
     },
     {
       "symbol": "920121.BJ",
       "name": "江天科技",
-      "price": 31.99,
+      "price": 30.8,
       "day_blue": 200.0,
       "week_blue": 0.0
     },
     {
+      "symbol": "920089.BJ",
+      "name": "禾昌聚合",
+      "price": 11.72,
+      "day_blue": 200.0,
+      "week_blue": 161.7
+    },
+    {
+      "symbol": "920076.BJ",
+      "name": "国亮新材",
+      "price": 13.06,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
       "symbol": "688789.SH",
       "name": "宏华数科",
-      "price": 48.64,
+      "price": 47.37,
       "day_blue": 200.0,
-      "week_blue": 169.0
+      "week_blue": 169.1
+    },
+    {
+      "symbol": "688573.SH",
+      "name": "信宇人",
+      "price": 18.07,
+      "day_blue": 200.0,
+      "week_blue": 74.2
+    },
+    {
+      "symbol": "688370.SH",
+      "name": "丛麟科技",
+      "price": 20.49,
+      "day_blue": 200.0,
+      "week_blue": 86.1
     },
     {
       "symbol": "688196.SH",
       "name": "卓越新能",
-      "price": 39.48,
+      "price": 38.97,
       "day_blue": 200.0,
       "week_blue": 113.2
     },
     {
-      "symbol": "688177.SH",
-      "name": "百奥泰",
-      "price": 16.85,
+      "symbol": "688176.SH",
+      "name": "亚虹医药-U",
+      "price": 9.9,
       "day_blue": 200.0,
-      "week_blue": 113.1
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688013.SH",
+      "name": "天臣医疗",
+      "price": 27.14,
+      "day_blue": 200.0,
+      "week_blue": 136.4
+    },
+    {
+      "symbol": "605599.SH",
+      "name": "菜百股份",
+      "price": 14.47,
+      "day_blue": 200.0,
+      "week_blue": 0.0
     },
     {
       "symbol": "605500.SH",
       "name": "森林包装",
-      "price": 6.84,
+      "price": 6.87,
       "day_blue": 200.0,
       "week_blue": 90.0
     },
     {
+      "symbol": "605378.SH",
+      "name": "野马电池",
+      "price": 15.41,
+      "day_blue": 200.0,
+      "week_blue": 99.2
+    },
+    {
       "symbol": "605188.SH",
       "name": "国光连锁",
-      "price": 13.21,
+      "price": 12.86,
       "day_blue": 200.0,
       "week_blue": 138.8
     },
     {
       "symbol": "605179.SH",
       "name": "一鸣食品",
-      "price": 13.92,
+      "price": 13.77,
       "day_blue": 200.0,
-      "week_blue": 114.1
-    },
-    {
-      "symbol": "603599.SH",
-      "name": "广信股份",
-      "price": 10.72,
-      "day_blue": 200.0,
-      "week_blue": 86.9
-    },
-    {
-      "symbol": "603352.SH",
-      "name": "C至信",
-      "price": 28.08,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "603277.SH",
-      "name": "银都股份",
-      "price": 10.84,
-      "day_blue": 200.0,
-      "week_blue": 123.5
+      "week_blue": 114.2
     }
   ]
 }
