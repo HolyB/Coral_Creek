@@ -1,8 +1,64 @@
 {
   "date": "2026-06-11",
   "market": "CN",
-  "total_signals": 2477,
+  "total_signals": 2539,
   "top_signals": [
+    {
+      "symbol": "920187.BJ",
+      "name": "",
+      "price": 20.3,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920183.BJ",
+      "name": "",
+      "price": 34.45,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920180.BJ",
+      "name": "",
+      "price": 13.02,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920168.BJ",
+      "name": "",
+      "price": 17.73,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920159.BJ",
+      "name": "",
+      "price": 32.56,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "920119.BJ",
+      "name": "",
+      "price": 51.01,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688818.SH",
+      "name": "",
+      "price": 66.66,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "688712.SH",
+      "name": "",
+      "price": 36.67,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
     {
       "symbol": "920651.BJ",
       "name": "天罡股份",
@@ -51,62 +107,6 @@
       "price": 20.49,
       "day_blue": 200.0,
       "week_blue": 86.1
-    },
-    {
-      "symbol": "688196.SH",
-      "name": "卓越新能",
-      "price": 38.97,
-      "day_blue": 200.0,
-      "week_blue": 113.2
-    },
-    {
-      "symbol": "688176.SH",
-      "name": "亚虹医药-U",
-      "price": 9.9,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "688013.SH",
-      "name": "天臣医疗",
-      "price": 27.14,
-      "day_blue": 200.0,
-      "week_blue": 136.4
-    },
-    {
-      "symbol": "605599.SH",
-      "name": "菜百股份",
-      "price": 14.47,
-      "day_blue": 200.0,
-      "week_blue": 0.0
-    },
-    {
-      "symbol": "605500.SH",
-      "name": "森林包装",
-      "price": 6.87,
-      "day_blue": 200.0,
-      "week_blue": 90.0
-    },
-    {
-      "symbol": "605378.SH",
-      "name": "野马电池",
-      "price": 15.41,
-      "day_blue": 200.0,
-      "week_blue": 99.2
-    },
-    {
-      "symbol": "605188.SH",
-      "name": "国光连锁",
-      "price": 12.86,
-      "day_blue": 200.0,
-      "week_blue": 138.8
-    },
-    {
-      "symbol": "605179.SH",
-      "name": "一鸣食品",
-      "price": 13.77,
-      "day_blue": 200.0,
-      "week_blue": 114.2
     }
   ]
 }
