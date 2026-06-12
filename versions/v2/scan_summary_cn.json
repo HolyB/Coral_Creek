@@ -1,8 +1,22 @@
 {
   "date": "2026-06-12",
   "market": "CN",
-  "total_signals": 1433,
+  "total_signals": 1468,
   "top_signals": [
+    {
+      "symbol": "920802.BJ",
+      "name": "保丽洁",
+      "price": 11.66,
+      "day_blue": 200.0,
+      "week_blue": 151.3
+    },
+    {
+      "symbol": "920651.BJ",
+      "name": "天罡股份",
+      "price": 21.21,
+      "day_blue": 200.0,
+      "week_blue": 153.4
+    },
     {
       "symbol": "920183.BJ",
       "name": "",
@@ -93,20 +107,6 @@
       "price": 9.43,
       "day_blue": 200.0,
       "week_blue": 82.0
-    },
-    {
-      "symbol": "601808.SH",
-      "name": "中海油服",
-      "price": 12.51,
-      "day_blue": 200.0,
-      "week_blue": 66.3
-    },
-    {
-      "symbol": "601236.SH",
-      "name": "红塔证券",
-      "price": 6.8,
-      "day_blue": 200.0,
-      "week_blue": 122.1
     }
   ]
 }
