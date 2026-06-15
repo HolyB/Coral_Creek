@@ -1,112 +1,112 @@
 {
-  "date": "2026-06-12",
+  "date": "2026-06-15",
   "market": "CN",
-  "total_signals": 1468,
+  "total_signals": 177,
   "top_signals": [
-    {
-      "symbol": "920802.BJ",
-      "name": "保丽洁",
-      "price": 11.66,
-      "day_blue": 200.0,
-      "week_blue": 151.3
-    },
-    {
-      "symbol": "920651.BJ",
-      "name": "天罡股份",
-      "price": 21.21,
-      "day_blue": 200.0,
-      "week_blue": 153.4
-    },
-    {
-      "symbol": "920183.BJ",
-      "name": "",
-      "price": 33.65,
-      "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920180.BJ",
-      "name": "",
-      "price": 12.99,
-      "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920159.BJ",
-      "name": "",
-      "price": 31.81,
-      "day_blue": 200.0,
-      "week_blue": 200.0
-    },
     {
       "symbol": "920826.BJ",
       "name": "盖世食品",
-      "price": 9.39,
+      "price": 9.3,
       "day_blue": 200.0,
-      "week_blue": 107.4
+      "week_blue": 121.1
     },
     {
-      "symbol": "920367.BJ",
-      "name": "新赣江",
-      "price": 15.24,
+      "symbol": "688177.SH",
+      "name": "百奥泰",
+      "price": 16.9,
       "day_blue": 200.0,
-      "week_blue": 108.8
+      "week_blue": 118.6
     },
     {
-      "symbol": "605500.SH",
-      "name": "森林包装",
-      "price": 6.88,
+      "symbol": "603707.SH",
+      "name": "健友股份",
+      "price": 7.47,
       "day_blue": 200.0,
-      "week_blue": 90.1
+      "week_blue": 95.5
     },
     {
-      "symbol": "605188.SH",
-      "name": "国光连锁",
-      "price": 13.44,
+      "symbol": "601089.SH",
+      "name": "福元医药",
+      "price": 16.39,
       "day_blue": 200.0,
-      "week_blue": 138.8
+      "week_blue": 99.4
     },
     {
-      "symbol": "603839.SH",
-      "name": "安正时尚",
-      "price": 6.57,
+      "symbol": "600975.SH",
+      "name": "新五丰",
+      "price": 4.75,
       "day_blue": 200.0,
-      "week_blue": 143.3
+      "week_blue": 122.3
     },
     {
-      "symbol": "603833.SH",
-      "name": "欧派家居",
-      "price": 35.65,
+      "symbol": "600620.SH",
+      "name": "天宸股份",
+      "price": 4.39,
       "day_blue": 200.0,
-      "week_blue": 143.8
+      "week_blue": 112.9
     },
     {
-      "symbol": "603639.SH",
-      "name": "海利尔",
-      "price": 10.91,
+      "symbol": "600421.SH",
+      "name": "*ST华嵘",
+      "price": 0.27,
       "day_blue": 200.0,
-      "week_blue": 110.2
+      "week_blue": 99.8
     },
     {
-      "symbol": "603599.SH",
-      "name": "广信股份",
-      "price": 11.02,
+      "symbol": "600193.SH",
+      "name": "*ST创兴",
+      "price": 0.16,
       "day_blue": 200.0,
-      "week_blue": 87.0
+      "week_blue": 97.7
     },
     {
-      "symbol": "603113.SH",
-      "name": "金能科技",
-      "price": 4.88,
+      "symbol": "002769.SZ",
+      "name": "普路通",
+      "price": 7.41,
       "day_blue": 200.0,
-      "week_blue": 121.6
+      "week_blue": 112.1
     },
     {
-      "symbol": "603033.SH",
-      "name": "三维股份",
-      "price": 9.43,
+      "symbol": "002543.SZ",
+      "name": "万和电气",
+      "price": 6.85,
       "day_blue": 200.0,
-      "week_blue": 82.0
+      "week_blue": 193.6
+    },
+    {
+      "symbol": "002385.SZ",
+      "name": "大北农",
+      "price": 3.01,
+      "day_blue": 200.0,
+      "week_blue": 144.8
+    },
+    {
+      "symbol": "002172.SZ",
+      "name": "澳洋健康",
+      "price": 3.08,
+      "day_blue": 200.0,
+      "week_blue": 123.2
+    },
+    {
+      "symbol": "001219.SZ",
+      "name": "青岛食品",
+      "price": 12.76,
+      "day_blue": 200.0,
+      "week_blue": 101.5
+    },
+    {
+      "symbol": "002069.SZ",
+      "name": "獐子岛",
+      "price": 3.18,
+      "day_blue": 194.7,
+      "week_blue": 153.5
+    },
+    {
+      "symbol": "600561.SH",
+      "name": "江西长运",
+      "price": 5.5,
+      "day_blue": 194.0,
+      "week_blue": 92.2
     }
   ]
 }
