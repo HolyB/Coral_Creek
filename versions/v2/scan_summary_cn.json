@@ -1,112 +1,112 @@
 {
-  "date": "2026-06-15",
+  "date": "2026-06-16",
   "market": "CN",
-  "total_signals": 179,
+  "total_signals": 240,
   "top_signals": [
     {
-      "symbol": "920826.BJ",
-      "name": "盖世食品",
-      "price": 9.3,
+      "symbol": "688137.SH",
+      "name": "近岸蛋白",
+      "price": 35.36,
       "day_blue": 200.0,
-      "week_blue": 121.1
+      "week_blue": 101.3
     },
     {
-      "symbol": "688177.SH",
-      "name": "百奥泰",
-      "price": 16.9,
+      "symbol": "603238.SH",
+      "name": "诺邦股份",
+      "price": 12.28,
       "day_blue": 200.0,
-      "week_blue": 118.6
+      "week_blue": 142.6
     },
     {
-      "symbol": "603707.SH",
-      "name": "健友股份",
-      "price": 7.47,
+      "symbol": "600793.SH",
+      "name": "宜宾纸业",
+      "price": 13.3,
       "day_blue": 200.0,
-      "week_blue": 95.5
-    },
-    {
-      "symbol": "601089.SH",
-      "name": "福元医药",
-      "price": 16.39,
-      "day_blue": 200.0,
-      "week_blue": 99.4
-    },
-    {
-      "symbol": "600975.SH",
-      "name": "新五丰",
-      "price": 4.75,
-      "day_blue": 200.0,
-      "week_blue": 122.3
+      "week_blue": 200.0
     },
     {
       "symbol": "600620.SH",
       "name": "天宸股份",
-      "price": 4.39,
+      "price": 4.36,
       "day_blue": 200.0,
-      "week_blue": 112.9
+      "week_blue": 113.0
     },
     {
-      "symbol": "600421.SH",
-      "name": "*ST华嵘",
-      "price": 0.27,
+      "symbol": "300485.SZ",
+      "name": "赛升药业",
+      "price": 8.29,
       "day_blue": 200.0,
-      "week_blue": 99.8
+      "week_blue": 95.7
     },
     {
-      "symbol": "600193.SH",
-      "name": "*ST创兴",
-      "price": 0.16,
+      "symbol": "002790.SZ",
+      "name": "瑞尔特",
+      "price": 5.95,
       "day_blue": 200.0,
-      "week_blue": 97.7
+      "week_blue": 149.8
     },
     {
       "symbol": "002769.SZ",
       "name": "普路通",
-      "price": 7.41,
+      "price": 7.43,
       "day_blue": 200.0,
-      "week_blue": 112.1
-    },
-    {
-      "symbol": "002543.SZ",
-      "name": "万和电气",
-      "price": 6.85,
-      "day_blue": 200.0,
-      "week_blue": 193.6
-    },
-    {
-      "symbol": "002385.SZ",
-      "name": "大北农",
-      "price": 3.01,
-      "day_blue": 200.0,
-      "week_blue": 144.8
+      "week_blue": 112.3
     },
     {
       "symbol": "002172.SZ",
       "name": "澳洋健康",
-      "price": 3.08,
+      "price": 3.09,
       "day_blue": 200.0,
-      "week_blue": 123.2
-    },
-    {
-      "symbol": "001219.SZ",
-      "name": "青岛食品",
-      "price": 12.76,
-      "day_blue": 200.0,
-      "week_blue": 101.5
+      "week_blue": 123.3
     },
     {
       "symbol": "002069.SZ",
       "name": "獐子岛",
-      "price": 3.18,
-      "day_blue": 194.7,
-      "week_blue": 153.5
+      "price": 3.16,
+      "day_blue": 200.0,
+      "week_blue": 153.7
     },
     {
-      "symbol": "600561.SH",
-      "name": "江西长运",
-      "price": 5.5,
-      "day_blue": 194.0,
-      "week_blue": 92.2
+      "symbol": "920819.BJ",
+      "name": "颖泰生物",
+      "price": 2.86,
+      "day_blue": 199.8,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "600720.SH",
+      "name": "中交设计",
+      "price": 5.47,
+      "day_blue": 199.8,
+      "week_blue": 115.0
+    },
+    {
+      "symbol": "000557.SZ",
+      "name": "西部创业",
+      "price": 3.81,
+      "day_blue": 196.2,
+      "week_blue": 160.2
+    },
+    {
+      "symbol": "002887.SZ",
+      "name": "绿茵生态",
+      "price": 11.59,
+      "day_blue": 189.8,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "002968.SZ",
+      "name": "新大正",
+      "price": 9.28,
+      "day_blue": 188.5,
+      "week_blue": 127.9
+    },
+    {
+      "symbol": "920925.BJ",
+      "name": "锦好医疗",
+      "price": 11.84,
+      "day_blue": 187.4,
+      "week_blue": 199.5
     }
   ]
 }
