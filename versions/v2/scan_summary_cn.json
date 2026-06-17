@@ -1,8 +1,64 @@
 {
   "date": "2026-06-16",
   "market": "CN",
-  "total_signals": 386,
+  "total_signals": 520,
   "top_signals": [
+    {
+      "symbol": "603707.SH",
+      "name": "健友股份",
+      "price": 7.29,
+      "day_blue": 200.0,
+      "week_blue": 95.7
+    },
+    {
+      "symbol": "300039.SZ",
+      "name": "上海凯宝",
+      "price": 4.49,
+      "day_blue": 200.0,
+      "week_blue": 125.0
+    },
+    {
+      "symbol": "003002.SZ",
+      "name": "壶化股份",
+      "price": 21.39,
+      "day_blue": 200.0,
+      "week_blue": 110.5
+    },
+    {
+      "symbol": "002661.SZ",
+      "name": "克明食品",
+      "price": 7.45,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
+    {
+      "symbol": "002385.SZ",
+      "name": "大北农",
+      "price": 2.98,
+      "day_blue": 200.0,
+      "week_blue": 144.9
+    },
+    {
+      "symbol": "001219.SZ",
+      "name": "青岛食品",
+      "price": 12.52,
+      "day_blue": 200.0,
+      "week_blue": 101.6
+    },
+    {
+      "symbol": "000803.SZ",
+      "name": "山高环能",
+      "price": 7.14,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "000698.SZ",
+      "name": "ST沈化",
+      "price": 3.24,
+      "day_blue": 200.0,
+      "week_blue": 93.0
+    },
     {
       "symbol": "920089.BJ",
       "name": "禾昌聚合",
@@ -51,62 +107,6 @@
       "price": 8.31,
       "day_blue": 200.0,
       "week_blue": 141.7
-    },
-    {
-      "symbol": "002550.SZ",
-      "name": "千红制药",
-      "price": 5.82,
-      "day_blue": 200.0,
-      "week_blue": 101.2
-    },
-    {
-      "symbol": "002543.SZ",
-      "name": "万和电气",
-      "price": 6.74,
-      "day_blue": 200.0,
-      "week_blue": 193.7
-    },
-    {
-      "symbol": "688137.SH",
-      "name": "近岸蛋白",
-      "price": 35.36,
-      "day_blue": 200.0,
-      "week_blue": 101.3
-    },
-    {
-      "symbol": "603238.SH",
-      "name": "诺邦股份",
-      "price": 12.28,
-      "day_blue": 200.0,
-      "week_blue": 142.6
-    },
-    {
-      "symbol": "600793.SH",
-      "name": "宜宾纸业",
-      "price": 13.3,
-      "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "600620.SH",
-      "name": "天宸股份",
-      "price": 4.36,
-      "day_blue": 200.0,
-      "week_blue": 113.0
-    },
-    {
-      "symbol": "300485.SZ",
-      "name": "赛升药业",
-      "price": 8.29,
-      "day_blue": 200.0,
-      "week_blue": 95.7
-    },
-    {
-      "symbol": "002790.SZ",
-      "name": "瑞尔特",
-      "price": 5.95,
-      "day_blue": 200.0,
-      "week_blue": 149.8
     }
   ]
 }
