@@ -1,112 +1,112 @@
 {
-  "date": "2026-06-17",
+  "date": "2026-06-18",
   "market": "CN",
-  "total_signals": 1060,
+  "total_signals": 1527,
   "top_signals": [
+    {
+      "symbol": "920187.BJ",
+      "name": "",
+      "price": 20.08,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
+    {
+      "symbol": "920183.BJ",
+      "name": "",
+      "price": 33.6,
+      "day_blue": 200.0,
+      "week_blue": 200.0
+    },
     {
       "symbol": "920168.BJ",
       "name": "",
-      "price": 17.69,
+      "price": 17.33,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
       "symbol": "920159.BJ",
       "name": "",
-      "price": 31.55,
+      "price": 30.48,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
       "symbol": "920925.BJ",
       "name": "锦好医疗",
-      "price": 11.92,
+      "price": 11.55,
       "day_blue": 200.0,
       "week_blue": 199.6
     },
     {
+      "symbol": "920906.BJ",
+      "name": "舜宇精工",
+      "price": 18.76,
+      "day_blue": 200.0,
+      "week_blue": 165.2
+    },
+    {
       "symbol": "920819.BJ",
       "name": "颖泰生物",
-      "price": 2.84,
+      "price": 2.78,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
-      "symbol": "920089.BJ",
-      "name": "禾昌聚合",
-      "price": 11.2,
+      "symbol": "920826.BJ",
+      "name": "盖世食品",
+      "price": 8.81,
       "day_blue": 200.0,
-      "week_blue": 181.1
+      "week_blue": 121.4
     },
     {
-      "symbol": "920076.BJ",
-      "name": "国亮新材",
-      "price": 12.73,
+      "symbol": "920802.BJ",
+      "name": "保丽洁",
+      "price": 11.31,
       "day_blue": 200.0,
-      "week_blue": 0.0
+      "week_blue": 160.0
+    },
+    {
+      "symbol": "920781.BJ",
+      "name": "瑞奇智造",
+      "price": 5.83,
+      "day_blue": 200.0,
+      "week_blue": 114.9
+    },
+    {
+      "symbol": "920089.BJ",
+      "name": "禾昌聚合",
+      "price": 10.95,
+      "day_blue": 200.0,
+      "week_blue": 181.3
+    },
+    {
+      "symbol": "920086.BJ",
+      "name": "科马材料",
+      "price": 25.7,
+      "day_blue": 200.0,
+      "week_blue": 200.0
     },
     {
       "symbol": "920050.BJ",
       "name": "N爱舍伦",
-      "price": 27.61,
+      "price": 27.68,
       "day_blue": 200.0,
       "week_blue": 200.0
     },
     {
       "symbol": "688606.SH",
       "name": "奥泰生物",
-      "price": 45.2,
+      "price": 44.42,
       "day_blue": 200.0,
-      "week_blue": 165.3
+      "week_blue": 165.5
     },
     {
-      "symbol": "688136.SH",
-      "name": "科兴制药",
-      "price": 18.12,
+      "symbol": "688373.SH",
+      "name": "盟科药业-U",
+      "price": 4.63,
       "day_blue": 200.0,
-      "week_blue": 97.4
-    },
-    {
-      "symbol": "605500.SH",
-      "name": "森林包装",
-      "price": 6.65,
-      "day_blue": 200.0,
-      "week_blue": 97.4
-    },
-    {
-      "symbol": "603839.SH",
-      "name": "安正时尚",
-      "price": 6.2,
-      "day_blue": 200.0,
-      "week_blue": 146.8
-    },
-    {
-      "symbol": "603766.SH",
-      "name": "隆鑫通用",
-      "price": 11.42,
-      "day_blue": 200.0,
-      "week_blue": 97.7
-    },
-    {
-      "symbol": "603707.SH",
-      "name": "健友股份",
-      "price": 7.16,
-      "day_blue": 200.0,
-      "week_blue": 95.8
-    },
-    {
-      "symbol": "603639.SH",
-      "name": "海利尔",
-      "price": 10.5,
-      "day_blue": 200.0,
-      "week_blue": 114.1
-    },
-    {
-      "symbol": "603277.SH",
-      "name": "银都股份",
-      "price": 10.25,
-      "day_blue": 200.0,
-      "week_blue": 129.0
+      "week_blue": 105.0
     }
   ]
 }
