@@ -1,8 +1,15 @@
 {
   "date": "2026-06-18",
   "market": "CN",
-  "total_signals": 1556,
+  "total_signals": 1605,
   "top_signals": [
+    {
+      "symbol": "920174.BJ",
+      "name": "五新隧装",
+      "price": 34.14,
+      "day_blue": 200.0,
+      "week_blue": 82.7
+    },
     {
       "symbol": "301515.SZ",
       "name": "港通医疗",
@@ -100,13 +107,6 @@
       "price": 27.68,
       "day_blue": 200.0,
       "week_blue": 200.0
-    },
-    {
-      "symbol": "688606.SH",
-      "name": "奥泰生物",
-      "price": 44.42,
-      "day_blue": 200.0,
-      "week_blue": 165.5
     }
   ]
 }
