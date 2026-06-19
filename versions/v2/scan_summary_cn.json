@@ -1,8 +1,15 @@
 {
   "date": "2026-06-18",
   "market": "CN",
-  "total_signals": 1527,
+  "total_signals": 1556,
   "top_signals": [
+    {
+      "symbol": "301515.SZ",
+      "name": "港通医疗",
+      "price": 19.39,
+      "day_blue": 200.0,
+      "week_blue": 0.0
+    },
     {
       "symbol": "920187.BJ",
       "name": "",
@@ -100,13 +107,6 @@
       "price": 44.42,
       "day_blue": 200.0,
       "week_blue": 165.5
-    },
-    {
-      "symbol": "688373.SH",
-      "name": "盟科药业-U",
-      "price": 4.63,
-      "day_blue": 200.0,
-      "week_blue": 105.0
     }
   ]
 }
