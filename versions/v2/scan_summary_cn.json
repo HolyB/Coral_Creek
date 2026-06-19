@@ -1,8 +1,22 @@
 {
   "date": "2026-06-18",
   "market": "CN",
-  "total_signals": 1605,
+  "total_signals": 1621,
   "top_signals": [
+    {
+      "symbol": "920663.BJ",
+      "name": "明阳科技",
+      "price": 13.6,
+      "day_blue": 200.0,
+      "week_blue": 94.8
+    },
+    {
+      "symbol": "920651.BJ",
+      "name": "天罡股份",
+      "price": 20.51,
+      "day_blue": 200.0,
+      "week_blue": 158.8
+    },
     {
       "symbol": "920174.BJ",
       "name": "五新隧装",
@@ -93,20 +107,6 @@
       "price": 10.95,
       "day_blue": 200.0,
       "week_blue": 181.3
-    },
-    {
-      "symbol": "920086.BJ",
-      "name": "科马材料",
-      "price": 25.7,
-      "day_blue": 200.0,
-      "week_blue": 200.0
-    },
-    {
-      "symbol": "920050.BJ",
-      "name": "N爱舍伦",
-      "price": 27.68,
-      "day_blue": 200.0,
-      "week_blue": 200.0
     }
   ]
 }
