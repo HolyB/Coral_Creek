@@ -1,9 +1,6 @@
 name: Baseline Scan (CN)
 
 on:
-  schedule:
-    - cron: '0 1 * * 1-5'   # 盘前: 北京 9:00 AM = UTC 01:00
-    - cron: '30 9 * * 1-5'  # 盘后: 北京 17:30 = UTC 09:30
   workflow_dispatch:
     inputs:
       limit:

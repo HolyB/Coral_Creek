@@ -1,9 +1,6 @@
 name: Strategy Crawler & Auto Backtest
 
 on:
-  schedule:
-    # 每天 UTC 7:00 (北京 15:00，美东 3:00) 
-    - cron: '0 7 * * 1-5'
   workflow_dispatch:
 
 env:

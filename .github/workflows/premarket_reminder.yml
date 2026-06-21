@@ -1,11 +1,6 @@
 name: Pre-Market ML Picks Reminder
 
 on:
-  schedule:
-    # US: 美东 8:30 AM = UTC 13:30 (盘前提醒)
-    - cron: '30 13 * * 1-5'
-    # CN: 北京 8:30 AM = UTC 00:30 (盘前提醒)
-    - cron: '30 0 * * 1-5'
   workflow_dispatch:
     inputs:
       market:

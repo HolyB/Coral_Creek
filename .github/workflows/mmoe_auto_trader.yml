@@ -1,9 +1,6 @@
 name: MMoE Auto-Trader (Paper)
 
 on:
-  schedule:
-    # 美股收盘后30分钟 (UTC 21:00 = ET 16:00)
-    - cron: '0 21 * * 1-5'
   workflow_dispatch:
     inputs:
       mode:

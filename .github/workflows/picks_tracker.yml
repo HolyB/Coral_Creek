@@ -1,9 +1,6 @@
 name: Daily Picks Tracker
 
 on:
-  schedule:
-    # 每日收盘后运行 (UTC 21:00 = 美股收盘后)
-    - cron: '0 21 * * 1-5'  # 周一到周五
   workflow_dispatch:  # 手动触发
 
 permissions:

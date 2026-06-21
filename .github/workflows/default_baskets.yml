@@ -1,9 +1,6 @@
 name: Default Baskets Auto Execute
 
 on:
-  schedule:
-    - cron: "20 14 * * 1-5" # US market routine
-    - cron: "20 2 * * 1-5"  # CN market routine
   workflow_dispatch:
     inputs:
       market:

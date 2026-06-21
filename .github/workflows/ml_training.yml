@@ -1,9 +1,6 @@
 name: ML Model Training
 
 on:
-  schedule:
-    # 每周日凌晨3点 (UTC) = 北京时间周日 11:00 AM
-    - cron: '0 3 * * 0'
   workflow_dispatch:  # 允许手动触发
     inputs:
       days_back:
